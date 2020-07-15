@@ -1,5 +1,6 @@
 #include "rcutils/logging_macros.h"
 #include "rmw/error_handling.h"
+#include "rmw/get_service_names_and_types.h"
 #include "rmw/rmw.h"
 #include "rmw/names_and_types.h"
 #include "rmw/topic_endpoint_info_array.h"
