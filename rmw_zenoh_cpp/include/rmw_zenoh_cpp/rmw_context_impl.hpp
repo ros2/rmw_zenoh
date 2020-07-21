@@ -8,8 +8,6 @@ extern "C"
 
 struct rmw_context_impl_t
 {
-  /// Test data
-  int context_data;
   ZNSession * session;
 };
 
