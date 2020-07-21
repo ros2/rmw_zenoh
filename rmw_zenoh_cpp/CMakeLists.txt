@@ -27,7 +27,7 @@ add_library(rmw_zenoh_cpp
   src/rmw_graph_info.cpp
   src/rmw_gids.cpp
   src/rmw_guard_conditions.cpp
-  src/rmw_implemtation_info.cpp
+  src/rmw_implementation_info.cpp
   src/rmw_init.cpp
   src/rmw_init_options.cpp
   src/rmw_logging.cpp
