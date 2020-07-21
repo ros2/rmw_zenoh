@@ -23,6 +23,8 @@ rmw_ret_t
 rmw_init_options_init(rmw_init_options_t * init_options,
                       rcutils_allocator_t allocator)
 {
+  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_init_options_init");
+
   RMW_CHECK_ARGUMENT_FOR_NULL(init_options, RMW_RET_INVALID_ARGUMENT);
   RCUTILS_CHECK_ALLOCATOR(&allocator, return RMW_RET_INVALID_ARGUMENT);
 
@@ -66,7 +68,6 @@ rmw_init_options_init(rmw_init_options_t * init_options,
   // init_options->enclave = NULL;
   // init_options->security_options = rmw_get_default_security_options();
 
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_init_options_init");
   return RMW_RET_OK;
 }
 
@@ -75,6 +76,8 @@ rmw_init_options_init(rmw_init_options_t * init_options,
 rmw_ret_t
 rmw_init_options_copy(const rmw_init_options_t * src, rmw_init_options_t * dst)
 {
+  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_init_options_copy");
+
   RMW_CHECK_ARGUMENT_FOR_NULL(src, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(dst, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
@@ -101,6 +104,8 @@ rmw_init_options_copy(const rmw_init_options_t * src, rmw_init_options_t * dst)
 rmw_ret_t
 rmw_init_options_fini(rmw_init_options_t * init_options)
 {
+  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_init_options_fini");
+
   assert(eclipse_zenoh_identifier != NULL);
   RMW_CHECK_ARGUMENT_FOR_NULL(init_options, RMW_RET_INVALID_ARGUMENT);
   if (NULL == init_options->implementation_identifier) {
