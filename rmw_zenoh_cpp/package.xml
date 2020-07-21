@@ -16,9 +16,11 @@
 
   <buildtool_export_depend>ament_cmake</buildtool_export_depend>
 
+  <build_depend>zenoh_ament</build_depend>
   <build_depend>rcutils</build_depend>
   <build_depend>rmw</build_depend>
 
+  <exec_depend>zenoh_ament</exec_depend>
   <exec_depend>rcutils</exec_depend>
   <exec_depend>rmw</exec_depend>
 

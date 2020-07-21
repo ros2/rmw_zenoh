@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.5)
 project(rmw_zenoh_cpp)
 
 if(NOT CMAKE_CXX_STANDARD)
-  set(CMAKE_CXX_STANDARD 14)
+  set(CMAKE _CXX_STANDARD 14)
 endif()
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -12,6 +12,8 @@ find_package(ament_cmake_ros REQUIRED)
 
 find_package(rcutils REQUIRED)
 find_package(rmw REQUIRED)
+
+find_package(zenoh_ament REQUIRED)
 
 include_directories(include)
 
@@ -37,8 +39,9 @@ add_library(rmw_zenoh_cpp
   src/rmw_wait_sets.cpp
 )
 ament_target_dependencies(rmw_zenoh_cpp
-  "rcutils"
-  "rmw"
+  rcutils
+  rmw
+  zenoh_ament
 )
 
 configure_rmw_library(rmw_zenoh_cpp)
@@ -51,10 +54,12 @@ ament_export_include_directories(include)
 ament_export_libraries(rmw_zenoh_cpp)
 ament_export_dependencies(rcutils)
 ament_export_dependencies(rmw)
+ament_export_dependencies(zenoh_ament)
 
 register_rmw_implementation(
   "c:rosidl_typesupport_c"
-  "cpp:rosidl_typesupport_cpp")
+  "cpp:rosidl_typesupport_cpp"
+)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
