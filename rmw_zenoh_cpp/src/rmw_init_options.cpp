@@ -24,7 +24,6 @@ int strcicmp(char const *a, char const *b)
 
 extern "C"
 {
-
 /// INIT OPTIONS ===============================================================
 // Initialize given init_options with the default values
 // and implementation specific values.
@@ -121,15 +120,15 @@ rmw_init_options_copy(const rmw_init_options_t * src, rmw_init_options_t * dst)
 
   RMW_CHECK_ARGUMENT_FOR_NULL(src, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(dst, RMW_RET_INVALID_ARGUMENT);
+  if (nullptr != dst->implementation_identifier) {
+    RMW_SET_ERROR_MSG("expected zero-initialized dst");
+    return RMW_RET_INVALID_ARGUMENT;
+  }
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     src,
     src->implementation_identifier,
     eclipse_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
-  if (NULL != dst->implementation_identifier) {
-    RMW_SET_ERROR_MSG("expected zero-initialized dst");
-    return RMW_RET_INVALID_ARGUMENT;
-  }
 
   const rcutils_allocator_t * allocator = &src->allocator;
   RCUTILS_CHECK_ALLOCATOR(allocator, return RMW_RET_INVALID_ARGUMENT);
