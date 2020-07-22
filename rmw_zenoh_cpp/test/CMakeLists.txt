@@ -1,0 +1,19 @@
+find_package(ament_cmake_gtest REQUIRED)
+find_package(osrf_testing_tools_cpp REQUIRED)
+
+find_package(rmw_implementation REQUIRED)
+find_package(rmw_implementation_cmake REQUIRED)
+
+ament_add_gtest(test_init_options test_init_options.cpp)
+ament_target_dependencies(test_init_options osrf_testing_tools_cpp rcutils rmw rmw_implementation)
+
+ament_add_gtest(test_init_shutdown test_init_shutdown.cpp)
+ament_target_dependencies(test_init_shutdown osrf_testing_tools_cpp rcutils rmw rmw_implementation)
+
+ament_add_gtest(test_create_destroy_node test_create_destroy_node.cpp)
+ament_target_dependencies(test_create_destroy_node
+  osrf_testing_tools_cpp rcutils rmw rmw_implementation
+)
+
+ament_add_gtest(test_publisher test_publisher.cpp)
+ament_target_dependencies(test_publisher rcutils rmw rmw_implementation test_msgs)

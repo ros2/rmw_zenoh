@@ -24,6 +24,8 @@
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
+  <test_depend>osrf_testing_tools_cpp</test_depend>
+  <test_depend>test_msgs</test_depend>
 
   <member_of_group>rmw_implementation_packages</member_of_group>
 
