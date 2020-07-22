@@ -9,6 +9,7 @@ extern "C"
 struct rmw_context_impl_t
 {
   ZNSession * session;
+  bool is_shutdown;
 };
 
 #endif // RMW_ZENOH_CPP__RMW_CONTEXT_IMPL_HPP_

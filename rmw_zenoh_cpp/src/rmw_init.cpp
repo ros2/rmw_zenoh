@@ -99,6 +99,7 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
     return RMW_RET_ERROR;
   } else {
     context_impl->session = s;
+    context_impl->is_shutdown = false;
   }
 
   // CLEANUP IF PASSED =========================================================
@@ -126,6 +127,8 @@ rmw_shutdown(rmw_context_t * context)
 
   // Close Zenoh session
   zn_close(context->impl->session);
+  context->impl->is_shutdown = true;
+
   return RMW_RET_OK;
 }
 
