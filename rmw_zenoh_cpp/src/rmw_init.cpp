@@ -23,8 +23,7 @@ extern "C"
 // Starts a new Zenoh session and configures it according to the init options
 // with the following environment variables:
 // RMW_ZENOH_SESSION_LOCATOR: Session TCP locator to use
-// RMW_ZENOH_USE_CLIENT_MODE: If empty or 0, uses PEER_MODE, otherwise,
-//                            uses CLIENT_MODE
+// RMW_ZENOH_MODE: Lets you set the session to be in CLIENT, ROUTER, or PEER mode (defaults to PEER)
 rmw_ret_t
 rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
 {
