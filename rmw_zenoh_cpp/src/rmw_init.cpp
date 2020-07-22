@@ -130,12 +130,7 @@ rmw_shutdown(rmw_context_t * context)
 }
 
 /// FINALIZE CONTEXT ===========================================================
-// Finalize a context.
-//
-// NOTE(CH3): It looks like the standard use of this function is for checking
-// and then resetting contexts to zero?? The docs say it is for finalizing.
-//
-// I don't understand why, so I just commented out the zeroing here..
+// Finalize a context. (Cleanup and deallocation.)
 rmw_ret_t
 rmw_context_fini(rmw_context_t * context)
 {
