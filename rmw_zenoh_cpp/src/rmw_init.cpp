@@ -28,6 +28,28 @@ rmw_ret_t
 rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
 {
   RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_init");
+  // Check context
+  RCUTILS_CHECK_ARGUMENT_FOR_NULL(context, RMW_RET_INVALID_ARGUMENT);
+  if (nullptr != context->implementation_identifier) {
+    RMW_SET_ERROR_MSG("expected a zero-initialized context");
+    return RMW_RET_INVALID_ARGUMENT;
+  }
+
+  // Check options
+  RCUTILS_CHECK_ARGUMENT_FOR_NULL(options, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    options->implementation_identifier,
+    "expected initialized init options",
+    return RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    options->enclave,
+    "expected non-null enclave",
+    return RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    options,
+    options->implementation_identifier,
+    eclipse_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   // CLEANUP DEFINITIONS =======================================================
   // Store a pointer to the context with an exit handler that zero inits the
@@ -39,21 +61,6 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
       *context = rmw_get_zero_initialized_context();
     });
   rmw_ret_t ret = RMW_RET_OK;
-
-  // ASSERTIONS ================================================================
-  RCUTILS_CHECK_ARGUMENT_FOR_NULL(context, RMW_RET_INVALID_ARGUMENT);
-
-  RCUTILS_CHECK_ARGUMENT_FOR_NULL(options, RMW_RET_INVALID_ARGUMENT);
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
-    options,
-    options->implementation_identifier,
-    eclipse_zenoh_identifier,
-    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
-
-  if (nullptr != context->implementation_identifier) {
-    RMW_SET_ERROR_MSG("expected a zero-initialized context");
-    return RMW_RET_INVALID_ARGUMENT;
-  }
 
   // INIT CONTEXT ==============================================================
   context->instance_id = options->instance_id;
@@ -119,6 +126,10 @@ rmw_shutdown(rmw_context_t * context)
 
   // Assertions
   RCUTILS_CHECK_ARGUMENT_FOR_NULL(context, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    context->impl,
+    "expected initialized context",
+    return RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     context,
     context->implementation_identifier,
@@ -140,11 +151,19 @@ rmw_context_fini(rmw_context_t * context)
   RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_context_fini");
 
   RCUTILS_CHECK_ARGUMENT_FOR_NULL(context, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    context->impl,
+    "expected initialized context",
+    return RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     context,
     context->implementation_identifier,
     eclipse_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  if (!context->impl->is_shutdown) {
+    RCUTILS_SET_ERROR_MSG("context has not been shutdown");
+    return RMW_RET_INVALID_ARGUMENT;
+  }
 
   rcutils_allocator_t * allocator = &context->options.allocator;
 
