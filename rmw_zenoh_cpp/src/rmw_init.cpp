@@ -31,6 +31,8 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_init");
 
   // CLEANUP DEFINITIONS =======================================================
+  // Store a pointer to the context with an exit handler that zero inits the
+  // context if any initialization steps fail
   std::unique_ptr<rmw_context_t, void (*)(rmw_context_t *)> clean_when_fail(
     context,
     [](rmw_context_t * context)
@@ -49,7 +51,7 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
     eclipse_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
-  if (NULL != context->implementation_identifier) {
+  if (nullptr != context->implementation_identifier) {
     RMW_SET_ERROR_MSG("expected a zero-initialized context");
     return RMW_RET_INVALID_ARGUMENT;
   }
@@ -79,12 +81,21 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   }
 
   // Open configured Zenoh session, then assign it to the context
-  int SESSION_MODE = context->options.impl->client_mode ? CLIENT_MODE : PEER_MODE;
+  int SESSION_MODE;
+
+  if (strcmp(context->options.impl->mode, "CLIENT") == 0) {
+    SESSION_MODE = CLIENT_MODE;
+  } else if (strcmp(context->options.impl->mode, "CLIENT") == 0) {
+    SESSION_MODE = ROUTER_MODE;
+  } else {
+    SESSION_MODE = PEER_MODE;
+  }
+
   ZNSession * s = zn_open(SESSION_MODE,
                           context->options.impl->session_locator,
                           0);
 
-  if (s == 0) {
+  if (s == nullptr) {
     RMW_SET_ERROR_MSG("failed to create Zenoh session when starting context");
     return RMW_RET_ERROR;
   } else {
@@ -138,8 +149,14 @@ rmw_context_fini(rmw_context_t * context)
     eclipse_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
-  // delete context->impl;
-  // *context = rmw_get_zero_initialized_context();
+  rcutils_allocator_t * allocator = &context->options.allocator;
+
+  // Deallocate implementation specific members
+  allocator->deallocate(context->impl->session, allocator->state);
+  delete context->impl;
+
+  // Reset context
+  *context = rmw_get_zero_initialized_context();
 
   return RMW_RET_OK;
 }
