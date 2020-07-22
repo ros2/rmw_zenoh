@@ -12,7 +12,7 @@
 #include "rmw_zenoh_cpp/rmw_init_options_impl.hpp"
 #include "rmw_zenoh_cpp/identifier.hpp"
 
-// Helper case-insensitive string comparison
+// Helper case-insensitive string comparison function
 int strcicmp(char const *a, char const *b)
 {
     for (;; a++, b++) {
