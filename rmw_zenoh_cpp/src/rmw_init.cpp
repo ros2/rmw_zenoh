@@ -2,12 +2,12 @@
 
 #include <cstring>
 
-#include "rcutils/logging_macros.h"
-
 #include "rmw/impl/cpp/macros.hpp"
 #include "rmw/error_handling.h"
 #include "rmw/rmw.h"
 #include "rmw/init.h"
+
+#include "rcutils/logging_macros.h"
 
 #include "rmw_zenoh_cpp/identifier.hpp"
 #include "rmw_zenoh_cpp/rmw_context_impl.hpp"
