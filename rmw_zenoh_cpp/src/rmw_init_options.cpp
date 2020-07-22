@@ -28,6 +28,8 @@ extern "C"
 // Initialize given init_options with the default values
 // and implementation specific values.
 //
+// rmw_init_options_t Doc: http://docs.ros2.org/latest/api/rmw/structrmw__init__options__t.html
+//
 // Note: You should call rmw_get_zero_initialized_init_options()
 // to get a zero initialized rmw_init_options_t struct first
 rmw_ret_t

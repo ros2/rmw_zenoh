@@ -20,10 +20,13 @@ extern "C"
 /// INIT CONTEXT ===============================================================
 // Initialize the middleware with the given options, and yielding an context.
 //
+// rmw_context_t Doc: http://docs.ros2.org/latest/api/rmw/structrmw__context__t.html
+//
 // Starts a new Zenoh session and configures it according to the init options
 // with the following environment variables:
-// RMW_ZENOH_SESSION_LOCATOR: Session TCP locator to use
-// RMW_ZENOH_MODE: Lets you set the session to be in CLIENT, ROUTER, or PEER mode (defaults to PEER)
+//  - RMW_ZENOH_SESSION_LOCATOR: Session TCP locator to use
+//  - RMW_ZENOH_MODE: Lets you set the session to be in CLIENT, ROUTER, or PEER mode
+//                    (defaults to PEER)
 rmw_ret_t
 rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
 {
