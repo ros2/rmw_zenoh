@@ -120,6 +120,10 @@ rmw_init_options_copy(const rmw_init_options_t * src, rmw_init_options_t * dst)
 
   RMW_CHECK_ARGUMENT_FOR_NULL(src, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(dst, RMW_RET_INVALID_ARGUMENT);
+  if (nullptr == src->implementation_identifier) {
+    RMW_SET_ERROR_MSG("expected initialized src");
+    return RMW_RET_INVALID_ARGUMENT;
+  }
   if (nullptr != dst->implementation_identifier) {
     RMW_SET_ERROR_MSG("expected zero-initialized dst");
     return RMW_RET_INVALID_ARGUMENT;
@@ -130,25 +134,29 @@ rmw_init_options_copy(const rmw_init_options_t * src, rmw_init_options_t * dst)
     eclipse_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
-  const rcutils_allocator_t * allocator = &src->allocator;
-  RCUTILS_CHECK_ALLOCATOR(allocator, return RMW_RET_INVALID_ARGUMENT);
+  const rcutils_allocator_t allocator = src->allocator;
+  RCUTILS_CHECK_ALLOCATOR(&allocator, return RMW_RET_INVALID_ARGUMENT);
 
-  // Copy dynamically allocated strings
+  // Deep copy dynamically allocated strings
   rmw_init_options_t tmp = *src;
 
-  tmp.enclave = rcutils_strdup(tmp.enclave, *allocator);
+  tmp.enclave = rcutils_strdup(src->enclave, allocator);
   if (nullptr != src->enclave && nullptr == tmp.enclave) {
     RMW_SET_ERROR_MSG("failed to allocate options enclave");
     return RMW_RET_BAD_ALLOC;
   }
 
-  tmp.impl->session_locator = rcutils_strdup(tmp.impl->session_locator, *allocator);
+  tmp.impl = static_cast<rmw_init_options_impl_t *>(  // Allocate new impl member for tmp
+    allocator.allocate(sizeof(rmw_init_options_impl_t), allocator.state)
+  );
+
+  tmp.impl->session_locator = rcutils_strdup(src->impl->session_locator, allocator);
   if (nullptr != src->impl->session_locator && nullptr == tmp.impl->session_locator) {
     RMW_SET_ERROR_MSG("failed to allocate RMW_ZENOH_SESSION_LOCATOR");
     return RMW_RET_BAD_ALLOC;
   }
 
-  tmp.impl->mode = rcutils_strdup(tmp.impl->mode, *allocator);
+  tmp.impl->mode = rcutils_strdup(src->impl->mode, allocator);
   if (nullptr != src->impl->mode && nullptr == tmp.impl->mode) {
     RMW_SET_ERROR_MSG("failed to allocate RMW_ZENOH_MODE");
     return RMW_RET_BAD_ALLOC;
@@ -159,7 +167,7 @@ rmw_init_options_copy(const rmw_init_options_t * src, rmw_init_options_t * dst)
   // rmw_ret_t ret =
   //   rmw_security_options_copy(&src->security_options, allocator, &tmp.security_options);
   // if (RMW_RET_OK != ret) {
-  //   allocator->deallocate(tmp.enclave, allocator->state);
+  //   allocator.deallocate(tmp.enclave, allocator.state);
   //   return ret;
   // }
 
@@ -185,12 +193,14 @@ rmw_init_options_fini(rmw_init_options_t * init_options)
     init_options->implementation_identifier,
     eclipse_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
-  rcutils_allocator_t * allocator = &init_options->allocator;
-  RCUTILS_CHECK_ALLOCATOR(allocator, return RMW_RET_INVALID_ARGUMENT);
+  rcutils_allocator_t allocator = init_options->allocator;
+  RCUTILS_CHECK_ALLOCATOR(&allocator, return RMW_RET_INVALID_ARGUMENT);
 
-  allocator->deallocate(init_options->enclave, allocator->state);
-  allocator->deallocate(init_options->impl->session_locator, allocator->state);
-  allocator->deallocate(init_options->impl->mode, allocator->state);
+  allocator.deallocate(init_options->enclave, allocator.state);
+  allocator.deallocate(init_options->impl->session_locator, allocator.state);
+  allocator.deallocate(init_options->impl->mode, allocator.state);
+
+  delete init_options->impl;
 
   *init_options = rmw_get_zero_initialized_init_options();
 
