@@ -148,8 +148,11 @@ rmw_shutdown(rmw_context_t * context)
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   // Close Zenoh session
-  zn_close(context->impl->session);
-  context->impl->is_shutdown = true;
+  if (context->impl->is_shutdown == false)
+  {
+    zn_close(context->impl->session);
+    context->impl->is_shutdown = true;
+  }
 
   return RMW_RET_OK;
 }
