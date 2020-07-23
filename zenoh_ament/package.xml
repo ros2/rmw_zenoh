@@ -4,8 +4,8 @@
   <name>zenoh_ament</name>
   <version>0.0.0</version>
   <description>Ament wrapper package for the zenoh-net ffi</description>
-  <maintainer email="methylDragon@gmail.com">methylDragon</maintainer>
-  <license>TODO: License declaration</license>
+  <maintainer email="brandon@osrfoundation.org">Brandon Ong</maintainer>
+  <license>Apache License 2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
