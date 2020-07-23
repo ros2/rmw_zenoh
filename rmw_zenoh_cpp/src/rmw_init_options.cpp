@@ -136,11 +136,17 @@ rmw_init_options_copy(const rmw_init_options_t * src, rmw_init_options_t * dst)
   RCUTILS_CHECK_ALLOCATOR(&allocator, return RMW_RET_INVALID_ARGUMENT);
 
   // Deep copy dynamically allocated strings
-  rmw_init_options_t tmp = *src;
+  //
+  // NOTE(CH3): Unfortunately we have to make do with these ugly copy pasted calls until
+  // rcpputils::make_scope_exit() gets ported into a ROS2 release
+  //
+  // TODO(CH3): Once it is, replace the repeated deallocate calls with a scope exit handler
+  rmw_init_options_t tmp = *src;  // Copy struct
 
   tmp.enclave = rcutils_strdup(src->enclave, allocator);
   if (nullptr != src->enclave && nullptr == tmp.enclave) {
     RMW_SET_ERROR_MSG("failed to allocate options enclave");
+    allocator.deallocate(tmp.enclave, allocator.state);
     return RMW_RET_BAD_ALLOC;
   }
 
@@ -151,12 +157,21 @@ rmw_init_options_copy(const rmw_init_options_t * src, rmw_init_options_t * dst)
   tmp.impl->session_locator = rcutils_strdup(src->impl->session_locator, allocator);
   if (nullptr != src->impl->session_locator && nullptr == tmp.impl->session_locator) {
     RMW_SET_ERROR_MSG("failed to allocate RMW_ZENOH_SESSION_LOCATOR");
+    allocator.deallocate(tmp.enclave, allocator.state);
+
+    allocator.deallocate(tmp.impl->session_locator, allocator.state);
+    allocator.deallocate(tmp.impl, allocator.state);
     return RMW_RET_BAD_ALLOC;
   }
 
   tmp.impl->mode = rcutils_strdup(src->impl->mode, allocator);
   if (nullptr != src->impl->mode && nullptr == tmp.impl->mode) {
     RMW_SET_ERROR_MSG("failed to allocate RMW_ZENOH_MODE");
+    allocator.deallocate(tmp.enclave, allocator.state);
+
+    allocator.deallocate(tmp.impl->session_locator, allocator.state);
+    allocator.deallocate(tmp.impl->mode, allocator.state);
+    allocator.deallocate(tmp.impl, allocator.state);
     return RMW_RET_BAD_ALLOC;
   }
 
@@ -193,10 +208,10 @@ rmw_init_options_fini(rmw_init_options_t * init_options)
   RCUTILS_CHECK_ALLOCATOR(&allocator, return RMW_RET_INVALID_ARGUMENT);
 
   allocator.deallocate(init_options->enclave, allocator.state);
+
   allocator.deallocate(init_options->impl->session_locator, allocator.state);
   allocator.deallocate(init_options->impl->mode, allocator.state);
-
-  delete init_options->impl;
+  allocator.deallocate(init_options->impl, allocator.state);
 
   *init_options = rmw_get_zero_initialized_init_options();
 
