@@ -55,14 +55,16 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   // CLEANUP DEFINITIONS =======================================================
-  // Store a pointer to the context with an exit handler that zero inits the
+  // Store a pointer to the context with a custom deleter that zero inits the
   // context if any initialization steps fail
   std::unique_ptr<rmw_context_t, void (*)(rmw_context_t *)> clean_when_fail(
     context,
     [](rmw_context_t * context)
     {
       *context = rmw_get_zero_initialized_context();
-    });
+    }
+  );
+
   rmw_ret_t ret = RMW_RET_OK;
 
   // INIT CONTEXT ==============================================================
@@ -168,7 +170,7 @@ rmw_context_fini(rmw_context_t * context)
 
   // Deallocate implementation specific members
   allocator->deallocate(context->impl->session, allocator->state);
-  delete context->impl;
+  allocator->deallocate(context->impl, allocator->state);
 
   // Reset context
   *context = rmw_get_zero_initialized_context();
