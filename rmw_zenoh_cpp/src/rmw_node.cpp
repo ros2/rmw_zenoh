@@ -18,7 +18,16 @@ extern "C"
 {
 
 /// CREATE NODE ================================================================
+// Create a node and return a handle to that node.
+//
 // rmw_node_t Doc: http://docs.ros2.org/latest/api/rmw/structrmw__node__t.html
+//
+// In the case of Zenoh, the only relevant members are name, namespace and implementation
+// identifier.
+//
+// Most likely we will associate a subset of the context session's publishers and subscribers to
+// individual nodes, even though to Zenoh it looks like the session is the one holding on to
+// all of them.
 rmw_node_t *
 rmw_create_node(
   rmw_context_t * context,
@@ -29,7 +38,6 @@ rmw_create_node(
 {
   (void)domain_id;
   (void)localhost_only;
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_create_node");
 
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(context, nullptr);
@@ -71,48 +79,58 @@ rmw_create_node(
     return nullptr;
   }
 
-  // CLEANUP DEFINITIONS =======================================================
-  // Store a pointer to the node with an exit handler that destroys the node if
-  // any initialization steps fail
-  rmw_node_t * node_handle = nullptr;
-  std::unique_ptr<rmw_node_t, void (*)(rmw_node_t *)> clean_when_fail(
-    node_handle,
-    [](rmw_node_t * node_handle)
-    {
-      rmw_destroy_node(node_handle);
-    });
+  // ASSIGN ALLOCATOR ==========================================================
+  rcutils_allocator_t * allocator = &context->options.allocator;
 
   // INIT NODE =================================================================
-  node_handle = rmw_node_allocate();
+  // NOTE(CH3): Unfortunately we have to make do with these ugly copy pasted calls until
+  // rcpputils::make_scope_exit() gets ported into a ROS2 release
+  //
+  // TODO(CH3): Once it is, replace the repeated deallocate calls with a scope exit handler
+  rmw_node_t * node_handle = static_cast<rmw_node_t *>(
+    allocator->allocate(sizeof(rmw_node_t), allocator->state)
+  );
   if (!node_handle) {
     RMW_SET_ERROR_MSG("failed to allocate rmw_node_t");
+    allocator->deallocate(node_handle, allocator->state);
     return nullptr;
   }
 
   // Populate common members
   node_handle->implementation_identifier = eclipse_zenoh_identifier;
 
-  node_handle->name = rcutils_strdup(name, context->options.allocator);
+  node_handle->name = name;  // const char * assignment
   if (!node_handle->name) {
     RMW_SET_ERROR_MSG("failed to allocate node name");
+    allocator->deallocate(node_handle, allocator->state);
     return nullptr;
   }
 
-  node_handle->namespace_ = rcutils_strdup(namespace_, context->options.allocator);
+  node_handle->namespace_ = namespace_;  // const char * assignment
   if (!node_handle->namespace_) {
     RMW_SET_ERROR_MSG("failed to allocate node namespace");
+    allocator->deallocate(node_handle, allocator->state);
     return nullptr;
   }
 
   // POPULATE ZENOH SPECIFIC NODE MEMBERS ======================================
-  std::unique_ptr<rmw_node_impl_t> node_impl(new (std::nothrow) rmw_node_impl_t());
-  if (!node_impl) {
+  node_handle->data = static_cast<rmw_node_impl_t *>(
+    allocator->allocate(sizeof(rmw_node_impl_t), allocator->state)
+  );
+  if (!node_handle->data) {
     RMW_SET_ERROR_MSG("failed to allocate rmw_node_impl_t");
+    allocator->deallocate(node_handle->data, allocator->state);
+    allocator->deallocate(node_handle, allocator->state);
     return nullptr;
+  } else {
+    memset(node_handle->data, 0, sizeof(rmw_node_impl_t));
   }
 
   // NOTE(CH3): Only for DDS
   // node_impl->domain_id_ = domain_id;
+
+  // NOTE(CH3) TODO(CH3): No graph updates are implemented yet
+  // I am not sure how this will work with Zenoh
 
   // TODO(CH3): For when we need to have a guard condition
   // node_impl->graph_guard_condition = rmw_create_guard_condition(context);
@@ -121,17 +139,20 @@ rmw_create_node(
   //   return nullptr;
   // }
 
-  node_handle->data = node_impl.release();
-  clean_when_fail.release();
   return node_handle;
 }
 
 /// DESTROY NODE ===============================================================
+// Finalize a given node handle, reclaim the resources, and deallocate the node handle.
 rmw_ret_t
 rmw_destroy_node(rmw_node_t * node)
 {
   (void)node;
   RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_destroy_node");
+
+  // NOTE(CH3) TODO(CH3): Again, no graph updates are implemented yet
+  // I am not sure how this will work with Zenoh
+
   return RMW_RET_ERROR;
 }
 
