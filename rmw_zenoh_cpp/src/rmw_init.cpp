@@ -85,9 +85,16 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   }
 
   // Create implementation specific context
-  std::unique_ptr<rmw_context_impl_t> context_impl(new (std::nothrow) rmw_context_impl_t());
+  rcutils_allocator_t * allocator = &context->options.allocator;
+
+  rmw_context_impl_t * context_impl = static_cast<rmw_context_impl_t *>(
+    allocator->allocate(sizeof(rmw_context_impl_t), allocator->state)
+  );
+
   if (!context_impl) {
     RMW_SET_ERROR_MSG("failed to allocate context impl");
+    allocator->deallocate(context_impl, allocator->state);
+
     return RMW_RET_BAD_ALLOC;
   }
 
@@ -108,6 +115,7 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
 
   if (s == nullptr) {
     RMW_SET_ERROR_MSG("failed to create Zenoh session when starting context");
+    allocator->deallocate(context_impl, allocator->state);
     return RMW_RET_ERROR;
   } else {
     context_impl->session = s;
@@ -115,7 +123,7 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   }
 
   // CLEANUP IF PASSED =========================================================
-  context->impl = context_impl.release();
+  context->impl = context_impl;
   clean_when_fail.release();
   return RMW_RET_OK;
 }
