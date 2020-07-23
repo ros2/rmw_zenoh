@@ -87,43 +87,50 @@ rmw_create_node(
   // rcpputils::make_scope_exit() gets ported into a ROS2 release
   //
   // TODO(CH3): Once it is, replace the repeated deallocate calls with a scope exit handler
-  rmw_node_t * node_handle = static_cast<rmw_node_t *>(
+  rmw_node_t * node = static_cast<rmw_node_t *>(
     allocator->allocate(sizeof(rmw_node_t), allocator->state)
   );
-  if (!node_handle) {
+  if (!node) {
     RMW_SET_ERROR_MSG("failed to allocate rmw_node_t");
-    allocator->deallocate(node_handle, allocator->state);
+    allocator->deallocate(node, allocator->state);
     return nullptr;
   }
 
   // Populate common members
-  node_handle->implementation_identifier = eclipse_zenoh_identifier;
+  node->implementation_identifier = eclipse_zenoh_identifier;
 
-  node_handle->name = name;  // const char * assignment
-  if (!node_handle->name) {
+  node->name = name;  // const char * assignment
+  if (!node->name) {
     RMW_SET_ERROR_MSG("failed to allocate node name");
-    allocator->deallocate(node_handle, allocator->state);
+    allocator->deallocate(node, allocator->state);
     return nullptr;
   }
 
-  node_handle->namespace_ = namespace_;  // const char * assignment
-  if (!node_handle->namespace_) {
+  node->namespace_ = namespace_;  // const char * assignment
+  if (!node->namespace_) {
     RMW_SET_ERROR_MSG("failed to allocate node namespace");
-    allocator->deallocate(node_handle, allocator->state);
+    allocator->deallocate(node, allocator->state);
+    return nullptr;
+  }
+
+  node->context = context;
+  if (!node->context) {
+    RMW_SET_ERROR_MSG("failed to allocate node context");
+    allocator->deallocate(node, allocator->state);
     return nullptr;
   }
 
   // POPULATE ZENOH SPECIFIC NODE MEMBERS ======================================
-  node_handle->data = static_cast<rmw_node_impl_t *>(
+  node->data = static_cast<rmw_node_impl_t *>(
     allocator->allocate(sizeof(rmw_node_impl_t), allocator->state)
   );
-  if (!node_handle->data) {
+  if (!node->data) {
     RMW_SET_ERROR_MSG("failed to allocate rmw_node_impl_t");
-    allocator->deallocate(node_handle->data, allocator->state);
-    allocator->deallocate(node_handle, allocator->state);
+    allocator->deallocate(node->data, allocator->state);
+    allocator->deallocate(node, allocator->state);
     return nullptr;
   } else {
-    memset(node_handle->data, 0, sizeof(rmw_node_impl_t));
+    memset(node->data, 0, sizeof(rmw_node_impl_t));
   }
 
   // NOTE(CH3): Only for DDS
@@ -139,7 +146,7 @@ rmw_create_node(
   //   return nullptr;
   // }
 
-  return node_handle;
+  return node;
 }
 
 /// DESTROY NODE ===============================================================
@@ -147,13 +154,22 @@ rmw_create_node(
 rmw_ret_t
 rmw_destroy_node(rmw_node_t * node)
 {
-  (void)node;
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_destroy_node");
+  RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    node,
+    node->implementation_identifier,
+    eclipse_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   // NOTE(CH3) TODO(CH3): Again, no graph updates are implemented yet
   // I am not sure how this will work with Zenoh
 
-  return RMW_RET_ERROR;
+  rcutils_allocator_t * allocator = &node->context->options.allocator;
+
+  allocator->deallocate(node->data, allocator->state);
+  allocator->deallocate(node, allocator->state);
+
+  return RMW_RET_OK;
 }
 
 } // extern "C"
