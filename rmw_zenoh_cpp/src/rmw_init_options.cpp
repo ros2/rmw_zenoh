@@ -130,7 +130,8 @@ rmw_init_options_copy(const rmw_init_options_t * src, rmw_init_options_t * dst)
     src,
     src->implementation_identifier,
     eclipse_zenoh_identifier,
-    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION
+  );
 
   const rcutils_allocator_t allocator = src->allocator;
   RCUTILS_CHECK_ALLOCATOR(&allocator, return RMW_RET_INVALID_ARGUMENT);
@@ -203,7 +204,8 @@ rmw_init_options_fini(rmw_init_options_t * init_options)
     init_options,
     init_options->implementation_identifier,
     eclipse_zenoh_identifier,
-    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION
+  );
   rcutils_allocator_t allocator = init_options->allocator;
   RCUTILS_CHECK_ALLOCATOR(&allocator, return RMW_RET_INVALID_ARGUMENT);
 

@@ -43,16 +43,19 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   RMW_CHECK_FOR_NULL_WITH_MSG(
     options->implementation_identifier,
     "expected initialized init options",
-    return RMW_RET_INVALID_ARGUMENT);
+    return RMW_RET_INVALID_ARGUMENT
+  );
   RMW_CHECK_FOR_NULL_WITH_MSG(
     options->enclave,
     "expected non-null enclave",
-    return RMW_RET_INVALID_ARGUMENT);
+    return RMW_RET_INVALID_ARGUMENT
+  );
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     options,
     options->implementation_identifier,
     eclipse_zenoh_identifier,
-    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION
+  );
 
   // CLEANUP DEFINITIONS =======================================================
   // Store a pointer to the context with a custom deleter that zero inits the
@@ -140,12 +143,14 @@ rmw_shutdown(rmw_context_t * context)
   RMW_CHECK_FOR_NULL_WITH_MSG(
     context->impl,
     "expected initialized context",
-    return RMW_RET_INVALID_ARGUMENT);
+    return RMW_RET_INVALID_ARGUMENT
+  );
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     context,
     context->implementation_identifier,
     eclipse_zenoh_identifier,
-    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION
+  );
 
   // Close Zenoh session
   if (context->impl->is_shutdown == false)
@@ -166,12 +171,14 @@ rmw_context_fini(rmw_context_t * context)
   RMW_CHECK_FOR_NULL_WITH_MSG(
     context->impl,
     "expected initialized context",
-    return RMW_RET_INVALID_ARGUMENT);
+    return RMW_RET_INVALID_ARGUMENT
+  );
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     context,
     context->implementation_identifier,
     eclipse_zenoh_identifier,
-    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION
+  );
   if (!context->impl->is_shutdown) {
     RCUTILS_SET_ERROR_MSG("context has not been shutdown");
     return RMW_RET_INVALID_ARGUMENT;
