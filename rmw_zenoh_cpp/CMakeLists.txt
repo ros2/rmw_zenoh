@@ -44,6 +44,8 @@ add_library(rmw_zenoh_cpp
   src/rmw_services.cpp
   src/rmw_subscriber.cpp
   src/rmw_wait_sets.cpp
+
+  src/type_support_common.cpp
 )
 target_link_libraries(rmw_zenoh_cpp
   fastcdr
