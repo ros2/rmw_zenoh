@@ -16,11 +16,9 @@
 
   <buildtool_export_depend>ament_cmake</buildtool_export_depend>
 
-  <build_depend>rcutils</build_depend>
-  <build_depend>rmw</build_depend>
-
-  <exec_depend>rcutils</exec_depend>
-  <exec_depend>rmw</exec_depend>
+  <depend>zenoh_ament</depend>
+  <depend>rcutils</depend>
+  <depend>rmw</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

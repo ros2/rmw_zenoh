@@ -13,6 +13,8 @@ find_package(ament_cmake_ros REQUIRED)
 find_package(rcutils REQUIRED)
 find_package(rmw REQUIRED)
 
+find_package(zenoh_ament REQUIRED)
+
 include_directories(include)
 
 add_library(rmw_zenoh_cpp
@@ -25,7 +27,7 @@ add_library(rmw_zenoh_cpp
   src/rmw_graph_info.cpp
   src/rmw_gids.cpp
   src/rmw_guard_conditions.cpp
-  src/rmw_implemtation_info.cpp
+  src/rmw_implementation_info.cpp
   src/rmw_init.cpp
   src/rmw_init_options.cpp
   src/rmw_logging.cpp
@@ -37,8 +39,9 @@ add_library(rmw_zenoh_cpp
   src/rmw_wait_sets.cpp
 )
 ament_target_dependencies(rmw_zenoh_cpp
-  "rcutils"
-  "rmw"
+  rcutils
+  rmw
+  zenoh_ament
 )
 
 configure_rmw_library(rmw_zenoh_cpp)
@@ -51,10 +54,12 @@ ament_export_include_directories(include)
 ament_export_libraries(rmw_zenoh_cpp)
 ament_export_dependencies(rcutils)
 ament_export_dependencies(rmw)
+ament_export_dependencies(zenoh_ament)
 
 register_rmw_implementation(
   "c:rosidl_typesupport_c"
-  "cpp:rosidl_typesupport_cpp")
+  "cpp:rosidl_typesupport_cpp"
+)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
