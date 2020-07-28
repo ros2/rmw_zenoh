@@ -1,4 +1,6 @@
 // Doc: http://docs.ros2.org/latest/api/rmw/rmw_8h.html
+// Edited from: https://github.com/ros2/rmw_fastrtps/blob/master/rmw_fastrtps_shared_cpp/src/rmw_guard_condition.cpp
+// Under the Apache 2.0 license
 
 #include "rcutils/logging_macros.h"
 
@@ -64,14 +66,4 @@ rmw_trigger_guard_condition(const rmw_guard_condition_t * guard_condition_handle
 
   return RMW_RET_OK;
 }
-
-/// UNIMPLEMENTED ==============================================================
-const rmw_guard_condition_t *
-rmw_node_get_graph_guard_condition(const rmw_node_t * node)
-{
-  (void)node;
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_node_get_graph_guard_condition");
-  return nullptr;
-}
-
 } // extern "C"
