@@ -66,7 +66,9 @@ rmw_create_service(
   (void)service_name;
   (void)qos_profile;
   RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_create_service");
-  return nullptr;
+
+  rmw_service_t * dummy;
+  return dummy;
 }
 
 rmw_ret_t
