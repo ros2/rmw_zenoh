@@ -135,6 +135,22 @@ rmw_create_node(
     memset(node->data, 0, sizeof(rmw_node_impl_t));
   }
 
+  // Create graph guard condition
+  rmw_node_impl_t * node_data = static_cast<rmw_node_impl_t *>(node->data);
+
+  node_data->graph_guard_condition_ = static_cast<rmw_guard_condition_t *>(
+    allocator->allocate(sizeof(rmw_guard_condition_t), allocator->state)
+  );
+  node_data->graph_guard_condition_ = rmw_create_guard_condition(node->context);
+  if (!node_data->graph_guard_condition_) {
+    rmw_destroy_guard_condition(node_data->graph_guard_condition_);
+
+    allocator->deallocate(node_data->graph_guard_condition_, allocator->state);
+    allocator->deallocate(node->data, allocator->state);
+    allocator->deallocate(node, allocator->state);
+    return nullptr;
+  }
+
   // NOTE(CH3): Only for DDS
   // node_impl->domain_id_ = domain_id;
 
