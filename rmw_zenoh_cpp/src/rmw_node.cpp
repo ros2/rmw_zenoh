@@ -45,11 +45,13 @@ rmw_create_node(
     context,
     context->implementation_identifier,
     eclipse_zenoh_identifier,
-    return nullptr);
+    return nullptr
+  );
   RMW_CHECK_FOR_NULL_WITH_MSG(
     context->impl,
     "expected initialized context",
-    return nullptr);
+    return nullptr
+  );
   if (context->impl->is_shutdown) {
     RCUTILS_SET_ERROR_MSG("context has been shutdown");
     return nullptr;
@@ -159,7 +161,8 @@ rmw_destroy_node(rmw_node_t * node)
     node,
     node->implementation_identifier,
     eclipse_zenoh_identifier,
-    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION
+  );
 
   // NOTE(CH3) TODO(CH3): Again, no graph updates are implemented yet
   // I am not sure how this will work with Zenoh
