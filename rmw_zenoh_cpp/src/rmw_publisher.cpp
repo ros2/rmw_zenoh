@@ -161,28 +161,28 @@ rmw_create_publisher(
   publisher_data->zn_session_ = s;
   if (!publisher_data->zn_session_) {
     RMW_SET_ERROR_MSG("failed to allocate Zenoh session");
-    goto cleanup_session;
+    goto cleanup_typesupport;
     return nullptr;
   }
 
   publisher_data->zn_topic_id_ = zn_topic_id;
   if (!publisher_data->zn_topic_id_) {
     RMW_SET_ERROR_MSG("failed to allocate Zenoh topic ID");
-    goto cleanup_session;
+    goto cleanup_typesupport;
     return nullptr;
   }
 
   publisher_data->typesupport_identifier_ = type_support->typesupport_identifier;
   if (!publisher_data->typesupport_identifier_) {
     RMW_SET_ERROR_MSG("failed to allocate typesupport_identifier_");
-    goto cleanup_session;
+    goto cleanup_typesupport;
     return nullptr;
   }
 
   publisher_data->type_support_impl_ = type_support->data;
   if (!publisher_data->type_support_impl_) {
     RMW_SET_ERROR_MSG("failed to allocate type_support_impl_");
-    goto cleanup_session;
+    goto cleanup_typesupport;
     return nullptr;
   }
 
@@ -212,9 +212,6 @@ rmw_create_publisher(
 
 cleanup_typesupport:
   allocator->deallocate(publisher_data->type_support_, allocator->state);
-
-cleanup_session:
-  allocator->deallocate(publisher_data->zn_session_, allocator->state);
 
 cleanup_data:
   allocator->deallocate(publisher_data, allocator->state);
@@ -253,10 +250,6 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
   // CLEANUP ===================================================================
   allocator->deallocate(
     static_cast<rmw_publisher_data_t *>(publisher->data)->type_support_, allocator->state
-  );
-
-  allocator->deallocate(
-    static_cast<rmw_publisher_data_t *>(publisher->data)->zn_session_, allocator->state
   );
 
   allocator->deallocate(publisher->data, allocator->state);
