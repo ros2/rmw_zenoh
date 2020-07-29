@@ -258,21 +258,6 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
   return RMW_RET_OK;
 }
 
-/// PUBLISH ROS MESSAGE ========================================================
-// Serialize and publish a ROS message using Zenoh.
-rmw_ret_t
-rmw_publish(
-  const rmw_publisher_t * publisher,
-  const void * ros_message,
-  rmw_publisher_allocation_t * allocation)
-{
-  (void)publisher;
-  (void)ros_message;
-  (void)allocation;
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_publish");
-  return RMW_RET_ERROR;
-}
-
 /// UNIMPLEMENTED ==============================================================
 rmw_ret_t
 rmw_init_publisher_allocation(
@@ -318,19 +303,6 @@ rmw_return_loaned_message_from_publisher(const rmw_publisher_t * publisher, void
 }
 
 rmw_ret_t
-rmw_publish_loaned_message(
-  const rmw_publisher_t * publisher,
-  void * ros_message,
-  rmw_publisher_allocation_t * allocation)
-{
-  (void)publisher;
-  (void)ros_message;
-  (void)allocation;
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_publish_loaned_message");
-  return RMW_RET_ERROR;
-}
-
-rmw_ret_t
 rmw_publisher_count_matched_subscriptions(const rmw_publisher_t * publisher, size_t * count)
 {
   (void)publisher;
@@ -348,19 +320,6 @@ rmw_publisher_get_actual_qos(const rmw_publisher_t * publisher, rmw_qos_profile_
   // RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_publisher_get_actual_qos");
   // return RMW_RET_ERROR;
   return RMW_RET_OK;
-}
-
-rmw_ret_t
-rmw_publish_serialized_message(
-  const rmw_publisher_t * publisher,
-  const rmw_serialized_message_t * serialized_message,
-  rmw_publisher_allocation_t * allocation)
-{
-  (void)publisher;
-  (void)serialized_message;
-  (void)allocation;
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_publish_serialized_message");
-  return RMW_RET_ERROR;
 }
 
 rmw_ret_t

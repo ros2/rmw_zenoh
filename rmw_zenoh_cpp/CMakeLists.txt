@@ -39,6 +39,7 @@ add_library(rmw_zenoh_cpp
   src/rmw_init_options.cpp
   src/rmw_logging.cpp
   src/rmw_node.cpp
+  src/rmw_publish.cpp
   src/rmw_publisher.cpp
   src/rmw_serialization.cpp
   src/rmw_services.cpp
