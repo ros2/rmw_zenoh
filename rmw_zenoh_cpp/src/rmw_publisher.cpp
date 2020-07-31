@@ -98,6 +98,7 @@ rmw_create_publisher(
     type_support = get_message_typesupport_handle(
       type_supports, RMW_ZENOH_CPP_TYPESUPPORT_CPP);
     if (!type_support) {
+      RCUTILS_LOG_INFO("%s", topic_name);
       RMW_SET_ERROR_MSG("type support not from this implementation");
       return nullptr;
     }
@@ -165,6 +166,8 @@ rmw_create_publisher(
     goto cleanup_typesupport;
     return nullptr;
   }
+
+  RCUTILS_LOG_INFO_NAMED("rmw_publish", "topic: %s, id: %ld", topic_name, zn_topic_id);
 
   publisher_data->zn_topic_id_ = zn_topic_id;
   if (!publisher_data->zn_topic_id_) {
