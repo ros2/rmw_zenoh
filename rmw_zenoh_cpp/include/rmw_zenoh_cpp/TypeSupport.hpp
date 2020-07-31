@@ -16,7 +16,7 @@ namespace rmw_zenoh_cpp
 struct SerializedData
 {
   void * data;  // The stored, serialized data
-  // const void * impl;  // Type support
+  const void * impl;  // Type support callback struct pointer
 
   // CDR
   // size_t 	encapsulation;
@@ -30,9 +30,13 @@ class TypeSupport
 public:
   size_t getEstimatedSerializedSize(const void * ros_message);
 
-  bool serializeROSmessage(const void * ros_message, eprosima::fastcdr::Cdr & ser);
+  bool serializeROSmessage(const void * ros_message,
+                           eprosima::fastcdr::Cdr & ser,
+                           const void * impl) const;
 
-  bool deserializeROSmessage(eprosima::fastcdr::Cdr & deser, void * ros_message);
+  bool deserializeROSmessage(eprosima::fastcdr::Cdr & deser,
+                             void * ros_message,
+                             const void * impl) const;
 
 protected:
   TypeSupport();
