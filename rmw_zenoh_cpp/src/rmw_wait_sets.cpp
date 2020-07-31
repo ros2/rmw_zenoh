@@ -98,6 +98,7 @@ rmw_destroy_wait_set(rmw_wait_set_t * wait_set)
   return result;
 }
 
+// STUB
 rmw_ret_t
 rmw_wait(
   rmw_subscriptions_t * subscriptions,
@@ -115,8 +116,10 @@ rmw_wait(
   (void)events;
   (void)wait_set;
   (void)wait_timeout;
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_wait");
-  return RMW_RET_ERROR;
+  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_wait (STUB)");
+  // return RMW_RET_ERROR;
+
+  return RMW_RET_OK;
 }
 
 } // extern "C"

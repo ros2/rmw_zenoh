@@ -27,6 +27,7 @@ rmw_fini_subscription_allocation(rmw_subscription_allocation_t * allocation)
   return RMW_RET_ERROR;
 }
 
+// STUB
 rmw_subscription_t *
 rmw_create_subscription(
   const rmw_node_t * node,
@@ -72,6 +73,7 @@ rmw_subscription_count_matched_publishers(const rmw_subscription_t * subscriptio
   return RMW_RET_ERROR;
 }
 
+// STUB
 rmw_ret_t
 rmw_subscription_get_actual_qos(
   const rmw_subscription_t * subscription,
@@ -79,8 +81,9 @@ rmw_subscription_get_actual_qos(
 {
   (void)subscription;
   (void)qos_profile;
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_subscription_get_actual_qos");
-  return RMW_RET_ERROR;
+  // RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_subscription_get_actual_qos");
+  return RMW_RET_OK;
+  // return RMW_RET_ERROR;
 }
 
 rmw_ret_t
