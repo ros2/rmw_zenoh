@@ -1,4 +1,5 @@
 #include "rcutils/logging_macros.h"
+#include "rcutils/strdup.h"
 
 #include <rmw/validate_full_topic_name.h>
 #include "rmw/impl/cpp/macros.hpp"
@@ -120,7 +121,7 @@ rmw_create_publisher(
     return nullptr;
   }
 
-  publisher->topic_name = topic_name;
+  publisher->topic_name = rcutils_strdup(topic_name, *allocator);
   if (!publisher->topic_name) {
     RMW_SET_ERROR_MSG("failed to allocate publisher topic name");
     allocator->deallocate(publisher, allocator->state);
