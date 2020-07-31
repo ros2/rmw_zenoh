@@ -40,17 +40,27 @@ rmw_create_subscription(
   (void)topic_name;
   (void)qos_profile;
   (void)subscription_options;
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_create_subscription");
-  return nullptr;
+  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_create_subscription (STUB)");
+
+  rmw_subscription_t * dummy = new rmw_subscription_t;
+
+  dummy->implementation_identifier = nullptr;
+  dummy->data = nullptr;
+  dummy->topic_name = nullptr;
+
+  return dummy;
+
+  // return nullptr;
 }
 
+// STUB
 rmw_ret_t
 rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
 {
   (void)node;
   (void)subscription;
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_destroy_subscription");
-  return RMW_RET_ERROR;
+  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_destroy_subscription (STUB)");
+  return RMW_RET_OK;
 }
 
 rmw_ret_t
