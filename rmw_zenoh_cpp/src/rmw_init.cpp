@@ -105,11 +105,11 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   int SESSION_MODE;
 
   if (strcmp(context->options.impl->mode, "CLIENT") == 0) {
-    SESSION_MODE = CLIENT_MODE;
+    SESSION_MODE = CLIENT;
   } else if (strcmp(context->options.impl->mode, "CLIENT") == 0) {
-    SESSION_MODE = ROUTER_MODE;
+    SESSION_MODE = ROUTER;
   } else {
-    SESSION_MODE = PEER_MODE;
+    SESSION_MODE = PEER;
   }
 
   ZNSession * s = zn_open(SESSION_MODE,
