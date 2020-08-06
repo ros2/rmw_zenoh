@@ -6,6 +6,7 @@ on:
     branches: [ $default-branch ]
   pull_request:
     branches: [ $default-branch ]
+  workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always
