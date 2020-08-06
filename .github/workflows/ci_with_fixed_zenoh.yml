@@ -18,46 +18,48 @@ jobs:
       image: rostooling/setup-ros-docker:ubuntu-focal-ros-foxy-ros-base-testing-latest
       
     steps:
-    # Checkout the repository under $GITHUB_WORKSPACE
-    - uses: actions/checkout@v2
+      - run: sudo chown -R rosbuild:rosbuild "$HOME" .
+        
+      # Checkout the repository under $GITHUB_WORKSPACE
+      - uses: actions/checkout@v2
 
-    # Check out the Zenoh source code and switch to the rust branch
-    - name: Checkout Zenoh
-      uses: actions/checkout@v2
-      with:
-        repository: eclipse-zenoh/zenoh
-        ref: 21b346a20ed054d4b5ef025afefe33f4df2a2235
+      # Check out the Zenoh source code and switch to the rust branch
+      - name: Checkout Zenoh
+        uses: actions/checkout@v2
+          with:
+            repository: eclipse-zenoh/zenoh
+            ref: 21b346a20ed054d4b5ef025afefe33f4df2a2235
 
-    # Set up Rust nightly
-    - name: Install Rust nightly
-      uses: actions-rs/toolchain@v1.0.1
-      with:
-        profile: minimal
-        toolchain: nightly
-        default: true
+      # Set up Rust nightly
+      - name: Install Rust nightly
+        uses: actions-rs/toolchain@v1.0.1
+        with:
+          profile: minimal
+          toolchain: nightly
+          default: true
     
-    # Compile Zenoh
-    - name: Compile Zenoh
-      uses: actions-rs/cargo@v1.0.1
-      with:
-        command: build
-        args: --release --all-targets
+      # Compile Zenoh
+      - name: Compile Zenoh
+        uses: actions-rs/cargo@v1.0.1
+        with:
+          command: build
+          args: --release --all-targets
     
-    # Copy the FFI files into the zenoh_ament package
-    - name: Copy Zenoh FFI
-      run: |
-        mkdir $GITHUB_WORKSPACE/rmw_zenoh/zenoh_ament/lib
-        cp $GITHUB_WORKSPACE/zenoh/target/release/libzenoh_ffi.so $GITHUB_WORKSPACE/rmw_zenoh/zenoh_ament/lib/
-        cp $GITHUB_WORKSPACE/zenoh/zenoh/zenoh-ffi/include/* $GITHUB_WORKSPACE/rmw_zenoh/zenoh_ament/include/
+      # Copy the FFI files into the zenoh_ament package
+      - name: Copy Zenoh FFI
+        run: |
+          mkdir $GITHUB_WORKSPACE/rmw_zenoh/zenoh_ament/lib
+          cp $GITHUB_WORKSPACE/zenoh/target/release/libzenoh_ffi.so $GITHUB_WORKSPACE/rmw_zenoh/zenoh_ament/lib/
+          cp $GITHUB_WORKSPACE/zenoh/zenoh/zenoh-ffi/include/* $GITHUB_WORKSPACE/rmw_zenoh/zenoh_ament/include/
     
-    # Make a colcon workspace
-    - name: Setup workspace
-      run: |
-        mkdir -p $GITHUB_WORKSPACE/ws/src
-        ln -s $GITHUB_WORKSPACE/rmw_zenoh $GITHUB_WORKSPACE/ws/src
+      # Make a colcon workspace
+      - name: Setup workspace
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/ws/src
+          ln -s $GITHUB_WORKSPACE/rmw_zenoh $GITHUB_WORKSPACE/ws/src
     
-    # Compile rmw_zenoh_cpp
-    - name: Compile rmw_zenoh
-      run: |
-        cd $GITHUB_WORKSPACE/ws
-        colcon build
+      # Compile rmw_zenoh_cpp
+      - name: Compile rmw_zenoh
+        run: |
+          cd $GITHUB_WORKSPACE/ws
+          colcon build
