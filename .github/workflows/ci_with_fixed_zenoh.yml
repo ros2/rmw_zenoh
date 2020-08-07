@@ -70,7 +70,7 @@ jobs:
         run: |
           . /opt/ros/foxy/setup.sh
           cd $GITHUB_WORKSPACE/ws
-          colcon build --packages-select rmw_zenoh_cpp
+          colcon build --packages-up-to rmw_zenoh_cpp
           
       # Test rmw_zenoh_cpp
       - name: Test rmw_zenoh_cpp
