@@ -61,6 +61,8 @@ jobs:
       - name: Cloned dependencies
         uses: actions/checkout@v2
         with:
+          repository: ros2/rcl_interfaces
+          ref: foxy
           path: ws/src/rcl_interfaces
         
       # Compile rmw_zenoh_cpp
