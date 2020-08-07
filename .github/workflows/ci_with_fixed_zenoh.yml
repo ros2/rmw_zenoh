@@ -56,15 +56,19 @@ jobs:
           touch $GITHUB_WORKSPACE/ws/src/rmw_zenoh/zenoh_ament/lib/libzenoh_ffi.so
       
       # Install additional dependencies
-      - name: Install dependencies
+      - name: Manual dependencies
         run: sudo apt install ros-foxy-osrf-testing-tools-cpp
+      - name: Cloned dependencies
+        uses: actions/checkout@v2
+        with:
+          path: ws/src/rcl_interfaces
         
       # Compile rmw_zenoh_cpp
       - name: Compile rmw_zenoh
         run: |
           . /opt/ros/foxy/setup.sh
           cd $GITHUB_WORKSPACE/ws
-          colcon build
+          colcon build --packages-select rmw_zenoh_cpp
           
       # Test rmw_zenoh_cpp
       - name: Test rmw_zenoh_cpp
