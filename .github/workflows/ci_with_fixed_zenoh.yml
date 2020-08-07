@@ -24,7 +24,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt install ros-foxy-test-osrf-testing-tools-cpp
-          ls /opt/ros/foxy/share/osrf_testing_tools_cpp/cmake/*
+          find /opt/ros/foxy -iname 'osrf_testing_tools_cpp*'
 
       # Checkout the repository under $GITHUB_WORKSPACE
       - uses: actions/checkout@v2
