@@ -38,12 +38,12 @@ jobs:
           path: zenoh
 
       # Set up Rust nightly
-      - name: Install Rust nightly
-        uses: actions-rs/toolchain@v1.0.1
-        with:
-          profile: minimal
-          toolchain: nightly
-          default: true
+      #- name: Install Rust nightly
+        #uses: actions-rs/toolchain@v1.0.1
+        #with:
+          #profile: minimal
+          #toolchain: nightly
+          #default: true
     
       # Compile Zenoh
       #- name: Compile Zenoh
