@@ -23,7 +23,8 @@ jobs:
           echo "Current dir is"
           pwd
           echo "Content of /opt is"
-          ls /opt
+          ls /opt/ros
+          ls /opt/ros/foxy
 
       - run: sudo chown -R rosbuild:rosbuild "$HOME" .
         
