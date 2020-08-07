@@ -22,7 +22,9 @@ jobs:
         
       # Install additional dependencies
       - name: Install dependencies
-        run: sudo apt install ros-foxy-test-osrf-testing-tools-cpp
+        run: |
+          sudo apt install ros-foxy-test-osrf-testing-tools-cpp
+          ls /opt/ros/foxy/share/osrf_testing_tools_cpp/cmake/*
 
       # Checkout the repository under $GITHUB_WORKSPACE
       - uses: actions/checkout@v2
@@ -54,6 +56,7 @@ jobs:
       # Copy the FFI files into the zenoh_ament package
       - name: Copy Zenoh FFI
         run: |
+          ls /opt/ros/foxy/share/osrf_testing_tools_cpp/cmake/*
           mkdir $GITHUB_WORKSPACE/ws/src/rmw_zenoh/zenoh_ament/lib
           #cp $GITHUB_WORKSPACE/zenoh/target/release/libzenoh_ffi.so $GITHUB_WORKSPACE/ws/src/rmw_zenoh/zenoh_ament/lib/
           cp $GITHUB_WORKSPACE/zenoh/zenoh-ffi/include/* $GITHUB_WORKSPACE/ws/src/rmw_zenoh/zenoh_ament/include/
