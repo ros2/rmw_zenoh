@@ -9,10 +9,10 @@
 #include "rmw/event.h"
 #include "rmw/rmw.h"
 
-#include "rmw_zenoh_cpp/zenoh_pubsub.hpp"
 #include "rmw_zenoh_cpp/identifier.hpp"
 
 #include "type_support_common.hpp"
+#include "pubsub_impl.hpp"
 
 extern "C"
 {
