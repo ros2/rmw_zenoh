@@ -62,6 +62,9 @@ jobs:
       # Compile rmw_zenoh_cpp
       - name: Compile rmw_zenoh
         run: |
+          sudo apt install mlocate
+          sudo updatedb
+          locate osrf_testing
           . /opt/ros/foxy/setup.sh
           cd $GITHUB_WORKSPACE/ws
           colcon build
