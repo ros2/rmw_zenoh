@@ -164,7 +164,7 @@ rmw_create_subscription(
   subscription_data->zn_session_ = s;
   if (!subscription_data->zn_session_) {
     RMW_SET_ERROR_MSG("failed to allocate Zenoh session");
-    goto cleanup_typesupport;
+    goto cleanup_session;
     return nullptr;
   }
 
@@ -173,14 +173,14 @@ rmw_create_subscription(
   subscription_data->typesupport_identifier_ = type_support->typesupport_identifier;
   if (!subscription_data->typesupport_identifier_) {
     RMW_SET_ERROR_MSG("failed to allocate typesupport_identifier_");
-    goto cleanup_typesupport;
+    goto cleanup_session;
     return nullptr;
   }
 
   subscription_data->type_support_impl_ = type_support->data;
   if (!subscription_data->type_support_impl_) {
     RMW_SET_ERROR_MSG("failed to allocate type_support_impl_");
-    goto cleanup_typesupport;
+    goto cleanup_session;
     return nullptr;
   }
 
@@ -227,6 +227,9 @@ rmw_create_subscription(
 cleanup_typesupport:
   allocator->deallocate(subscription_data->type_support_, allocator->state);
 
+cleanup_session:
+  allocator->deallocate(subscription_data->zn_session_, allocator->state);
+
 cleanup_data:
   allocator->deallocate(subscription_data, allocator->state);
 
@@ -236,13 +239,40 @@ cleanup_data:
   return nullptr;
 }
 
-// STUB TODO(CH3): Implement soon
+/// DESTROY SUBSCRIPTION
+// Destroy and deallocate an RMW subscription
 rmw_ret_t
 rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
 {
-  (void)node;
-  (void)subscription;
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_destroy_subscription (STUB)");
+  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_destroy_subscription");
+
+  // ASSERTIONS ================================================================
+  RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(subscription, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    node,
+    node->implementation_identifier,
+    eclipse_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    subscription,
+    subscription->implementation_identifier,
+    eclipse_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+
+  // ASSIGN ALLOCATOR ==========================================================
+  rcutils_allocator_t * allocator = &node->context->options.allocator;
+
+  // CLEANUP ===================================================================
+  allocator->deallocate(
+    static_cast<rmw_subscription_data_t *>(subscription->data)->type_support_, allocator->state
+  );
+  allocator->deallocate(
+    static_cast<rmw_subscription_data_t *>(subscription->data)->zn_session_, allocator->state
+  );
+  allocator->deallocate(subscription->data, allocator->state);
+  allocator->deallocate(subscription, allocator->state);
+
   return RMW_RET_OK;
 }
 
@@ -427,7 +457,6 @@ rmw_init_subscription_allocation(
   return RMW_RET_ERROR;
 }
 
-/// UNIMPLEMENTED ==============================================================
 rmw_ret_t
 rmw_fini_subscription_allocation(rmw_subscription_allocation_t * allocation)
 {
@@ -455,7 +484,6 @@ rmw_subscription_get_actual_qos(
   (void)qos_profile;
   // RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_subscription_get_actual_qos");
   return RMW_RET_OK;
-  // return RMW_RET_ERROR;
 }
 
 rmw_ret_t
