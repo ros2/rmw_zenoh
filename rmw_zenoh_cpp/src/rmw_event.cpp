@@ -17,8 +17,10 @@ rmw_take_event(const rmw_event_t * event_handle, void * event_info, bool * taken
 {
   (void)event_handle;
   (void)event_info;
-  (void)taken;
+
   RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_take_event (STUB)");
+  *taken = true;
+
   return RMW_RET_OK;
 }
 
@@ -28,6 +30,8 @@ rmw_publisher_event_init(
   const rmw_publisher_t * publisher,
   rmw_event_type_t event_type)
 {
+  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_publisher_event_init (STUB)");
+
   RMW_CHECK_ARGUMENT_FOR_NULL(publisher, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(event, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(event_type, RMW_RET_INVALID_ARGUMENT);
@@ -61,15 +65,15 @@ rmw_subscription_event_init(
 {
   RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_subscription_event_init (STUB)");
 
-  // RMW_CHECK_ARGUMENT_FOR_NULL(subscription, RMW_RET_INVALID_ARGUMENT);
-  // RMW_CHECK_ARGUMENT_FOR_NULL(event, RMW_RET_INVALID_ARGUMENT);
-  // RMW_CHECK_ARGUMENT_FOR_NULL(event_type, RMW_RET_INVALID_ARGUMENT);
-  // RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
-  //   subscription,
-  //   subscription->implementation_identifier,
-  //   eclipse_zenoh_identifier,
-  //   return RMW_RET_INCORRECT_RMW_IMPLEMENTATION
-  // );
+  RMW_CHECK_ARGUMENT_FOR_NULL(subscription, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(event, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(event_type, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    subscription,
+    subscription->implementation_identifier,
+    eclipse_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION
+  );
 
   // TODO(CH3) NOTE(CH3): Check if event type is supported
   // Most likely no. It seems to be a DDS QoS specific thing
@@ -78,9 +82,9 @@ rmw_subscription_event_init(
   //   return RMW_RET_UNSUPPORTED;
   // }
 
-  // event->implementation_identifier = subscription->implementation_identifier;
-  // event->data = subscription->data;
-  // event->event_type = event_type;
+  event->implementation_identifier = subscription->implementation_identifier;
+  event->data = subscription->data;
+  event->event_type = event_type;
 
   return RMW_RET_OK;
 }
