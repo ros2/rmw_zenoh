@@ -139,6 +139,8 @@ rmw_create_publisher(
     return nullptr;
   }
 
+  publisher->options = *publisher_options;
+
   // CREATE PUBLISHER MEMBERS ==================================================
   // Init type support callbacks
   auto callbacks = static_cast<const message_type_support_callbacks_t *>(type_support->data);
@@ -167,7 +169,7 @@ rmw_create_publisher(
     return nullptr;
   }
 
-  RCUTILS_LOG_INFO_NAMED("rmw_publish", "topic: %s, id: %ld", topic_name, zn_topic_id);
+  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_create_publisher topic: %s, id: %ld", topic_name, zn_topic_id);
 
   publisher_data->zn_topic_id_ = zn_topic_id;
   if (!publisher_data->zn_topic_id_) {
@@ -191,7 +193,7 @@ rmw_create_publisher(
   }
 
   publisher_data->type_support_ = static_cast<MessageTypeSupport_cpp *>(
-    allocator->allocate(sizeof(MessageTypeSupport_cpp *), allocator->state)
+    allocator->allocate(sizeof(MessageTypeSupport_cpp), allocator->state)
   );
   publisher_data->type_support_ = new (std::nothrow) MessageTypeSupport_cpp(callbacks);
   if (!publisher_data->type_support_) {
@@ -200,12 +202,23 @@ rmw_create_publisher(
     return nullptr;
   }
 
-  publisher->data = publisher_data;
-  if (!publisher->data) {
-    RMW_SET_ERROR_MSG("failed to allocate publisher data");
+  // NOTE(CH3): Memory already allocated for node.
+  // Might have to copy, but unsure
+  publisher_data->node_ = node;
+  if (!publisher_data->node_) {
+    RMW_SET_ERROR_MSG("failed to assign node pointer");
     goto cleanup_typesupport;
     return nullptr;
   }
+
+  publisher->data = publisher_data;
+  if (!publisher->data) {
+    RMW_SET_ERROR_MSG("failed to assign publisher data");
+    goto cleanup_typesupport;
+    return nullptr;
+  }
+
+  // TODO(CH3): Put the publisher name/pointer into its corresponding node for tracking?
 
   // NOTE(CH3) TODO(CH3): No graph updates are implemented yet
   // I am not sure how this will work with Zenoh
