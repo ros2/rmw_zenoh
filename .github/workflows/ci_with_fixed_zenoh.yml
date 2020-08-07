@@ -45,7 +45,7 @@ jobs:
       - name: Compile Zenoh
         run: |
           cd $GITHUB_WORKSPACE/zenoh
-          cargo build --release --all-targets
+          cargo build --release --package zenoh-ffi
     
       # Copy the FFI files into the zenoh_ament package
       - name: Copy Zenoh FFI
@@ -56,7 +56,7 @@ jobs:
       
       # Install additional dependencies
       - name: Install dependencies
-        run: rosdep install --from-paths $GITHUB_WORKSPACE/ws/src --ignore-src --rosdistro foxy -yr
+        run: apt install ros-foxy-test-osrf-testing-tools-cpp
 
       # Compile rmw_zenoh_cpp
       - name: Compile rmw_zenoh
