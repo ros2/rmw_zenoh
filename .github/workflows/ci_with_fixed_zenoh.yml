@@ -57,7 +57,12 @@ jobs:
       # Compile rmw_zenoh_cpp
       - name: Compile rmw_zenoh
         run: |
-          ls /opt/ros/foxy -l
-          source /opt/ros/foxy/setup.bash
+          . /opt/ros/foxy/setup.bash
           cd $GITHUB_WORKSPACE/ws
           colcon build
+          
+      # Test rmw_zenoh_cpp
+      - name: Test rmw_zenoh_cpp
+        run: |
+          colcon test
+          colcon test-result
