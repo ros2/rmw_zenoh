@@ -12,19 +12,6 @@
 
 namespace rmw_zenoh_cpp
 {
-// Used with rmw_publish
-struct SerializedData
-{
-  void * data;  // The stored, serialized data
-  const void * impl;  // Type support callback struct pointer
-
-  // CDR
-  // size_t 	encapsulation;
-  size_t 	length;
-  size_t 	max_size;
-  // size_t 	pos;
-};
-
 class TypeSupport
 {
 public:
