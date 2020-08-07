@@ -9,6 +9,10 @@
 #include "rmw_zenoh_cpp/zenoh_pubsub.hpp"
 #include "rmw_zenoh_cpp/identifier.hpp"
 
+#include "rmw_zenoh_cpp/identifier.hpp"
+
+#include "pubsub_impl.hpp"
+
 extern "C"
 {
 /// GET PUBLISHER GID ==========================================================
