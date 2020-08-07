@@ -53,7 +53,11 @@ jobs:
           mkdir $GITHUB_WORKSPACE/ws/src/rmw_zenoh/zenoh_ament/lib
           cp $GITHUB_WORKSPACE/zenoh/target/release/libzenoh_ffi.so $GITHUB_WORKSPACE/ws/src/rmw_zenoh/zenoh_ament/lib/
           cp $GITHUB_WORKSPACE/zenoh/zenoh-ffi/include/* $GITHUB_WORKSPACE/ws/src/rmw_zenoh/zenoh_ament/include/
-    
+      
+      # Install additional dependencies
+      - name: Install dependencies
+        run: rosdep install --from-paths $GITHUB_WORKSPACE/ws/src --ignore-src --rosdistro foxy -yr
+
       # Compile rmw_zenoh_cpp
       - name: Compile rmw_zenoh
         run: |
