@@ -48,59 +48,48 @@ rmw_publish(
     publisher_data, "publisher data pointer is null", return RMW_RET_ERROR
   );
 
-  // TODO(CH3): Properly implement the allocation
-  rmw_zenoh_cpp::SerializedData * ser_data = new rmw_zenoh_cpp::SerializedData;
+  // ASSIGN ALLOCATOR ==========================================================
+  rcutils_allocator_t * allocator = &static_cast<rmw_publisher_data_t *>(publisher->data)
+    ->node_
+    ->context
+    ->options.allocator;
 
-  // Message specific serialisation callback functions
-  ser_data->impl = publisher_data->type_support_impl_;
-
-  // size_t data_length = strlen(static_cast<const char *>(ros_message)) * sizeof(ros_message);
-  size_t data_length = (
+  // SERIALIZE DATA ============================================================
+  size_t max_data_length = (
     static_cast<rmw_publisher_data_t *>(publisher->data)
     ->type_support_
     ->getEstimatedSerializedSize(ros_message)
   );
 
-  ser_data->data = new char[data_length];
-  ser_data->max_size = data_length;
+  // Init serialized message byte array
+  char * msg_bytes = static_cast<char *>(
+    allocator->allocate(max_data_length, allocator->state)
+  );
 
   eprosima::fastcdr::FastBuffer fastbuffer(
-    reinterpret_cast<char *>(ser_data->data),
-    data_length
+    msg_bytes,
+    max_data_length
   );  // Object that manages the raw buffer.
 
   eprosima::fastcdr::Cdr ser(fastbuffer,
                              eprosima::fastcdr::Cdr::DEFAULT_ENDIAN,
                              eprosima::fastcdr::Cdr::DDS_CDR);  // Object that serializes the data.
-  if (publisher_data->type_support_->serializeROSmessage(const_cast<void *>(ros_message),
+  if (!publisher_data->type_support_->serializeROSmessage(const_cast<void *>(ros_message),
                                                          ser,
-                                                         ser_data->impl)) {
-    // payload->encapsulation = ser.endianness() ==
-      // eprosima::fastcdr::Cdr::BIG_ENDIANNESS ? CDR_BE : CDR_LE;
-    ser_data->length = (uint32_t)ser.getSerializedDataLength();
-  } else {
+                                                         publisher_data->type_support_impl_)) {
+    allocator->deallocate(msg_bytes, allocator->state);
     return RMW_RET_ERROR;
   }
 
-  // PUBLISH ON ZENOH MIDDLEWARE LAYER =========================================
+  size_t data_length = ser.getSerializedDataLength();
+
+  // // PUBLISH ON ZENOH MIDDLEWARE LAYER =========================================
   zn_write_wrid(publisher_data->zn_session_,
                 publisher_data->zn_topic_id_,
-                // static_cast<char *>(ser_data->data),
-                reinterpret_cast<char *>(ser_data),  // Convert into raw bytes
-                ser_data->length);
+                msg_bytes,
+                data_length);
 
-  RCUTILS_LOG_INFO("DATA OF SIZE %ld: %s",
-                   sizeof(ser_data),
-                   reinterpret_cast<char *>(ser_data));
-
-  delete static_cast<char *>(ser_data->data);
-  delete ser_data;
-
-  // if (!info->publisher_->write(&data)) {
-  //   RMW_SET_ERROR_MSG("cannot publish data");
-  //   return RMW_RET_ERROR;
-  // }
-
+  allocator->deallocate(msg_bytes, allocator->state);
   return RMW_RET_OK;
 }
 
