@@ -46,17 +46,18 @@ jobs:
           default: true
     
       # Compile Zenoh
-      - name: Compile Zenoh
-        run: |
-          cd $GITHUB_WORKSPACE/zenoh
-          cargo build --release --package zenoh-ffi
+      #- name: Compile Zenoh
+        #run: |
+          #cd $GITHUB_WORKSPACE/zenoh
+          #cargo build --release --package zenoh-ffi
     
       # Copy the FFI files into the zenoh_ament package
       - name: Copy Zenoh FFI
         run: |
           mkdir $GITHUB_WORKSPACE/ws/src/rmw_zenoh/zenoh_ament/lib
-          cp $GITHUB_WORKSPACE/zenoh/target/release/libzenoh_ffi.so $GITHUB_WORKSPACE/ws/src/rmw_zenoh/zenoh_ament/lib/
+          #cp $GITHUB_WORKSPACE/zenoh/target/release/libzenoh_ffi.so $GITHUB_WORKSPACE/ws/src/rmw_zenoh/zenoh_ament/lib/
           cp $GITHUB_WORKSPACE/zenoh/zenoh-ffi/include/* $GITHUB_WORKSPACE/ws/src/rmw_zenoh/zenoh_ament/include/
+          touch $GITHUB_WORKSPACE/ws/src/rmw_zenoh/zenoh_ament/lib/libzenoh_ffi.so
       
       # Compile rmw_zenoh_cpp
       - name: Compile rmw_zenoh
