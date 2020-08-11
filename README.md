@@ -29,6 +29,7 @@ colcon build
 mkdir -p ~/zenoh_ws/src
 cd ~/zenoh_ws/src
 git clone https://github.com/ros2/common_interfaces
+git clone https://github.com/ros2/rcl_interfaces
 git clone https://github.com/methylDragon/rosidl_typesupport_zenoh
 git clone ssh://git@github.com/methylDragon/rmw_zenoh.git -b develop
 mkdir ~/zenoh_ws/src/rmw_zenoh/zenoh_ament/lib
@@ -36,6 +37,7 @@ ln -s LOCATION_OF_ZENOH_LIBRARY.so ~/zenoh_ws/src/rmw_zenoh/zenoh_ament/lib/libz
 cd ~/zenoh_ws
 source ~/ros2_foxy/install/setup.bash
 colcon build
+colcon build --cmake-force-configure
 ```
 
 Then, after sourcing the workspace, open two terminals and launch the demonstration publisher and subscriber nodes, prefixing with the `RMW_IMPLEMENTATION` environment variable set to use the Zenoh RMW library.
@@ -43,13 +45,15 @@ Then, after sourcing the workspace, open two terminals and launch the demonstrat
 ```shell
 cd ~/zenoh_ws
 source install/setup.bash
-RMW_IMPLEMENTATION=rmw_zenoh_cpp ros2 run demo_nodes_cpp talker
+export RMW_IMPLEMENTATION=rmw_zenoh_cpp
+ros2 run demo_nodes_cpp talker
 ```
 
 ```shell
 cd ~/zenoh_ws
 source install/setup.bash
-RMW_IMPLEMENTATION=rmw_zenoh_cpp ros2 run demo_nodes_cpp listener
+export RMW_IMPLEMENTATION=rmw_zenoh_cpp
+ros2 run demo_nodes_cpp listener
 ```
 
 At this stage, you should see the logged output of the RMW functions being called, followed rapidly by a failure due to almost all the functions being stubbed out and returning error values.
