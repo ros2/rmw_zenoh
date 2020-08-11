@@ -9,23 +9,46 @@ The library focuses solely on getting binary blobs from one place to another.
 
 ## Testing
 
-To test this RMW implementation, create a new workspace and add this repository to it, then build the workspace.
+First, you'll need a build of `libzenoh_ffi.so` for your machine.
+That is currently outside the scope of this document because it involves Rust and stuff.
+
+To test this RMW implementation, first we will create a workspace with "stock" ROS 2 Foxy in it.
+Then we'll overlay a much smaller workspace with the Zenoh-specific things, and other packages we need to rebuild.
+This will make iteration much more pleasant.
 
 ```shell
-mkdir -p zenoh/src
-cd zenoh/src
-git clone https://github.com/osrf/rmw_zenoh.git
-cd ../..
+mkdir -p ~/ros2_foxy/src
+cd ~/ros2_foxy
+wget https://raw.githubusercontent.com/ros2/ros2/foxy/ros2.repos
+vcs import src < ros2.repos
+colcon build
+# during this process, it is recommended to walk away and refill beverage, etc.
+```
+
+```shell
+mkdir -p ~/zenoh_ws/src
+cd ~/zenoh_ws/src
+git clone https://github.com/ros2/common_interfaces
+git clone https://github.com/methylDragon/rosidl_typesupport_zenoh
+git clone ssh://git@github.com/methylDragon/rmw_zenoh.git -b develop
+mkdir ~/zenoh_ws/src/rmw_zenoh/zenoh_ament/lib
+ln -s LOCATION_OF_ZENOH_LIBRARY.so ~/zenoh_ws/src/rmw_zenoh/zenoh_ament/lib/libzenoh_ffi.so
+cd ~/zenoh_ws
+source ~/ros2_foxy/install/setup.bash
 colcon build
 ```
 
 Then, after sourcing the workspace, open two terminals and launch the demonstration publisher and subscriber nodes, prefixing with the `RMW_IMPLEMENTATION` environment variable set to use the Zenoh RMW library.
 
 ```shell
+cd ~/zenoh_ws
+source install/setup.bash
 RMW_IMPLEMENTATION=rmw_zenoh_cpp ros2 run demo_nodes_cpp talker
 ```
 
 ```shell
+cd ~/zenoh_ws
+source install/setup.bash
 RMW_IMPLEMENTATION=rmw_zenoh_cpp ros2 run demo_nodes_cpp listener
 ```
 
