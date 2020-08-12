@@ -33,7 +33,7 @@ git clone https://github.com/ros2/rcl_interfaces
 git clone https://github.com/methylDragon/rosidl_typesupport_zenoh
 git clone https://github.com/methylDragon/zenoh_ros_examples
 git clone ssh://git@github.com/methylDragon/rmw_zenoh.git -b develop
-mkdir ~/zenoh_ws/src/rmw_zenoh/zenoh_ament/lib
+mkdir rmw_zenoh/zenoh_ament/lib
 ln -s LOCATION_OF_ZENOH_LIBRARY.so ~/zenoh_ws/src/rmw_zenoh/zenoh_ament/lib/libzenoh_ffi.so
 cd ~/zenoh_ws
 source ~/ros2_foxy/install/setup.bash
