@@ -101,16 +101,24 @@ rmw_create_node(
   // Populate common members
   node->implementation_identifier = eclipse_zenoh_identifier;
 
-  node->name = name;  // const char * assignment
-  if (!node->name) {
+  // "name" has already been sanity-checked by rmw_validate_node_name
+  char * name_buf = static_cast<char *>(
+    allocator->allocate(strlen(name) + 1, allocator->state)
+  );
+  if (!name_buf) {
     RMW_SET_ERROR_MSG("failed to allocate node name");
     allocator->deallocate(node, allocator->state);
     return nullptr;
   }
 
-  node->namespace_ = namespace_;  // const char * assignment
-  if (!node->namespace_) {
+  // "namespace" has already been sanity-checked by rmw_validate_namespace
+  char * namespace_buf = static_cast<char *>(
+    allocator->allocate(strlen(namespace_) + 1, allocator->state)
+  );
+  if (!namespace_buf) {
     RMW_SET_ERROR_MSG("failed to allocate node namespace");
+    allocator->deallocate(name_buf, allocator->state);
+
     allocator->deallocate(node, allocator->state);
     return nullptr;
   }
@@ -118,6 +126,9 @@ rmw_create_node(
   node->context = context;
   if (!node->context) {
     RMW_SET_ERROR_MSG("failed to allocate node context");
+    allocator->deallocate(name_buf, allocator->state);
+    allocator->deallocate(namespace_buf, allocator->state);
+
     allocator->deallocate(node, allocator->state);
     return nullptr;
   }
@@ -128,6 +139,9 @@ rmw_create_node(
   );
   if (!node->data) {
     RMW_SET_ERROR_MSG("failed to allocate rmw_node_impl_t");
+    allocator->deallocate(name_buf, allocator->state);
+    allocator->deallocate(namespace_buf, allocator->state);
+
     allocator->deallocate(node->data, allocator->state);
     allocator->deallocate(node, allocator->state);
     return nullptr;
@@ -144,6 +158,8 @@ rmw_create_node(
   node_data->graph_guard_condition_ = rmw_create_guard_condition(node->context);
   if (!node_data->graph_guard_condition_) {
     rmw_destroy_guard_condition(node_data->graph_guard_condition_);
+    allocator->deallocate(name_buf, allocator->state);
+    allocator->deallocate(namespace_buf, allocator->state);
 
     allocator->deallocate(node_data->graph_guard_condition_, allocator->state);
     allocator->deallocate(node->data, allocator->state);
