@@ -56,14 +56,13 @@ rmw_publisher_event_init(
   return RMW_RET_OK;
 }
 
-// STUB
 rmw_ret_t
 rmw_subscription_event_init(
   rmw_event_t * event,
   const rmw_subscription_t * subscription,
   rmw_event_type_t event_type)
 {
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_subscription_event_init (STUB)");
+  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_subscription_event_init");
 
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(event, RMW_RET_INVALID_ARGUMENT);
