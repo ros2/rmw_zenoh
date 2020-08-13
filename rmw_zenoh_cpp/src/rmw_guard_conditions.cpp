@@ -2,12 +2,12 @@
 // Edited from: https://github.com/ros2/rmw_fastrtps/blob/master/rmw_fastrtps_shared_cpp/src/rmw_guard_condition.cpp
 // Under the Apache 2.0 license
 
-#include "rcutils/logging_macros.h"
-
 #include "rmw/impl/cpp/macros.hpp"
 #include "rmw/error_handling.h"
 #include "rmw/rmw.h"
 #include "rmw/event.h"
+
+#include "rcutils/logging_macros.h"
 
 #include "rmw_zenoh_cpp/identifier.hpp"
 #include "types/guard_condition.hpp"
