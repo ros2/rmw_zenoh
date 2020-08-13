@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef TYPES__WAIT_SET_DATA_HPP_
-#define TYPES__WAIT_SET_DATA_HPP_
+#ifndef RMW_ZENOH_CPP_TYPES__WAIT_SET_DATA_HPP_
+#define RMW_ZENOH_CPP_TYPES__WAIT_SET_DATA_HPP_
 
 #include <condition_variable>
 #include <mutex>
@@ -24,4 +24,4 @@ typedef struct rmw_wait_set_data_t
   std::mutex condition_mutex;
 } rmw_wait_set_data_t;
 
-#endif  // TYPES__WAIT_SET_DATA_HPP_
+#endif  // RMW_ZENOH_CPP_TYPES__WAIT_SET_DATA_HPP_
