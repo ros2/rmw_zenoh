@@ -29,7 +29,8 @@ rmw_create_guard_condition(rmw_context_t * context)
 
   // NOTE(CH3): Unfortunately we can't do custom allocation here because the destruction method
   // does not pass in a context from which we can draw an allocator from
-  rmw_guard_condition_t * guard_condition_handle = new rmw_guard_condition_t;
+  // TODO(CH3): Once https://github.com/ros2/rmw/issues/260 gets resolved, use an allocator instead
+  rmw_guard_condition_t * guard_condition_handle = rmw_guard_condition_allocate();
   guard_condition_handle->implementation_identifier = eclipse_zenoh_identifier;
   guard_condition_handle->data = new GuardCondition();
 
