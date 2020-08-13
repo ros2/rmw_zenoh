@@ -30,8 +30,8 @@ rmw_create_wait_set(rmw_context_t * context, size_t max_conditions)
 
   // NOTE(CH3): Unfortunately we can't do custom allocation here because the destruction method
   // does not pass in a context from which we can draw an allocator from
+  // TODO(CH3): Once https://github.com/ros2/rmw/issues/260 is addressed, use an allocator
   rmw_wait_set_t * wait_set = rmw_wait_set_allocate();
-  rmw_wait_set_data_t * wait_set_data = nullptr;
 
   // From here onward, error results in unrolling in the goto fail block.
   if (!wait_set) {
@@ -40,11 +40,10 @@ rmw_create_wait_set(rmw_context_t * context, size_t max_conditions)
   }
   wait_set->implementation_identifier = eclipse_zenoh_identifier;
   wait_set->data = rmw_allocate(sizeof(rmw_wait_set_data_t));
-  // This should default-construct the fields of rmw_wait_set_data_t
-  wait_set_data = static_cast<rmw_wait_set_data_t *>(wait_set->data);
-  // cppcheck-suppress syntaxError
-  RMW_TRY_PLACEMENT_NEW(wait_set_data, wait_set_data, goto fail, rmw_wait_set_data_t, )
-  if (!wait_set_data) {
+
+  // Invoke placement new
+  new(wait_set->data) rmw_wait_set_data_t;
+  if (!wait_set->data) {
     RMW_SET_ERROR_MSG("failed to construct wait set info struct");
     goto fail;
   }
@@ -55,7 +54,7 @@ fail:
   if (wait_set) {
     if (wait_set->data) {
       RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(
-        wait_set_data->~rmw_wait_set_data_t(), wait_set_data)
+        static_cast<rmw_wait_set_data_t *>(wait_set->data)->~rmw_wait_set_data_t(), wait_set->data)
       rmw_free(wait_set->data);
     }
     rmw_wait_set_free(wait_set);
