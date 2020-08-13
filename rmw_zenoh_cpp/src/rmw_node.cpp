@@ -110,6 +110,8 @@ rmw_create_node(
     allocator->deallocate(node, allocator->state);
     return nullptr;
   }
+  strcpy(name_buf, name);
+  node->name = name_buf;
 
   // "namespace" has already been sanity-checked by rmw_validate_namespace
   char * namespace_buf = static_cast<char *>(
@@ -122,6 +124,8 @@ rmw_create_node(
     allocator->deallocate(node, allocator->state);
     return nullptr;
   }
+  strcpy(namespace_buf, namespace_);
+  node->namespace_ = namespace_buf;
 
   node->context = context;
   if (!node->context) {
