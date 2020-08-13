@@ -185,6 +185,12 @@ rmw_destroy_node(rmw_node_t * node)
   // I am not sure how this will work with Zenoh
 
   rcutils_allocator_t * allocator = &node->context->options.allocator;
+  // NOTE(CH3): Destroy guard condition is a STUB at the moment!
+  rmw_destroy_guard_condition(static_cast<rmw_node_impl_t *>(node->data)->graph_guard_condition_);
+
+  // It actually has no means of accessing the allocator as well, so we deallocate it afterwards
+  allocator->deallocate(static_cast<rmw_node_impl_t *>(node->data)->graph_guard_condition_,
+                        allocator->state);
 
   allocator->deallocate(node->data, allocator->state);
   allocator->deallocate(node, allocator->state);
