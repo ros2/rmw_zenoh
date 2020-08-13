@@ -19,7 +19,7 @@ extern "C"
 rmw_guard_condition_t *
 rmw_create_guard_condition(rmw_context_t * context)
 {
-  RCUTILS_CHECK_ARGUMENT_FOR_NULL(context, NULL);
+  RMW_CHECK_ARGUMENT_FOR_NULL(context, nullptr);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     context,
     context->implementation_identifier,
@@ -54,16 +54,17 @@ rmw_destroy_guard_condition(rmw_guard_condition_t * guard_condition_handle)
 rmw_ret_t
 rmw_trigger_guard_condition(const rmw_guard_condition_t * guard_condition_handle)
 {
-  assert(guard_condition_handle);
+  RMW_CHECK_ARGUMENT_FOR_NULL(guard_condition_handle, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    guard_condition_handle,
+    guard_condition_handle->implementation_identifier,
+    eclipse_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION
+  )
 
-  if (guard_condition_handle->implementation_identifier != eclipse_zenoh_identifier) {
-    RMW_SET_ERROR_MSG("guard condition handle not from this implementation");
-    return RMW_RET_ERROR;
-  }
-
-  auto guard_condition = static_cast<GuardCondition *>(guard_condition_handle->data);
-  guard_condition->trigger();
+  static_cast<GuardCondition *>(guard_condition_handle->data)->trigger();
 
   return RMW_RET_OK;
 }
+
 } // extern "C"

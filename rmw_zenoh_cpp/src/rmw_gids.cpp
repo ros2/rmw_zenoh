@@ -16,23 +16,16 @@ extern "C"
 rmw_ret_t
 rmw_get_gid_for_publisher(const rmw_publisher_t * publisher, rmw_gid_t * gid)
 {
-  if (!publisher) {
-    RMW_SET_ERROR_MSG("publisher is null");
-    return RMW_RET_ERROR;
-  }
-
-  if (publisher->implementation_identifier != eclipse_zenoh_identifier) {
-    RMW_SET_ERROR_MSG("publisher handle not from this implementation");
-    return RMW_RET_ERROR;
-  }
-
-  if (!gid) {
-    RMW_SET_ERROR_MSG("gid is null");
-    return RMW_RET_ERROR;
-  }
+  RMW_CHECK_ARGUMENT_FOR_NULL(publisher, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    publisher,
+    publisher->implementation_identifier,
+    eclipse_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION
+  );
+  RMW_CHECK_ARGUMENT_FOR_NULL(gid, RMW_RET_INVALID_ARGUMENT);
 
   // Copy size_t to gid member
-  // NOTE(CH3): I am unsure if this is copying properly!!
   memset(gid->data, 0, sizeof(gid->data));
   memcpy(
     gid->data,

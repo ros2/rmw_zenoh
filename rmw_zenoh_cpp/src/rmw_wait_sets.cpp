@@ -66,14 +66,11 @@ fail:
 rmw_ret_t
 rmw_destroy_wait_set(rmw_wait_set_t * wait_set)
 {
-  if (!wait_set) {
-    RMW_SET_ERROR_MSG("wait set handle is null");
-    return RMW_RET_ERROR;
-  }
+  RMW_CHECK_ARGUMENT_FOR_NULL(wait_set, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     wait_set,
     wait_set->implementation_identifier, eclipse_zenoh_identifier,
-    return RMW_RET_ERROR)
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION)
 
   auto result = RMW_RET_OK;
   auto wait_set_data = static_cast<rmw_wait_set_data_t *>(wait_set->data);

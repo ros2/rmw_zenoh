@@ -34,10 +34,7 @@ rmw_destroy_node(rmw_node_t * node)
 const rmw_guard_condition_t *
 rmw_node_get_graph_guard_condition(const rmw_node_t * node)
 {
-  if (!node->data) {
-    RMW_SET_ERROR_MSG("failed to access node data");
-    return nullptr;
-  }
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->data, nullptr);
   return static_cast<rmw_node_impl_t *>(node->data)->graph_guard_condition_;
 }
 
