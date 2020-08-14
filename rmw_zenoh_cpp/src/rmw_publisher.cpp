@@ -134,74 +134,31 @@ rmw_create_publisher(
   ZNSession * s = node->context->impl->session;
   size_t zn_topic_id = zn_declare_resource(s, topic_name);
 
-  // Create implementation specific publisher struct
-  rmw_publisher_data_t * publisher_data = static_cast<rmw_publisher_data_t *>(
-    allocator->allocate(sizeof(rmw_publisher_data_t), allocator->state)
-  );
-  if (!publisher_data) {
-    RMW_SET_ERROR_MSG("failed to allocate rmw_publisher_data_t");
-    goto cleanup_data;
-    return nullptr;
-  }
+  // Get typed pointer to implementation specific publisher data struct
+  auto publisher_data = static_cast<rmw_publisher_data_t *>(publisher->data);
 
-  publisher_data->zn_session_ = static_cast<ZNSession *>(
-    allocator->allocate(sizeof(ZNSession *), allocator->state)
-  );
+  // Assign publisher data members
   publisher_data->zn_session_ = s;
-  if (!publisher_data->zn_session_) {
-    RMW_SET_ERROR_MSG("failed to allocate Zenoh session");
-    goto cleanup_typesupport;
-    return nullptr;
-  }
-
+  publisher_data->zn_topic_id_ = zn_topic_id;
+  publisher_data->typesupport_identifier_ = type_support->typesupport_identifier;
+  publisher_data->type_support_impl_ = type_support->data;
   RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_create_publisher topic: %s, id: %ld", topic_name, zn_topic_id);
 
-  publisher_data->zn_topic_id_ = zn_topic_id;
-  if (!publisher_data->zn_topic_id_) {
-    RMW_SET_ERROR_MSG("failed to allocate Zenoh topic ID");
-    goto cleanup_typesupport;
-    return nullptr;
-  }
-
-  publisher_data->typesupport_identifier_ = type_support->typesupport_identifier;
-  if (!publisher_data->typesupport_identifier_) {
-    RMW_SET_ERROR_MSG("failed to allocate typesupport_identifier_");
-    goto cleanup_typesupport;
-    return nullptr;
-  }
-
-  publisher_data->type_support_impl_ = type_support->data;
-  if (!publisher_data->type_support_impl_) {
-    RMW_SET_ERROR_MSG("failed to allocate type_support_impl_");
-    goto cleanup_typesupport;
-    return nullptr;
-  }
-
+  // Allocate and in-place assign new message typesupport instance
   publisher_data->type_support_ = static_cast<MessageTypeSupport_cpp *>(
     allocator->allocate(sizeof(MessageTypeSupport_cpp), allocator->state)
   );
-  publisher_data->type_support_ = new (std::nothrow) MessageTypeSupport_cpp(callbacks);
+  new(publisher_data->type_support_) MessageTypeSupport_cpp(callbacks);
   if (!publisher_data->type_support_) {
     RMW_SET_ERROR_MSG("failed to allocate MessageTypeSupport");
-    goto cleanup_typesupport;
+    allocator->deallocate(publisher_data->type_support_, allocator->state);
+    allocator->deallocate(publisher->data, allocator->state);
+    allocator->deallocate(publisher, allocator->state);
     return nullptr;
   }
 
-  // NOTE(CH3): Memory already allocated for node.
-  // Might have to copy, but unsure
+  // Assign node pointer
   publisher_data->node_ = node;
-  if (!publisher_data->node_) {
-    RMW_SET_ERROR_MSG("failed to assign node pointer");
-    goto cleanup_typesupport;
-    return nullptr;
-  }
-
-  publisher->data = publisher_data;
-  if (!publisher->data) {
-    RMW_SET_ERROR_MSG("failed to assign publisher data");
-    goto cleanup_typesupport;
-    return nullptr;
-  }
 
   // TODO(CH3): Put the publisher name/pointer into its corresponding node for tracking?
 
@@ -211,17 +168,6 @@ rmw_create_publisher(
   // Perhaps track something using the nodes?
 
   return publisher;
-
-cleanup_typesupport:
-  allocator->deallocate(publisher_data->type_support_, allocator->state);
-
-cleanup_data:
-  allocator->deallocate(publisher_data, allocator->state);
-
-  allocator->deallocate(publisher->data, allocator->state);
-  allocator->deallocate(publisher, allocator->state);
-
-  return nullptr;
 }
 
 /// DESTROY PUBLISHER ==========================================================
@@ -253,7 +199,6 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
   allocator->deallocate(
     static_cast<rmw_publisher_data_t *>(publisher->data)->type_support_, allocator->state
   );
-
   allocator->deallocate(publisher->data, allocator->state);
   allocator->deallocate(publisher, allocator->state);
 

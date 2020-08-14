@@ -133,67 +133,30 @@ rmw_create_subscription(
   // Create Zenoh resource
   ZNSession * s = node->context->impl->session;
 
-  // Create implementation specific subscription struct
-  rmw_subscription_data_t * subscription_data = static_cast<rmw_subscription_data_t *>(
-    allocator->allocate(sizeof(rmw_subscription_data_t), allocator->state)
-  );
-  if (!subscription_data) {
-    RMW_SET_ERROR_MSG("failed to allocate rmw_subscription_data_t");
-    goto cleanup_data;
-    return nullptr;
-  }
+  // Get typed pointer to implementation specific subscription data struct
+  auto * subscription_data = static_cast<rmw_subscription_data_t *>(subscription->data);
 
-  subscription_data->zn_session_ = static_cast<ZNSession *>(
-    allocator->allocate(sizeof(ZNSession *), allocator->state)
-  );
   subscription_data->zn_session_ = s;
-  if (!subscription_data->zn_session_) {
-    RMW_SET_ERROR_MSG("failed to allocate Zenoh session");
-    goto cleanup_session;
-    return nullptr;
-  }
+  subscription_data->typesupport_identifier_ = type_support->typesupport_identifier;
+  subscription_data->type_support_impl_ = type_support->data;
 
   RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_create_subscription topic: %s", topic_name);
 
-  subscription_data->typesupport_identifier_ = type_support->typesupport_identifier;
-  if (!subscription_data->typesupport_identifier_) {
-    RMW_SET_ERROR_MSG("failed to allocate typesupport_identifier_");
-    goto cleanup_session;
-    return nullptr;
-  }
-
-  subscription_data->type_support_impl_ = type_support->data;
-  if (!subscription_data->type_support_impl_) {
-    RMW_SET_ERROR_MSG("failed to allocate type_support_impl_");
-    goto cleanup_session;
-    return nullptr;
-  }
-
+  // Allocate and in-place assign new message typesupport instance
   subscription_data->type_support_ = static_cast<MessageTypeSupport_cpp *>(
     allocator->allocate(sizeof(MessageTypeSupport_cpp *), allocator->state)
   );
-  subscription_data->type_support_ = new (std::nothrow) MessageTypeSupport_cpp(callbacks);
+  new(subscription_data->type_support_) MessageTypeSupport_cpp(callbacks);
   if (!subscription_data->type_support_) {
     RMW_SET_ERROR_MSG("failed to allocate MessageTypeSupport");
-    goto cleanup_typesupport;
+    allocator->deallocate(subscription_data->type_support_, allocator->state);
+    allocator->deallocate(subscription->data, allocator->state);
+    allocator->deallocate(subscription, allocator->state);
     return nullptr;
   }
 
-  // NOTE(CH3): Memory already allocated for node.
-  // Might have to copy, but unsure
+  // Assign node pointer
   subscription_data->node_ = node;
-  if (!subscription_data->node_) {
-    RMW_SET_ERROR_MSG("failed to assign node pointer");
-    goto cleanup_typesupport;
-    return nullptr;
-  }
-
-  subscription->data = subscription_data;
-  if (!subscription->data) {
-    RMW_SET_ERROR_MSG("failed to allocate subscription data");
-    goto cleanup_typesupport;
-    return nullptr;
-  }
 
   zn_declare_subscriber(subscription_data->zn_session_,
                         subscription->topic_name,
@@ -208,20 +171,6 @@ rmw_create_subscription(
   // Perhaps track something using the nodes?
 
   return subscription;
-
-cleanup_typesupport:
-  allocator->deallocate(subscription_data->type_support_, allocator->state);
-
-cleanup_session:
-  allocator->deallocate(subscription_data->zn_session_, allocator->state);
-
-cleanup_data:
-  allocator->deallocate(subscription_data, allocator->state);
-
-  allocator->deallocate(subscription->data, allocator->state);
-  allocator->deallocate(subscription, allocator->state);
-
-  return nullptr;
 }
 
 /// DESTROY SUBSCRIPTION
@@ -251,9 +200,6 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
   // CLEANUP ===================================================================
   allocator->deallocate(
     static_cast<rmw_subscription_data_t *>(subscription->data)->type_support_, allocator->state
-  );
-  allocator->deallocate(
-    static_cast<rmw_subscription_data_t *>(subscription->data)->zn_session_, allocator->state
   );
   allocator->deallocate(subscription->data, allocator->state);
   allocator->deallocate(subscription, allocator->state);
@@ -335,6 +281,11 @@ rmw_take(
   return RMW_RET_OK;
 }
 
+// TODO(CH3): By right the passed rmw_message_info_t should have its members filled, which include:
+// Source and message reception timestamps, publisher_gid, and whether the message was from
+// inside the process.
+//
+// The problem is I'm not sure how to get this data from the way we've done things...
 rmw_ret_t
 rmw_take_with_info(
   const rmw_subscription_t * subscription,
