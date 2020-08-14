@@ -44,9 +44,7 @@ rmw_publish(
   );
 
   auto publisher_data = static_cast<rmw_publisher_data_t *>(publisher->data);
-  RMW_CHECK_FOR_NULL_WITH_MSG(
-    publisher_data, "publisher data pointer is null", return RMW_RET_ERROR
-  );
+  RMW_CHECK_ARGUMENT_FOR_NULL(publisher_data, RMW_RET_ERROR);
 
   // ASSIGN ALLOCATOR ==========================================================
   rcutils_allocator_t * allocator = &static_cast<rmw_publisher_data_t *>(publisher->data)

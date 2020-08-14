@@ -33,11 +33,7 @@ rmw_create_subscription(
   RCUTILS_LOG_INFO("NODE_NAME: %s", node->name);
 
   // ASSERTIONS ================================================================
-  RMW_CHECK_FOR_NULL_WITH_MSG(
-    node,
-    "node handle is null",
-    return nullptr
-  );
+  RMW_CHECK_ARGUMENT_FOR_NULL(node, nullptr);
 
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node,
@@ -46,15 +42,13 @@ rmw_create_subscription(
     return nullptr
   );
 
-  if (!topic_name || strlen(topic_name) == 0) {
-    RMW_SET_ERROR_MSG("subscription topic is null or empty string");
+  RMW_CHECK_ARGUMENT_FOR_NULL(topic_name, nullptr);
+  if (strlen(topic_name) == 0) {
+    RMW_SET_ERROR_MSG("subscription topic is empty string");
     return nullptr;
   }
 
-  if (!qos_profile) {  // Check to pass tests
-    RMW_SET_ERROR_MSG("qos_profile is null");
-    return nullptr;
-  }
+  RMW_CHECK_ARGUMENT_FOR_NULL(qos_profile, nullptr);
 
   // NOTE(CH3): For some reason the tests want a failed publisher init on passing an unknown QoS.
   // I don't understand why, and I don't see a check to fulfill that test in any RMW implementations
@@ -63,18 +57,10 @@ rmw_create_subscription(
   //   return nullptr;
   // }
 
-  RMW_CHECK_FOR_NULL_WITH_MSG(
-    subscription_options,
-    "subscription_options is null",
-    return nullptr
-  );
+  RMW_CHECK_ARGUMENT_FOR_NULL(subscription_options, nullptr);
+  RMW_CHECK_ARGUMENT_FOR_NULL(type_supports, nullptr);
 
-  RMW_CHECK_FOR_NULL_WITH_MSG(
-    type_supports,
-    "type_supports is null",
-    return nullptr
-  );
-
+  // OBTAIN ALLOCATOR ==========================================================
   // ASSIGN ALLOCATOR ==========================================================
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
@@ -289,15 +275,9 @@ rmw_take(
   RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_take");
 
   // ASSERTIONS ================================================================
-  RCUTILS_CHECK_FOR_NULL_WITH_MSG(
-    subscription, "subscription pointer is null", return RMW_RET_INVALID_ARGUMENT
-  );
-  RCUTILS_CHECK_FOR_NULL_WITH_MSG(
-    ros_message, "ros_message pointer is null", return RMW_RET_INVALID_ARGUMENT
-  );
-  RCUTILS_CHECK_FOR_NULL_WITH_MSG(
-    taken, "boolean flag for taken is null", return RMW_RET_INVALID_ARGUMENT
-  );
+  RMW_CHECK_ARGUMENT_FOR_NULL(subscription, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(ros_message, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(taken, RMW_RET_INVALID_ARGUMENT);
 
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     subscription,
@@ -308,12 +288,12 @@ rmw_take(
 
   // OBTAIN SUBSCRIPTION MEMBERS ===============================================
   const char * topic_name = subscription->topic_name;
-  RCUTILS_CHECK_FOR_NULL_WITH_MSG(topic_name, "subscription topic name is null", return RMW_RET_ERROR);
+  RMW_CHECK_ARGUMENT_FOR_NULL(topic_name, RMW_RET_INVALID_ARGUMENT);
 
   rmw_subscription_data_t * subscription_data = static_cast<rmw_subscription_data_t *>(
     subscription->data
   );
-  RCUTILS_CHECK_FOR_NULL_WITH_MSG(subscription_data, "subscription data pointer is null", return RMW_RET_ERROR);
+  RMW_CHECK_ARGUMENT_FOR_NULL(subscription_data, RMW_RET_ERROR);
 
   // ASSIGN ALLOCATOR ==========================================================
   rcutils_allocator_t * allocator = &static_cast<rmw_subscription_data_t *>(subscription->data)
@@ -372,18 +352,11 @@ rmw_take_with_info(
   RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_take_with_info");
 
   // ASSERTIONS ================================================================
-  RCUTILS_CHECK_FOR_NULL_WITH_MSG(
-    subscription, "subscription pointer is null", return RMW_RET_INVALID_ARGUMENT
-  );
-  RCUTILS_CHECK_FOR_NULL_WITH_MSG(
-    ros_message, "ros_message pointer is null", return RMW_RET_INVALID_ARGUMENT
-  );
-  RCUTILS_CHECK_FOR_NULL_WITH_MSG(
-    taken, "boolean flag for taken is null", return RMW_RET_INVALID_ARGUMENT
-  );
-  RCUTILS_CHECK_FOR_NULL_WITH_MSG(
-    message_info, "message info pointer is null", return RMW_RET_INVALID_ARGUMENT
-  );
+  RMW_CHECK_ARGUMENT_FOR_NULL(subscription, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(ros_message, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(taken, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(message_info, RMW_RET_INVALID_ARGUMENT);
+
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     subscription,
     subscription->implementation_identifier,
@@ -393,12 +366,12 @@ rmw_take_with_info(
 
   // OBTAIN SUBSCRIPTION MEMBERS ===============================================
   const char * topic_name = subscription->topic_name;
-  RCUTILS_CHECK_FOR_NULL_WITH_MSG(topic_name, "subscription topic name is null", return RMW_RET_ERROR);
+  RMW_CHECK_ARGUMENT_FOR_NULL(topic_name, RMW_RET_ERROR);
 
   rmw_subscription_data_t * subscription_data = static_cast<rmw_subscription_data_t *>(
     subscription->data
   );
-  RCUTILS_CHECK_FOR_NULL_WITH_MSG(subscription_data, "subscription data pointer is null", return RMW_RET_ERROR);
+  RMW_CHECK_ARGUMENT_FOR_NULL(subscription_data, RMW_RET_ERROR);
 
   // ASSIGN ALLOCATOR ==========================================================
   rcutils_allocator_t * allocator = &static_cast<rmw_subscription_data_t *>(subscription->data)

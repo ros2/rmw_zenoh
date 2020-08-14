@@ -28,11 +28,7 @@ rmw_create_publisher(
   const rmw_publisher_options_t * publisher_options)
 {
   // ASSERTIONS ================================================================
-  RMW_CHECK_FOR_NULL_WITH_MSG(
-    node,
-    "node handle is null",
-    return nullptr
-  );
+  RMW_CHECK_ARGUMENT_FOR_NULL(node, nullptr);
 
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node,
@@ -41,34 +37,24 @@ rmw_create_publisher(
     return nullptr
   );
 
-  if (!topic_name || strlen(topic_name) == 0) {
-    RMW_SET_ERROR_MSG("publisher topic is null or empty string");
+  RMW_CHECK_ARGUMENT_FOR_NULL(topic_name, nullptr);
+  if (strlen(topic_name) == 0) {
+    RMW_SET_ERROR_MSG("publisher topic is empty string");
     return nullptr;
   }
 
-  if (!qos_profile) {  // Check to pass tests
-    RMW_SET_ERROR_MSG("qos_profile is null");
-    return nullptr;
-  }
+  RMW_CHECK_ARGUMENT_FOR_NULL(qos_profile, nullptr);
 
-  // NOTE(CH3): For some reason the tests want a failed publisher init on passing an unknown QoS.
-  // I don't understand why, and I don't see a check to fulfill that test in any RMW implementations
+  // TODO(CH3): When we figure out how to spoof QoS, check for a 'configured' QoS to pass the final
+  // test that is failing
+  //
   // if (# SOME CHECK HERE) {
   //   RMW_SET_ERROR_MSG("expected configured QoS profile");
   //   return nullptr;
   // }
 
-  RMW_CHECK_FOR_NULL_WITH_MSG(
-    publisher_options,
-    "publisher_options is null",
-    return nullptr
-  );
-
-  RMW_CHECK_FOR_NULL_WITH_MSG(
-    type_supports,
-    "type_supports is null",
-    return nullptr
-  );
+  RMW_CHECK_ARGUMENT_FOR_NULL(publisher_options, nullptr);
+  RMW_CHECK_ARGUMENT_FOR_NULL(type_supports, nullptr);
 
   // ASSIGN ALLOCATOR ==========================================================
   rcutils_allocator_t * allocator = &node->context->options.allocator;
