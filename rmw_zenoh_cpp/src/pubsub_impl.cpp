@@ -6,10 +6,14 @@ extern "C"
 #include "rmw_zenoh_cpp/TypeSupport.hpp"
 #include "pubsub_impl.hpp"
 #include <iostream>
+#include <mutex>
+
+std::mutex sub_callback_mutex;
 
 // Declaring static members
 void rmw_subscription_data_t::zn_sub_callback(const zn_sample * sample) {
-  // NOTE(CH3): We might need a mutex here to prevent race conditions...
+  // Prevent race conditions...
+  std::lock_guard<std::mutex> guard(sub_callback_mutex);
 
   // NOTE(CH3): We unfortunately have to do this copy construction since we shouldn't be using
   // char * as keys to the unordered_map
