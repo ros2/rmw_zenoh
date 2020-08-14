@@ -61,7 +61,6 @@ rmw_create_subscription(
   RMW_CHECK_ARGUMENT_FOR_NULL(type_supports, nullptr);
 
   // OBTAIN ALLOCATOR ==========================================================
-  // ASSIGN ALLOCATOR ==========================================================
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
   // VALIDATE TOPIC NAME =======================================================
@@ -246,7 +245,7 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
     eclipse_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
-  // ASSIGN ALLOCATOR ==========================================================
+  // OBTAIN ALLOCATOR ==========================================================
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
   // CLEANUP ===================================================================
@@ -295,11 +294,9 @@ rmw_take(
   );
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription_data, RMW_RET_ERROR);
 
-  // ASSIGN ALLOCATOR ==========================================================
-  rcutils_allocator_t * allocator = &static_cast<rmw_subscription_data_t *>(subscription->data)
-    ->node_
-    ->context
-    ->options.allocator;
+  // OBTAIN ALLOCATOR ==========================================================
+  rcutils_allocator_t * allocator =
+    &static_cast<rmw_subscription_data_t *>(subscription->data)->node_->context->options.allocator;
 
   // RETRIEVE SERIALIZED MESSAGE ===============================================
   if (subscription_data->zn_messages_.find(topic_name) == subscription_data->zn_messages_.end()) {
@@ -313,7 +310,7 @@ rmw_take(
 
   unsigned char * cdr_buffer = static_cast<unsigned char *>(
     allocator->allocate(msg_bytes.second, allocator->state)
-  );;
+  );
   memcpy(cdr_buffer, &msg_bytes.first.front(), msg_bytes.second);
 
   // Remove stored message after successful retrieval
@@ -373,11 +370,9 @@ rmw_take_with_info(
   );
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription_data, RMW_RET_ERROR);
 
-  // ASSIGN ALLOCATOR ==========================================================
-  rcutils_allocator_t * allocator = &static_cast<rmw_subscription_data_t *>(subscription->data)
-    ->node_
-    ->context
-    ->options.allocator;
+  // OBTAIN ALLOCATOR ==========================================================
+  rcutils_allocator_t * allocator =
+    &static_cast<rmw_subscription_data_t *>(subscription->data)->node_->context->options.allocator;
 
   // RETRIEVE SERIALIZED MESSAGE ===============================================
   if (subscription_data->zn_messages_.find(topic_name) == subscription_data->zn_messages_.end()) {
@@ -391,7 +386,7 @@ rmw_take_with_info(
 
   unsigned char * cdr_buffer = static_cast<unsigned char *>(
     allocator->allocate(msg_bytes.second, allocator->state)
-  );;
+  );
   memcpy(cdr_buffer, &msg_bytes.first.front(), msg_bytes.second);
 
   // Remove stored message after successful retrieval

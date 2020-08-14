@@ -47,16 +47,12 @@ rmw_publish(
   RMW_CHECK_ARGUMENT_FOR_NULL(publisher_data, RMW_RET_ERROR);
 
   // ASSIGN ALLOCATOR ==========================================================
-  rcutils_allocator_t * allocator = &static_cast<rmw_publisher_data_t *>(publisher->data)
-    ->node_
-    ->context
-    ->options.allocator;
+  rcutils_allocator_t * allocator =
+    &static_cast<rmw_publisher_data_t *>(publisher->data)->node_->context->options.allocator;
 
   // SERIALIZE DATA ============================================================
   size_t max_data_length = (
-    static_cast<rmw_publisher_data_t *>(publisher->data)
-    ->type_support_
-    ->getEstimatedSerializedSize(ros_message)
+    static_cast<rmw_publisher_data_t *>(publisher->data)->type_support_->getEstimatedSerializedSize(ros_message)
   );
 
   // Init serialized message byte array

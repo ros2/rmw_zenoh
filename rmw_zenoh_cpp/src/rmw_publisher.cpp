@@ -56,7 +56,7 @@ rmw_create_publisher(
   RMW_CHECK_ARGUMENT_FOR_NULL(publisher_options, nullptr);
   RMW_CHECK_ARGUMENT_FOR_NULL(type_supports, nullptr);
 
-  // ASSIGN ALLOCATOR ==========================================================
+  // OBTAIN ALLOCATOR ==========================================================
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
   // VALIDATE TOPIC NAME =======================================================
@@ -66,8 +66,7 @@ rmw_create_publisher(
 
   rmw_validate_full_topic_name(topic_name, validation_result, nullptr);
 
-  if (*validation_result == RMW_TOPIC_VALID
-      || qos_profile->avoid_ros_namespace_conventions) {
+  if (*validation_result == RMW_TOPIC_VALID || qos_profile->avoid_ros_namespace_conventions) {
     allocator->deallocate(validation_result, allocator->state);
   } else {
     RMW_SET_ERROR_MSG("publisher topic is malformed!");
@@ -247,7 +246,7 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION
   );
 
-  // ASSIGN ALLOCATOR ==========================================================
+  // OBTAIN ALLOCATOR ==========================================================
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
   // CLEANUP ===================================================================
