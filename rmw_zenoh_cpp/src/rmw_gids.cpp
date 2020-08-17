@@ -6,8 +6,9 @@
 #include "rmw/names_and_types.h"
 #include "rmw/rmw.h"
 
-#include "rmw_zenoh_cpp/zenoh_pubsub.hpp"
 #include "rmw_zenoh_cpp/identifier.hpp"
+
+#include "pubsub_impl.hpp"
 
 extern "C"
 {

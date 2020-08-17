@@ -13,6 +13,13 @@ find_package(ament_cmake_ros REQUIRED)
 find_package(rcutils REQUIRED)
 find_package(rmw REQUIRED)
 
+find_package(fastrtps_cmake_module REQUIRED)
+find_package(fastcdr REQUIRED CONFIG)
+
+find_package(rosidl_generator_c REQUIRED)
+find_package(rosidl_typesupport_zenoh_c REQUIRED)
+find_package(rosidl_typesupport_zenoh_cpp REQUIRED)
+
 find_package(zenoh_ament REQUIRED)
 
 include_directories(include)
@@ -32,16 +39,27 @@ add_library(rmw_zenoh_cpp
   src/rmw_init_options.cpp
   src/rmw_logging.cpp
   src/rmw_node.cpp
+  src/rmw_publish.cpp
   src/rmw_publisher.cpp
   src/rmw_serialization.cpp
   src/rmw_services.cpp
   src/rmw_subscriber.cpp
   src/rmw_wait_sets.cpp
+
+  src/type_support_common.cpp
+  src/pubsub_impl.cpp
 )
+target_link_libraries(rmw_zenoh_cpp
+  fastcdr
+)
+
 ament_target_dependencies(rmw_zenoh_cpp
   rcutils
   rmw
   zenoh_ament
+  rosidl_typesupport_zenoh_c
+  rosidl_typesupport_zenoh_cpp
+  rosidl_generator_c
 )
 
 configure_rmw_library(rmw_zenoh_cpp)
@@ -52,13 +70,17 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE "RMW_ZENOH_CPP_BUILDING_LIBRA
 
 ament_export_include_directories(include)
 ament_export_libraries(rmw_zenoh_cpp)
+
+ament_export_dependencies(rosidl_typesupport_zenoh_cpp)
+ament_export_dependencies(rosidl_typesupport_zenoh_c)
+ament_export_dependencies(rosidl_generator_c)
 ament_export_dependencies(rcutils)
 ament_export_dependencies(rmw)
 ament_export_dependencies(zenoh_ament)
 
 register_rmw_implementation(
-  "c:rosidl_typesupport_c"
-  "cpp:rosidl_typesupport_cpp"
+  "c:rosidl_typesupport_c:rosidl_typesupport_zenoh_c"
+  "cpp:rosidl_typesupport_cpp:rosidl_typesupport_zenoh_cpp"
 )
 
 if(BUILD_TESTING)
@@ -67,7 +89,9 @@ if(BUILD_TESTING)
   add_subdirectory(test)
 endif()
 
-ament_package()
+ament_package(
+  CONFIG_EXTRAS_POST "rmw_zenoh_cpp-extras.cmake"
+)
 
 install(
   DIRECTORY include/

@@ -30,7 +30,7 @@ rmw_publisher_event_init(
   const rmw_publisher_t * publisher,
   rmw_event_type_t event_type)
 {
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_publisher_event_init (STUB)");
+  // RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_publisher_event_init (STUB)");
 
   RMW_CHECK_ARGUMENT_FOR_NULL(publisher, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(event, RMW_RET_INVALID_ARGUMENT);
@@ -62,7 +62,7 @@ rmw_subscription_event_init(
   const rmw_subscription_t * subscription,
   rmw_event_type_t event_type)
 {
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_subscription_event_init");
+  // RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_subscription_event_init");
 
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(event, RMW_RET_INVALID_ARGUMENT);
