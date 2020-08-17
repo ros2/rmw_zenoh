@@ -184,7 +184,7 @@ rmw_create_node(
   //   return nullptr;
   // }
 
-  RCUTILS_LOG_INFO("CREATED NODE %s", node->name);
+  // RCUTILS_LOG_INFO("CREATED NODE %s", node->name);
   return node;
 }
 

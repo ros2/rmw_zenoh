@@ -29,8 +29,8 @@ rmw_create_subscription(
   const rmw_qos_profile_t * qos_profile,
   const rmw_subscription_options_t * subscription_options)
 {
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_create_subscription");
-  RCUTILS_LOG_INFO("NODE_NAME: %s", node->name);
+  // RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_create_subscription");
+  // RCUTILS_LOG_INFO("NODE_NAME: %s", node->name);
 
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(node, nullptr);
@@ -140,7 +140,7 @@ rmw_create_subscription(
   subscription_data->typesupport_identifier_ = type_support->typesupport_identifier;
   subscription_data->type_support_impl_ = type_support->data;
 
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_create_subscription topic: %s", topic_name);
+  // RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_create_subscription topic: %s", topic_name);
 
   // Allocate and in-place assign new message typesupport instance
   subscription_data->type_support_ = static_cast<MessageTypeSupport_cpp *>(
@@ -217,7 +217,7 @@ rmw_take(
   (void)allocation;
   *taken = false;
 
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_take");
+  // RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_take");
 
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription, RMW_RET_INVALID_ARGUMENT);
@@ -297,7 +297,7 @@ rmw_take_with_info(
   (void)allocation;
   *taken = false;
 
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_take_with_info");
+  // RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_take_with_info");
 
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription, RMW_RET_INVALID_ARGUMENT);

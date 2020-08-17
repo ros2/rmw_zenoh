@@ -142,7 +142,7 @@ rmw_create_publisher(
   publisher_data->zn_topic_id_ = zn_topic_id;
   publisher_data->typesupport_identifier_ = type_support->typesupport_identifier;
   publisher_data->type_support_impl_ = type_support->data;
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_create_publisher topic: %s, id: %ld", topic_name, zn_topic_id);
+  // RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_create_publisher topic: %s, id: %ld", topic_name, zn_topic_id);
 
   // Allocate and in-place assign new message typesupport instance
   publisher_data->type_support_ = static_cast<MessageTypeSupport_cpp *>(
