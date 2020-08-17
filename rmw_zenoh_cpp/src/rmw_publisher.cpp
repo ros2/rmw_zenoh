@@ -132,7 +132,7 @@ rmw_create_publisher(
 
   // Create Zenoh resource
   ZNSession * s = node->context->impl->session;
-  size_t zn_topic_id = zn_declare_resource(s, topic_name);
+  size_t zn_topic_id = zn_declare_resource(s, publisher->topic_name);
 
   // Get typed pointer to implementation specific publisher data struct
   auto publisher_data = static_cast<rmw_publisher_data_t *>(publisher->data);

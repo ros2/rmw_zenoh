@@ -48,6 +48,7 @@ struct rmw_subscription_data_t
   const rmw_node_t * node_;
 
   ZNSession * zn_session_;
+  ZNSubscriber * zn_subscriber_;
 };
 
 #endif // RMW_ZENOH_CPP__ZENOH_PUBSUB_HPP_

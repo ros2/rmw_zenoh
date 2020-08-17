@@ -158,10 +158,13 @@ rmw_create_subscription(
   // Assign node pointer
   subscription_data->node_ = node;
 
-  zn_declare_subscriber(subscription_data->zn_session_,
-                        subscription->topic_name,
-                        zn_subinfo_default(),  // NOTE(CH3): Default for now
-                        subscription_data->zn_sub_callback);
+  // Init Zenoh subscriber
+  subscription_data->zn_subscriber_ = zn_declare_subscriber(
+    subscription_data->zn_session_,
+    subscription->topic_name,
+    zn_subinfo_default(),  // NOTE(CH3): Default for now
+    subscription_data->zn_sub_callback
+  );
 
   // TODO(CH3): Put the subscription name/pointer into its corresponding node for tracking?
 
