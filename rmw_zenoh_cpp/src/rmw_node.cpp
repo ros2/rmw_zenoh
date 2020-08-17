@@ -214,4 +214,12 @@ rmw_destroy_node(rmw_node_t * node)
   return RMW_RET_OK;
 }
 
+/// GET NODE GRAPH CONDITION ===================================================
+const rmw_guard_condition_t *
+rmw_node_get_graph_guard_condition(const rmw_node_t * node)
+{
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->data, nullptr);
+  return static_cast<rmw_node_impl_t *>(node->data)->graph_guard_condition_;
+}
+
 } // extern "C"

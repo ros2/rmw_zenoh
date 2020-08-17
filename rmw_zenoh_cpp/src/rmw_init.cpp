@@ -32,14 +32,14 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
 {
   // ASSERTIONS ================================================================
   // Check context
-  RCUTILS_CHECK_ARGUMENT_FOR_NULL(context, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(context, RMW_RET_INVALID_ARGUMENT);
   if (nullptr != context->implementation_identifier) {
     RMW_SET_ERROR_MSG("expected a zero-initialized context");
     return RMW_RET_INVALID_ARGUMENT;
   }
 
   // Check options
-  RCUTILS_CHECK_ARGUMENT_FOR_NULL(options, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(options, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_FOR_NULL_WITH_MSG(
     options->implementation_identifier,
     "expected initialized init options",
@@ -139,7 +139,7 @@ rmw_ret_t
 rmw_shutdown(rmw_context_t * context)
 {
   // Assertions
-  RCUTILS_CHECK_ARGUMENT_FOR_NULL(context, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(context, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_FOR_NULL_WITH_MSG(
     context->impl,
     "expected initialized context",
@@ -167,7 +167,7 @@ rmw_shutdown(rmw_context_t * context)
 rmw_ret_t
 rmw_context_fini(rmw_context_t * context)
 {
-  RCUTILS_CHECK_ARGUMENT_FOR_NULL(context, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(context, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_FOR_NULL_WITH_MSG(
     context->impl,
     "expected initialized context",

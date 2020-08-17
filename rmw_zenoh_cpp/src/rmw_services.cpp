@@ -54,6 +54,7 @@ rmw_take_response(
   return RMW_RET_ERROR;
 }
 
+// STUB
 rmw_service_t *
 rmw_create_service(
   const rmw_node_t * node,
@@ -65,19 +66,24 @@ rmw_create_service(
   (void)type_support;
   (void)service_name;
   (void)qos_profile;
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_create_service");
-  return nullptr;
+  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_create_service (STUB)");
+
+  // TODO(CH3): Properly do allocations
+  rmw_service_t * dummy = new rmw_service_t;
+  return dummy;
 }
 
+// STUB
 rmw_ret_t
 rmw_destroy_service(rmw_node_t * node, rmw_service_t * service)
 {
   (void)node;
   (void)service;
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_destroy_service");
-  return RMW_RET_ERROR;
+  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_destroy_service (STUB)");
+  return RMW_RET_OK;
 }
 
+// STUB
 rmw_ret_t
 rmw_take_request(
   const rmw_service_t * service,
@@ -89,8 +95,9 @@ rmw_take_request(
   (void)request_header;
   (void)ros_request;
   (void)taken;
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_take_request");
-  return RMW_RET_ERROR;
+  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_take_request (STUB)");
+  // return RMW_RET_ERROR;
+  return RMW_RET_OK;
 }
 
 rmw_ret_t

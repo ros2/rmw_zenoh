@@ -10,7 +10,6 @@ extern "C"
 const char *
 rmw_get_implementation_identifier()
 {
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_get_implementation_identifier");
   return eclipse_zenoh_identifier;
 }
 
@@ -23,4 +22,3 @@ rmw_get_serialization_format()
 
 
 } // extern "C"
-

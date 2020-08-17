@@ -110,13 +110,15 @@ rmw_publisher_count_matched_subscriptions(const rmw_publisher_t * publisher, siz
   return RMW_RET_ERROR;
 }
 
+// STUB
 rmw_ret_t
 rmw_publisher_get_actual_qos(const rmw_publisher_t * publisher, rmw_qos_profile_t * qos_profile)
 {
   (void)publisher;
   (void)qos_profile;
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_publisher_get_actual_qos");
-  return RMW_RET_ERROR;
+  // RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_publisher_get_actual_qos");
+  // return RMW_RET_ERROR;
+  return RMW_RET_OK;
 }
 
 rmw_ret_t
