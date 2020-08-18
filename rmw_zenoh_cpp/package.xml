@@ -6,11 +6,11 @@
   <description>Implement the ROS middleware interface using Eclipse Zenoh</description>
   <maintainer email="geoff@openrobotics.org">Geoffrey Biggs</maintainer>
   <maintainer email="brandon@openrobotics.org">Brandon Ong</maintainer>
-  <maintainer email="morgon@openrobotics.org">Morgan Quigly</maintainer>
+  <maintainer email="morgan@openrobotics.org">Morgan Quigley</maintainer>
   <license>Apache License 2.0</license>
   <author>Geoffrey Biggs</author>
   <author>Brandon Ong</author>
-  <author>Morgan Quigly</author>
+  <author>Morgan Quigley</author>
 
   <buildtool_depend>ament_cmake_ros</buildtool_depend>
 
