@@ -10,7 +10,7 @@
   <license>Apache License 2.0</license>
   <author>Geoffrey Biggs</author>
   <author>Brandon Ong</author>
-  <author>Morgan Quigly</author>
+  <author>Morgan Quigley</author>
 
   <buildtool_depend>ament_cmake_ros</buildtool_depend>
 
