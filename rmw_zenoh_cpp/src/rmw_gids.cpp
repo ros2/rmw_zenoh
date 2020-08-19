@@ -8,7 +8,7 @@
 
 #include "rmw_zenoh_cpp/identifier.hpp"
 
-#include "pubsub_impl.hpp"
+#include "impl/pubsub_impl.hpp"
 
 extern "C"
 {

@@ -10,7 +10,7 @@
 #include "rmw/event.h"
 
 #include "rmw_zenoh_cpp/identifier.hpp"
-#include "types/wait_set_data.hpp"
+#include "impl/wait_set_data.hpp"
 
 extern "C"
 {

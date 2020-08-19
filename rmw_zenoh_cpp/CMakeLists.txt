@@ -25,7 +25,6 @@ find_package(zenoh_ament REQUIRED)
 include_directories(include)
 
 add_library(rmw_zenoh_cpp
-  src/identifier.cpp
   src/rmw_event.cpp
   src/rmw_get_node_info_and_types.cpp
   src/rmw_get_service_names_and_types.cpp
@@ -46,8 +45,9 @@ add_library(rmw_zenoh_cpp
   src/rmw_subscriber.cpp
   src/rmw_wait_sets.cpp
 
-  src/type_support_common.cpp
-  src/pubsub_impl.cpp
+  src/impl/identifier.cpp
+  src/impl/pubsub_impl.cpp
+  src/impl/type_support_common.cpp
 )
 target_link_libraries(rmw_zenoh_cpp
   fastcdr

@@ -10,7 +10,7 @@
 #include "rcutils/logging_macros.h"
 
 #include "rmw_zenoh_cpp/identifier.hpp"
-#include "types/guard_condition.hpp"
+#include "impl/guard_condition.hpp"
 
 extern "C"
 {

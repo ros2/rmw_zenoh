@@ -12,8 +12,8 @@
 #include "rmw_zenoh_cpp/rmw_context_impl.hpp"
 #include "rmw_zenoh_cpp/identifier.hpp"
 
-#include "type_support_common.hpp"
-#include "pubsub_impl.hpp"
+#include "impl/type_support_common.hpp"
+#include "impl/pubsub_impl.hpp"
 
 extern "C"
 {

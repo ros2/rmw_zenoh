@@ -38,7 +38,7 @@ struct rmw_subscription_data_t
   // TODO(CH3): If needed, implement lock guards/mutexes to prevent race conditions
   static void zn_sub_callback(const zn_sample * sample);
 
-  // Serialized ROS message!
+  // Map of Zenoh topic key expression to latest serialized ROS messages
   static std::unordered_map<std::string, std::pair<std::vector<unsigned char>, size_t> > zn_messages_;
 
   const void * type_support_impl_;
