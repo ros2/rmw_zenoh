@@ -12,6 +12,7 @@
 
 namespace rmw_zenoh_cpp
 {
+
 class TypeSupport
 {
 public:
