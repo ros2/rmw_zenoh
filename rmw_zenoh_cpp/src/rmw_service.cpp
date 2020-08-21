@@ -40,7 +40,7 @@ rmw_create_service(
   const char * service_name,
   const rmw_qos_profile_t * qos_profile)
 {
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_create_service");
+  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "[rmw_create_service] %s", service_name);
 
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(node, nullptr);
@@ -154,8 +154,6 @@ rmw_create_service(
   service_data->request_type_support_impl_ = request_members;
   service_data->response_type_support_impl_ = response_members;
 
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "Creating service: %s", service_name);
-
   // Allocate and in-place assign new typesupport instances
   service_data->request_type_support_ = static_cast<RequestTypeSupport_cpp *>(
     allocator->allocate(sizeof(RequestTypeSupport_cpp *), allocator->state)
@@ -209,13 +207,11 @@ rmw_create_service(
   return service;
 }
 
-/// DESTROY SERVICE
+/// DESTROY SERVICE SERVER =====================================================
 // Destroy and deallocate an RMW service server
 rmw_ret_t
 rmw_destroy_service(rmw_node_t * node, rmw_service_t * service)
 {
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_destroy_service");
-
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(service, RMW_RET_INVALID_ARGUMENT);
@@ -229,6 +225,8 @@ rmw_destroy_service(rmw_node_t * node, rmw_service_t * service)
     service->implementation_identifier,
     eclipse_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+
+  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "[rmw_destroy_service] %s", service->service_name);
 
   // OBTAIN ALLOCATOR ==========================================================
   rcutils_allocator_t * allocator = &node->context->options.allocator;
@@ -244,20 +242,78 @@ rmw_destroy_service(rmw_node_t * node, rmw_service_t * service)
   return RMW_RET_OK;
 }
 
-// STUB
+/// TAKE REQUEST MESSAGE =======================================================
+// Take request message out of the request message queue
 rmw_ret_t
 rmw_take_request(
   const rmw_service_t * service,
-  rmw_service_info_t * request_header,
+  rmw_service_info_t * request_header,  // Out parameter
   void * ros_request,
   bool * taken)
 {
-  (void)service;
   (void)request_header;
-  (void)ros_request;
-  (void)taken;
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_take_request (STUB)");
-  // return RMW_RET_ERROR;
+
+  *taken = false;
+  // RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_take_request");
+
+  // ASSERTIONS ================================================================
+  RMW_CHECK_ARGUMENT_FOR_NULL(service, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(ros_request, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(taken, RMW_RET_INVALID_ARGUMENT);
+
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    service,
+    service->implementation_identifier,
+    eclipse_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION
+  );
+
+  // OBTAIN SUBSCRIPTION MEMBERS ===============================================
+  const char * service_name = service->service_name;
+  RMW_CHECK_ARGUMENT_FOR_NULL(service_name, RMW_RET_INVALID_ARGUMENT);
+
+  rmw_service_data_t * service_data = static_cast<rmw_service_data_t *>(
+    service->data
+  );
+  RMW_CHECK_ARGUMENT_FOR_NULL(service_data, RMW_RET_ERROR);
+
+  // OBTAIN ALLOCATOR ==========================================================
+  rcutils_allocator_t * allocator =
+    &static_cast<rmw_service_data_t *>(service->data)->node_->context->options.allocator;
+
+  // RETRIEVE SERIALIZED MESSAGE ===============================================
+  if (service_data->zn_request_messages_.find(service_name) == service_data->zn_request_messages_.end()) {
+    return RMW_RET_OK;
+  }
+  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "[rmw_take_request] Request found: %s", service_name);
+
+  // DESERIALIZE MESSAGE =======================================================
+  auto msg_bytes = service_data->zn_request_messages_[std::string(service_name)];
+
+  unsigned char * cdr_buffer = static_cast<unsigned char *>(
+    allocator->allocate(msg_bytes.size(), allocator->state)
+  );
+  memcpy(cdr_buffer, &msg_bytes.front(), msg_bytes.size());
+
+  // Remove stored message after successful retrieval
+  service_data->zn_request_messages_.erase(service_name);
+
+  eprosima::fastcdr::FastBuffer fastbuffer(
+    reinterpret_cast<char *>(cdr_buffer),
+    msg_bytes.size()
+  );  // Object that manages the raw buffer.
+
+  eprosima::fastcdr::Cdr deser(fastbuffer,
+                               eprosima::fastcdr::Cdr::DEFAULT_ENDIAN,
+                               eprosima::fastcdr::Cdr::DDS_CDR);  // Object that serializes the data.
+  if (!service_data->request_type_support_->deserializeROSmessage(
+    deser, ros_request, service_data->request_type_support_impl_
+  )) {
+    RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "COULD NOT DESERIALIZE REQUEST MESSAGE");
+    return RMW_RET_ERROR;
+  }
+
+  *taken = true;
   return RMW_RET_OK;
 }
 
