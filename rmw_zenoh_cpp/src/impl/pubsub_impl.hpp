@@ -39,7 +39,7 @@ struct rmw_subscription_data_t
   static void zn_sub_callback(const zn_sample * sample);
 
   // Map of Zenoh topic key expression to latest serialized ROS messages
-  static std::unordered_map<std::string, std::pair<std::vector<unsigned char>, size_t> > zn_messages_;
+  static std::unordered_map<std::string, std::vector<unsigned char> > zn_messages_;
 
   const void * type_support_impl_;
   const char * typesupport_identifier_;

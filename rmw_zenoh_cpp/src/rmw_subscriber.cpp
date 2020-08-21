@@ -20,7 +20,7 @@ extern "C"
 #include "zenoh/zenoh-ffi.h"
 
 /// CREATE SUBSCRIPTION ========================================================
-// Create and return an rmw subscriber.
+// Create and return an rmw subscriber
 rmw_subscription_t *
 rmw_create_subscription(
   const rmw_node_t * node,
@@ -130,7 +130,7 @@ rmw_create_subscription(
   // Init type support callbacks
   auto callbacks = static_cast<const message_type_support_callbacks_t *>(type_support->data);
 
-  // Create Zenoh resource
+  // Obtain Zenoh session
   ZNSession * s = node->context->impl->session;
 
   // Get typed pointer to implementation specific subscription data struct
@@ -140,11 +140,11 @@ rmw_create_subscription(
   subscription_data->typesupport_identifier_ = type_support->typesupport_identifier;
   subscription_data->type_support_impl_ = type_support->data;
 
-  // RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_create_subscription topic: %s", topic_name);
+  // RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "Creating subscription to: %s", topic_name);
 
   // Allocate and in-place assign new message typesupport instance
   subscription_data->type_support_ = static_cast<MessageTypeSupport_cpp *>(
-    allocator->allocate(sizeof(MessageTypeSupport_cpp *), allocator->state)
+    allocator->allocate(sizeof(MessageTypeSupport_cpp), allocator->state)
   );
   new(subscription_data->type_support_) MessageTypeSupport_cpp(callbacks);
   if (!subscription_data->type_support_) {
@@ -176,7 +176,7 @@ rmw_create_subscription(
   return subscription;
 }
 
-/// DESTROY SUBSCRIPTION
+/// DESTROY SUBSCRIPTION =======================================================
 // Destroy and deallocate an RMW subscription
 rmw_ret_t
 rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
@@ -210,6 +210,8 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
   return RMW_RET_OK;
 }
 
+/// TAKE MESSAGE ===============================================================
+// Take message out of the message queue
 rmw_ret_t
 rmw_take(
   const rmw_subscription_t * subscription,
@@ -255,19 +257,18 @@ rmw_take(
 
   // DESERIALIZE MESSAGE =======================================================
   auto msg_bytes = subscription_data->zn_messages_[std::string(topic_name)];
-  size_t data_length = msg_bytes.second;
 
   unsigned char * cdr_buffer = static_cast<unsigned char *>(
-    allocator->allocate(msg_bytes.second, allocator->state)
+    allocator->allocate(msg_bytes.size(), allocator->state)
   );
-  memcpy(cdr_buffer, &msg_bytes.first.front(), msg_bytes.second);
+  memcpy(cdr_buffer, &msg_bytes.front(), msg_bytes.size());
 
   // Remove stored message after successful retrieval
   subscription_data->zn_messages_.erase(topic_name);
 
   eprosima::fastcdr::FastBuffer fastbuffer(
     reinterpret_cast<char *>(cdr_buffer),
-    data_length
+    msg_bytes.size()
   );  // Object that manages the raw buffer.
 
   eprosima::fastcdr::Cdr deser(fastbuffer,
@@ -284,6 +285,9 @@ rmw_take(
   return RMW_RET_OK;
 }
 
+/// TAKE MESSAGE WITH INFO =====================================================
+// Take message out of the message queue, and obtain its message info
+//
 // TODO(CH3): By right the passed rmw_message_info_t should have its members filled, which include:
 // Source and message reception timestamps, publisher_gid, and whether the message was from
 // inside the process.
@@ -336,19 +340,18 @@ rmw_take_with_info(
 
   // DESERIALIZE MESSAGE =======================================================
   auto msg_bytes = subscription_data->zn_messages_[std::string(topic_name)];
-  size_t data_length = msg_bytes.second;
 
   unsigned char * cdr_buffer = static_cast<unsigned char *>(
-    allocator->allocate(msg_bytes.second, allocator->state)
+    allocator->allocate(msg_bytes.size(), allocator->state)
   );
-  memcpy(cdr_buffer, &msg_bytes.first.front(), msg_bytes.second);
+  memcpy(cdr_buffer, &msg_bytes.front(), msg_bytes.size());
 
   // Remove stored message after successful retrieval
   subscription_data->zn_messages_.erase(topic_name);
 
   eprosima::fastcdr::FastBuffer fastbuffer(
     reinterpret_cast<char *>(cdr_buffer),
-    data_length
+    msg_bytes.size()
   );  // Object that manages the raw buffer.
 
   eprosima::fastcdr::Cdr deser(fastbuffer,
