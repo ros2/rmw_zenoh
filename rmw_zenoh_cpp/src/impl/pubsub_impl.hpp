@@ -35,7 +35,6 @@ struct rmw_publisher_data_t
 // Functionally a struct. But with a method for handling incoming Zenoh messages
 struct rmw_subscription_data_t
 {
-  // TODO(CH3): If needed, implement lock guards/mutexes to prevent race conditions
   static void zn_sub_callback(const zn_sample * sample);
 
   // Map of Zenoh topic key expression to latest serialized ROS messages

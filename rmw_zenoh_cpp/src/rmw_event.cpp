@@ -15,10 +15,9 @@ extern "C"
 rmw_ret_t
 rmw_take_event(const rmw_event_t * event_handle, void * event_info, bool * taken)
 {
-  (void)event_handle;
   (void)event_info;
 
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_take_event (STUB)");
+  // RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_take_event (STUB)");
   *taken = true;
 
   return RMW_RET_OK;

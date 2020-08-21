@@ -10,7 +10,15 @@ extern "C"
 
 std::mutex sub_callback_mutex;
 
-// Declaring static members
+// Static message map
+std::unordered_map<std::string, std::vector<unsigned char> >
+  rmw_subscription_data_t::zn_messages_;
+
+// Fills the static message map with the latest received message
+//
+// NOTE(CH3): This means that the queue size for each topic is ONE for now!!
+// So this might break if a topic is being spammed.
+// TODO(CH3): Implement queuing logic
 void rmw_subscription_data_t::zn_sub_callback(const zn_sample * sample) {
   // Prevent race conditions...
   std::lock_guard<std::mutex> guard(sub_callback_mutex);
@@ -24,6 +32,3 @@ void rmw_subscription_data_t::zn_sub_callback(const zn_sample * sample) {
 
   rmw_subscription_data_t::zn_messages_[key] = std::vector<unsigned char>(byte_vec);
 }
-
-std::unordered_map<std::string, std::vector<unsigned char> >
-  rmw_subscription_data_t::zn_messages_;
