@@ -3,6 +3,7 @@
 #include "wait_impl.hpp"
 #include "pubsub_impl.hpp"
 #include "service_impl.hpp"
+#include "client_impl.hpp"
 
 /// HELPER FUNCTION FOR WAIT ===================================================
 bool check_wait_conditions(
@@ -12,7 +13,7 @@ bool check_wait_conditions(
   const rmw_clients_t * clients,
   const rmw_events_t * events)
 {
-  // If there are subscription messages ready, continue
+  // Subscriptions: If there are subscription messages ready, continue
   if (!rmw_subscription_data_t::zn_messages_.empty()) {
     // RCUTILS_LOG_INFO_NAMED(
     //   "rmw_zenoh_cpp",
@@ -21,7 +22,7 @@ bool check_wait_conditions(
     return true;
   }
 
-  // If there are request messages ready, continue
+  // Services: If there are request messages ready, continue
   if (!rmw_service_data_t::zn_request_messages_.empty()) {
     // RCUTILS_LOG_INFO_NAMED(
     //   "rmw_zenoh_cpp",
@@ -30,16 +31,23 @@ bool check_wait_conditions(
     return true;
   }
 
-  // TODO(CH3): Handle clients
-  // if (clients) {
-  //   for (size_t i = 0; i < clients->client_count; ++i) {
-  //     void * data = clients->clients[i];
-  //     CustomClientInfo * custom_client_info = static_cast<CustomClientInfo *>(data);
-  //     if (custom_client_info && custom_client_info->listener_->hasData()) {
-  //       return true;
-  //     }
-  //   }
-  // }
+  // Clients: If there are response messages ready, continue
+  if (!rmw_client_data_t::zn_response_messages_.empty()) {
+    // RCUTILS_LOG_INFO_NAMED(
+    //   "rmw_zenoh_cpp",
+    //   "[rmw_wait] RESPONSE MESSAGES IN QUEUE: %ld", rmw_client_data_t::zn_response_messages_.size()
+    // );
+    return true;
+  }
+
+  // Clients: If there are service server availabiity messages ready, continue
+  if (!rmw_client_data_t::zn_availability_query_responses_.empty()) {
+    // RCUTILS_LOG_INFO_NAMED(
+    //   "rmw_zenoh_cpp",
+    //   "[rmw_wait] RESPONSE MESSAGES IN QUEUE: %ld", rmw_client_data_t::zn_availability_query_responses_.size()
+    // );
+    return true;
+  }
 
   // TODO(CH3): Handle events
   // if (events) {
