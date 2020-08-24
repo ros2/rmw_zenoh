@@ -20,6 +20,8 @@ extern "C"
 rmw_wait_set_t *
 rmw_create_wait_set(rmw_context_t * context, size_t max_conditions)
 {
+  (void)max_conditions;
+
   // RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_create_wait_set");
 
   RCUTILS_CHECK_ARGUMENT_FOR_NULL(context, NULL);
@@ -29,8 +31,6 @@ rmw_create_wait_set(rmw_context_t * context, size_t max_conditions)
     eclipse_zenoh_identifier,
     return nullptr
   );
-
-  (void)max_conditions;
 
   // NOTE(CH3): Unfortunately we can't do custom allocation here because the destruction method
   // does not pass in a context from which we can draw an allocator from
@@ -121,20 +121,19 @@ rmw_wait(  // All parameters are in parameters
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(wait_set, RMW_RET_INVALID_ARGUMENT);
 
-  printf("\n");
-  RCUTILS_LOG_INFO_NAMED(
-    "rmw_zenoh_cpp", "[rmw_wait] %ld subscriptions, %ld srv_servers, %ld srv_clients, %ld events",
-    subscriptions->subscriber_count,
-    services->service_count,
-    clients->client_count,
-    events->event_count
-  );
-
-  if (wait_timeout) {
-    RCUTILS_LOG_INFO_NAMED(
-      "rmw_zenoh_cpp", "[rmw_wait] TIMEOUT: %ld s %ld ns", wait_timeout->sec, wait_timeout->nsec
-    );
-  }
+  // RCUTILS_LOG_INFO_NAMED(
+  //   "rmw_zenoh_cpp", "[rmw_wait] %ld subscriptions, %ld srv_servers, %ld srv_clients, %ld events",
+  //   subscriptions->subscriber_count,
+  //   services->service_count,
+  //   clients->client_count,
+  //   events->event_count
+  // );
+  //
+  // if (wait_timeout) {
+  //   RCUTILS_LOG_INFO_NAMED(
+  //     "rmw_zenoh_cpp", "[rmw_wait] TIMEOUT: %ld s %ld ns", wait_timeout->sec, wait_timeout->nsec
+  //   );
+  // }
 
   // OBTAIN SYNCHRONIZATION OBJECTS ============================================
   auto wait_set_info = static_cast<rmw_wait_set_data_t *>(wait_set->data);
