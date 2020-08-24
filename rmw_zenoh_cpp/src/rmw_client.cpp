@@ -109,10 +109,7 @@ rmw_create_client(
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
   // VALIDATE SERVICE NAME =====================================================
-  int * validation_result = static_cast<int *>(
-    allocator->allocate(sizeof(int), allocator->state)
-  );
-
+  int * validation_result = static_cast<int *>(allocator->allocate(sizeof(int), allocator->state));
   rmw_validate_full_topic_name(service_name, validation_result, nullptr);
 
   if (*validation_result == RMW_TOPIC_VALID || qos_profile->avoid_ros_namespace_conventions) {
@@ -139,9 +136,8 @@ rmw_create_client(
   }
 
   // CREATE CLIENT =============================================================
-  rmw_client_t * client = static_cast<rmw_client_t *>(
-    allocator->allocate(sizeof(rmw_client_t), allocator->state)
-  );
+  rmw_client_t * client = static_cast<rmw_client_t *>(allocator->allocate(sizeof(rmw_client_t),
+                                                                          allocator->state));
   if (!client) {
     RMW_SET_ERROR_MSG("failed to allocate rmw_client_t");
     allocator->deallocate(client, allocator->state);
@@ -151,16 +147,15 @@ rmw_create_client(
   // Populate common members
   client->implementation_identifier = eclipse_zenoh_identifier;  // const char * assignment
 
-  client->service_name = rcutils_strdup(service_name, *allocator);
+  client->service_name = rcutils_strdup(service_name, *allocator);  // const char * assignment
   if (!client->service_name) {
     RMW_SET_ERROR_MSG("failed to allocate publisher topic name");
     allocator->deallocate(client, allocator->state);
     return nullptr;
   }
 
-  client->data = static_cast<rmw_client_data_t *>(
-    allocator->allocate(sizeof(rmw_client_data_t), allocator->state)
-  );
+  client->data = static_cast<rmw_client_data_t *>(allocator->allocate(sizeof(rmw_client_data_t),
+                                                                      allocator->state));
   if (!client->data) {
     RMW_SET_ERROR_MSG("failed to allocate client data");
     allocator->deallocate(client->data, allocator->state);
@@ -274,9 +269,13 @@ rmw_destroy_client(rmw_node_t * node, rmw_client_t * client)
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
   // CLEANUP ===================================================================
-  allocator->deallocate(static_cast<rmw_client_data_t *>(client->data)->request_type_support_,
+  auto client_data = static_cast<rmw_client_data_t *>(client->data);
+
+  zn_undeclare_subscriber(client_data->zn_response_subscriber_);
+
+  allocator->deallocate(client_data->request_type_support_,
                         allocator->state);
-  allocator->deallocate(static_cast<rmw_client_data_t *>(client->data)->response_type_support_,
+  allocator->deallocate(client_data->response_type_support_,
                         allocator->state);
   allocator->deallocate(client->data, allocator->state);
   allocator->deallocate(client, allocator->state);

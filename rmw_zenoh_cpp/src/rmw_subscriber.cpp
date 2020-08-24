@@ -209,6 +209,10 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
   // CLEANUP ===================================================================
+  zn_undeclare_subscriber(
+    static_cast<rmw_subscription_data_t *>(subscription->data)->zn_subscriber_
+  );
+
   allocator->deallocate(
     static_cast<rmw_subscription_data_t *>(subscription->data)->type_support_, allocator->state
   );

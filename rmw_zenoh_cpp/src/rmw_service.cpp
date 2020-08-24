@@ -51,9 +51,7 @@ rmw_create_service(
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
   // VALIDATE SERVICE NAME =====================================================
-  int * validation_result = static_cast<int *>(
-    allocator->allocate(sizeof(int), allocator->state)
-  );
+  int * validation_result = static_cast<int *>(allocator->allocate(sizeof(int), allocator->state));
 
   rmw_validate_full_topic_name(service_name, validation_result, nullptr);
 
@@ -72,8 +70,7 @@ rmw_create_service(
   );
 
   if (!type_support) {
-    type_support = get_service_typesupport_handle(
-      type_supports, RMW_ZENOH_CPP_TYPESUPPORT_CPP);
+    type_support = get_service_typesupport_handle(type_supports, RMW_ZENOH_CPP_TYPESUPPORT_CPP);
     if (!type_support) {
       RCUTILS_LOG_INFO("%s", service_name);
       RMW_SET_ERROR_MSG("type support not from this implementation");
@@ -94,7 +91,7 @@ rmw_create_service(
   // Populate common members
   service->implementation_identifier = eclipse_zenoh_identifier;  // const char * assignment
 
-  service->service_name = rcutils_strdup(service_name, *allocator);
+  service->service_name = rcutils_strdup(service_name, *allocator);  // const char * assignment
   if (!service->service_name) {
     RMW_SET_ERROR_MSG("failed to allocate service name");
     allocator->deallocate(service, allocator->state);
@@ -203,6 +200,9 @@ rmw_create_service(
   );
   if (service_data->zn_queryable_ == 0) {
     RMW_SET_ERROR_MSG("failed to create availability queryable for service");
+
+    zn_undeclare_subscriber(service_data->zn_request_subscriber_);
+
     allocator->deallocate(service_data->request_type_support_, allocator->state);
     allocator->deallocate(service_data->response_type_support_, allocator->state);
     allocator->deallocate(service->data, allocator->state);
@@ -238,11 +238,14 @@ rmw_destroy_service(rmw_node_t * node, rmw_service_t * service)
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
   // CLEANUP ===================================================================
-  zn_undeclare_queryable(static_cast<rmw_service_data_t *>(service->data)->zn_queryable_);
+  auto service_data = static_cast<rmw_service_data_t *>(service->data);
 
-  allocator->deallocate(static_cast<rmw_service_data_t *>(service->data)->request_type_support_,
+  zn_undeclare_subscriber(service_data->zn_request_subscriber_);
+  zn_undeclare_queryable(service_data->zn_queryable_);
+
+  allocator->deallocate(service_data->request_type_support_,
                         allocator->state);
-  allocator->deallocate(static_cast<rmw_service_data_t *>(service->data)->response_type_support_,
+  allocator->deallocate(service_data->response_type_support_,
                         allocator->state);
   allocator->deallocate(service->data, allocator->state);
   allocator->deallocate(service, allocator->state);
