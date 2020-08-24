@@ -51,6 +51,7 @@ add_library(rmw_zenoh_cpp
   src/impl/wait_impl.cpp
   src/impl/pubsub_impl.cpp
   src/impl/service_impl.cpp
+  src/impl/client_impl.cpp
   src/impl/type_support_common.cpp
 )
 target_link_libraries(rmw_zenoh_cpp

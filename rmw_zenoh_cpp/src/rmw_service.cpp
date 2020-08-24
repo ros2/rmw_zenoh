@@ -12,24 +12,10 @@
 
 #include "impl/type_support_common.hpp"
 #include "impl/service_impl.hpp"
+#include "impl/client_impl.hpp"
 
 extern "C"
 {
-
-// ANCILLARY FUNCTIONS =========================================================
-// STUB
-rmw_ret_t
-rmw_service_server_is_available(
-  const rmw_node_t * node,
-  const rmw_client_t * client,
-  bool * result)
-{
-  (void)node;
-  (void)client;
-  (void)result;
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_service_server_is_available");
-  return RMW_RET_ERROR;
-}
 
 /// CREATE SERVICE SERVER ======================================================
 // Create and return an rmw service server
