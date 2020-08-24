@@ -114,6 +114,9 @@ rmw_create_subscription(
   subscription->options = *subscription_options;
   subscription->can_loan_messages = false;
 
+  // NOTE(CH3): Does this leak because it can't be freed?
+  // If so, should I cast away the const and free it later? (It's bad code smell though...)
+  // (The topic_name member is const, so it can't be freed without a const cast)
   subscription->topic_name = rcutils_strdup(topic_name, *allocator);
   if (!subscription->topic_name) {
     RMW_SET_ERROR_MSG("failed to allocate subscription topic name");
@@ -251,17 +254,18 @@ rmw_take(
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription_data, RMW_RET_ERROR);
 
   // OBTAIN ALLOCATOR ==========================================================
-  rcutils_allocator_t * allocator =
-    &static_cast<rmw_subscription_data_t *>(subscription->data)->node_->context->options.allocator;
+  rcutils_allocator_t * allocator = &subscription_data->node_->context->options.allocator;
 
   // RETRIEVE SERIALIZED MESSAGE ===============================================
-  if (subscription_data->zn_messages_.find(topic_name) == subscription_data->zn_messages_.end()) {
+  std::string key(topic_name);
+
+  if (subscription_data->zn_messages_.find(key) == subscription_data->zn_messages_.end()) {
     return RMW_RET_OK;
   }
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "[rmw_take] Message found: %s", topic_name);
+  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "[rmw_take] Message found: %s", key.c_str());
 
   // DESERIALIZE MESSAGE =======================================================
-  auto msg_bytes = subscription_data->zn_messages_[std::string(topic_name)];
+  auto msg_bytes = subscription_data->zn_messages_[key];
 
   unsigned char * cdr_buffer = static_cast<unsigned char *>(
     allocator->allocate(msg_bytes.size(), allocator->state)
@@ -269,7 +273,7 @@ rmw_take(
   memcpy(cdr_buffer, &msg_bytes.front(), msg_bytes.size());
 
   // Remove stored message after successful retrieval
-  subscription_data->zn_messages_.erase(topic_name);
+  subscription_data->zn_messages_.erase(key);
 
   eprosima::fastcdr::FastBuffer fastbuffer(
     reinterpret_cast<char *>(cdr_buffer),
@@ -338,8 +342,7 @@ rmw_take_with_info(
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription_data, RMW_RET_ERROR);
 
   // OBTAIN ALLOCATOR ==========================================================
-  rcutils_allocator_t * allocator =
-    &static_cast<rmw_subscription_data_t *>(subscription->data)->node_->context->options.allocator;
+  rcutils_allocator_t * allocator = &subscription_data->node_->context->options.allocator;
 
   // RETRIEVE SERIALIZED MESSAGE ===============================================
   if (subscription_data->zn_messages_.find(topic_name) == subscription_data->zn_messages_.end()) {

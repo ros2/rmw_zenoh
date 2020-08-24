@@ -77,7 +77,7 @@ rmw_publish(
 
   size_t data_length = ser.getSerializedDataLength();
 
-  // // PUBLISH ON ZENOH MIDDLEWARE LAYER =========================================
+  // PUBLISH ON ZENOH MIDDLEWARE LAYER =========================================
   zn_write_wrid(publisher_data->zn_session_,
                 publisher_data->zn_topic_id_,
                 msg_bytes,

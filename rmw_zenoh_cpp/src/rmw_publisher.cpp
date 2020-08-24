@@ -106,11 +106,6 @@ rmw_create_publisher(
 
   // Populate common members
   publisher->implementation_identifier = eclipse_zenoh_identifier;  // const char * assignment
-  if (!publisher->implementation_identifier) {
-    RMW_SET_ERROR_MSG("failed to allocate implementation identifier");
-    allocator->deallocate(publisher, allocator->state);
-    return nullptr;
-  }
 
   publisher->topic_name = rcutils_strdup(topic_name, *allocator);
   if (!publisher->topic_name) {
@@ -132,22 +127,26 @@ rmw_create_publisher(
   publisher->options = *publisher_options;
 
   // CREATE PUBLISHER MEMBERS ==================================================
+  // Get typed pointer to implementation specific publisher data struct
+  auto publisher_data = static_cast<rmw_publisher_data_t *>(publisher->data);
+
   // Init type support callbacks
   auto callbacks = static_cast<const message_type_support_callbacks_t *>(type_support->data);
 
   // Create Zenoh resource
   ZNSession * s = node->context->impl->session;
-  size_t zn_topic_id = zn_declare_resource(s, publisher->topic_name);
 
-  // Get typed pointer to implementation specific publisher data struct
-  auto publisher_data = static_cast<rmw_publisher_data_t *>(publisher->data);
+  // NOTE(CH3): This topic ID only unique WITHIN this process!
+  //
+  // Another topic on another process might clash with the ID on this process, even within the
+  // same Zenoh network! It is not a UUID!!
+  publisher_data->zn_topic_id_ = zn_declare_resource(s, publisher->topic_name);
 
   // Assign publisher data members
   publisher_data->zn_session_ = s;
-  publisher_data->zn_topic_id_ = zn_topic_id;
   publisher_data->typesupport_identifier_ = type_support->typesupport_identifier;
   publisher_data->type_support_impl_ = type_support->data;
-  // RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "[rmw_create_publisher] Zenoh resource declared: %s (%ld)", topic_name, zn_topic_id);
+  // RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "[rmw_create_publisher] Zenoh resource declared: %s (%ld)", topic_name, publisher_data->zn_topic_id);
 
   // Allocate and in-place assign new message typesupport instance
   publisher_data->type_support_ = static_cast<MessageTypeSupport_cpp *>(
