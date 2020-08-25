@@ -13,7 +13,7 @@ include(ExternalProject)
 ExternalProject_Add(zenoh-9999
   PREFIX zenoh
   GIT_REPOSITORY https://github.com/eclipse-zenoh/zenoh.git
-  GIT_TAG origin/rust-master
+  GIT_TAG 2a93c83afb7b0865fb99d5a6fc4b153badc3b8c7
   GIT_SHALLOW TRUE
   CONFIGURE_COMMAND ""
   BUILD_COMMAND cargo build --release -p zenoh-ffi
