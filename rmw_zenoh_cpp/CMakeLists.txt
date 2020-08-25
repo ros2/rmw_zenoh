@@ -20,7 +20,8 @@ find_package(rosidl_generator_c REQUIRED)
 find_package(rosidl_typesupport_zenoh_c REQUIRED)
 find_package(rosidl_typesupport_zenoh_cpp REQUIRED)
 
-find_package(zenoh_ament REQUIRED)
+find_package(zenoh_vendor REQUIRED)
+find_package(zenoh REQUIRED)
 
 include_directories(include)
 
@@ -56,7 +57,7 @@ target_link_libraries(rmw_zenoh_cpp
 ament_target_dependencies(rmw_zenoh_cpp
   rcutils
   rmw
-  zenoh_ament
+  zenoh
   rosidl_typesupport_zenoh_c
   rosidl_typesupport_zenoh_cpp
   rosidl_generator_c
@@ -76,7 +77,7 @@ ament_export_dependencies(rosidl_typesupport_zenoh_c)
 ament_export_dependencies(rosidl_generator_c)
 ament_export_dependencies(rcutils)
 ament_export_dependencies(rmw)
-ament_export_dependencies(zenoh_ament)
+ament_export_dependencies(zenoh)
 
 register_rmw_implementation(
   "c:rosidl_typesupport_c:rosidl_typesupport_zenoh_c"
