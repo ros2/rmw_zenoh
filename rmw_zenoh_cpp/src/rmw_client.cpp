@@ -342,10 +342,7 @@ rmw_send_request(const rmw_client_t * client, const void * ros_request, int64_t 
   );
 
   if (!client_data->request_type_support_->serializeROSmessage(
-    const_cast<void *>(ros_request),
-    ser,
-    client_data->request_type_support_impl_
-    )
+    ros_request, ser, client_data->request_type_support_impl_)
   ) {
     RMW_SET_ERROR_MSG("failed serialize ROS request message");
     allocator->deallocate(request_bytes, allocator->state);

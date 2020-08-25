@@ -328,8 +328,8 @@ rmw_take_request(
                                eprosima::fastcdr::Cdr::DEFAULT_ENDIAN,
                                eprosima::fastcdr::Cdr::DDS_CDR);  // Object that serializes the data.
   if (!service_data->request_type_support_->deserializeROSmessage(
-    deser, ros_request, service_data->request_type_support_impl_
-  )) {
+    deser, ros_request, service_data->request_type_support_impl_)
+  ) {
     RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "COULD NOT DESERIALIZE REQUEST MESSAGE");
     return RMW_RET_ERROR;
   }
@@ -391,10 +391,7 @@ rmw_send_response(const rmw_service_t * service,
                              eprosima::fastcdr::Cdr::DEFAULT_ENDIAN,
                              eprosima::fastcdr::Cdr::DDS_CDR);  // Object that serializes the data.
   if (!service_data->response_type_support_->serializeROSmessage(
-    const_cast<void *>(ros_response),
-    ser,
-    service_data->response_type_support_impl_
-    )
+    ros_response, ser, service_data->response_type_support_impl_)
   ) {
     allocator->deallocate(response_bytes, allocator->state);
     return RMW_RET_ERROR;

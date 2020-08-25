@@ -68,9 +68,9 @@ rmw_publish(
   eprosima::fastcdr::Cdr ser(fastbuffer,
                              eprosima::fastcdr::Cdr::DEFAULT_ENDIAN,
                              eprosima::fastcdr::Cdr::DDS_CDR);  // Object that serializes the data.
-  if (!publisher_data->type_support_->serializeROSmessage(const_cast<void *>(ros_message),
-                                                         ser,
-                                                         publisher_data->type_support_impl_)) {
+  if (!publisher_data->type_support_->serializeROSmessage(ros_message,
+                                                          ser,
+                                                          publisher_data->type_support_impl_)) {
     allocator->deallocate(msg_bytes, allocator->state);
     return RMW_RET_ERROR;
   }
