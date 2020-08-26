@@ -1,68 +1,84 @@
 # rmw_zenoh
 
 `rmw_zenoh` provides an experimental implementation of the ROS middleware interface using Eclipse Zenoh as the middleware.
-The RMW implementation is contained in the `rmw_zenoh` package.
+The RMW implementation is contained in the `rmw_zenoh_cpp` package.
 
-Zenoh does not include its own marshalling.
-The library focuses solely on getting binary blobs from one place to another.
+*Note that this implementation is currently very young, under heavy development, and generally rapidly changing.*
+*It may work smoothly, or it may blow up and squash your cat.*
+*Please do not expect to use it except in an experimental capacity.*
+
+Zenoh does not include its own serialisation scheme.
+Currently a hacked-up copy of [Fast CDR]() is used.
+In the future we hope to support different serialisation schemes, possibly in a configurable way.
 
 
-## Testing
+## Installation
 
-The `zenoh_vendor` package will use `cargo` to grab all the Rust dependencies it needs and build a particular commit hash of the `rust-master` branch of `zenoh`.
-For this to occur, you'll first need to grab the nightly version of Rust using `cargo`, since some of the Rust features used by `zenoh` are not yet in the stable channel. This doesn't seem possible with the version of `cargo` that is supplied in Ubuntu 20.04, so we have to grab it ourselves:
-```
-mkdir ~/rust
-cd ~/rust
-wget https://sh.rustup.rs -O ./rustup-init
-chmod +x ./rustup-init
-./rustup-init
-# hit [ENTER] to accept defaults
-source ~/.cargo/env
-rustup install nightly
-```
-
-To test this RMW implementation, first we will create a workspace with "stock" ROS 2 Foxy in it.
-Then we'll overlay a much smaller workspace with the Zenoh-specific things, and other packages we need to rebuild.
-This will make iteration much more pleasant.
+Set up a new workspace using the [provided `rmw_zenoh.repos` file](https://raw.githubusercontent.com/osrf/rmw_zenoh/main/rmw_zenoh.repos).
 
 ```shell
-mkdir -p ~/ros2_foxy/src
-cd ~/ros2_foxy
-wget https://raw.githubusercontent.com/ros2/ros2/foxy/ros2.repos
-vcs import src < ros2.repos
-colcon build
-# during this process, it is recommended to walk away and refill beverage, etc.
+mkdir -p ~/rmw_zenoh_ws/src
+cd ~/rmw_zenoh_ws
+wget https://raw.githubusercontent.com/osrf/rmw_zenoh/main/rmw_zenoh.repos
+vcs import src < rmw_zenoh.repos
 ```
 
+Next, prepare your environment for compiling Zenoh.
+The `rmw_zenoh_cpp` package depends on the `zenoh_vendor` package to pull in Zenoh.
+`zenoh_vendor` provides the Zenoh foreign function interface (for C) library from the [Rust implementation of Zenoh](https://github.com/eclipse-zenoh/zenoh/tree/rust-master).
+The library is obtained by cloning and compiling the Zenoh source code from GitHub.
+Because it will compile Zenoh automatically, you must meet [the preconditions for compiling Zenoh](https://github.com/eclipse-zenoh/zenoh/tree/rust-master#how-to-build-it).
+Most importantly, you must use the nightly version of the Rust toolchain.
+[Install Rust using `rustup`](https://rustup.rs/), then run the following command to enable it.
+
 ```shell
-mkdir -p ~/zenoh_ws/src
-cd ~/zenoh_ws/src
-git clone https://github.com/ros2/common_interfaces
-git clone https://github.com/ros2/rcl_interfaces
-git clone https://github.com/methylDragon/rosidl_typesupport_zenoh
-git clone https://github.com/methylDragon/zenoh_ros_examples
-git clone ssh://git@github.com/osrf/rmw_zenoh.git
-cd ~/zenoh_ws
-source ~/ros2_foxy/install/setup.bash
+rustup default nightly
+```
+
+Next, ensure all the dependencies of the packages in the `rmw_zenoh_ws` are available.
+
+```shell
+cd ~/rmw_zenoh_ws
+rosdep install --ignore-src --from-paths src --rosdistro=foxy -y
+```
+
+You are now ready to compile the workspace.
+Because of an as-yet unresolved quirk in the typesupport compilation, this needs to be done twice.
+
+```shell
+cd ~/rmw_zenoh_ws
 colcon build
+source install/setup.bash
 colcon build --cmake-force-configure
 ```
 
-Then, after sourcing the workspace, open two terminals and launch the demonstration publisher and subscriber nodes, prefixing with the `RMW_IMPLEMENTATION` environment variable set to use the Zenoh RMW library.
+## Testing
+
+You can test `rmw_zenoh_cpp` using the existing ROS 2 sample nodes.
+
+Open two terminals and source the `rmw_zenoh_ws` workspace in each one.
+Then, in each terminal, change the active RMW implementation to `rmw_zenoh_cpp` using the `RMW_IMPLEMENTATION` environment variable.
+(See [this tutorial](https://index.ros.org/doc/ros2/Tutorials/Working-with-multiple-RMW-implementations/#specifying-rmw-implementations) for more information on changing your active RMW implementation.)
+Then, launch the demonstration publisher and subscriber nodes, one in each terminal.
+
+Terminal 1:
 
 ```shell
-cd ~/zenoh_ws
+cd ~/rmw_zenoh_ws
 source install/setup.bash
 export RMW_IMPLEMENTATION=rmw_zenoh_cpp
-ros2 run demo_nodes_cpp talker
+ros2 run demon_nodes_cpp talker
 ```
+
+Terminal 2:
 
 ```shell
-cd ~/zenoh_ws
+cd ~/rmw_zenoh_ws
 source install/setup.bash
 export RMW_IMPLEMENTATION=rmw_zenoh_cpp
-ros2 run demo_nodes_cpp listener
+ros2 run demon_nodes_cpp listener
 ```
 
-At this stage, you should see the logged output of the RMW functions being called, followed rapidly by a failure due to almost all the functions being stubbed out and returning error values.
+You should see data being transmitted from the `talker` program to the `listener` program.
+You may also see various informational messages from the `rmw_zenoh_cpp` implementation.
+Most of these are temporary aides to development, but they do indicate that the correct RMW implementation is being used.
