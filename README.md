@@ -9,8 +9,18 @@ The library focuses solely on getting binary blobs from one place to another.
 
 ## Testing
 
-First, you'll need a build of `libzenoh_ffi.so` for your machine.
-That is currently outside the scope of this document because it involves Rust and stuff.
+The `zenoh_vendor` package will use `cargo` to grab all the Rust dependencies it needs and build a particular commit hash of the `rust-master` branch of `zenoh`.
+For this to occur, you'll first need to grab the nightly version of Rust using `cargo`, since some of the Rust features used by `zenoh` are not yet in the stable channel. This doesn't seem possible with the version of `cargo` that is supplied in Ubuntu 20.04, so we have to grab it ourselves:
+```
+mkdir ~/rust
+cd ~/rust
+wget https://sh.rustup.rs -O ./rustup-init
+chmod +x ./rustup-init
+./rustup-init
+# hit [ENTER] to accept defaults
+source ~/.cargo/env
+rustup install nightly
+```
 
 To test this RMW implementation, first we will create a workspace with "stock" ROS 2 Foxy in it.
 Then we'll overlay a much smaller workspace with the Zenoh-specific things, and other packages we need to rebuild.
@@ -32,9 +42,7 @@ git clone https://github.com/ros2/common_interfaces
 git clone https://github.com/ros2/rcl_interfaces
 git clone https://github.com/methylDragon/rosidl_typesupport_zenoh
 git clone https://github.com/methylDragon/zenoh_ros_examples
-git clone ssh://git@github.com/methylDragon/rmw_zenoh.git -b develop
-mkdir rmw_zenoh/zenoh_ament/lib
-ln -s LOCATION_OF_ZENOH_LIBRARY.so rmw_zenoh/zenoh_ament/lib/libzenoh_ffi.so
+git clone ssh://git@github.com/osrf/rmw_zenoh.git
 cd ~/zenoh_ws
 source ~/ros2_foxy/install/setup.bash
 colcon build

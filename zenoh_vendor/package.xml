@@ -1,11 +1,11 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>zenoh_ament</name>
-  <version>0.0.0</version>
-  <description>Ament wrapper package for the zenoh-net ffi</description>
-  <maintainer email="brandon@osrfoundation.org">Brandon Ong</maintainer>
-  <license>Apache License 2.0</license>
+  <name>zenoh_vendor</name>
+  <version>0.1.0</version>
+  <description>Vendor package for the Zenoh middleware</description>
+  <maintainer email="geoff@openrobotics.org">Geoffrey Biggs</maintainer>
+  <license>Apache 2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
