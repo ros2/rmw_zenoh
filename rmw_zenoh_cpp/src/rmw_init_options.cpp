@@ -77,7 +77,10 @@ rmw_init_options_init(rmw_init_options_t * init_options, rcutils_allocator_t all
 
   // Populate Zenoh session locator
   const char * zenoh_session_env_value;
-  rcutils_get_env("RMW_ZENOH_SESSION_LOCATOR", &zenoh_session_env_value);
+  if (nullptr != rcutils_get_env("RMW_ZENOH_SESSION_LOCATOR", &zenoh_session_env_value)) {
+    RMW_SET_ERROR_MSG("error trying to retrieve RMW_ZENOH_SESSION_LOCATOR env var");
+    return RMW_RET_ERROR;
+  }
 
   if (zenoh_session_env_value[0] == '\0') {
     init_options->impl->session_locator = nullptr;
@@ -92,7 +95,10 @@ rmw_init_options_init(rmw_init_options_t * init_options, rcutils_allocator_t all
 
   // Populate Zenoh session mode
   const char * zenoh_mode_env_value;
-  rcutils_get_env("RMW_ZENOH_MODE", &zenoh_mode_env_value);
+  if (nullptr != rcutils_get_env("RMW_ZENOH_MODE", &zenoh_mode_env_value)) {
+    RMW_SET_ERROR_MSG("error trying to retrieve RMW_ZENOH_SESSION_LOCATOR env var");
+    return RMW_RET_ERROR;
+  }
 
   // Case insensitive comparisons
   if (strcicmp(zenoh_mode_env_value, "CLIENT") == 0) {

@@ -161,7 +161,10 @@ rmw_create_node(
   );
   node_data->graph_guard_condition_ = rmw_create_guard_condition(node->context);
   if (!node_data->graph_guard_condition_) {
-    rmw_destroy_guard_condition(node_data->graph_guard_condition_);
+    if (rmw_destroy_guard_condition(node_data->graph_guard_condition_) != RMW_RET_OK) {
+      RMW_SAFE_FWRITE_TO_STDERR(
+        "Failed to destroy guard condition in rmw_create_node");
+    }
     allocator->deallocate(name_buf, allocator->state);
     allocator->deallocate(namespace_buf, allocator->state);
 
@@ -206,7 +209,11 @@ rmw_destroy_node(rmw_node_t * node)
 
   rcutils_allocator_t * allocator = &node->context->options.allocator;
   // NOTE(CH3): Destroy guard condition is a STUB at the moment!
-  rmw_destroy_guard_condition(static_cast<rmw_node_impl_t *>(node->data)->graph_guard_condition_);
+  const rmw_ret_t destroyed = rmw_destroy_guard_condition(
+    static_cast<rmw_node_impl_t *>(node->data)->graph_guard_condition_);
+  if (destroyed != RMW_RET_OK) {
+    RMW_SAFE_FWRITE_TO_STDERR("Failed to destroy guard condition in rmw_destroy_node");
+  }
 
   allocator->deallocate(node->data, allocator->state);
   allocator->deallocate(node, allocator->state);

@@ -64,7 +64,10 @@ rmw_create_publisher(
     allocator->allocate(sizeof(int), allocator->state)
   );
 
-  rmw_validate_full_topic_name(topic_name, validation_result, nullptr);
+  if (rmw_validate_full_topic_name(topic_name, validation_result, nullptr) != RMW_RET_OK) {
+    RMW_SET_ERROR_MSG("rmw_validate_full_topic_name failed!");
+    return nullptr;
+  }
 
   if (*validation_result == RMW_TOPIC_VALID || qos_profile->avoid_ros_namespace_conventions) {
     allocator->deallocate(validation_result, allocator->state);

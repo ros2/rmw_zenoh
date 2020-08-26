@@ -34,7 +34,10 @@ rmw_publisher_event_init(
 
   RMW_CHECK_ARGUMENT_FOR_NULL(publisher, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(event, RMW_RET_INVALID_ARGUMENT);
-  RMW_CHECK_ARGUMENT_FOR_NULL(event_type, RMW_RET_INVALID_ARGUMENT);
+
+  if (event_type == RMW_EVENT_INVALID)
+    return RMW_RET_INVALID_ARGUMENT;
+
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     publisher,
     publisher->implementation_identifier,
@@ -66,7 +69,10 @@ rmw_subscription_event_init(
 
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(event, RMW_RET_INVALID_ARGUMENT);
-  RMW_CHECK_ARGUMENT_FOR_NULL(event_type, RMW_RET_INVALID_ARGUMENT);
+
+  if (event_type == RMW_EVENT_INVALID)
+    return RMW_RET_INVALID_ARGUMENT;
+
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     subscription,
     subscription->implementation_identifier,
