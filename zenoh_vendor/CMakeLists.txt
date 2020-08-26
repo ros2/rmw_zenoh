@@ -14,7 +14,7 @@ ExternalProject_Add(zenoh-20200825
   PREFIX zenoh
   GIT_REPOSITORY https://github.com/eclipse-zenoh/zenoh.git
   GIT_TAG 2a93c83afb7b0865fb99d5a6fc4b153badc3b8c7
-  GIT_SHALLOW TRUE
+  GIT_SHALLOW FALSE
   CONFIGURE_COMMAND ""
   BUILD_COMMAND cargo build --release -p zenoh-ffi
   BUILD_IN_SOURCE TRUE
