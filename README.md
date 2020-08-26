@@ -3,6 +3,10 @@
 `rmw_zenoh` provides an experimental implementation of the ROS middleware interface using Eclipse Zenoh as the middleware.
 The RMW implementation is contained in the `rmw_zenoh_cpp` package.
 
+*Note that this implementation is currently very young, under heavy development, and generally rapidly changing.*
+*It may work smoothly, or it may blow up and squash your cat.*
+*Please do not expect to use it except in an experimental capacity.*
+
 Zenoh does not include its own serialisation scheme.
 Currently a hacked-up copy of [Fast CDR]() is used.
 In the future we hope to support different serialisation schemes, possibly in a configurable way.
