@@ -64,8 +64,6 @@ ament_target_dependencies(rmw_zenoh_cpp
   zenoh
   rosidl_typesupport_zenoh_c
   rosidl_typesupport_zenoh_cpp
-  zenoh_ament
-  rmw
   rosidl_generator_c
 )
 
