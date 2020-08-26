@@ -33,16 +33,4 @@ ExternalProject_Add(zenoh-20200825
 
 install(DIRECTORY cmake DESTINATION share/${PROJECT_NAME})
 
-#set(CONF_INCLUDE_DIRS "${CMAKE_INSTALL_PREFIX}/include")
-#set(CONF_LIBRARIES "${CMAKE_INSTALL_PREFIX}/lib/libzenoh_ffi.so")
-#configure_file(zenoh-config.cmake.in
-  #"${CMAKE_CURRENT_BINARY_DIR}/zenoh-config.cmake" @ONLY)
-#configure_file(zenoh-config-version.cmake.in
-  #"${CMAKE_CURRENT_BINARY_DIR}/zenoh-config-version.cmake" @ONLY)
-#install(
-  #FILES "${CMAKE_CURRENT_BINARY_DIR}/zenoh-config.cmake"
-        #"${CMAKE_CURRENT_BINARY_DIR}/zenoh-config-version.cmake"
-  #DESTINATION share/${PROJECT_NAME}/cmake
-  #)
-
 ament_package(CONFIG_EXTRAS "zenoh_vendor-extras.cmake")
