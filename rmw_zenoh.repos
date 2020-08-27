@@ -2,7 +2,7 @@ repositories:
   rmw_zenoh:
     type: git
     url: https://github.com/osrf/rmw_zenoh.git
-    version: feature/zenoh-vendor-package
+    version: main
   rosidl_typesupport_zenoh:
     type: git
     url: https://github.com/osrf/rosidl_typesupport_zenoh.git
