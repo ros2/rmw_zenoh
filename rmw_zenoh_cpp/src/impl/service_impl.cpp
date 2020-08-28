@@ -1,15 +1,15 @@
-extern "C"
-{
-  #include "zenoh/zenoh-ffi.h"
-}
+#include "service_impl.hpp"
 
 #include <iostream>
 #include <mutex>
 
 #include "rcutils/logging_macros.h"
-
 #include "rmw_zenoh_cpp/TypeSupport.hpp"
-#include "service_impl.hpp"
+
+extern "C"
+{
+  #include "zenoh/zenoh-ffi.h"
+}
 
 std::mutex request_callback_mutex;
 
@@ -34,12 +34,11 @@ void rmw_service_data_t::zn_request_sub_callback(const zn_sample * sample) {
   // So this might break if a service is being spammed.
   // TODO(CH3): Implement queuing logic
   if (rmw_service_data_t::zn_request_messages_.find(key)
-    != rmw_service_data_t::zn_request_messages_.end()) {
-      // Log warning if message is clobbered
-      RCUTILS_LOG_WARN_NAMED(
-        "rmw_zenoh_cpp", "overwriting existing untaken zenoh request message: %s", key.c_str()
-      );
-    }
+      != rmw_service_data_t::zn_request_messages_.end()) {
+    // Log warning if message is clobbered
+    RCUTILS_LOG_WARN_NAMED(
+        "rmw_zenoh_cpp", "overwriting existing untaken zenoh request message: %s", key.c_str());
+  }
 
   rmw_service_data_t::zn_request_messages_[key] = std::vector<unsigned char>(byte_vec);
 }

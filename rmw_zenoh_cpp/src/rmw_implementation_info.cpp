@@ -20,5 +20,4 @@ rmw_get_serialization_format()
   return nullptr;
 }
 
-
 } // extern "C"

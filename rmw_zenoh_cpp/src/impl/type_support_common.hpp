@@ -7,7 +7,6 @@
 #include "rmw/error_handling.h"
 
 #include "rmw_zenoh_cpp/TypeSupport.hpp"
-
 #include "rmw_zenoh_cpp/MessageTypeSupport.hpp"
 #include "rmw_zenoh_cpp/ServiceTypeSupport.hpp"
 

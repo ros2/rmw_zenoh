@@ -1,15 +1,15 @@
-extern "C"
-{
-  #include "zenoh/zenoh-ffi.h"
-}
+#include "pubsub_impl.hpp"
 
 #include <iostream>
 #include <mutex>
 
+#include "rmw_zenoh_cpp/TypeSupport.hpp"
 #include "rcutils/logging_macros.h"
 
-#include "rmw_zenoh_cpp/TypeSupport.hpp"
-#include "pubsub_impl.hpp"
+extern "C"
+{
+  #include "zenoh/zenoh-ffi.h"
+}
 
 std::mutex sub_callback_mutex;
 
@@ -34,12 +34,11 @@ void rmw_subscription_data_t::zn_sub_callback(const zn_sample * sample) {
   // So this might break if a topic is being spammed.
   // TODO(CH3): Implement queuing logic
   if (rmw_subscription_data_t::zn_messages_.find(key)
-    != rmw_subscription_data_t::zn_messages_.end()) {
-      // Log warning if message is clobbered
-      RCUTILS_LOG_WARN_NAMED(
-        "rmw_zenoh_cpp", "overwriting existing untaken zenoh message: %s", key.c_str()
-      );
-    }
+      != rmw_subscription_data_t::zn_messages_.end()) {
+    // Log warning if message is clobbered
+    RCUTILS_LOG_WARN_NAMED(
+        "rmw_zenoh_cpp", "overwriting existing untaken zenoh message: %s", key.c_str());
+  }
 
   rmw_subscription_data_t::zn_messages_[key] = std::vector<unsigned char>(byte_vec);
 }

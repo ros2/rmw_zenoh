@@ -40,33 +40,23 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
 
   // Check options
   RMW_CHECK_ARGUMENT_FOR_NULL(options, RMW_RET_INVALID_ARGUMENT);
-  RMW_CHECK_FOR_NULL_WITH_MSG(
-    options->implementation_identifier,
-    "expected initialized init options",
-    return RMW_RET_INVALID_ARGUMENT
-  );
-  RMW_CHECK_FOR_NULL_WITH_MSG(
-    options->enclave,
-    "expected non-null enclave",
-    return RMW_RET_INVALID_ARGUMENT
-  );
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
-    options,
-    options->implementation_identifier,
-    eclipse_zenoh_identifier,
-    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION
-  );
+  RMW_CHECK_FOR_NULL_WITH_MSG(options->implementation_identifier,
+                              "expected initialized init options",
+                              return RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_FOR_NULL_WITH_MSG(options->enclave,
+                              "expected non-null enclave",
+                              return RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(options,
+                                   options->implementation_identifier,
+                                   eclipse_zenoh_identifier,
+                                   return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   // CLEANUP DEFINITIONS =======================================================
   // Store a pointer to the context with a custom deleter that zero inits the
   // context if any initialization steps fail
   std::unique_ptr<rmw_context_t, void (*)(rmw_context_t *)> clean_when_fail(
-    context,
-    [](rmw_context_t * context)
-    {
-      *context = rmw_get_zero_initialized_context();
-    }
-  );
+      context,
+      [](rmw_context_t * context) { *context = rmw_get_zero_initialized_context(); });
 
   rmw_ret_t ret = RMW_RET_OK;
 
@@ -91,8 +81,7 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   rcutils_allocator_t * allocator = &context->options.allocator;
 
   rmw_context_impl_t * context_impl = static_cast<rmw_context_impl_t *>(
-    allocator->allocate(sizeof(rmw_context_impl_t), allocator->state)
-  );
+      allocator->allocate(sizeof(rmw_context_impl_t), allocator->state));
 
   if (!context_impl) {
     RMW_SET_ERROR_MSG("failed to allocate context impl");
@@ -110,9 +99,7 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
     SESSION_MODE = PEER;
   }
 
-  ZNSession * s = zn_open(SESSION_MODE,
-                          context->options.impl->session_locator,
-                          0);
+  ZNSession * s = zn_open(SESSION_MODE, context->options.impl->session_locator, 0);
 
   if (s == nullptr) {
     RMW_SET_ERROR_MSG("failed to create Zenoh session when starting context");
@@ -138,22 +125,17 @@ rmw_shutdown(rmw_context_t * context)
 {
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(context, RMW_RET_INVALID_ARGUMENT);
-  RMW_CHECK_FOR_NULL_WITH_MSG(
-    context->impl,
-    "expected initialized context",
-    return RMW_RET_INVALID_ARGUMENT
-  );
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
-    context,
-    context->implementation_identifier,
-    eclipse_zenoh_identifier,
-    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION
-  );
+  RMW_CHECK_FOR_NULL_WITH_MSG(context->impl,
+                              "expected initialized context",
+                              return RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(context,
+                                   context->implementation_identifier,
+                                   eclipse_zenoh_identifier,
+                                   return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   // CLEANUP ===================================================================
   // Close Zenoh session
-  if (context->impl->is_shutdown == false)
-  {
+  if (context->impl->is_shutdown == false) {
     zn_close(context->impl->session);
     context->impl->is_shutdown = true;
   }
@@ -168,17 +150,13 @@ rmw_context_fini(rmw_context_t * context)
 {
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(context, RMW_RET_INVALID_ARGUMENT);
-  RMW_CHECK_FOR_NULL_WITH_MSG(
-    context->impl,
-    "expected initialized context",
-    return RMW_RET_INVALID_ARGUMENT
-  );
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
-    context,
-    context->implementation_identifier,
-    eclipse_zenoh_identifier,
-    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION
-  );
+  RMW_CHECK_FOR_NULL_WITH_MSG(context->impl,
+                              "expected initialized context",
+                              return RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(context,
+                                   context->implementation_identifier,
+                                   eclipse_zenoh_identifier,
+                                   return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   if (!context->impl->is_shutdown) {
     RMW_SET_ERROR_MSG("context has not been shutdown");
     return RMW_RET_INVALID_ARGUMENT;

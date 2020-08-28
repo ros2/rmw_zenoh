@@ -1,9 +1,9 @@
-#include "rcutils/logging_macros.h"
-
 #include "wait_impl.hpp"
-#include "pubsub_impl.hpp"
+
+#include "rcutils/logging_macros.h"
 #include "service_impl.hpp"
 #include "client_impl.hpp"
+#include "pubsub_impl.hpp"
 
 /// HELPER FUNCTION FOR WAIT ===================================================
 bool check_wait_conditions(

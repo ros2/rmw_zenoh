@@ -26,8 +26,7 @@ rmw_publish(
   rmw_publisher_allocation_t * allocation)
 {
   (void) allocation;
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp",
-                         "[rmw_publish] %s (%ld)",
+  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "[rmw_publish] %s (%ld)",
                          publisher->topic_name,
                          static_cast<rmw_publisher_data_t *>(publisher->data)->zn_topic_id_);
 
@@ -35,12 +34,10 @@ rmw_publish(
   RMW_CHECK_ARGUMENT_FOR_NULL(publisher, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(ros_message, RMW_RET_INVALID_ARGUMENT);
 
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
-    publisher,
-    publisher->implementation_identifier,
-    eclipse_zenoh_identifier,
-    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION
-  );
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(publisher,
+                                   publisher->implementation_identifier,
+                                   eclipse_zenoh_identifier,
+                                   return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   auto publisher_data = static_cast<rmw_publisher_data_t *>(publisher->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(publisher_data, RMW_RET_ERROR);
@@ -50,23 +47,19 @@ rmw_publish(
     &static_cast<rmw_publisher_data_t *>(publisher->data)->node_->context->options.allocator;
 
   // SERIALIZE DATA ============================================================
-  size_t max_data_length = (
-    static_cast<rmw_publisher_data_t *>(publisher->data)->type_support_->getEstimatedSerializedSize(ros_message)
-  );
+  size_t max_data_length = (static_cast<rmw_publisher_data_t *>(publisher->data)
+      ->type_support_->getEstimatedSerializedSize(ros_message));
 
   // Init serialized message byte array
-  char * msg_bytes = static_cast<char *>(
-    allocator->allocate(max_data_length, allocator->state)
-  );
+  char * msg_bytes = static_cast<char *>(allocator->allocate(max_data_length, allocator->state));
 
-  eprosima::fastcdr::FastBuffer fastbuffer(
-    msg_bytes,
-    max_data_length
-  );  // Object that manages the raw buffer.
+  // Object that manages the raw buffer
+  eprosima::fastcdr::FastBuffer fastbuffer(msg_bytes, max_data_length);
 
+  // Object that serializes the data
   eprosima::fastcdr::Cdr ser(fastbuffer,
                              eprosima::fastcdr::Cdr::DEFAULT_ENDIAN,
-                             eprosima::fastcdr::Cdr::DDS_CDR);  // Object that serializes the data.
+                             eprosima::fastcdr::Cdr::DDS_CDR);
   if (!publisher_data->type_support_->serializeROSmessage(ros_message,
                                                           ser,
                                                           publisher_data->type_support_impl_)) {

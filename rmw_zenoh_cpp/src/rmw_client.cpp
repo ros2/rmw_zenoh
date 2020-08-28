@@ -27,8 +27,7 @@ rmw_service_server_is_available(
   *result = false;
 
   RCUTILS_LOG_INFO_NAMED(
-    "rmw_zenoh_cpp", "[rmw_service_server_is_available] %s", client->service_name
-  );
+      "rmw_zenoh_cpp", "[rmw_service_server_is_available] %s", client->service_name);
 
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
@@ -44,8 +43,7 @@ rmw_service_server_is_available(
   RMW_CHECK_ARGUMENT_FOR_NULL(result, RMW_RET_INVALID_ARGUMENT);
 
   RMW_CHECK_FOR_NULL_WITH_MSG(
-    client->data, "client implementation pointer is null", RMW_RET_INVALID_ARGUMENT
-  );
+      client->data, "client implementation pointer is null", RMW_RET_INVALID_ARGUMENT);
 
   // OBTAIN CLIENT MEMBERS =====================================================
   auto client_data = static_cast<rmw_client_data_t *>(client->data);
@@ -62,10 +60,9 @@ rmw_service_server_is_available(
   std::string key(client->service_name);
 
   if (rmw_client_data_t::zn_availability_query_responses_.find(key)
-   != rmw_client_data_t::zn_availability_query_responses_.end())
-  {
-   rmw_client_data_t::zn_availability_query_responses_.erase(key);
-   *result = true;
+      != rmw_client_data_t::zn_availability_query_responses_.end()) {
+    rmw_client_data_t::zn_availability_query_responses_.erase(key);
+    *result = true;
   }
 
   return RMW_RET_OK;
@@ -85,12 +82,10 @@ rmw_create_client(
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(node, nullptr);
 
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
-    node,
-    node->implementation_identifier,
-    eclipse_zenoh_identifier,
-    return nullptr
-  );
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(node,
+                                   node->implementation_identifier,
+                                   eclipse_zenoh_identifier,
+                                   return nullptr);
 
   RMW_CHECK_ARGUMENT_FOR_NULL(service_name, nullptr);
   if (strlen(service_name) == 0) {
@@ -215,17 +210,14 @@ rmw_create_client(
   //
   // Another topic on another process might clash with the ID on this process, even within the
   // same Zenoh network! It is not a UUID!!
-  client_data->zn_request_topic_id_ = zn_declare_resource(s,
-                                                          client_data->zn_request_topic_key_);
+  client_data->zn_request_topic_id_ = zn_declare_resource(s, client_data->zn_request_topic_key_);
 
   // Init type support callbacks
   auto service_members = static_cast<const service_type_support_callbacks_t *>(type_support->data);
   auto request_members = static_cast<const message_type_support_callbacks_t *>(
-    service_members->request_members_->data
-  );
+      service_members->request_members_->data);
   auto response_members = static_cast<const message_type_support_callbacks_t *>(
-    service_members->response_members_->data
-  );
+      service_members->response_members_->data);
 
   client_data->typesupport_identifier_ = type_support->typesupport_identifier;
   client_data->request_type_support_impl_ = request_members;
@@ -233,8 +225,7 @@ rmw_create_client(
 
   // Allocate and in-place assign new typesupport instances
   client_data->request_type_support_ = static_cast<rmw_zenoh_cpp::RequestTypeSupport *>(
-    allocator->allocate(sizeof(rmw_zenoh_cpp::RequestTypeSupport), allocator->state)
-  );
+      allocator->allocate(sizeof(rmw_zenoh_cpp::RequestTypeSupport), allocator->state));
   new(client_data->request_type_support_) rmw_zenoh_cpp::RequestTypeSupport(service_members);
   if (!client_data->request_type_support_) {
     RMW_SET_ERROR_MSG("failed to allocate RequestTypeSupport");
@@ -248,8 +239,7 @@ rmw_create_client(
   }
 
   client_data->response_type_support_ = static_cast<rmw_zenoh_cpp::ResponseTypeSupport *>(
-    allocator->allocate(sizeof(rmw_zenoh_cpp::ResponseTypeSupport), allocator->state)
-  );
+      allocator->allocate(sizeof(rmw_zenoh_cpp::ResponseTypeSupport), allocator->state));
   new(client_data->response_type_support_) rmw_zenoh_cpp::ResponseTypeSupport(service_members);
   if (!client_data->response_type_support_) {
     RMW_SET_ERROR_MSG("failed to allocate ResponseTypeSupport");
@@ -268,11 +258,10 @@ rmw_create_client(
 
   // Init Zenoh subscriber for response messages
   client_data->zn_response_subscriber_ = zn_declare_subscriber(
-    client_data->zn_session_,
-    client_data->zn_response_topic_key_,
-    zn_subinfo_default(),  // NOTE(CH3): Default for now
-    client_data->zn_response_sub_callback
-  );
+      client_data->zn_session_,
+      client_data->zn_response_topic_key_,
+      zn_subinfo_default(),  // NOTE(CH3): Default for now
+      client_data->zn_response_sub_callback);
 
   return client;
 }
@@ -287,16 +276,14 @@ rmw_destroy_client(rmw_node_t * node, rmw_client_t * client)
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(client, RMW_RET_INVALID_ARGUMENT);
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
-    node,
-    node->implementation_identifier,
-    eclipse_zenoh_identifier,
-    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
-    client,
-    client->implementation_identifier,
-    eclipse_zenoh_identifier,
-    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(node,
+                                   node->implementation_identifier,
+                                   eclipse_zenoh_identifier,
+                                   return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(client,
+                                   client->implementation_identifier,
+                                   eclipse_zenoh_identifier,
+                                   return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   // OBTAIN ALLOCATOR ==========================================================
   rcutils_allocator_t * allocator = &node->context->options.allocator;
@@ -335,12 +322,10 @@ rmw_send_request(const rmw_client_t * client, const void * ros_request, int64_t 
   RMW_CHECK_ARGUMENT_FOR_NULL(ros_request, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(sequence_id, RMW_RET_INVALID_ARGUMENT);
 
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
-    client,
-    client->implementation_identifier,
-    eclipse_zenoh_identifier,
-    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION
-  );
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(client,
+                                   client->implementation_identifier,
+                                   eclipse_zenoh_identifier,
+                                   return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   RMW_CHECK_ARGUMENT_FOR_NULL(client->data, RMW_RET_ERROR);
   auto client_data = static_cast<rmw_client_data_t *>(client->data);
@@ -350,18 +335,15 @@ rmw_send_request(const rmw_client_t * client, const void * ros_request, int64_t 
     &static_cast<rmw_client_data_t *>(client->data)->node_->context->options.allocator;
 
   // SERIALIZE DATA ============================================================
-  size_t max_data_length = (
-    static_cast<rmw_client_data_t *>(client->data)
-      ->request_type_support_->getEstimatedSerializedSize(ros_request)
-  );
+  size_t max_data_length = (static_cast<rmw_client_data_t *>(client->data)
+                              ->request_type_support_->getEstimatedSerializedSize(ros_request));
 
   // Account for metadata
   max_data_length += sizeof(rmw_client_data_t::sequence_id);
 
   // Init serialized message byte array
   char * request_bytes = static_cast<char *>(
-    allocator->allocate(max_data_length, allocator->state)
-  );
+      allocator->allocate(max_data_length, allocator->state));
   if (!request_bytes) {
     RMW_SET_ERROR_MSG("failed allocate request message bytes");
     allocator->deallocate(request_bytes, allocator->state);
@@ -373,12 +355,10 @@ rmw_send_request(const rmw_client_t * client, const void * ros_request, int64_t 
 
   // Object that serializes the data.
   eprosima::fastcdr::Cdr ser(
-    fastbuffer, eprosima::fastcdr::Cdr::DEFAULT_ENDIAN, eprosima::fastcdr::Cdr::DDS_CDR
-  );
+      fastbuffer, eprosima::fastcdr::Cdr::DEFAULT_ENDIAN, eprosima::fastcdr::Cdr::DDS_CDR);
 
   if (!client_data->request_type_support_->serializeROSmessage(
-    ros_request, ser, client_data->request_type_support_impl_)
-  ) {
+          ros_request, ser, client_data->request_type_support_impl_)) {
     RMW_SET_ERROR_MSG("failed serialize ROS request message");
     allocator->deallocate(request_bytes, allocator->state);
     return RMW_RET_ERROR;
@@ -430,19 +410,15 @@ rmw_take_response(
   RMW_CHECK_ARGUMENT_FOR_NULL(ros_response, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(taken, RMW_RET_INVALID_ARGUMENT);
 
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
-    client,
-    client->implementation_identifier,
-    eclipse_zenoh_identifier,
-    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION
-  );
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(client,
+                                   client->implementation_identifier,
+                                   eclipse_zenoh_identifier,
+                                   return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   RMW_CHECK_FOR_NULL_WITH_MSG(
-    client->service_name, "client has no service name", RMW_RET_INVALID_ARGUMENT
-  );
+      client->service_name, "client has no service name", RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_FOR_NULL_WITH_MSG(
-    client->data, "client implementation pointer is null", RMW_RET_INVALID_ARGUMENT
-  );
+      client->data, "client implementation pointer is null", RMW_RET_INVALID_ARGUMENT);
 
   // OBTAIN CLIENT MEMBERS =====================================================
   auto client_data = static_cast<rmw_client_data_t *>(client->data);
@@ -477,8 +453,7 @@ rmw_take_response(
   size_t data_length = response_bytes.size() - meta_length;
 
   unsigned char * cdr_buffer = static_cast<unsigned char *>(
-    allocator->allocate(data_length, allocator->state)
-  );
+      allocator->allocate(data_length, allocator->state));
   if (!cdr_buffer) {
     RMW_SET_ERROR_MSG("failed allocate response message bytes");
     allocator->deallocate(cdr_buffer, allocator->state);
@@ -498,8 +473,7 @@ rmw_take_response(
                                eprosima::fastcdr::Cdr::DDS_CDR);
 
   if (!client_data->response_type_support_->deserializeROSmessage(
-    deser, ros_response, client_data->response_type_support_impl_
-  )) {
+      deser, ros_response, client_data->response_type_support_impl_)) {
     RMW_SET_ERROR_MSG("failed deserialize ROS response message");
     return RMW_RET_ERROR;
   }

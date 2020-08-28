@@ -1,7 +1,6 @@
 #include <string>
 
 #include "rmw/error_handling.h"
-
 #include "type_support_common.hpp"
 
 namespace rmw_zenoh_cpp

@@ -22,12 +22,10 @@ rmw_create_guard_condition(rmw_context_t * context)
   // RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_create_guard_condition");
 
   RMW_CHECK_ARGUMENT_FOR_NULL(context, nullptr);
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
-    context,
-    context->implementation_identifier,
-    eclipse_zenoh_identifier,
-    return nullptr
-  );
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(context,
+                                   context->implementation_identifier,
+                                   eclipse_zenoh_identifier,
+                                   return nullptr);
 
   // NOTE(CH3): Unfortunately we can't do custom allocation here because the destruction method
   // does not pass in a context from which we can draw an allocator from
@@ -62,12 +60,10 @@ rmw_trigger_guard_condition(const rmw_guard_condition_t * guard_condition_handle
   // RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_trigger_guard_condition");
 
   RMW_CHECK_ARGUMENT_FOR_NULL(guard_condition_handle, RMW_RET_INVALID_ARGUMENT);
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
-    guard_condition_handle,
-    guard_condition_handle->implementation_identifier,
-    eclipse_zenoh_identifier,
-    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION
-  )
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(guard_condition_handle,
+                                   guard_condition_handle->implementation_identifier,
+                                   eclipse_zenoh_identifier,
+                                   return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   static_cast<GuardCondition *>(guard_condition_handle->data)->trigger();
 

@@ -32,12 +32,10 @@ rmw_create_publisher(
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(node, nullptr);
 
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
-    node,
-    node->implementation_identifier,
-    eclipse_zenoh_identifier,
-    return nullptr
-  );
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(node,
+                                   node->implementation_identifier,
+                                   eclipse_zenoh_identifier,
+                                   return nullptr);
 
   RMW_CHECK_ARGUMENT_FOR_NULL(topic_name, nullptr);
   if (strlen(topic_name) == 0) {
@@ -83,8 +81,7 @@ rmw_create_publisher(
 
   // OBTAIN TYPESUPPORT ========================================================
   const rosidl_message_type_support_t * type_support = get_message_typesupport_handle(
-    type_supports, RMW_ZENOH_CPP_TYPESUPPORT_C
-  );
+      type_supports, RMW_ZENOH_CPP_TYPESUPPORT_C);
 
   if (!type_support) {
     type_support = get_message_typesupport_handle(type_supports, RMW_ZENOH_CPP_TYPESUPPORT_CPP);
@@ -97,15 +94,14 @@ rmw_create_publisher(
 
   // CREATE PUBLISHER ==========================================================
   rmw_publisher_t * publisher = static_cast<rmw_publisher_t *>(
-    allocator->allocate(sizeof(rmw_publisher_t), allocator->state)
-  );
+      allocator->allocate(sizeof(rmw_publisher_t), allocator->state));
   if (!publisher) {
     RMW_SET_ERROR_MSG("failed to allocate rmw_publisher_t");
     return nullptr;
   }
 
   // Populate common members
-  publisher->implementation_identifier = eclipse_zenoh_identifier;  // const char * assignment
+  publisher->implementation_identifier = eclipse_zenoh_identifier;
 
   publisher->topic_name = rcutils_strdup(topic_name, *allocator);
   if (!publisher->topic_name) {
@@ -115,8 +111,7 @@ rmw_create_publisher(
   }
 
   publisher->data = static_cast<rmw_publisher_data_t *>(
-    allocator->allocate(sizeof(rmw_publisher_data_t), allocator->state)
-  );
+      allocator->allocate(sizeof(rmw_publisher_data_t), allocator->state));
   if (!publisher->data) {
     RMW_SET_ERROR_MSG("failed to allocate publisher data");
     allocator->deallocate(publisher->data, allocator->state);
@@ -152,8 +147,7 @@ rmw_create_publisher(
 
   // Allocate and in-place assign new message typesupport instance
   publisher_data->type_support_ = static_cast<rmw_zenoh_cpp::MessageTypeSupport *>(
-    allocator->allocate(sizeof(rmw_zenoh_cpp::MessageTypeSupport), allocator->state)
-  );
+      allocator->allocate(sizeof(rmw_zenoh_cpp::MessageTypeSupport), allocator->state));
   new(publisher_data->type_support_) rmw_zenoh_cpp::MessageTypeSupport(callbacks);
   if (!publisher_data->type_support_) {
     RMW_SET_ERROR_MSG("failed to allocate MessageTypeSupport");
@@ -184,20 +178,16 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
 {
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
-    node,
-    node->implementation_identifier,
-    eclipse_zenoh_identifier,
-    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION
-  );
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(node,
+                                   node->implementation_identifier,
+                                   eclipse_zenoh_identifier,
+                                   return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   RMW_CHECK_ARGUMENT_FOR_NULL(publisher, RMW_RET_INVALID_ARGUMENT);
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
-    publisher,
-    publisher->implementation_identifier,
-    eclipse_zenoh_identifier,
-    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION
-  );
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(publisher,
+                                   publisher->implementation_identifier,
+                                   eclipse_zenoh_identifier,
+                                   return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   // OBTAIN ALLOCATOR ==========================================================
   rcutils_allocator_t * allocator = &node->context->options.allocator;

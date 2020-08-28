@@ -6,13 +6,13 @@
 #include <string>
 #include <vector>
 
+#include "rmw/rmw.h"
+#include "rmw_zenoh_cpp/TypeSupport.hpp"
+
 extern "C"
 {
   #include "zenoh/zenoh-ffi.h"
 }
-
-#include "rmw/rmw.h"
-#include "rmw_zenoh_cpp/TypeSupport.hpp"
 
 struct rmw_node_impl_t
 {
