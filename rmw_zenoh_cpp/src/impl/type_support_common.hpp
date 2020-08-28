@@ -21,10 +21,6 @@
 #define RMW_ZENOH_CPP_TYPESUPPORT_C rosidl_typesupport_zenoh_c__identifier
 #define RMW_ZENOH_CPP_TYPESUPPORT_CPP rosidl_typesupport_zenoh_cpp::typesupport_identifier
 
-using TypeSupport_cpp = rmw_zenoh_cpp::TypeSupport;
-using MessageTypeSupport_cpp = rmw_zenoh_cpp::MessageTypeSupport;
-using RequestTypeSupport_cpp = rmw_zenoh_cpp::RequestTypeSupport;
-using ResponseTypeSupport_cpp = rmw_zenoh_cpp::ResponseTypeSupport;
 
 // inline std::string
 // _create_type_name(

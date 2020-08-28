@@ -149,10 +149,10 @@ rmw_create_subscription(
   subscription_data->type_support_impl_ = type_support->data;
 
   // Allocate and in-place assign new message typesupport instance
-  subscription_data->type_support_ = static_cast<MessageTypeSupport_cpp *>(
-    allocator->allocate(sizeof(MessageTypeSupport_cpp), allocator->state)
+  subscription_data->type_support_ = static_cast<rmw_zenoh_cpp::MessageTypeSupport *>(
+    allocator->allocate(sizeof(rmw_zenoh_cpp::MessageTypeSupport), allocator->state)
   );
-  new(subscription_data->type_support_) MessageTypeSupport_cpp(callbacks);
+  new(subscription_data->type_support_) rmw_zenoh_cpp::MessageTypeSupport(callbacks);
   if (!subscription_data->type_support_) {
     RMW_SET_ERROR_MSG("failed to allocate MessageTypeSupport");
     allocator->deallocate(subscription_data->type_support_, allocator->state);

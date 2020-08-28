@@ -149,10 +149,10 @@ rmw_create_publisher(
   // RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "[rmw_create_publisher] Zenoh resource declared: %s (%ld)", topic_name, publisher_data->zn_topic_id);
 
   // Allocate and in-place assign new message typesupport instance
-  publisher_data->type_support_ = static_cast<MessageTypeSupport_cpp *>(
-    allocator->allocate(sizeof(MessageTypeSupport_cpp), allocator->state)
+  publisher_data->type_support_ = static_cast<rmw_zenoh_cpp::MessageTypeSupport *>(
+    allocator->allocate(sizeof(rmw_zenoh_cpp::MessageTypeSupport), allocator->state)
   );
-  new(publisher_data->type_support_) MessageTypeSupport_cpp(callbacks);
+  new(publisher_data->type_support_) rmw_zenoh_cpp::MessageTypeSupport(callbacks);
   if (!publisher_data->type_support_) {
     RMW_SET_ERROR_MSG("failed to allocate MessageTypeSupport");
     allocator->deallocate(publisher_data->type_support_, allocator->state);

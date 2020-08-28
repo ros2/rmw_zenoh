@@ -165,10 +165,10 @@ rmw_create_service(
   service_data->response_type_support_impl_ = response_members;
 
   // Allocate and in-place assign new typesupport instances
-  service_data->request_type_support_ = static_cast<RequestTypeSupport_cpp *>(
-    allocator->allocate(sizeof(RequestTypeSupport_cpp *), allocator->state)
+  service_data->request_type_support_ = static_cast<rmw_zenoh_cpp::RequestTypeSupport *>(
+    allocator->allocate(sizeof(rmw_zenoh_cpp::RequestTypeSupport), allocator->state)
   );
-  new(service_data->request_type_support_) RequestTypeSupport_cpp(service_members);
+  new(service_data->request_type_support_) rmw_zenoh_cpp::RequestTypeSupport(service_members);
   if (!service_data->request_type_support_) {
     RMW_SET_ERROR_MSG("failed to allocate RequestTypeSupport");
     allocator->deallocate(service_data->request_type_support_, allocator->state);
@@ -177,10 +177,10 @@ rmw_create_service(
     return nullptr;
   }
 
-  service_data->response_type_support_ = static_cast<ResponseTypeSupport_cpp *>(
-    allocator->allocate(sizeof(ResponseTypeSupport_cpp *), allocator->state)
+  service_data->response_type_support_ = static_cast<rmw_zenoh_cpp::ResponseTypeSupport *>(
+    allocator->allocate(sizeof(rmw_zenoh_cpp::ResponseTypeSupport), allocator->state)
   );
-  new(service_data->response_type_support_) ResponseTypeSupport_cpp(service_members);
+  new(service_data->response_type_support_) rmw_zenoh_cpp::ResponseTypeSupport(service_members);
   if (!service_data->response_type_support_) {
     RMW_SET_ERROR_MSG("failed to allocate ResponseTypeSupport");
     allocator->deallocate(service_data->request_type_support_, allocator->state);
