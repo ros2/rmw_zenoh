@@ -264,6 +264,10 @@ rmw_take(
   std::string key(topic_name);
 
   if (subscription_data->zn_messages_.find(key) == subscription_data->zn_messages_.end()) {
+    // NOTE(CH3): It is correct to be returning RMW_RET_OK. The information that the message
+    // was not found is encoded in the fact that the taken-out parameter is still False.
+    //
+    // This tells rcl that the check for a new message was done, but no messages have come in yet.
     return RMW_RET_OK;
   }
   RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "[rmw_take] Message found: %s", key.c_str());
