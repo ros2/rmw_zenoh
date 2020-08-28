@@ -14,6 +14,11 @@ jobs:
       - uses: ros-tooling/setup-ros@0.0.25
         with:
           required-ros-distributions: foxy
+      - name: Setup rust nightly
+        run: |
+          curl https://sh.rustup.rs -sSf > rustup.sh
+          chmod +x rustup.sh
+          ./rustup.sh --default-toolchain nightly --profile minimal -y 
       - name: Build and test
         uses: ros-tooling/action-ros-ci@0.0.19
         with:
