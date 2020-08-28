@@ -180,7 +180,7 @@ rmw_context_fini(rmw_context_t * context)
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION
   );
   if (!context->impl->is_shutdown) {
-    RCUTILS_SET_ERROR_MSG("context has not been shutdown");
+    RMW_SET_ERROR_MSG("context has not been shutdown");
     return RMW_RET_INVALID_ARGUMENT;
   }
 

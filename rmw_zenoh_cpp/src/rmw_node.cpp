@@ -53,7 +53,7 @@ rmw_create_node(
     return nullptr
   );
   if (context->impl->is_shutdown) {
-    RCUTILS_SET_ERROR_MSG("context has been shutdown");
+    RMW_SET_ERROR_MSG("context has been shutdown");
     return nullptr;
   }
 

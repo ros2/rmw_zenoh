@@ -87,8 +87,7 @@ rmw_create_publisher(
   );
 
   if (!type_support) {
-    type_support = get_message_typesupport_handle(
-      type_supports, RMW_ZENOH_CPP_TYPESUPPORT_CPP);
+    type_support = get_message_typesupport_handle(type_supports, RMW_ZENOH_CPP_TYPESUPPORT_CPP);
     if (!type_support) {
       RCUTILS_LOG_INFO("%s", topic_name);
       RMW_SET_ERROR_MSG("type support not from this implementation");

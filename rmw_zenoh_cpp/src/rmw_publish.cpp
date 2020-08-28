@@ -71,6 +71,7 @@ rmw_publish(
   if (!publisher_data->type_support_->serializeROSmessage(ros_message,
                                                           ser,
                                                           publisher_data->type_support_impl_)) {
+    RMW_SET_ERROR_MSG("could not serialize ROS message");
     allocator->deallocate(msg_bytes, allocator->state);
     return RMW_RET_ERROR;
   }
