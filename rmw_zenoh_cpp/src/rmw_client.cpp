@@ -248,7 +248,7 @@ rmw_create_client(
   // // Assign node pointer
   client_data->node_ = node;
 
-  // Init Zenoh subscriber for request messages
+  // Init Zenoh subscriber for response messages
   client_data->zn_response_subscriber_ = zn_declare_subscriber(
     client_data->zn_session_,
     client_data->zn_response_topic_key_,
@@ -463,7 +463,7 @@ rmw_take_response(
   // Object that manages the raw buffer.
   eprosima::fastcdr::FastBuffer fastbuffer(reinterpret_cast<char *>(cdr_buffer), data_length);
 
-  // Object that serializes the data.
+  // Object that deserializes the data.
   eprosima::fastcdr::Cdr deser(fastbuffer,
                                eprosima::fastcdr::Cdr::DEFAULT_ENDIAN,
                                eprosima::fastcdr::Cdr::DDS_CDR);

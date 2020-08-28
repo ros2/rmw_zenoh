@@ -196,6 +196,7 @@ rmw_create_node(
 rmw_ret_t
 rmw_destroy_node(rmw_node_t * node)
 {
+  // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node,
@@ -207,7 +208,10 @@ rmw_destroy_node(rmw_node_t * node)
   // NOTE(CH3) TODO(CH3): Again, no graph updates are implemented yet
   // I am not sure how this will work with Zenoh
 
+  // OBTAIN ALLOCATOR ==========================================================
   rcutils_allocator_t * allocator = &node->context->options.allocator;
+
+  // CLEANUP ===================================================================
   const rmw_ret_t destroyed = rmw_destroy_guard_condition(
     static_cast<rmw_node_impl_t *>(node->data)->graph_guard_condition_);
   if (destroyed != RMW_RET_OK) {

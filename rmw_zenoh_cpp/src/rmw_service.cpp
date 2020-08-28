@@ -338,14 +338,13 @@ rmw_take_request(
   // Remove stored message after successful retrieval
   service_data->zn_request_messages_.erase(key);
 
-  eprosima::fastcdr::FastBuffer fastbuffer(
-    reinterpret_cast<char *>(cdr_buffer),
-    data_length
-  );  // Object that manages the raw buffer.
+  // Object that manages the raw buffer.
+  eprosima::fastcdr::FastBuffer fastbuffer(reinterpret_cast<char *>(cdr_buffer), data_length);
 
+  // Object that deserializes the data
   eprosima::fastcdr::Cdr deser(fastbuffer,
                                eprosima::fastcdr::Cdr::DEFAULT_ENDIAN,
-                               eprosima::fastcdr::Cdr::DDS_CDR);  // Object that serializes the data.
+                               eprosima::fastcdr::Cdr::DDS_CDR);
   if (!service_data->request_type_support_->deserializeROSmessage(
     deser, ros_request, service_data->request_type_support_impl_)
   ) {

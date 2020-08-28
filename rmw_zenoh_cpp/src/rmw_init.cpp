@@ -138,7 +138,7 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
 rmw_ret_t
 rmw_shutdown(rmw_context_t * context)
 {
-  // Assertions
+  // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(context, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_FOR_NULL_WITH_MSG(
     context->impl,
@@ -152,6 +152,7 @@ rmw_shutdown(rmw_context_t * context)
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION
   );
 
+  // CLEANUP ===================================================================
   // Close Zenoh session
   if (context->impl->is_shutdown == false)
   {
@@ -167,6 +168,7 @@ rmw_shutdown(rmw_context_t * context)
 rmw_ret_t
 rmw_context_fini(rmw_context_t * context)
 {
+  // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(context, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_FOR_NULL_WITH_MSG(
     context->impl,
@@ -184,8 +186,10 @@ rmw_context_fini(rmw_context_t * context)
     return RMW_RET_INVALID_ARGUMENT;
   }
 
+  // OBTAIN ALLOCATOR ==========================================================
   rcutils_allocator_t * allocator = &context->options.allocator;
 
+  // CLEANUP ===================================================================
   // Deallocate implementation specific members
   allocator->deallocate(context->impl->session, allocator->state);
   allocator->deallocate(context->impl, allocator->state);

@@ -21,25 +21,4 @@
 #define RMW_ZENOH_CPP_TYPESUPPORT_C rosidl_typesupport_zenoh_c__identifier
 #define RMW_ZENOH_CPP_TYPESUPPORT_CPP rosidl_typesupport_zenoh_cpp::typesupport_identifier
 
-
-// inline std::string
-// _create_type_name(
-//   const message_type_support_callbacks_t * members)
-// {
-//   if (!members) {
-//     RMW_SET_ERROR_MSG("members handle is null");
-//     return "";
-//   }
-//
-//   std::ostringstream ss;
-//   std::string message_namespace(members->message_namespace_);
-//   std::string message_name(members->message_name_);
-//
-//   if (!message_namespace.empty()) {
-//     ss << message_namespace << "::";
-//   }
-//   ss << "zenoh_::" << message_name << "_";
-//   return ss.str();
-// }
-
 #endif  // TYPE_SUPPORT_COMMON_HPP_
