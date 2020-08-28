@@ -453,13 +453,19 @@ rmw_send_response(const rmw_service_t * service,
   );
 
   // PUBLISH ON ZENOH MIDDLEWARE LAYER =========================================
-  zn_write_wrid(service_data->zn_session_,
-                service_data->zn_response_topic_id_,
-                response_bytes,
-                data_length + meta_length);
+  size_t wrid_ret = zn_write_wrid(service_data->zn_session_,
+                                  service_data->zn_response_topic_id_,
+                                  response_bytes,
+                                  data_length + meta_length);
 
   allocator->deallocate(response_bytes, allocator->state);
-  return RMW_RET_OK;
+
+  if (wrid_ret == 0) {
+    return RMW_RET_OK;
+  } else {
+    RMW_SET_ERROR_MSG("zenoh failed to publish response");
+    return RMW_RET_ERROR;
+  }
 }
 
 } // extern "C"

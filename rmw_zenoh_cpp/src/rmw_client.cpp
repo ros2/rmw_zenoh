@@ -399,13 +399,19 @@ rmw_send_request(const rmw_client_t * client, const void * ros_request, int64_t 
          meta_length);
 
   // PUBLISH ON ZENOH MIDDLEWARE LAYER =========================================
-  zn_write_wrid(client_data->zn_session_,
-                client_data->zn_request_topic_id_,
-                request_bytes,
-                data_length + meta_length);
+  size_t wrid_ret = zn_write_wrid(client_data->zn_session_,
+                                  client_data->zn_request_topic_id_,
+                                  request_bytes,
+                                  data_length + meta_length);
 
   allocator->deallocate(request_bytes, allocator->state);
-  return RMW_RET_OK;
+
+  if (wrid_ret == 0) {
+    return RMW_RET_OK;
+  } else {
+    RMW_SET_ERROR_MSG("zenoh failed to publish request");
+    return RMW_RET_ERROR;
+  }
 }
 
 /// TAKE RESPONSE MESSAGE ======================================================

@@ -79,13 +79,19 @@ rmw_publish(
   size_t data_length = ser.getSerializedDataLength();
 
   // PUBLISH ON ZENOH MIDDLEWARE LAYER =========================================
-  zn_write_wrid(publisher_data->zn_session_,
-                publisher_data->zn_topic_id_,
-                msg_bytes,
-                data_length);
+  size_t wrid_ret = zn_write_wrid(publisher_data->zn_session_,
+                                  publisher_data->zn_topic_id_,
+                                  msg_bytes,
+                                  data_length);
 
   allocator->deallocate(msg_bytes, allocator->state);
-  return RMW_RET_OK;
+
+  if (wrid_ret == 0) {
+    return RMW_RET_OK;
+  } else {
+    RMW_SET_ERROR_MSG("zenoh failed to publish response");
+    return RMW_RET_ERROR;
+  }
 }
 
 rmw_ret_t
