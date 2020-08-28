@@ -72,7 +72,7 @@ rmw_create_subscription(
   }
 
   if (rmw_validate_full_topic_name(topic_name, validation_result, nullptr) != RMW_RET_OK) {
-    RMW_SET_ERROR_MSG("rmw_validate_full_topic_name failed!");
+    RMW_SET_ERROR_MSG("rmw_validate_full_topic_name failed");
     allocator->deallocate(validation_result, allocator->state);
     return nullptr;
   }
@@ -81,7 +81,7 @@ rmw_create_subscription(
       || qos_profile->avoid_ros_namespace_conventions) {
     allocator->deallocate(validation_result, allocator->state);
   } else {
-    RMW_SET_ERROR_MSG("subscription topic is malformed!");
+    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("subscription topic is malformed: %s", topic_name);
     allocator->deallocate(validation_result, allocator->state);
     return nullptr;
   }
