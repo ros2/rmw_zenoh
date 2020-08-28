@@ -52,8 +52,16 @@ rmw_create_service(
 
   // VALIDATE SERVICE NAME =====================================================
   int * validation_result = static_cast<int *>(allocator->allocate(sizeof(int), allocator->state));
+  if (!validation_result) {
+    RMW_SET_ERROR_MSG("failed to allocate service name validation result storage pointer");
+    return nullptr;
+  }
 
-  rmw_validate_full_topic_name(service_name, validation_result, nullptr);
+  if (rmw_validate_full_topic_name(service_name, validation_result, nullptr) != RMW_RET_OK) {
+    RMW_SET_ERROR_MSG("rmw_validate_full_topic_name failed!");
+    allocator->deallocate(validation_result, allocator->state);
+    return nullptr;
+  }
 
   if (*validation_result == RMW_TOPIC_VALID
       || qos_profile->avoid_ros_namespace_conventions) {
@@ -84,7 +92,6 @@ rmw_create_service(
   );
   if (!service) {
     RMW_SET_ERROR_MSG("failed to allocate rmw_service_t");
-    allocator->deallocate(service, allocator->state);
     return nullptr;
   }
 
@@ -103,7 +110,7 @@ rmw_create_service(
   );
   if (!service->data) {
     RMW_SET_ERROR_MSG("failed to allocate service data");
-    allocator->deallocate(service->data, allocator->state);
+    allocator->deallocate(const_cast<char *>(service->service_name), allocator->state);
     allocator->deallocate(service, allocator->state);
     return nullptr;
   }
@@ -171,8 +178,11 @@ rmw_create_service(
   new(service_data->request_type_support_) rmw_zenoh_cpp::RequestTypeSupport(service_members);
   if (!service_data->request_type_support_) {
     RMW_SET_ERROR_MSG("failed to allocate RequestTypeSupport");
-    allocator->deallocate(service_data->request_type_support_, allocator->state);
+    allocator->deallocate(const_cast<char *>(service_data->zn_request_topic_key_), allocator->state);
+    allocator->deallocate(const_cast<char *>(service_data->zn_response_topic_key_), allocator->state);
     allocator->deallocate(service->data, allocator->state);
+
+    allocator->deallocate(const_cast<char *>(service->service_name), allocator->state);
     allocator->deallocate(service, allocator->state);
     return nullptr;
   }
@@ -183,9 +193,12 @@ rmw_create_service(
   new(service_data->response_type_support_) rmw_zenoh_cpp::ResponseTypeSupport(service_members);
   if (!service_data->response_type_support_) {
     RMW_SET_ERROR_MSG("failed to allocate ResponseTypeSupport");
+    allocator->deallocate(const_cast<char *>(service_data->zn_request_topic_key_), allocator->state);
+    allocator->deallocate(const_cast<char *>(service_data->zn_response_topic_key_), allocator->state);
     allocator->deallocate(service_data->request_type_support_, allocator->state);
-    allocator->deallocate(service_data->response_type_support_, allocator->state);
     allocator->deallocate(service->data, allocator->state);
+
+    allocator->deallocate(const_cast<char *>(service->service_name), allocator->state);
     allocator->deallocate(service, allocator->state);
     return nullptr;
   }
@@ -215,12 +228,15 @@ rmw_create_service(
   );
   if (service_data->zn_queryable_ == 0) {
     RMW_SET_ERROR_MSG("failed to create availability queryable for service");
-
     zn_undeclare_subscriber(service_data->zn_request_subscriber_);
 
+    allocator->deallocate(const_cast<char *>(service_data->zn_request_topic_key_), allocator->state);
+    allocator->deallocate(const_cast<char *>(service_data->zn_response_topic_key_), allocator->state);
     allocator->deallocate(service_data->request_type_support_, allocator->state);
     allocator->deallocate(service_data->response_type_support_, allocator->state);
     allocator->deallocate(service->data, allocator->state);
+
+    allocator->deallocate(const_cast<char *>(service->service_name), allocator->state);
     allocator->deallocate(service, allocator->state);
     return nullptr;
   }
@@ -258,11 +274,15 @@ rmw_destroy_service(rmw_node_t * node, rmw_service_t * service)
   zn_undeclare_subscriber(service_data->zn_request_subscriber_);
   zn_undeclare_queryable(service_data->zn_queryable_);
 
+  allocator->deallocate(const_cast<char *>(service_data->zn_request_topic_key_), allocator->state);
+  allocator->deallocate(const_cast<char *>(service_data->zn_response_topic_key_), allocator->state);
   allocator->deallocate(service_data->request_type_support_,
                         allocator->state);
   allocator->deallocate(service_data->response_type_support_,
                         allocator->state);
   allocator->deallocate(service->data, allocator->state);
+
+  allocator->deallocate(const_cast<char *>(service->service_name), allocator->state);
   allocator->deallocate(service, allocator->state);
 
   return RMW_RET_OK;

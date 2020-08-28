@@ -65,15 +65,17 @@ rmw_create_subscription(
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
   // VALIDATE TOPIC NAME =======================================================
-  int * validation_result = static_cast<int *>(
-    allocator->allocate(sizeof(int), allocator->state)
-  );
-
-  if (rmw_validate_full_topic_name(topic_name, validation_result, nullptr) != RMW_RET_OK) {
-    RMW_SET_ERROR_MSG("rmw_validate_full_topic_name failed!");
+  int * validation_result = static_cast<int *>(allocator->allocate(sizeof(int), allocator->state));
+  if (!validation_result) {
+    RMW_SET_ERROR_MSG("failed to allocate topic name validation result storage pointer");
     return nullptr;
   }
 
+  if (rmw_validate_full_topic_name(topic_name, validation_result, nullptr) != RMW_RET_OK) {
+    RMW_SET_ERROR_MSG("rmw_validate_full_topic_name failed!");
+    allocator->deallocate(validation_result, allocator->state);
+    return nullptr;
+  }
 
   if (*validation_result == RMW_TOPIC_VALID
       || qos_profile->avoid_ros_namespace_conventions) {
@@ -105,7 +107,6 @@ rmw_create_subscription(
   );
   if (!subscription) {
     RMW_SET_ERROR_MSG("failed to allocate rmw_subscription_t");
-    allocator->deallocate(subscription, allocator->state);
     return nullptr;
   }
 
@@ -114,9 +115,6 @@ rmw_create_subscription(
   subscription->options = *subscription_options;
   subscription->can_loan_messages = false;
 
-  // NOTE(CH3): Does this leak because it can't be freed?
-  // If so, should I cast away the const and free it later? (It's bad code smell though...)
-  // (The topic_name member is const, so it can't be freed without a const cast)
   subscription->topic_name = rcutils_strdup(topic_name, *allocator);
   if (!subscription->topic_name) {
     RMW_SET_ERROR_MSG("failed to allocate subscription topic name");
@@ -129,7 +127,7 @@ rmw_create_subscription(
   );
   if (!subscription->data) {
     RMW_SET_ERROR_MSG("failed to allocate subscription data");
-    allocator->deallocate(subscription->data, allocator->state);
+    allocator->deallocate(const_cast<char *>(subscription->topic_name), allocator->state);
     allocator->deallocate(subscription, allocator->state);
     return nullptr;
   }
@@ -155,8 +153,9 @@ rmw_create_subscription(
   new(subscription_data->type_support_) rmw_zenoh_cpp::MessageTypeSupport(callbacks);
   if (!subscription_data->type_support_) {
     RMW_SET_ERROR_MSG("failed to allocate MessageTypeSupport");
-    allocator->deallocate(subscription_data->type_support_, allocator->state);
     allocator->deallocate(subscription->data, allocator->state);
+
+    allocator->deallocate(const_cast<char *>(subscription->topic_name), allocator->state);
     allocator->deallocate(subscription, allocator->state);
     return nullptr;
   }
@@ -213,10 +212,11 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
     static_cast<rmw_subscription_data_t *>(subscription->data)->zn_subscriber_
   );
 
-  allocator->deallocate(
-    static_cast<rmw_subscription_data_t *>(subscription->data)->type_support_, allocator->state
-  );
+  allocator->deallocate(static_cast<rmw_subscription_data_t *>(subscription->data)->type_support_,
+                        allocator->state);
   allocator->deallocate(subscription->data, allocator->state);
+
+  allocator->deallocate(const_cast<char *>(subscription->topic_name), allocator->state);
   allocator->deallocate(subscription, allocator->state);
 
   return RMW_RET_OK;

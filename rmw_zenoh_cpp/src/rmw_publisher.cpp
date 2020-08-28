@@ -62,9 +62,11 @@ rmw_create_publisher(
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
   // VALIDATE TOPIC NAME =======================================================
-  int * validation_result = static_cast<int *>(
-    allocator->allocate(sizeof(int), allocator->state)
-  );
+  int * validation_result = static_cast<int *>(allocator->allocate(sizeof(int), allocator->state));
+  if (!validation_result) {
+    RMW_SET_ERROR_MSG("failed to allocate topic name validation result storage pointer");
+    return nullptr;
+  }
 
   if (rmw_validate_full_topic_name(topic_name, validation_result, nullptr) != RMW_RET_OK) {
     RMW_SET_ERROR_MSG("rmw_validate_full_topic_name failed!");
@@ -100,7 +102,6 @@ rmw_create_publisher(
   );
   if (!publisher) {
     RMW_SET_ERROR_MSG("failed to allocate rmw_publisher_t");
-    allocator->deallocate(publisher, allocator->state);
     return nullptr;
   }
 
@@ -120,6 +121,8 @@ rmw_create_publisher(
   if (!publisher->data) {
     RMW_SET_ERROR_MSG("failed to allocate publisher data");
     allocator->deallocate(publisher->data, allocator->state);
+
+    allocator->deallocate(const_cast<char *>(publisher->topic_name), allocator->state);
     allocator->deallocate(publisher, allocator->state);
     return nullptr;
   }
@@ -155,8 +158,9 @@ rmw_create_publisher(
   new(publisher_data->type_support_) rmw_zenoh_cpp::MessageTypeSupport(callbacks);
   if (!publisher_data->type_support_) {
     RMW_SET_ERROR_MSG("failed to allocate MessageTypeSupport");
-    allocator->deallocate(publisher_data->type_support_, allocator->state);
     allocator->deallocate(publisher->data, allocator->state);
+
+    allocator->deallocate(const_cast<char *>(publisher->topic_name), allocator->state);
     allocator->deallocate(publisher, allocator->state);
     return nullptr;
   }
@@ -200,12 +204,12 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
   // CLEANUP ===================================================================
-  allocator->deallocate(
-    static_cast<rmw_publisher_data_t *>(publisher->data)->type_support_, allocator->state
-  );
+  allocator->deallocate(static_cast<rmw_publisher_data_t *>(publisher->data)->type_support_,
+                        allocator->state);
   allocator->deallocate(publisher->data, allocator->state);
-  allocator->deallocate(publisher, allocator->state);
 
+  allocator->deallocate(const_cast<char *>(publisher->topic_name), allocator->state);
+  allocator->deallocate(publisher, allocator->state);
   return RMW_RET_OK;
 }
 

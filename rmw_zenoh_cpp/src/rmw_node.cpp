@@ -57,32 +57,43 @@ rmw_create_node(
     return nullptr;
   }
 
-  // Validate node name
-  int validation_result = RMW_NODE_NAME_VALID;
-  rmw_ret_t ret = rmw_validate_node_name(name, &validation_result, nullptr);
-  if (RMW_RET_OK != ret) {
+  // OBTAIN ALLOCATOR ==========================================================
+  rcutils_allocator_t * allocator = &context->options.allocator;
+
+  // VALIDATE NAMES ============================================================
+  int * validation_result = static_cast<int *>(allocator->allocate(sizeof(int), allocator->state));
+  if (!validation_result) {
+    RMW_SET_ERROR_MSG("failed to allocate node name validation result storage pointer");
     return nullptr;
   }
-  if (RMW_NODE_NAME_VALID != validation_result) {
-    const char * reason = rmw_node_name_validation_result_string(validation_result);
+
+  // Validate node name
+  if (rmw_validate_node_name(name, validation_result, nullptr) != RMW_RET_OK) {
+    RMW_SET_ERROR_MSG("rmw_validate_node_name failed!");
+    allocator->deallocate(validation_result, allocator->state);
+    return nullptr;
+  }
+
+  if (*validation_result != RMW_NODE_NAME_VALID) {
+    const char * reason = rmw_node_name_validation_result_string(*validation_result);
     RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("invalid node name: %s", reason);
+    allocator->deallocate(validation_result, allocator->state);
     return nullptr;
   }
 
   // Validate namespace
-  validation_result = RMW_NAMESPACE_VALID;
-  ret = rmw_validate_namespace(namespace_, &validation_result, nullptr);
-  if (RMW_RET_OK != ret) {
-    return nullptr;
-  }
-  if (RMW_NAMESPACE_VALID != validation_result) {
-    const char * reason = rmw_node_name_validation_result_string(validation_result);
-    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("invalid node namespace: %s", reason);
+  if (rmw_validate_namespace(namespace_, validation_result, nullptr) != RMW_RET_OK) {
+    RMW_SET_ERROR_MSG("rmw_validate_namespace failed!");
+    allocator->deallocate(validation_result, allocator->state);
     return nullptr;
   }
 
-  // ASSIGN ALLOCATOR ==========================================================
-  rcutils_allocator_t * allocator = &context->options.allocator;
+  if (*validation_result != RMW_NAMESPACE_VALID) {
+    const char * reason = rmw_node_name_validation_result_string(*validation_result);
+    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("invalid node namespace: %s", reason);
+    allocator->deallocate(validation_result, allocator->state);
+    return nullptr;
+  }
 
   // INIT NODE =================================================================
   // NOTE(CH3): Unfortunately we have to make do with these ugly copy pasted calls until
@@ -94,68 +105,46 @@ rmw_create_node(
   );
   if (!node) {
     RMW_SET_ERROR_MSG("failed to allocate rmw_node_t");
-    allocator->deallocate(node, allocator->state);
     return nullptr;
   }
 
   // Populate common members
   node->implementation_identifier = eclipse_zenoh_identifier;
 
-  // "name" has already been sanity-checked by rmw_validate_node_name
-  char * name_buf = static_cast<char *>(
-    allocator->allocate(strlen(name) + 1, allocator->state)
-  );
-  if (!name_buf) {
+  node->name = rcutils_strdup(name, *allocator);
+  if (!node->name) {
     RMW_SET_ERROR_MSG("failed to allocate node name");
     allocator->deallocate(node, allocator->state);
     return nullptr;
   }
-  strcpy(name_buf, name);
-  node->name = name_buf;
 
-  // "namespace" has already been sanity-checked by rmw_validate_namespace
-  char * namespace_buf = static_cast<char *>(
-    allocator->allocate(strlen(namespace_) + 1, allocator->state)
-  );
-  if (!namespace_buf) {
+  node->namespace_ = rcutils_strdup(namespace_, *allocator);
+  if (!node->namespace_) {
     RMW_SET_ERROR_MSG("failed to allocate node namespace");
-    allocator->deallocate(name_buf, allocator->state);
-
-    allocator->deallocate(node, allocator->state);
-    return nullptr;
-  }
-  strcpy(namespace_buf, namespace_);
-  node->namespace_ = namespace_buf;
-
-  node->context = context;
-  if (!node->context) {
-    RMW_SET_ERROR_MSG("failed to allocate node context");
-    allocator->deallocate(name_buf, allocator->state);
-    allocator->deallocate(namespace_buf, allocator->state);
-
+    allocator->deallocate(const_cast<char *>(node->name), allocator->state);
     allocator->deallocate(node, allocator->state);
     return nullptr;
   }
 
-  // POPULATE ZENOH SPECIFIC NODE MEMBERS ======================================
   node->data = static_cast<rmw_node_impl_t *>(
     allocator->allocate(sizeof(rmw_node_impl_t), allocator->state)
   );
   if (!node->data) {
     RMW_SET_ERROR_MSG("failed to allocate rmw_node_impl_t");
-    allocator->deallocate(name_buf, allocator->state);
-    allocator->deallocate(namespace_buf, allocator->state);
-
-    allocator->deallocate(node->data, allocator->state);
+    allocator->deallocate(const_cast<char *>(node->namespace_), allocator->state);
+    allocator->deallocate(const_cast<char *>(node->name), allocator->state);
     allocator->deallocate(node, allocator->state);
     return nullptr;
-  } else {
-    memset(node->data, 0, sizeof(rmw_node_impl_t));
   }
 
-  // Create graph guard condition
+  // Assign ROS context
+  node->context = context;
+
+  // POPULATE ZENOH SPECIFIC NODE MEMBERS ======================================
+  // Get typed pointer to implementation specific node data struct
   rmw_node_impl_t * node_data = static_cast<rmw_node_impl_t *>(node->data);
 
+  // Create graph guard condition
   node_data->graph_guard_condition_ = static_cast<rmw_guard_condition_t *>(
     allocator->allocate(sizeof(rmw_guard_condition_t), allocator->state)
   );
@@ -165,10 +154,9 @@ rmw_create_node(
       RMW_SAFE_FWRITE_TO_STDERR(
         "Failed to destroy guard condition in rmw_create_node");
     }
-    allocator->deallocate(name_buf, allocator->state);
-    allocator->deallocate(namespace_buf, allocator->state);
+    allocator->deallocate(const_cast<char *>(node->namespace_), allocator->state);
+    allocator->deallocate(const_cast<char *>(node->name), allocator->state);
 
-    allocator->deallocate(node_data->graph_guard_condition_, allocator->state);
     allocator->deallocate(node->data, allocator->state);
     allocator->deallocate(node, allocator->state);
     return nullptr;
@@ -218,7 +206,10 @@ rmw_destroy_node(rmw_node_t * node)
     RMW_SAFE_FWRITE_TO_STDERR("Failed to destroy guard condition in rmw_destroy_node");
   }
 
+  allocator->deallocate(const_cast<char *>(node->namespace_), allocator->state);
+  allocator->deallocate(const_cast<char *>(node->name), allocator->state);
   allocator->deallocate(node->data, allocator->state);
+
   allocator->deallocate(node, allocator->state);
 
   return RMW_RET_OK;

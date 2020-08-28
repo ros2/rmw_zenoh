@@ -96,8 +96,6 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
 
   if (!context_impl) {
     RMW_SET_ERROR_MSG("failed to allocate context impl");
-    allocator->deallocate(context_impl, allocator->state);
-
     return RMW_RET_BAD_ALLOC;
   }
 

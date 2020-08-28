@@ -110,7 +110,16 @@ rmw_create_client(
 
   // VALIDATE SERVICE NAME =====================================================
   int * validation_result = static_cast<int *>(allocator->allocate(sizeof(int), allocator->state));
-  rmw_validate_full_topic_name(service_name, validation_result, nullptr);
+  if (!validation_result) {
+    RMW_SET_ERROR_MSG("failed to allocate service name validation result storage pointer");
+    return nullptr;
+  }
+
+  if (rmw_validate_full_topic_name(service_name, validation_result, nullptr) != RMW_RET_OK) {
+    RMW_SET_ERROR_MSG("rmw_validate_full_topic_name failed!");
+    allocator->deallocate(validation_result, allocator->state);
+    return nullptr;
+  }
 
   if (*validation_result == RMW_TOPIC_VALID || qos_profile->avoid_ros_namespace_conventions) {
     allocator->deallocate(validation_result, allocator->state);
@@ -140,7 +149,6 @@ rmw_create_client(
                                                                           allocator->state));
   if (!client) {
     RMW_SET_ERROR_MSG("failed to allocate rmw_client_t");
-    allocator->deallocate(client, allocator->state);
     return nullptr;
   }
 
@@ -158,7 +166,7 @@ rmw_create_client(
                                                                       allocator->state));
   if (!client->data) {
     RMW_SET_ERROR_MSG("failed to allocate client data");
-    allocator->deallocate(client->data, allocator->state);
+    allocator->deallocate(const_cast<char *>(client->service_name), allocator->state);
     allocator->deallocate(client, allocator->state);
     return nullptr;
   }
@@ -226,8 +234,11 @@ rmw_create_client(
   new(client_data->request_type_support_) rmw_zenoh_cpp::RequestTypeSupport(service_members);
   if (!client_data->request_type_support_) {
     RMW_SET_ERROR_MSG("failed to allocate RequestTypeSupport");
-    allocator->deallocate(client_data->request_type_support_, allocator->state);
+    allocator->deallocate(const_cast<char *>(client_data->zn_request_topic_key_), allocator->state);
+    allocator->deallocate(const_cast<char *>(client_data->zn_response_topic_key_), allocator->state);
     allocator->deallocate(client->data, allocator->state);
+
+    allocator->deallocate(const_cast<char *>(client->service_name), allocator->state);
     allocator->deallocate(client, allocator->state);
     return nullptr;
   }
@@ -238,9 +249,12 @@ rmw_create_client(
   new(client_data->response_type_support_) rmw_zenoh_cpp::ResponseTypeSupport(service_members);
   if (!client_data->response_type_support_) {
     RMW_SET_ERROR_MSG("failed to allocate ResponseTypeSupport");
+    allocator->deallocate(const_cast<char *>(client_data->zn_request_topic_key_), allocator->state);
+    allocator->deallocate(const_cast<char *>(client_data->zn_response_topic_key_), allocator->state);
     allocator->deallocate(client_data->request_type_support_, allocator->state);
-    allocator->deallocate(client_data->response_type_support_, allocator->state);
     allocator->deallocate(client->data, allocator->state);
+
+    allocator->deallocate(const_cast<char *>(client->service_name), allocator->state);
     allocator->deallocate(client, allocator->state);
     return nullptr;
   }
@@ -288,11 +302,13 @@ rmw_destroy_client(rmw_node_t * node, rmw_client_t * client)
 
   zn_undeclare_subscriber(client_data->zn_response_subscriber_);
 
-  allocator->deallocate(client_data->request_type_support_,
-                        allocator->state);
-  allocator->deallocate(client_data->response_type_support_,
-                        allocator->state);
+  allocator->deallocate(const_cast<char *>(client_data->zn_request_topic_key_), allocator->state);
+  allocator->deallocate(const_cast<char *>(client_data->zn_response_topic_key_), allocator->state);
+  allocator->deallocate(client_data->request_type_support_, allocator->state);
+  allocator->deallocate(client_data->response_type_support_, allocator->state);
   allocator->deallocate(client->data, allocator->state);
+
+  allocator->deallocate(const_cast<char *>(client->service_name), allocator->state);
   allocator->deallocate(client, allocator->state);
 
   return RMW_RET_OK;
