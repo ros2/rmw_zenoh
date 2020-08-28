@@ -118,16 +118,31 @@ rmw_create_service(
 
   // Obtain qualified request-response topics
   std::string zn_request_topic_key(service->service_name);
-  zn_request_topic_key += "/request";
+  service_data->zn_request_topic_key_ = rcutils_strdup(
+    (zn_request_topic_key + "/request").c_str(), *allocator
+  );
+  if (!service_data->zn_request_topic_key_) {
+    RMW_SET_ERROR_MSG("failed to allocate zenoh request topic key");
+    allocator->deallocate(service->data, allocator->state);
 
-  service_data->zn_request_topic_key_ = rcutils_strdup(zn_request_topic_key.c_str(),
-                                                       *allocator);
+    allocator->deallocate(const_cast<char *>(service->service_name), allocator->state);
+    allocator->deallocate(service, allocator->state);
+    return nullptr;
+  }
 
   std::string zn_response_topic_key(service->service_name);
-  zn_response_topic_key += "/response";
+  service_data->zn_response_topic_key_ = rcutils_strdup(
+    (zn_response_topic_key + "/response").c_str(), *allocator
+  );
+  if (!service_data->zn_response_topic_key_) {
+    RMW_SET_ERROR_MSG("failed to allocate zenoh response topic key");
+    allocator->deallocate(const_cast<char *>(service_data->zn_request_topic_key_), allocator->state);
+    allocator->deallocate(service->data, allocator->state);
 
-  service_data->zn_response_topic_key_ = rcutils_strdup(zn_response_topic_key.c_str(),
-                                                        *allocator);
+    allocator->deallocate(const_cast<char *>(service->service_name), allocator->state);
+    allocator->deallocate(service, allocator->state);
+    return nullptr;
+  }
 
   // NOTE(CH3): This topic ID only unique WITHIN this process!
   //
