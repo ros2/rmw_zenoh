@@ -248,20 +248,17 @@ rmw_take(
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION
   );
 
-  // OBTAIN SUBSCRIPTION MEMBERS ===============================================
-  const char * topic_name = subscription->topic_name;
-  RMW_CHECK_ARGUMENT_FOR_NULL(topic_name, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(subscription->data, RMW_RET_ERROR);
+  RMW_CHECK_ARGUMENT_FOR_NULL(subscription->topic_name, RMW_RET_INVALID_ARGUMENT);
 
-  rmw_subscription_data_t * subscription_data = static_cast<rmw_subscription_data_t *>(
-    subscription->data
-  );
-  RMW_CHECK_ARGUMENT_FOR_NULL(subscription_data, RMW_RET_ERROR);
+  // OBTAIN SUBSCRIPTION MEMBERS ===============================================
+  auto subscription_data = static_cast<rmw_subscription_data_t *>(subscription->data);
 
   // OBTAIN ALLOCATOR ==========================================================
   rcutils_allocator_t * allocator = &subscription_data->node_->context->options.allocator;
 
   // RETRIEVE SERIALIZED MESSAGE ===============================================
-  std::string key(topic_name);
+  std::string key(subscription->topic_name);
 
   if (subscription_data->zn_messages_.find(key) == subscription_data->zn_messages_.end()) {
     // NOTE(CH3): It is correct to be returning RMW_RET_OK. The information that the message
@@ -340,26 +337,28 @@ rmw_take_with_info(
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION
   );
 
-  // OBTAIN SUBSCRIPTION MEMBERS ===============================================
-  const char * topic_name = subscription->topic_name;
-  RMW_CHECK_ARGUMENT_FOR_NULL(topic_name, RMW_RET_ERROR);
+  RMW_CHECK_ARGUMENT_FOR_NULL(subscription->topic_name, RMW_RET_ERROR);
+  RMW_CHECK_ARGUMENT_FOR_NULL(subscription->data, RMW_RET_ERROR);
 
-  rmw_subscription_data_t * subscription_data = static_cast<rmw_subscription_data_t *>(
-    subscription->data
-  );
-  RMW_CHECK_ARGUMENT_FOR_NULL(subscription_data, RMW_RET_ERROR);
+  // OBTAIN SUBSCRIPTION MEMBERS ===============================================
+  auto subscription_data = static_cast<rmw_subscription_data_t *>(subscription->data);
 
   // OBTAIN ALLOCATOR ==========================================================
   rcutils_allocator_t * allocator = &subscription_data->node_->context->options.allocator;
 
   // RETRIEVE SERIALIZED MESSAGE ===============================================
-  if (subscription_data->zn_messages_.find(topic_name) == subscription_data->zn_messages_.end()) {
+  std::string key(subscription->topic_name);
+
+  if (subscription_data->zn_messages_.find(key)
+      == subscription_data->zn_messages_.end()) {
     return RMW_RET_OK;
   }
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "[rmw_take_with_info] Message found: %s", topic_name);
+  RCUTILS_LOG_INFO_NAMED(
+    "rmw_zenoh_cpp", "[rmw_take_with_info] Message found: %s", key.c_str()
+  );
 
   // DESERIALIZE MESSAGE =======================================================
-  auto msg_bytes = subscription_data->zn_messages_[std::string(topic_name)];
+  auto msg_bytes = subscription_data->zn_messages_[key];
 
   unsigned char * cdr_buffer = static_cast<unsigned char *>(
     allocator->allocate(msg_bytes.size(), allocator->state)
@@ -367,7 +366,7 @@ rmw_take_with_info(
   memcpy(cdr_buffer, &msg_bytes.front(), msg_bytes.size());
 
   // Remove stored message after successful retrieval
-  subscription_data->zn_messages_.erase(topic_name);
+  subscription_data->zn_messages_.erase(key);
 
   eprosima::fastcdr::FastBuffer fastbuffer(
     reinterpret_cast<char *>(cdr_buffer),
