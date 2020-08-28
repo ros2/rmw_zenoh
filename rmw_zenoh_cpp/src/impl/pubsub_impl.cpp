@@ -6,6 +6,8 @@ extern "C"
 #include <iostream>
 #include <mutex>
 
+#include "rcutils/logging_macros.h"
+
 #include "rmw_zenoh_cpp/TypeSupport.hpp"
 #include "pubsub_impl.hpp"
 
@@ -31,5 +33,13 @@ void rmw_subscription_data_t::zn_sub_callback(const zn_sample * sample) {
   // NOTE(CH3): This means that the queue size for each topic is ONE for now!!
   // So this might break if a topic is being spammed.
   // TODO(CH3): Implement queuing logic
+  if (rmw_subscription_data_t::zn_messages_.find(key)
+    != rmw_subscription_data_t::zn_messages_.end()) {
+      // Log warning if message is clobbered
+      RCUTILS_LOG_WARN_NAMED(
+        "rmw_zenoh_cpp", "overwriting existing untaken zenoh message: %s", key.c_str()
+      );
+    }
+
   rmw_subscription_data_t::zn_messages_[key] = std::vector<unsigned char>(byte_vec);
 }

@@ -41,6 +41,14 @@ void rmw_client_data_t::zn_response_sub_callback(const zn_sample * sample) {
   // NOTE(CH3): This means that the queue size for each topic is ONE for now!!
   // So this might break if a service is being spammed.
   // TODO(CH3): Implement queuing logic
+  if (rmw_client_data_t::zn_response_messages_.find(key)
+    != rmw_client_data_t::zn_response_messages_.end()) {
+      // Log warning if message is clobbered
+      RCUTILS_LOG_WARN_NAMED(
+        "rmw_zenoh_cpp", "overwriting existing untaken zenoh response message: %s", key.c_str()
+      );
+    }
+
   rmw_client_data_t::zn_response_messages_[key] = std::vector<unsigned char>(byte_vec);
 }
 
