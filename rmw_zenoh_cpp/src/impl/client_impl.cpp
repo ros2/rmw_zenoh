@@ -6,6 +6,8 @@ extern "C"
 #include <iostream>
 #include <mutex>
 
+#include "rcutils/logging_macros.h"
+
 #include "rmw_zenoh_cpp/TypeSupport.hpp"
 #include "client_impl.hpp"
 
@@ -57,5 +59,7 @@ void rmw_client_data_t::zn_service_availability_query_callback(const zn_source_i
     == rmw_client_data_t::zn_availability_query_responses_.end())
   {
     rmw_client_data_t::zn_availability_query_responses_.insert(key);
+  } else {
+    RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "zenoh availability for %s already set", key.c_str());
   }
 }
