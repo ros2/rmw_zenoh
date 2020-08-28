@@ -117,7 +117,7 @@ rmw_create_service(
 
   // CREATE SERVICE MEMBERS ====================================================
   // Get typed pointer to implementation specific subscription data struct
-  auto * service_data = static_cast<rmw_service_data_t *>(service->data);
+  auto service_data = static_cast<rmw_service_data_t *>(service->data);
 
   // Obtain Zenoh session and create Zenoh resource for response messages
   ZNSession * s = node->context->impl->session;
@@ -268,9 +268,10 @@ rmw_destroy_service(rmw_node_t * node, rmw_service_t * service)
   // OBTAIN ALLOCATOR ==========================================================
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
-  // CLEANUP ===================================================================
+  // OBTAIN SERVICE MEMBERS ====================================================
   auto service_data = static_cast<rmw_service_data_t *>(service->data);
 
+  // CLEANUP ===================================================================
   zn_undeclare_subscriber(service_data->zn_request_subscriber_);
   zn_undeclare_queryable(service_data->zn_queryable_);
 
@@ -312,12 +313,15 @@ rmw_take_request(
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION
   );
 
-  // OBTAIN SUBSCRIPTION MEMBERS ===============================================
-  const char * service_name = service->service_name;
-  RMW_CHECK_ARGUMENT_FOR_NULL(service_name, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+      service->service_name, "service has no service name", RMW_RET_INVALID_ARGUMENT
+  );
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    service->data, "service implementation pointer is null", RMW_RET_INVALID_ARGUMENT
+  );
 
-  rmw_service_data_t * service_data = static_cast<rmw_service_data_t *>(service->data);
-  RMW_CHECK_ARGUMENT_FOR_NULL(service_data, RMW_RET_ERROR);
+  // OBTAIN SERVICE MEMBERS ====================================================
+  auto service_data = static_cast<rmw_service_data_t *>(service->data);
 
   // OBTAIN ALLOCATOR ==========================================================
   rcutils_allocator_t * allocator = &service_data->node_->context->options.allocator;
@@ -399,8 +403,12 @@ rmw_send_response(const rmw_service_t * service,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION
   );
 
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    service->data, "service implementation pointer is null", RMW_RET_INVALID_ARGUMENT
+  );
+
+  // OBTAIN SERVICE MEMBERS ====================================================
   auto service_data = static_cast<rmw_service_data_t *>(service->data);
-  RMW_CHECK_ARGUMENT_FOR_NULL(service_data, RMW_RET_ERROR);
 
   // ASSIGN ALLOCATOR ==========================================================
   rcutils_allocator_t * allocator =

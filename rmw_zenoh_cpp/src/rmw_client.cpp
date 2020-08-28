@@ -43,9 +43,14 @@ rmw_service_server_is_available(
   RMW_CHECK_ARGUMENT_FOR_NULL(client, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(result, RMW_RET_INVALID_ARGUMENT);
 
-  auto client_data = static_cast<rmw_client_data_t *>(client->data);
-  RMW_CHECK_ARGUMENT_FOR_NULL(client_data, RMW_RET_ERROR);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    client->data, "client implementation pointer is null", RMW_RET_INVALID_ARGUMENT
+  );
 
+  // OBTAIN CLIENT MEMBERS =====================================================
+  auto client_data = static_cast<rmw_client_data_t *>(client->data);
+
+  // CHECK SERVER AVAILABILITY =================================================
   // Check if server is alive by querying its availability Zenoh queryable
   zn_query(client_data->zn_session_,
            client->service_name,
@@ -135,8 +140,7 @@ rmw_create_client(
   );
 
   if (!type_support) {
-    type_support = get_service_typesupport_handle(
-      type_supports, RMW_ZENOH_CPP_TYPESUPPORT_CPP);
+    type_support = get_service_typesupport_handle(type_supports, RMW_ZENOH_CPP_TYPESUPPORT_CPP);
     if (!type_support) {
       RCUTILS_LOG_INFO("%s", service_name);
       RMW_SET_ERROR_MSG("type support not from this implementation");
@@ -153,11 +157,11 @@ rmw_create_client(
   }
 
   // Populate common members
-  client->implementation_identifier = eclipse_zenoh_identifier;  // const char * assignment
+  client->implementation_identifier = eclipse_zenoh_identifier;
 
-  client->service_name = rcutils_strdup(service_name, *allocator);  // const char * assignment
+  client->service_name = rcutils_strdup(service_name, *allocator);
   if (!client->service_name) {
-    RMW_SET_ERROR_MSG("failed to allocate publisher topic name");
+    RMW_SET_ERROR_MSG("failed to allocate service name for client");
     allocator->deallocate(client, allocator->state);
     return nullptr;
   }
@@ -173,7 +177,7 @@ rmw_create_client(
 
   // CREATE CLIENT MEMBERS =====================================================
   // Get typed pointer to implementation specific subscription data struct
-  auto * client_data = static_cast<rmw_client_data_t *>(client->data);
+  auto client_data = static_cast<rmw_client_data_t *>(client->data);
 
   // Obtain Zenoh session and create Zenoh resource for request messages
   ZNSession * s = node->context->impl->session;
@@ -338,8 +342,8 @@ rmw_send_request(const rmw_client_t * client, const void * ros_request, int64_t 
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION
   );
 
+  RMW_CHECK_ARGUMENT_FOR_NULL(client->data, RMW_RET_ERROR);
   auto client_data = static_cast<rmw_client_data_t *>(client->data);
-  RMW_CHECK_ARGUMENT_FOR_NULL(client_data, RMW_RET_ERROR);
 
   // ASSIGN ALLOCATOR ==========================================================
   rcutils_allocator_t * allocator =
@@ -427,12 +431,15 @@ rmw_take_response(
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION
   );
 
-  // OBTAIN SUBSCRIPTION MEMBERS ===============================================
-  const char * client_name = client->service_name;
-  RMW_CHECK_ARGUMENT_FOR_NULL(client_name, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+      client->service_name, "client has no service name", RMW_RET_INVALID_ARGUMENT
+  );
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    client->data, "client implementation pointer is null", RMW_RET_INVALID_ARGUMENT
+  );
 
-  rmw_client_data_t * client_data = static_cast<rmw_client_data_t *>(client->data);
-  RMW_CHECK_ARGUMENT_FOR_NULL(client_data, RMW_RET_ERROR);
+  // OBTAIN CLIENT MEMBERS =====================================================
+  auto client_data = static_cast<rmw_client_data_t *>(client->data);
 
   // OBTAIN ALLOCATOR ==========================================================
   rcutils_allocator_t * allocator = &client_data->node_->context->options.allocator;
