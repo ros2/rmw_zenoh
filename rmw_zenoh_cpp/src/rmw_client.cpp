@@ -432,7 +432,7 @@ rmw_take_response(
   );
 
   RMW_CHECK_FOR_NULL_WITH_MSG(
-      client->service_name, "client has no service name", RMW_RET_INVALID_ARGUMENT
+    client->service_name, "client has no service name", RMW_RET_INVALID_ARGUMENT
   );
   RMW_CHECK_FOR_NULL_WITH_MSG(
     client->data, "client implementation pointer is null", RMW_RET_INVALID_ARGUMENT

@@ -314,7 +314,7 @@ rmw_take_request(
   );
 
   RMW_CHECK_FOR_NULL_WITH_MSG(
-      service->service_name, "service has no service name", RMW_RET_INVALID_ARGUMENT
+    service->service_name, "service has no service name", RMW_RET_INVALID_ARGUMENT
   );
   RMW_CHECK_FOR_NULL_WITH_MSG(
     service->data, "service implementation pointer is null", RMW_RET_INVALID_ARGUMENT
