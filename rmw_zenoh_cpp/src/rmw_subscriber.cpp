@@ -356,7 +356,7 @@ rmw_take_with_info(
                                eprosima::fastcdr::Cdr::DDS_CDR);
   if (!subscription_data->type_support_->deserializeROSmessage(
       deser, ros_message, subscription_data->type_support_impl_)) {
-    RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "COULD NOT DESERIALIZE MESSAGE");
+    RMW_SET_ERROR_MSG("could not deserialize message");
     return RMW_RET_ERROR;
   }
 
