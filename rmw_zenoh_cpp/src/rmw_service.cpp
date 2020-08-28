@@ -26,7 +26,7 @@ rmw_create_service(
   const char * service_name,
   const rmw_qos_profile_t * qos_profile)
 {
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "[rmw_create_service] %s", service_name);
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_create_service] %s", service_name);
 
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(node, nullptr);
@@ -233,7 +233,7 @@ rmw_create_service(
 rmw_ret_t
 rmw_destroy_service(rmw_node_t * node, rmw_service_t * service)
 {
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "[rmw_destroy_service] %s", service->service_name);
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_destroy_service] %s", service->service_name);
 
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
@@ -279,7 +279,7 @@ rmw_take_request(
   bool * taken)
 {
   *taken = false;
-  // RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_take_request");
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "rmw_take_request");
 
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(service, RMW_RET_INVALID_ARGUMENT);
@@ -314,7 +314,7 @@ rmw_take_request(
     // This tells rcl that the check for a new message was done, but no messages have come in yet.
     return RMW_RET_OK;
   }
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "[rmw_take_request] Request found: %s", key.c_str());
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_take_request] Request found: %s", key.c_str());
 
   auto request_bytes = service_data->zn_request_messages_[key];
 
@@ -349,7 +349,7 @@ rmw_take_request(
   if (!service_data->request_type_support_->deserializeROSmessage(
       deser, ros_request, service_data->request_type_support_impl_)
   ) {
-    RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "COULD NOT DESERIALIZE REQUEST MESSAGE");
+    RMW_SET_ERROR_MSG("could not deserialize request message");
     return RMW_RET_ERROR;
   }
 
@@ -364,10 +364,9 @@ rmw_send_response(const rmw_service_t * service,
                   rmw_request_id_t * request_header,  // In parameter
                   void * ros_response)
 {
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp",
-                         "[rmw_send_response] %s (%ld)",
-                         service->service_name,
-                         static_cast<rmw_service_data_t *>(service->data)->zn_response_topic_id_);
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_send_response] %s (%ld)",
+                          service->service_name,
+                          static_cast<rmw_service_data_t *>(service->data)->zn_response_topic_id_);
 
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(service, RMW_RET_INVALID_ARGUMENT);

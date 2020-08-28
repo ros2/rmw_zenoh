@@ -27,7 +27,7 @@ rmw_create_publisher(
   const rmw_qos_profile_t * qos_profile,
   const rmw_publisher_options_t * publisher_options)
 {
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "[rmw_create_publisher] %s", topic_name);
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_create_publisher] %s", topic_name);
 
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(node, nullptr);
@@ -136,7 +136,10 @@ rmw_create_publisher(
   publisher_data->zn_session_ = s;
   publisher_data->typesupport_identifier_ = type_support->typesupport_identifier;
   publisher_data->type_support_impl_ = type_support->data;
-  // RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "[rmw_create_publisher] Zenoh resource declared: %s (%ld)", topic_name, publisher_data->zn_topic_id);
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp",
+                          "[rmw_create_publisher] Zenoh resource declared: %s (%ld)",
+                          topic_name,
+                          publisher_data->zn_topic_id_);
 
   // Allocate and in-place assign new message typesupport instance
   publisher_data->type_support_ = static_cast<rmw_zenoh_cpp::MessageTypeSupport *>(
@@ -181,6 +184,8 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
                                    publisher->implementation_identifier,
                                    eclipse_zenoh_identifier,
                                    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_destroy_publisher] %s", publisher->topic_name);
 
   // OBTAIN ALLOCATOR ==========================================================
   rcutils_allocator_t * allocator = &node->context->options.allocator;
@@ -254,8 +259,7 @@ rmw_publisher_get_actual_qos(const rmw_publisher_t * publisher, rmw_qos_profile_
 {
   (void)publisher;
   (void)qos_profile;
-  // RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_publisher_get_actual_qos");
-  // return RMW_RET_ERROR;
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "rmw_publisher_get_actual_qos (STUB)");
   return RMW_RET_OK;
 }
 

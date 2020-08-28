@@ -26,8 +26,8 @@ rmw_service_server_is_available(
 {
   *result = false;
 
-  RCUTILS_LOG_INFO_NAMED(
-      "rmw_zenoh_cpp", "[rmw_service_server_is_available] %s", client->service_name);
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_service_server_is_available] %s",
+                          client->service_name);
 
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
@@ -77,7 +77,7 @@ rmw_create_client(
   const char * service_name,
   const rmw_qos_profile_t * qos_profile)
 {
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "[rmw_create_client] %s", service_name);
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_create_client] %s", service_name);
 
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(node, nullptr);
@@ -262,7 +262,7 @@ rmw_create_client(
 rmw_ret_t
 rmw_destroy_client(rmw_node_t * node, rmw_client_t * client)
 {
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "[rmw_destroy_client] %s", client->service_name);
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_destroy_client] %s", client->service_name);
 
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
@@ -303,10 +303,10 @@ rmw_destroy_client(rmw_node_t * node, rmw_client_t * client)
 rmw_ret_t
 rmw_send_request(const rmw_client_t * client, const void * ros_request, int64_t * sequence_id)
 {
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp",
-                         "[rmw_send_request] %s (%ld)",
-                         static_cast<rmw_client_data_t *>(client->data)->zn_request_topic_key_,
-                         static_cast<rmw_client_data_t *>(client->data)->zn_request_topic_id_);
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp",
+                          "[rmw_send_request] %s (%ld)",
+                          static_cast<rmw_client_data_t *>(client->data)->zn_request_topic_key_,
+                          static_cast<rmw_client_data_t *>(client->data)->zn_request_topic_id_);
 
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(client, RMW_RET_INVALID_ARGUMENT);
@@ -427,7 +427,7 @@ rmw_take_response(
     // This tells rcl that the check for a new message was done, but no messages have come in yet.
     return RMW_RET_OK;
   }
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "[rmw_take_response] Response found: %s", key.c_str());
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_take_response] Response found: %s", key.c_str());
 
   auto response_bytes = client_data->zn_response_messages_[key];
 

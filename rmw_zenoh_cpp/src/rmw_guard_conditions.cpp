@@ -19,7 +19,7 @@ extern "C"
 rmw_guard_condition_t *
 rmw_create_guard_condition(rmw_context_t * context)
 {
-  // RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_create_guard_condition");
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "rmw_create_guard_condition");
 
   RMW_CHECK_ARGUMENT_FOR_NULL(context, nullptr);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(context,
@@ -42,7 +42,7 @@ rmw_create_guard_condition(rmw_context_t * context)
 rmw_ret_t
 rmw_destroy_guard_condition(rmw_guard_condition_t * guard_condition_handle)
 {
-  // RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_destroy_guard_condition");
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "rmw_destroy_guard_condition");
 
   if (guard_condition_handle) {
     delete static_cast<GuardCondition *>(guard_condition_handle->data);
@@ -57,7 +57,7 @@ rmw_destroy_guard_condition(rmw_guard_condition_t * guard_condition_handle)
 rmw_ret_t
 rmw_trigger_guard_condition(const rmw_guard_condition_t * guard_condition_handle)
 {
-  // RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_trigger_guard_condition");
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "rmw_trigger_guard_condition");
 
   RMW_CHECK_ARGUMENT_FOR_NULL(guard_condition_handle, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(guard_condition_handle,

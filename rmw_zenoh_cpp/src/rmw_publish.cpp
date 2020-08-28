@@ -26,9 +26,9 @@ rmw_publish(
   rmw_publisher_allocation_t * allocation)
 {
   (void) allocation;
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "[rmw_publish] %s (%ld)",
-                         publisher->topic_name,
-                         static_cast<rmw_publisher_data_t *>(publisher->data)->zn_topic_id_);
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_publish] %s (%ld)",
+                          publisher->topic_name,
+                          static_cast<rmw_publisher_data_t *>(publisher->data)->zn_topic_id_);
 
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(publisher, RMW_RET_INVALID_ARGUMENT);

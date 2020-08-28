@@ -29,9 +29,7 @@ rmw_create_subscription(
   const rmw_qos_profile_t * qos_profile,
   const rmw_subscription_options_t * subscription_options)
 {
-  // RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_create_subscription");
-  // RCUTILS_LOG_INFO("NODE_NAME: %s", node->name);
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "[rmw_create_subscription] %s", topic_name);
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_create_subscription] %s", topic_name);
 
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(node, nullptr);
@@ -182,8 +180,8 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
                                    eclipse_zenoh_identifier,
                                    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "[rmw_destroy_subscription] %s",
-                         subscription->topic_name);
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_destroy_subscription] %s",
+                          subscription->topic_name);
 
   // OBTAIN ALLOCATOR ==========================================================
   rcutils_allocator_t * allocator = &node->context->options.allocator;
@@ -214,7 +212,7 @@ rmw_take(
   (void)allocation;
   *taken = false;
 
-  // RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_take");
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "rmw_take");
 
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription, RMW_RET_INVALID_ARGUMENT);
@@ -245,7 +243,7 @@ rmw_take(
     // This tells rcl that the check for a new message was done, but no messages have come in yet.
     return RMW_RET_OK;
   }
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "[rmw_take] Message found: %s", key.c_str());
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_take] Message found: %s", key.c_str());
 
   // DESERIALIZE MESSAGE =======================================================
   auto msg_bytes = subscription_data->zn_messages_[key];
@@ -297,7 +295,7 @@ rmw_take_with_info(
   (void)allocation;
   *taken = false;
 
-  // RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_take_with_info");
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "rmw_take_with_info");
 
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription, RMW_RET_INVALID_ARGUMENT);
@@ -326,7 +324,7 @@ rmw_take_with_info(
       == subscription_data->zn_messages_.end()) {
     return RMW_RET_OK;
   }
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "[rmw_take_with_info] Message found: %s", key.c_str());
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_take_with_info] Message found: %s", key.c_str());
 
   // DESERIALIZE MESSAGE =======================================================
   auto msg_bytes = subscription_data->zn_messages_[key];
@@ -394,7 +392,7 @@ rmw_subscription_get_actual_qos(
 {
   (void)subscription;
   (void)qos_profile;
-  // RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_subscription_get_actual_qos");
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "rmw_subscription_get_actual_qos (STUB)");
   return RMW_RET_OK;
 }
 

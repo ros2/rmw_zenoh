@@ -16,7 +16,7 @@ rmw_get_implementation_identifier()
 const char *
 rmw_get_serialization_format()
 {
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_get_serialization_format");
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "rmw_get_serialization_format");
   return nullptr;
 }
 

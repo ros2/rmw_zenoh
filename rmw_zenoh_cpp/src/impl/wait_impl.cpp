@@ -15,37 +15,29 @@ bool check_wait_conditions(
 {
   // Subscriptions: If there are subscription messages ready, continue
   if (!rmw_subscription_data_t::zn_messages_.empty()) {
-    // RCUTILS_LOG_INFO_NAMED(
-    //   "rmw_zenoh_cpp",
-    //   "[rmw_wait] SUBSCRIPTION MESSAGES IN QUEUE: %ld", rmw_subscription_data_t::zn_messages_.size()
-    // );
+    RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_wait] SUBSCRIPTION MESSAGES IN QUEUE: %ld",
+                             rmw_subscription_data_t::zn_messages_.size());
     return true;
   }
 
   // Services: If there are request messages ready, continue
   if (!rmw_service_data_t::zn_request_messages_.empty()) {
-    // RCUTILS_LOG_INFO_NAMED(
-    //   "rmw_zenoh_cpp",
-    //   "[rmw_wait] REQUEST MESSAGES IN QUEUE: %ld", rmw_service_data_t::zn_request_messages_.size()
-    // );
+    RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_wait] REQUEST MESSAGES IN QUEUE: %ld",
+                            rmw_service_data_t::zn_request_messages_.size());
     return true;
   }
 
   // Clients: If there are response messages ready, continue
   if (!rmw_client_data_t::zn_response_messages_.empty()) {
-    // RCUTILS_LOG_INFO_NAMED(
-    //   "rmw_zenoh_cpp",
-    //   "[rmw_wait] RESPONSE MESSAGES IN QUEUE: %ld", rmw_client_data_t::zn_response_messages_.size()
-    // );
+    RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_wait] RESPONSE MESSAGES IN QUEUE: %ld",
+                            rmw_client_data_t::zn_response_messages_.size());
     return true;
   }
 
   // Clients: If there are service server availabiity messages ready, continue
   if (!rmw_client_data_t::zn_availability_query_responses_.empty()) {
-    // RCUTILS_LOG_INFO_NAMED(
-    //   "rmw_zenoh_cpp",
-    //   "[rmw_wait] RESPONSE MESSAGES IN QUEUE: %ld", rmw_client_data_t::zn_availability_query_responses_.size()
-    // );
+    RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_wait] AVAILABILITY QUERY RESPONSES: %ld",
+                            rmw_client_data_t::zn_availability_query_responses_.size());
     return true;
   }
 
