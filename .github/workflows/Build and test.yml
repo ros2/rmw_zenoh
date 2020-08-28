@@ -11,10 +11,11 @@ jobs:
   build:
     runs-on: ubuntu-20.04
     steps:
-      - uses: ros-tooling/setup-ros@0.0.19
+      - uses: ros-tooling/setup-ros@0.0.25
         with:
           required-ros-distributions: foxy
       - name: Build and test
+        uses: ros-tooling/action-ros-ci@0.0.19
         with:
           target-ros2-distro: foxy
           vcs-repo-file-url: https://raw.githubusercontent.com/osrf/rmw_zenoh/main/rmw_zenoh.repos
