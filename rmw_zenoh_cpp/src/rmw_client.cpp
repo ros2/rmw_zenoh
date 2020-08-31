@@ -52,7 +52,7 @@ rmw_service_server_is_available(
   // Check if server is alive by querying its availability Zenoh queryable
   zn_query(client_data->zn_session_,
            client->service_name,
-           "",  // NOTE(CH3): Maybe use this predicate we want to more things in the queryable
+           "",  // NOTE(CH3): Maybe use this predicate if we want to more things in the queryable
            zn_query_target_default(),
            zn_query_consolidation_default(),
            rmw_client_data_t::zn_service_availability_query_callback);
