@@ -1,25 +1,25 @@
-#include "pubsub_impl.hpp"
+#include "service_impl.hpp"
 
 #include <iostream>
 #include <mutex>
 
-#include "rmw_zenoh_cpp/TypeSupport.hpp"
 #include "rcutils/logging_macros.h"
+#include "rmw_zenoh_cpp/TypeSupport.hpp"
 
 extern "C"
 {
   #include "zenoh/zenoh-ffi.h"
 }
 
-std::mutex sub_callback_mutex;
+std::mutex request_callback_mutex;
 
-// Static message map
+// Static request message map
 std::unordered_map<std::string, std::vector<unsigned char> >
-  rmw_subscription_data_t::zn_messages_;
+  rmw_service_data_t::zn_request_messages_;
 
-void rmw_subscription_data_t::zn_sub_callback(const zn_sample * sample) {
+void rmw_service_data_t::zn_request_sub_callback(const zn_sample * sample) {
   // Prevent race conditions...
-  std::lock_guard<std::mutex> guard(sub_callback_mutex);
+  std::lock_guard<std::mutex> guard(request_callback_mutex);
 
   // NOTE(CH3): We unfortunately have to do this copy construction since we shouldn't be using
   // char * as keys to the unordered_map
@@ -28,17 +28,17 @@ void rmw_subscription_data_t::zn_sub_callback(const zn_sample * sample) {
   // Vector to store the byte array (so we have a copyable type instead of a pointer)
   std::vector<unsigned char> byte_vec(sample->value.val, sample->value.val + sample->value.len);
 
-  // Fill the static message map with the latest received message
+  // Fill the static request message map with the latest received message
   //
   // NOTE(CH3): This means that the queue size for each topic is ONE for now!!
-  // So this might break if a topic is being spammed.
+  // So this might break if a service is being spammed.
   // TODO(CH3): Implement queuing logic
-  if (rmw_subscription_data_t::zn_messages_.find(key)
-      != rmw_subscription_data_t::zn_messages_.end()) {
+  if (rmw_service_data_t::zn_request_messages_.find(key)
+      != rmw_service_data_t::zn_request_messages_.end()) {
     // Log warning if message is clobbered
     RCUTILS_LOG_WARN_NAMED(
-        "rmw_zenoh_cpp", "overwriting existing untaken zenoh message: %s", key.c_str());
+        "rmw_zenoh_cpp", "overwriting existing untaken zenoh request message: %s", key.c_str());
   }
 
-  rmw_subscription_data_t::zn_messages_[key] = std::vector<unsigned char>(byte_vec);
+  rmw_service_data_t::zn_request_messages_[key] = std::vector<unsigned char>(byte_vec);
 }

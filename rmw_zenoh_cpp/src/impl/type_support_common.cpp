@@ -1,7 +1,6 @@
 #include <string>
 
 #include "rmw/error_handling.h"
-
 #include "type_support_common.hpp"
 
 namespace rmw_zenoh_cpp
@@ -93,40 +92,31 @@ MessageTypeSupport::MessageTypeSupport(const message_type_support_callbacks_t * 
 {
   assert(members);
 
-  // std::string name = _create_type_name(members);
-  // this->setName(name.c_str());
-
   set_members(members);
 }
 
+ServiceTypeSupport::ServiceTypeSupport()
+{
+}
 
+RequestTypeSupport::RequestTypeSupport(const service_type_support_callbacks_t * members)
+{
+  assert(members);
 
-// ServiceTypeSupport::ServiceTypeSupport()
-// {
-// }
-//
-// RequestTypeSupport::RequestTypeSupport(const service_type_support_callbacks_t * members)
-// {
-//   assert(members);
-//
-//   auto msg = static_cast<const message_type_support_callbacks_t *>(
-//     members->request_members_->data);
-//   std::string name = _create_type_name(msg);  // + "Request_";
-//   this->setName(name.c_str());
-//
-//   set_members(msg);
-// }
-//
-// ResponseTypeSupport::ResponseTypeSupport(const service_type_support_callbacks_t * members)
-// {
-//   assert(members);
-//
-//   auto msg = static_cast<const message_type_support_callbacks_t *>(
-//     members->response_members_->data);
-//   std::string name = _create_type_name(msg);  // + "Response_";
-//   this->setName(name.c_str());
-//
-//   set_members(msg);
-// }
+  auto msg = static_cast<const message_type_support_callbacks_t *>(
+    members->request_members_->data);
+
+  set_members(msg);
+}
+
+ResponseTypeSupport::ResponseTypeSupport(const service_type_support_callbacks_t * members)
+{
+  assert(members);
+
+  auto msg = static_cast<const message_type_support_callbacks_t *>(
+    members->response_members_->data);
+
+  set_members(msg);
+}
 
 }  // namespace rmw_zenoh_cpp

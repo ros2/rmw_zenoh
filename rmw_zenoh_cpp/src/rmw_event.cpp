@@ -18,7 +18,7 @@ rmw_take_event(const rmw_event_t * event_handle, void * event_info, bool * taken
   (void)event_handle;
   (void)event_info;
 
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_take_event (STUB)");
+  // RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_take_event (STUB)");
   *taken = true;
 
   return RMW_RET_OK;
@@ -38,12 +38,10 @@ rmw_publisher_event_init(
   if (event_type == RMW_EVENT_INVALID)
     return RMW_RET_INVALID_ARGUMENT;
 
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
-    publisher,
-    publisher->implementation_identifier,
-    eclipse_zenoh_identifier,
-    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION
-  );
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(publisher,
+                                   publisher->implementation_identifier,
+                                   eclipse_zenoh_identifier,
+                                   return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   // TODO(CH3) NOTE(CH3): Check if event type is supported
   // Most likely no. It seems to be a DDS QoS specific thing

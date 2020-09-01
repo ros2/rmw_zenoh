@@ -27,15 +27,15 @@ rmw_create_publisher(
   const rmw_qos_profile_t * qos_profile,
   const rmw_publisher_options_t * publisher_options)
 {
+  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "[rmw_create_publisher] %s", topic_name);
+
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(node, nullptr);
 
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
-    node,
-    node->implementation_identifier,
-    eclipse_zenoh_identifier,
-    return nullptr
-  );
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(node,
+                                   node->implementation_identifier,
+                                   eclipse_zenoh_identifier,
+                                   return nullptr);
 
   RMW_CHECK_ARGUMENT_FOR_NULL(topic_name, nullptr);
   if (strlen(topic_name) == 0) {
@@ -60,31 +60,24 @@ rmw_create_publisher(
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
   // VALIDATE TOPIC NAME =======================================================
-  int * validation_result = static_cast<int *>(
-    allocator->allocate(sizeof(int), allocator->state)
-  );
+  int validation_result;
 
-  if (rmw_validate_full_topic_name(topic_name, validation_result, nullptr) != RMW_RET_OK) {
-    RMW_SET_ERROR_MSG("rmw_validate_full_topic_name failed!");
+  if (rmw_validate_full_topic_name(topic_name, &validation_result, nullptr) != RMW_RET_OK) {
+    RMW_SET_ERROR_MSG("rmw_validate_full_topic_name failed");
     return nullptr;
   }
 
-  if (*validation_result == RMW_TOPIC_VALID || qos_profile->avoid_ros_namespace_conventions) {
-    allocator->deallocate(validation_result, allocator->state);
-  } else {
-    RMW_SET_ERROR_MSG("publisher topic is malformed!");
-    allocator->deallocate(validation_result, allocator->state);
+  if (validation_result != RMW_TOPIC_VALID && !qos_profile->avoid_ros_namespace_conventions) {
+    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("publisher topic is malformed: %s", topic_name);
     return nullptr;
   }
 
   // OBTAIN TYPESUPPORT ========================================================
   const rosidl_message_type_support_t * type_support = get_message_typesupport_handle(
-    type_supports, RMW_ZENOH_CPP_TYPESUPPORT_C
-  );
+      type_supports, RMW_ZENOH_CPP_TYPESUPPORT_C);
 
   if (!type_support) {
-    type_support = get_message_typesupport_handle(
-      type_supports, RMW_ZENOH_CPP_TYPESUPPORT_CPP);
+    type_support = get_message_typesupport_handle(type_supports, RMW_ZENOH_CPP_TYPESUPPORT_CPP);
     if (!type_support) {
       RCUTILS_LOG_INFO("%s", topic_name);
       RMW_SET_ERROR_MSG("type support not from this implementation");
@@ -94,21 +87,14 @@ rmw_create_publisher(
 
   // CREATE PUBLISHER ==========================================================
   rmw_publisher_t * publisher = static_cast<rmw_publisher_t *>(
-    allocator->allocate(sizeof(rmw_publisher_t), allocator->state)
-  );
+      allocator->allocate(sizeof(rmw_publisher_t), allocator->state));
   if (!publisher) {
     RMW_SET_ERROR_MSG("failed to allocate rmw_publisher_t");
-    allocator->deallocate(publisher, allocator->state);
     return nullptr;
   }
 
   // Populate common members
-  publisher->implementation_identifier = eclipse_zenoh_identifier;  // const char * assignment
-  if (!publisher->implementation_identifier) {
-    RMW_SET_ERROR_MSG("failed to allocate implementation identifier");
-    allocator->deallocate(publisher, allocator->state);
-    return nullptr;
-  }
+  publisher->implementation_identifier = eclipse_zenoh_identifier;
 
   publisher->topic_name = rcutils_strdup(topic_name, *allocator);
   if (!publisher->topic_name) {
@@ -118,11 +104,12 @@ rmw_create_publisher(
   }
 
   publisher->data = static_cast<rmw_publisher_data_t *>(
-    allocator->allocate(sizeof(rmw_publisher_data_t), allocator->state)
-  );
+      allocator->allocate(sizeof(rmw_publisher_data_t), allocator->state));
   if (!publisher->data) {
     RMW_SET_ERROR_MSG("failed to allocate publisher data");
     allocator->deallocate(publisher->data, allocator->state);
+
+    allocator->deallocate(const_cast<char *>(publisher->topic_name), allocator->state);
     allocator->deallocate(publisher, allocator->state);
     return nullptr;
   }
@@ -130,32 +117,36 @@ rmw_create_publisher(
   publisher->options = *publisher_options;
 
   // CREATE PUBLISHER MEMBERS ==================================================
+  // Get typed pointer to implementation specific publisher data struct
+  auto publisher_data = static_cast<rmw_publisher_data_t *>(publisher->data);
+
   // Init type support callbacks
   auto callbacks = static_cast<const message_type_support_callbacks_t *>(type_support->data);
 
   // Create Zenoh resource
   ZNSession * s = node->context->impl->session;
-  size_t zn_topic_id = zn_declare_resource(s, publisher->topic_name);
 
-  // Get typed pointer to implementation specific publisher data struct
-  auto publisher_data = static_cast<rmw_publisher_data_t *>(publisher->data);
+  // The topic ID must be unique within a single process, but separate processes can reuse IDs, even in the same
+  // Zenoh network, because the ID is never transmitted over the wire.
+  // Conversely, the ID used in two communicating processes cannot be used to determine if they are using the same
+  // topic or not.
+  publisher_data->zn_topic_id_ = zn_declare_resource(s, publisher->topic_name);
 
   // Assign publisher data members
   publisher_data->zn_session_ = s;
-  publisher_data->zn_topic_id_ = zn_topic_id;
   publisher_data->typesupport_identifier_ = type_support->typesupport_identifier;
   publisher_data->type_support_impl_ = type_support->data;
-  // RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_create_publisher topic: %s, id: %ld", topic_name, zn_topic_id);
+  // RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "[rmw_create_publisher] Zenoh resource declared: %s (%ld)", topic_name, publisher_data->zn_topic_id);
 
   // Allocate and in-place assign new message typesupport instance
-  publisher_data->type_support_ = static_cast<MessageTypeSupport_cpp *>(
-    allocator->allocate(sizeof(MessageTypeSupport_cpp), allocator->state)
-  );
-  new(publisher_data->type_support_) MessageTypeSupport_cpp(callbacks);
+  publisher_data->type_support_ = static_cast<rmw_zenoh_cpp::MessageTypeSupport *>(
+      allocator->allocate(sizeof(rmw_zenoh_cpp::MessageTypeSupport), allocator->state));
+  new(publisher_data->type_support_) rmw_zenoh_cpp::MessageTypeSupport(callbacks);
   if (!publisher_data->type_support_) {
     RMW_SET_ERROR_MSG("failed to allocate MessageTypeSupport");
-    allocator->deallocate(publisher_data->type_support_, allocator->state);
     allocator->deallocate(publisher->data, allocator->state);
+
+    allocator->deallocate(const_cast<char *>(publisher->topic_name), allocator->state);
     allocator->deallocate(publisher, allocator->state);
     return nullptr;
   }
@@ -180,31 +171,27 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
 {
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
-    node,
-    node->implementation_identifier,
-    eclipse_zenoh_identifier,
-    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION
-  );
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(node,
+                                   node->implementation_identifier,
+                                   eclipse_zenoh_identifier,
+                                   return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   RMW_CHECK_ARGUMENT_FOR_NULL(publisher, RMW_RET_INVALID_ARGUMENT);
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
-    publisher,
-    publisher->implementation_identifier,
-    eclipse_zenoh_identifier,
-    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION
-  );
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(publisher,
+                                   publisher->implementation_identifier,
+                                   eclipse_zenoh_identifier,
+                                   return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   // OBTAIN ALLOCATOR ==========================================================
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
   // CLEANUP ===================================================================
-  allocator->deallocate(
-    static_cast<rmw_publisher_data_t *>(publisher->data)->type_support_, allocator->state
-  );
+  allocator->deallocate(static_cast<rmw_publisher_data_t *>(publisher->data)->type_support_,
+                        allocator->state);
   allocator->deallocate(publisher->data, allocator->state);
-  allocator->deallocate(publisher, allocator->state);
 
+  allocator->deallocate(const_cast<char *>(publisher->topic_name), allocator->state);
+  allocator->deallocate(publisher, allocator->state);
   return RMW_RET_OK;
 }
 

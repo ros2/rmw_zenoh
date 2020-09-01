@@ -42,12 +42,16 @@ add_library(rmw_zenoh_cpp
   src/rmw_publish.cpp
   src/rmw_publisher.cpp
   src/rmw_serialization.cpp
-  src/rmw_services.cpp
+  src/rmw_service.cpp
+  src/rmw_client.cpp
   src/rmw_subscriber.cpp
   src/rmw_wait_sets.cpp
 
   src/impl/identifier.cpp
+  src/impl/wait_impl.cpp
   src/impl/pubsub_impl.cpp
+  src/impl/service_impl.cpp
+  src/impl/client_impl.cpp
   src/impl/type_support_common.cpp
 )
 target_link_libraries(rmw_zenoh_cpp

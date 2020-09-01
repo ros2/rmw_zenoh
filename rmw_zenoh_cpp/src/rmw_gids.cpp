@@ -18,21 +18,17 @@ rmw_ret_t
 rmw_get_gid_for_publisher(const rmw_publisher_t * publisher, rmw_gid_t * gid)
 {
   RMW_CHECK_ARGUMENT_FOR_NULL(publisher, RMW_RET_INVALID_ARGUMENT);
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
-    publisher,
-    publisher->implementation_identifier,
-    eclipse_zenoh_identifier,
-    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION
-  );
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(publisher,
+                                   publisher->implementation_identifier,
+                                   eclipse_zenoh_identifier,
+                                   return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_ARGUMENT_FOR_NULL(gid, RMW_RET_INVALID_ARGUMENT);
 
   // Copy size_t to gid member
   memset(gid->data, 0, sizeof(gid->data));
-  memcpy(
-    gid->data,
-    &static_cast<rmw_publisher_data_t *>(publisher->data)->zn_topic_id_,
-    sizeof(static_cast<rmw_publisher_data_t *>(publisher->data)->zn_topic_id_)
-  );
+  memcpy(gid->data,
+         &static_cast<rmw_publisher_data_t *>(publisher->data)->zn_topic_id_,
+         sizeof(static_cast<rmw_publisher_data_t *>(publisher->data)->zn_topic_id_));
 
   return RMW_RET_OK;
 }
