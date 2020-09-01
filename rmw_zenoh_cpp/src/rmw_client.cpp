@@ -179,9 +179,9 @@ rmw_create_client(
   client_data->zn_session_ = s;
 
   // Obtain qualified request-response topics
-  std::string zn_request_topic_key(client->service_name);
+  std::string zn_topic_key(client->service_name);
   client_data->zn_request_topic_key_ = rcutils_strdup(
-    (zn_request_topic_key + "/request").c_str(), *allocator
+    (zn_topic_key + "/request").c_str(), *allocator
   );
   if (!client_data->zn_request_topic_key_) {
     RMW_SET_ERROR_MSG("failed to allocate zenoh request topic key");
@@ -192,9 +192,8 @@ rmw_create_client(
     return nullptr;
   }
 
-  std::string zn_response_topic_key(client->service_name);
   client_data->zn_response_topic_key_ = rcutils_strdup(
-    (zn_response_topic_key + "/response").c_str(), *allocator
+    (zn_topic_key + "/response").c_str(), *allocator
   );
   if (!client_data->zn_response_topic_key_) {
     RMW_SET_ERROR_MSG("failed to allocate zenoh response topic key");
