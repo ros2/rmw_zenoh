@@ -130,6 +130,7 @@ rmw_create_publisher(
   // Zenoh network, because the ID is never transmitted over the wire.
   // Conversely, the ID used in two communicating processes cannot be used to determine if they are using the same
   // topic or not.
+  publisher_data->zn_topic_id_ = zn_declare_resource(s, publisher->topic_name);
 
   // Assign publisher data members
   publisher_data->zn_session_ = s;
