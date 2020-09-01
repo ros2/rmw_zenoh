@@ -56,37 +56,29 @@ rmw_create_node(
   rcutils_allocator_t * allocator = &context->options.allocator;
 
   // VALIDATE NAMES ============================================================
-  int * validation_result = static_cast<int *>(allocator->allocate(sizeof(int), allocator->state));
-  if (!validation_result) {
-    RMW_SET_ERROR_MSG("failed to allocate node name validation result storage pointer");
-    return nullptr;
-  }
+  int validation_result;
 
   // Validate node name
-  if (rmw_validate_node_name(name, validation_result, nullptr) != RMW_RET_OK) {
+  if (rmw_validate_node_name(name, &validation_result, nullptr) != RMW_RET_OK) {
     RMW_SET_ERROR_MSG("rmw_validate_node_name failed!");
-    allocator->deallocate(validation_result, allocator->state);
     return nullptr;
   }
 
-  if (*validation_result != RMW_NODE_NAME_VALID) {
-    const char * reason = rmw_node_name_validation_result_string(*validation_result);
+  if (validation_result != RMW_NODE_NAME_VALID) {
+    const char * reason = rmw_node_name_validation_result_string(validation_result);
     RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("invalid node name: %s", reason);
-    allocator->deallocate(validation_result, allocator->state);
     return nullptr;
   }
 
   // Validate namespace
-  if (rmw_validate_namespace(namespace_, validation_result, nullptr) != RMW_RET_OK) {
+  if (rmw_validate_namespace(namespace_, &validation_result, nullptr) != RMW_RET_OK) {
     RMW_SET_ERROR_MSG("rmw_validate_namespace failed!");
-    allocator->deallocate(validation_result, allocator->state);
     return nullptr;
   }
 
-  if (*validation_result != RMW_NAMESPACE_VALID) {
-    const char * reason = rmw_node_name_validation_result_string(*validation_result);
+  if (validation_result != RMW_NAMESPACE_VALID) {
+    const char * reason = rmw_node_name_validation_result_string(validation_result);
     RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("invalid node namespace: %s", reason);
-    allocator->deallocate(validation_result, allocator->state);
     return nullptr;
   }
 

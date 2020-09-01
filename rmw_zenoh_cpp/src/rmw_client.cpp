@@ -109,23 +109,15 @@ rmw_create_client(
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
   // VALIDATE SERVICE NAME =====================================================
-  int * validation_result = static_cast<int *>(allocator->allocate(sizeof(int), allocator->state));
-  if (!validation_result) {
-    RMW_SET_ERROR_MSG("failed to allocate service name validation result storage pointer");
-    return nullptr;
-  }
+  int validation_result;
 
-  if (rmw_validate_full_topic_name(service_name, validation_result, nullptr) != RMW_RET_OK) {
+  if (rmw_validate_full_topic_name(service_name, &validation_result, nullptr) != RMW_RET_OK) {
     RMW_SET_ERROR_MSG("rmw_validate_full_topic_name failed");
-    allocator->deallocate(validation_result, allocator->state);
     return nullptr;
   }
 
-  if (*validation_result == RMW_TOPIC_VALID || qos_profile->avoid_ros_namespace_conventions) {
-    allocator->deallocate(validation_result, allocator->state);
-  } else {
+  if (validation_result != RMW_TOPIC_VALID && !qos_profile->avoid_ros_namespace_conventions) {
     RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("service name is malformed: %s", service_name);
-    allocator->deallocate(validation_result, allocator->state);
     return nullptr;
   }
 
