@@ -18,6 +18,6 @@
 
 #include "rmw/init.h"
 
-TEST(RMWInitTest, ) {
+TEST(RMWInitTest, FillMeIn) {
   EXPECT_TRUE(false);
 }
