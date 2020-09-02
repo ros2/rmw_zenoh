@@ -16,38 +16,45 @@ extern "C"
 
 std::mutex sub_callback_mutex;
 
+
+/// STATIC SUBSCRIPTION DATA MEMBERS ===========================================
 size_t rmw_subscription_data_t::sub_id_counter = 0;
 
-// Zenoh topic to subscription data
+// Map of Zenoh topic key expression to subscription data
 std::unordered_map<std::string, std::vector<rmw_subscription_data_t *> >
-  rmw_subscription_data_t::zn_topic_to_sub_data_map;
+  rmw_subscription_data_t::zn_topic_to_sub_data;
 
-// Static message map
-std::unordered_map<std::string, std::vector<unsigned char> >
-  rmw_subscription_data_t::zn_messages_;
 
+/// ZENOH MESSAGE SUBSCRIPTION CALLBACK ========================================
 void rmw_subscription_data_t::zn_sub_callback(const zn_sample * sample) {
-  // Prevent race conditions...
   std::lock_guard<std::mutex> guard(sub_callback_mutex);
 
   // NOTE(CH3): We unfortunately have to do this copy construction since we shouldn't be using
   // char * as keys to the unordered_map
   std::string key(sample->key.val, sample->key.len);
 
-  // Vector to store the byte array (so we have a copyable type instead of a pointer)
+  // Vector to store the byte array (so we have a copyable container instead of a pointer)
   std::vector<unsigned char> byte_vec(sample->value.val, sample->value.val + sample->value.len);
 
-  // Fill the static message map with the latest received message
-  //
-  // NOTE(CH3): This means that the queue size for each topic is ONE for now!!
-  // So this might break if a topic is being spammed.
-  // TODO(CH3): Implement queuing logic
-  if (rmw_subscription_data_t::zn_messages_.find(key)
-      != rmw_subscription_data_t::zn_messages_.end()) {
-    // Log warning if message is clobbered
-    RCUTILS_LOG_WARN_NAMED(
-        "rmw_zenoh_cpp", "overwriting existing untaken zenoh message: %s", key.c_str());
-  }
+  // Get shared pointer to byte array vector
+  // NOTE(CH3): We use a shared pointer to avoid copies and to leverage on the smart pointer's
+  // reference counting
+  auto byte_vec_ptr = std::make_shared<std::vector<unsigned char> >(byte_vec);
 
-  rmw_subscription_data_t::zn_messages_[key] = std::vector<unsigned char>(byte_vec);
+  auto map_iter = rmw_subscription_data_t::zn_topic_to_sub_data.find(key);
+
+  if (map_iter != rmw_subscription_data_t::zn_topic_to_sub_data.end()) {
+    // Push shared pointer to message bytes to all associated subscription message queues
+    for (auto it = map_iter->second.begin(); it != map_iter->second.end(); ++it) {
+      if ((*it)->zn_message_queue_.size() == (*it)->queue_depth_) {
+        // Log warning if message is discarded due to hitting the queue depth
+        RCUTILS_LOG_WARN_NAMED("rmw_zenoh_cpp",
+                               "Message queue depth reached, discarding oldest message: %s",
+                               key.c_str());
+        (*it)->zn_message_queue_.pop_front();
+      }
+
+      (*it)->zn_message_queue_.push_back(byte_vec_ptr);
+    }
+  }
 }

@@ -5,6 +5,7 @@
 #include <utility>
 #include <string>
 #include <vector>
+#include <memory>
 #include <deque>
 
 #include "rmw/rmw.h"
@@ -41,16 +42,11 @@ struct rmw_subscription_data_t
   // Counter to give subscriptions unique IDs
   static size_t sub_id_counter;
 
-  // Map of Zenoh topic key expression to latest serialized ROS messages
-  static std::unordered_map<std::string, std::vector<unsigned char> > zn_messages_;
-
   // Map of Zenoh topic key expression to subscription data struct instances
   static std::unordered_map<std::string, std::vector<rmw_subscription_data_t *> >
-    zn_topic_to_sub_data_map;
+    zn_topic_to_sub_data;
 
   /// INSTANCE MEMBERS =============================================================================
-  std::deque<std::vector<unsigned char> > zn_message_queue_;
-
   const void * type_support_impl_;
   const char * typesupport_identifier_;
 
@@ -60,7 +56,11 @@ struct rmw_subscription_data_t
   ZNSession * zn_session_;
   ZNSubscriber * zn_subscriber_;
 
+  // Instanced message queue
+  std::deque<std::shared_ptr<std::vector<unsigned char> > > zn_message_queue_;
+
   size_t sub_id_;
+  size_t queue_depth_;
 };
 
 #endif  // IMPL__PUBSUB_IMPL_HPP_
