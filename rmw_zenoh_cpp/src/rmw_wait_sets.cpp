@@ -159,9 +159,9 @@ rmw_wait(  // All parameters are in parameters
   // CHECK WAIT CONDITIONS =====================================================
   std::unique_lock<std::mutex> lock(*condition_mutex);
 
-  bool ready = check_wait_conditions(subscriptions, guard_conditions, services, clients, events);
+  bool ready = check_wait_conditions(subscriptions, guard_conditions, services, clients, events, false);
   auto predicate = [subscriptions, guard_conditions, services, clients, events]() {
-    return check_wait_conditions(subscriptions, guard_conditions, services, clients, events);
+    return check_wait_conditions(subscriptions, guard_conditions, services, clients, events, false);
   };
 
   bool timed_out = false;
@@ -182,6 +182,7 @@ rmw_wait(  // All parameters are in parameters
     }
   }
 
+  check_wait_conditions(subscriptions, guard_conditions, services, clients, events, true);
   lock.unlock();
 
   if (timed_out) {
