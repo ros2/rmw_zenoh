@@ -60,6 +60,6 @@ void rmw_client_data_t::zn_service_availability_query_callback(const zn_source_i
       == rmw_client_data_t::zn_availability_query_responses_.end()) {
     rmw_client_data_t::zn_availability_query_responses_.insert(key);
   } else {
-    RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "zenoh availability for %s already set", key.c_str());
+    RCUTILS_LOG_WARN_NAMED("rmw_zenoh_cpp", "zenoh availability for %s already set", key.c_str());
   }
 }

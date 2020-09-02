@@ -22,7 +22,7 @@ rmw_create_wait_set(rmw_context_t * context, size_t max_conditions)
 {
   (void)max_conditions;
 
-  // RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_create_wait_set");
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "rmw_create_wait_set");
 
   RCUTILS_CHECK_ARGUMENT_FOR_NULL(context, NULL);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(context,
@@ -69,7 +69,7 @@ fail:
 rmw_ret_t
 rmw_destroy_wait_set(rmw_wait_set_t * wait_set)
 {
-  // RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_destroy_wait_set");
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "rmw_destroy_wait_set");
 
   RMW_CHECK_ARGUMENT_FOR_NULL(wait_set, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(wait_set,
@@ -114,24 +114,21 @@ rmw_wait(  // All parameters are in parameters
   rmw_wait_set_t * wait_set,
   const rmw_time_t * wait_timeout)
 {
-  // RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_wait");
-
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(wait_set, RMW_RET_INVALID_ARGUMENT);
 
-  // RCUTILS_LOG_INFO_NAMED(
-  //   "rmw_zenoh_cpp", "[rmw_wait] %ld subscriptions, %ld srv_servers, %ld srv_clients, %ld events",
-  //   subscriptions->subscriber_count,
-  //   services->service_count,
-  //   clients->client_count,
-  //   events->event_count
-  // );
-  //
-  // if (wait_timeout) {
-  //   RCUTILS_LOG_INFO_NAMED(
-  //     "rmw_zenoh_cpp", "[rmw_wait] TIMEOUT: %ld s %ld ns", wait_timeout->sec, wait_timeout->nsec
-  //   );
-  // }
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp",
+                          "[rmw_wait] %ld subscriptions, %ld srv_servers, %ld srv_clients, %ld events",
+                          subscriptions->subscriber_count,
+                          services->service_count,
+                          clients->client_count,
+                          events->event_count);
+
+  if (wait_timeout) {
+    RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_wait] TIMEOUT: %ld s %ld ns",
+                            wait_timeout->sec,
+                            wait_timeout->nsec);
+  }
 
   // OBTAIN SYNCHRONIZATION OBJECTS ============================================
   auto wait_set_info = static_cast<rmw_wait_set_data_t *>(wait_set->data);
@@ -187,7 +184,7 @@ rmw_wait(  // All parameters are in parameters
   lock.unlock();
 
   if (timed_out) {
-    RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "[rmw_wait] TIMED OUT");
+    RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_wait] TIMED OUT");
     return RMW_RET_TIMEOUT;
   } else {
     return RMW_RET_OK;

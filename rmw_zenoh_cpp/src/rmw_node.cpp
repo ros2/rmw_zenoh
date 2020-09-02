@@ -39,6 +39,8 @@ rmw_create_node(
   (void)domain_id;
   (void)localhost_only;
 
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_create_node] %s", name);
+
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(context, nullptr);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(context,
@@ -159,7 +161,6 @@ rmw_create_node(
   //   return nullptr;
   // }
 
-  // RCUTILS_LOG_INFO("CREATED NODE %s", node->name);
   return node;
 }
 
@@ -177,6 +178,8 @@ rmw_destroy_node(rmw_node_t * node)
 
   // NOTE(CH3) TODO(CH3): Again, no graph updates are implemented yet
   // I am not sure how this will work with Zenoh
+
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_destroy_node] %s", node->name);
 
   // OBTAIN ALLOCATOR ==========================================================
   rcutils_allocator_t * allocator = &node->context->options.allocator;
@@ -201,6 +204,8 @@ rmw_destroy_node(rmw_node_t * node)
 const rmw_guard_condition_t *
 rmw_node_get_graph_guard_condition(const rmw_node_t * node)
 {
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "rmw_node_get_graph_guard_condition");
+
   RMW_CHECK_ARGUMENT_FOR_NULL(node->data, nullptr);
   return static_cast<rmw_node_impl_t *>(node->data)->graph_guard_condition_;
 }
