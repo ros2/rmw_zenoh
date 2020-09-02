@@ -16,6 +16,12 @@ extern "C"
 
 std::mutex sub_callback_mutex;
 
+size_t rmw_subscription_data_t::sub_id_counter = 0;
+
+// Zenoh topic to subscription data
+std::unordered_map<std::string, std::vector<rmw_subscription_data_t *> >
+  rmw_subscription_data_t::zn_topic_to_sub_data_map;
+
 // Static message map
 std::unordered_map<std::string, std::vector<unsigned char> >
   rmw_subscription_data_t::zn_messages_;
