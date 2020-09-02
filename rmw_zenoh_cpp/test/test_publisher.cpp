@@ -70,7 +70,6 @@ protected:
 
   rmw_publisher_options_t options;
   const rosidl_message_type_support_t * ts;
-
 };
 
 TEST_F(CLASSNAME(TestPublisher, RMW_IMPLEMENTATION), create_and_destroy) {

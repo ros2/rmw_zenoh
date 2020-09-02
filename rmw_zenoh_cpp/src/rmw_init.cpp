@@ -2,6 +2,8 @@
 
 #include <cstring>
 
+#include <memory>
+
 #include "rmw/impl/cpp/macros.hpp"
 #include "rmw/error_handling.h"
 #include "rmw/rmw.h"
@@ -181,5 +183,4 @@ rmw_context_fini(rmw_context_t * context)
 
   return RMW_RET_OK;
 }
-
-} // extern "C"
+}  // extern "C"

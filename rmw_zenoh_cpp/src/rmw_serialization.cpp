@@ -4,7 +4,6 @@
 
 extern "C"
 {
-
 rmw_ret_t
 rmw_get_serialized_message_size(
   const rosidl_message_type_support_t * type_support,
@@ -43,5 +42,4 @@ rmw_deserialize(
   RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_deserialize");
   return RMW_RET_ERROR;
 }
-
-} // extern "C"
+}  // extern "C"

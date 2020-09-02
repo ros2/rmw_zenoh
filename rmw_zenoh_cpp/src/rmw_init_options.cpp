@@ -231,5 +231,4 @@ rmw_init_options_fini(rmw_init_options_t * init_options)
   // return ret;
   return RMW_RET_OK;
 }
-
-} // extern "C"
+}  // extern "C"

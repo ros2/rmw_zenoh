@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef RMW_ZENOH_CPP_TYPES__GUARD_CONDITION_HPP_
-#define RMW_ZENOH_CPP_TYPES__GUARD_CONDITION_HPP_
+#ifndef IMPL__GUARD_CONDITION_IMPL_HPP_
+#define IMPL__GUARD_CONDITION_IMPL_HPP_
 
 #include <array>
 #include <atomic>
@@ -84,4 +84,4 @@ private:
   std::condition_variable * conditionVariable_;
 };
 
-#endif  // RMW_ZENOH_CPP_TYPES__GUARD_CONDITION_HPP_
+#endif  // IMPL__GUARD_CONDITION_IMPL_HPP_

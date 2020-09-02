@@ -46,7 +46,9 @@ rmw_publisher_event_init(
   // TODO(CH3) NOTE(CH3): Check if event type is supported
   // Most likely no. It seems to be a DDS QoS specific thing
   // if (!internal::is_event_supported(event_type)) {
-  //   RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("provided event_type is not supported by %s", identifier);
+  //   RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
+  //     "provided event_type is not supported by %s",
+  //     identifier);
   //   return RMW_RET_UNSUPPORTED;
   // }
 
@@ -81,7 +83,9 @@ rmw_subscription_event_init(
   // TODO(CH3) NOTE(CH3): Check if event type is supported
   // Most likely no. It seems to be a DDS QoS specific thing
   // if (!internal::is_event_supported(event_type)) {
-  //   RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("provided event_type is not supported by %s", identifier);
+  //   RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
+  //     "provided event_type is not supported by %s",
+  //     identifier);
   //   return RMW_RET_UNSUPPORTED;
   // }
 
@@ -91,5 +95,4 @@ rmw_subscription_event_init(
 
   return RMW_RET_OK;
 }
-
-} // extern "C"
+}  // extern "C"

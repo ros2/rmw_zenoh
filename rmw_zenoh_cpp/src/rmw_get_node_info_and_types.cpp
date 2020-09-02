@@ -83,5 +83,5 @@ rmw_get_client_names_and_types_by_node(
 }
 
 #ifdef __cplusplus
-} // extern "C"
+}  // extern "C"
 #endif

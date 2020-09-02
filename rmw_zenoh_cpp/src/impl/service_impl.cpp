@@ -2,6 +2,9 @@
 
 #include <iostream>
 #include <mutex>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 #include "rcutils/logging_macros.h"
 #include "rmw_zenoh_cpp/TypeSupport.hpp"

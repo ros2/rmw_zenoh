@@ -1,5 +1,5 @@
-#ifndef RMW_ZENOH_CPP__ZENOH_SERVICE_HPP_
-#define RMW_ZENOH_CPP__ZENOH_SERVICE_HPP_
+#ifndef IMPL__SERVICE_IMPL_HPP_
+#define IMPL__SERVICE_IMPL_HPP_
 
 #include <unordered_map>
 #include <utility>
@@ -46,4 +46,4 @@ struct rmw_service_data_t
   const rmw_node_t * node_;
 };
 
-#endif // RMW_ZENOH_CPP__ZENOH_SERVICE_HPP_
+#endif  // IMPL__SERVICE_IMPL_HPP_

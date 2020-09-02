@@ -7,7 +7,6 @@
 
 extern "C"
 {
-
 rmw_ret_t
 rmw_get_topic_names_and_types(
   const rmw_node_t * node,
@@ -22,6 +21,4 @@ rmw_get_topic_names_and_types(
   RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_get_topic_names_and_types");
   return RMW_RET_ERROR;
 }
-
-
-} // extern "C"
+}  // extern "C"

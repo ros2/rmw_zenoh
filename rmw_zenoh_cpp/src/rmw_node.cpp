@@ -16,7 +16,6 @@
 
 extern "C"
 {
-
 /// CREATE NODE ================================================================
 // Create a node and return a handle to that node.
 //
@@ -209,5 +208,4 @@ rmw_node_get_graph_guard_condition(const rmw_node_t * node)
   RMW_CHECK_ARGUMENT_FOR_NULL(node->data, nullptr);
   return static_cast<rmw_node_impl_t *>(node->data)->graph_guard_condition_;
 }
-
-} // extern "C"
+}  // extern "C"

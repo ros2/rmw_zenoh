@@ -1,5 +1,5 @@
-#ifndef RMW_ZENOH_CPP__ZENOH_CLIENT_HPP_
-#define RMW_ZENOH_CPP__ZENOH_CLIENT_HPP_
+#ifndef IMPL__CLIENT_IMPL_HPP_
+#define IMPL__CLIENT_IMPL_HPP_
 
 #include <unordered_map>
 #include <unordered_set>
@@ -55,4 +55,4 @@ struct rmw_client_data_t
   const rmw_node_t * node_;
 };
 
-#endif // RMW_ZENOH_CPP__ZENOH_CLIENT_HPP_
+#endif  // IMPL__CLIENT_IMPL_HPP_

@@ -7,4 +7,4 @@ struct rmw_init_options_impl_t
   char * mode;  // Zenoh session mode
 };
 
-#endif // RMW_ZENOH_CPP__RMW_INIT_OPTIONS_IMPL_HPP_
+#endif  // RMW_ZENOH_CPP__RMW_INIT_OPTIONS_IMPL_HPP_

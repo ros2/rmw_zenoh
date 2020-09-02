@@ -27,7 +27,7 @@ rmw_get_gid_for_publisher(const rmw_publisher_t * publisher, rmw_gid_t * gid)
   // Copy size_t to gid member
   memset(gid->data, 0, sizeof(gid->data));
   memcpy(gid->data,
-         &static_cast<rmw_publisher_data_t *>(publisher->data)->zn_topic_id_,
+         &(static_cast<rmw_publisher_data_t *>(publisher->data)->zn_topic_id_),
          sizeof(static_cast<rmw_publisher_data_t *>(publisher->data)->zn_topic_id_));
 
   return RMW_RET_OK;
@@ -42,5 +42,4 @@ rmw_compare_gids_equal(const rmw_gid_t * gid1, const rmw_gid_t * gid2, bool * re
   RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_compare_gids_equal");
   return RMW_RET_ERROR;
 }
-
-} // extern "C"
+}  // extern "C"

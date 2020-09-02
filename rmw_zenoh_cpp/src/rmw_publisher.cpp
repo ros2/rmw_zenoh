@@ -1,7 +1,7 @@
 #include "rcutils/logging_macros.h"
 #include "rcutils/strdup.h"
 
-#include <rmw/validate_full_topic_name.h>
+#include "rmw/validate_full_topic_name.h"
 #include "rmw/impl/cpp/macros.hpp"
 #include "rmw/error_handling.h"
 #include "rmw/event.h"
@@ -126,10 +126,10 @@ rmw_create_publisher(
   // Create Zenoh resource
   ZNSession * s = node->context->impl->session;
 
-  // The topic ID must be unique within a single process, but separate processes can reuse IDs, even in the same
-  // Zenoh network, because the ID is never transmitted over the wire.
-  // Conversely, the ID used in two communicating processes cannot be used to determine if they are using the same
-  // topic or not.
+  // The topic ID must be unique within a single process, but separate processes can reuse IDs,
+  // even in the same Zenoh network, because the ID is never transmitted over the wire. Conversely,
+  // the ID used in two communicating processes cannot be used to determine if they are using the
+  // same topic or not.
   publisher_data->zn_topic_id_ = zn_declare_resource(s, publisher->topic_name);
 
   // Assign publisher data members
@@ -270,5 +270,4 @@ rmw_publisher_assert_liveliness(const rmw_publisher_t * publisher)
   RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_publisher_assert_liveliness");
   return RMW_RET_ERROR;
 }
-
-} // extern "C"
+}  // extern "C"
