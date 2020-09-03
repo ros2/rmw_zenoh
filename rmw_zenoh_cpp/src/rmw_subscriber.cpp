@@ -344,11 +344,11 @@ rmw_take(
   //
   // But that will mean tracking the serialisation state of the message (perhaps with a pair?)
   unsigned char * cdr_buffer = static_cast<unsigned char *>(
-      allocator->allocate((*msg_bytes_ptr).size(), allocator->state));
-  memcpy(cdr_buffer, &(*msg_bytes_ptr).front(), (*msg_bytes_ptr).size());
+      allocator->allocate(msg_bytes_ptr->size(), allocator->state));
+  memcpy(cdr_buffer, &msg_bytes_ptr->front(), msg_bytes_ptr->size());
 
   // Object that manages the raw buffer
-  eprosima::fastcdr::FastBuffer fastbuffer(reinterpret_cast<char *>(cdr_buffer), (*msg_bytes_ptr).size());
+  eprosima::fastcdr::FastBuffer fastbuffer(reinterpret_cast<char *>(cdr_buffer), msg_bytes_ptr->size());
 
   // Object that serializes the data
   eprosima::fastcdr::Cdr deser(fastbuffer,
@@ -439,11 +439,11 @@ rmw_take_with_info(
   //
   // But that will mean tracking the serialisation state of the message (perhaps with a pair?)
   unsigned char * cdr_buffer = static_cast<unsigned char *>(
-      allocator->allocate((*msg_bytes_ptr).size(), allocator->state));
-  memcpy(cdr_buffer, &(*msg_bytes_ptr).front(), (*msg_bytes_ptr).size());
+    allocator->allocate(msg_bytes_ptr->size(), allocator->state));
+  memcpy(cdr_buffer, &msg_bytes_ptr->front(), msg_bytes_ptr->size());
 
   // Object that manages the raw buffer
-  eprosima::fastcdr::FastBuffer fastbuffer(reinterpret_cast<char *>(cdr_buffer), (*msg_bytes_ptr).size());
+  eprosima::fastcdr::FastBuffer fastbuffer(reinterpret_cast<char *>(cdr_buffer), msg_bytes_ptr->size());
 
   // Object that serializes the data
   eprosima::fastcdr::Cdr deser(fastbuffer,
