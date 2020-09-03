@@ -24,12 +24,13 @@ bool check_wait_conditions(
 
   bool stop_wait = false;
 
-  // Subscriptions
+  // SUBSCRIPTIONS =============================================================
   if (subscriptions) {
     size_t subscriptions_ready = 0;
 
     for (size_t i = 0; i < subscriptions->subscriber_count; ++i) {
-        auto subscription_data = static_cast<rmw_subscription_data_t *>(subscriptions->subscribers[i]);
+        auto subscription_data = static_cast<rmw_subscription_data_t *>(
+          subscriptions->subscribers[i]);
         if (subscription_data->zn_message_queue_.empty()) {
           if (finalize) {
             // Setting to nullptr lets rcl know that this subscription is not ready
@@ -42,21 +43,40 @@ bool check_wait_conditions(
     }
 
     if (finalize) {
-      RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_wait] SUBSCRIPTIONS READY: %ld",
-                               subscriptions_ready);
+      RCUTILS_LOG_DEBUG_NAMED(
+        "rmw_zenoh_cpp", "[rmw_wait] SUBSCRIPTIONS READY: %ld",
+        subscriptions_ready);
+    }
+  }
+
+  // SERVICES ==================================================================
+  if (services) {
+    size_t services_ready = 0;
+
+    for (size_t i = 0; i < services->service_count; ++i) {
+        auto service_data = static_cast<rmw_service_data_t *>(
+          services->services[i]);
+        if (service_data->zn_request_message_queue_.empty()) {
+          if (finalize) {
+            // Setting to nullptr lets rcl know that this service is not ready
+            services->services[i] = nullptr;
+          }
+        } else {
+          services_ready++;
+          stop_wait = true;
+        }
+    }
+
+    if (finalize) {
+      RCUTILS_LOG_DEBUG_NAMED(
+        "rmw_zenoh_cpp", "[rmw_wait] SERVICES READY: %ld",
+        services_ready);
     }
   }
 
   return stop_wait;
 
-  // Services: If there are request messages ready, continue
-  if (!rmw_service_data_t::zn_request_messages_.empty()) {
-    RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_wait] REQUEST MESSAGES IN QUEUE: %ld",
-                            rmw_service_data_t::zn_request_messages_.size());
-    return true;
-  }
-
-  // Clients: If there are response messages ready, continue
+  // CLIENTS ===================================================================
   if (!rmw_client_data_t::zn_response_messages_.empty()) {
     RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_wait] RESPONSE MESSAGES IN QUEUE: %ld",
                             rmw_client_data_t::zn_response_messages_.size());
