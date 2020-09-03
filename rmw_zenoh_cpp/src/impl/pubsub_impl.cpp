@@ -18,7 +18,7 @@ std::mutex sub_callback_mutex;
 
 
 /// STATIC SUBSCRIPTION DATA MEMBERS ===========================================
-size_t rmw_subscription_data_t::sub_id_counter = 0;
+std::atomic<size_t> rmw_subscription_data_t::sub_id_counter(0);
 
 // Map of Zenoh topic key expression to subscription data
 std::unordered_map<std::string, std::vector<rmw_subscription_data_t *> >

@@ -151,8 +151,9 @@ rmw_create_subscription(
   // Assign node pointer
   subscription_data->node_ = node;
 
-  // Assign unique subscription ID
-  subscription_data->subscription_id_ = ++rmw_subscription_data_t::sub_id_counter;
+  // Assign and increment unique subscription ID atomically
+  subscription_data->subscription_id_ =
+    rmw_subscription_data_t::sub_id_counter.fetch_add(1, std::memory_order_relaxed);
 
   // Configure message queue
   std::deque<std::shared_ptr<std::vector<unsigned char> > > empty_deque;
