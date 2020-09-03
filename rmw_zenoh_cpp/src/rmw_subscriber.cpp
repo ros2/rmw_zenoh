@@ -151,8 +151,8 @@ rmw_create_subscription(
   // Assign node pointer
   subscription_data->node_ = node;
 
-  // Assign unique sub ID
-  subscription_data->sub_id_ = ++rmw_subscription_data_t::sub_id_counter;
+  // Assign unique subscription ID
+  subscription_data->subscription_id_ = ++rmw_subscription_data_t::sub_id_counter;
 
   // Configure message queue
   std::deque<std::shared_ptr<std::vector<unsigned char> > > empty_deque;
@@ -166,25 +166,34 @@ rmw_create_subscription(
   auto map_iter = rmw_subscription_data_t::zn_topic_to_sub_data.find(key);
 
   if (map_iter == rmw_subscription_data_t::zn_topic_to_sub_data.end()) {
+    RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp",
+                            "[rmw_create_subscription] New topic detected: %s",
+                            topic_name);
+
     // If no elements for this Zenoh topic key expression exists, add it in
     std::vector<rmw_subscription_data_t *> sub_data_vec{subscription_data};
     rmw_subscription_data_t::zn_topic_to_sub_data[key] = sub_data_vec;
+
+    // We initialise subscribers ONCE (otherwise we'll get duplicate messages)
+    // The topic name will be the same for any duplicate subscribers, so it is ok
+    subscription_data->zn_subscriber_ = zn_declare_subscriber(
+        subscription_data->zn_session_,
+        subscription->topic_name,
+        zn_subinfo_default(),  // NOTE(CH3): Default for now
+        subscription_data->zn_sub_callback);
+
+    RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp",
+                            "[rmw_create_subscription] Zenoh subscription declared for %s",
+                            topic_name);
   } else {
     // Otherwise, append to the vector
     map_iter->second.push_back(subscription_data);
   }
 
   RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp",
-                          "[rmw_create_subscription] Sub for %s (ID: %ld) added to topic map",
+                          "[rmw_create_subscription] Subscription for %s (ID: %ld) added to topic map",
                           topic_name,
-                          subscription_data->sub_id_);
-
-  // INIT ZENOH SUBSCRIBER =========================================================================
-  subscription_data->zn_subscriber_ = zn_declare_subscriber(
-      subscription_data->zn_session_,
-      subscription->topic_name,
-      zn_subinfo_default(),  // NOTE(CH3): Default for now
-      subscription_data->zn_sub_callback);
+                          subscription_data->subscription_id_);
 
   // TODO(CH3): Put the subscription name/pointer into its corresponding node for tracking?
 
@@ -213,15 +222,16 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
                                    eclipse_zenoh_identifier,
                                    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
-  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_destroy_subscription] %s",
-                          subscription->topic_name);
+  // OBTAIN SUBSCRIPTION MEMBERS ===============================================
+  auto subscription_data = static_cast<rmw_subscription_data_t *>(subscription->data);
+
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp",
+                          "[rmw_destroy_subscription] %s (ID: %ld)",
+                          subscription->topic_name,
+                          subscription_data->subscription_id_);
 
   // OBTAIN ALLOCATOR ==========================================================
   rcutils_allocator_t * allocator = &node->context->options.allocator;
-
-  // UNDECLARE SUBSCRIBER ==========================================================================
-  zn_undeclare_subscriber(
-      static_cast<rmw_subscription_data_t *>(subscription->data)->zn_subscriber_);
 
   // DELETE SUBSCRIPTION DATA IN TOPIC MAP =========================================================
   std::string key(subscription->topic_name);
@@ -235,7 +245,7 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
 
   // Delete the subscription data pointer in the Zenoh topic to subscription data map
   for (auto it = map_iter->second.begin(); it != map_iter->second.end(); ++it) {
-    if ((*it)->sub_id_ == static_cast<rmw_subscription_data_t *>(subscription->data)->sub_id_){
+    if ((*it)->subscription_id_ == subscription_data->subscription_id_){
       map_iter->second.erase(it);
       break;
     }
@@ -244,16 +254,26 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
   // Delete the map element if no other subscription data pointers exist
   // (That is, when no other subscriptions are listening to the Zenoh topic)
   if (map_iter->second.empty()) {
+    RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp",
+                            "[rmw_destroy_subscription] No more subscriptions listening to %s",
+                            subscription->topic_name);
+
+    // We undeclare subscribers ONCE no active subscribers are listening on this Zenoh topic
+    zn_undeclare_subscriber(subscription_data->zn_subscriber_);
+    RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp",
+                            "[rmw_destroy_subscription] Zenoh subcriber undeclared for %s",
+                            subscription->topic_name);
+
     rmw_subscription_data_t::zn_topic_to_sub_data.erase(map_iter);
   }
 
   RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp",
-                          "[rmw_destroy_subscription] Sub for %s (ID: %ld) removed from topic map",
+                          "[rmw_destroy_subscription] Subscription for %s (ID: %ld) removed from topic map",
                           subscription->topic_name,
-                          static_cast<rmw_subscription_data_t *>(subscription->data)->sub_id_);
+                          subscription_data->subscription_id_);
 
   // CLEANUP ===================================================================
-  allocator->deallocate(static_cast<rmw_subscription_data_t *>(subscription->data)->type_support_,
+  allocator->deallocate(subscription_data->type_support_,
                         allocator->state);
   allocator->deallocate(subscription->data, allocator->state);
 

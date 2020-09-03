@@ -59,7 +59,7 @@ struct rmw_subscription_data_t
   // Instanced message queue
   std::deque<std::shared_ptr<std::vector<unsigned char> > > zn_message_queue_;
 
-  size_t sub_id_;
+  size_t subscription_id_;
   size_t queue_depth_;
 };
 

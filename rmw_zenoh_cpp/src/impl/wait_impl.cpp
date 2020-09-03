@@ -28,7 +28,6 @@ bool check_wait_conditions(
             subscriptions->subscribers[i] = nullptr;
           }
         } else {
-          RCUTILS_LOG_INFO("QUEUE SIZE %ld", subscription_data->zn_message_queue_.size());
           subscriptions_ready++;
           stop_wait = true;
         }
