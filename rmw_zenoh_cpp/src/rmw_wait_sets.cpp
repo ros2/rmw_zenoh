@@ -117,13 +117,13 @@ rmw_wait(  // All parameters are in parameters
   RMW_CHECK_ARGUMENT_FOR_NULL(wait_set, RMW_RET_INVALID_ARGUMENT);
 
   RCUTILS_LOG_DEBUG_NAMED(
-      "rmw_zenoh_cpp",
-      "[rmw_wait] %ld subscriptions, %ld srv_servers, %ld srv_clients, %ld events, %ld guard conditions",
-      subscriptions->subscriber_count,
-      services->service_count,
-      clients->client_count,
-      events->event_count,
-      guard_conditions->guard_condition_count);
+    "rmw_zenoh_cpp",
+    "[rmw_wait] %ld subscriptions, %ld srv_servers, %ld srv_clients, %ld events, %ld guard conditions",
+    subscriptions->subscriber_count,
+    services->service_count,
+    clients->client_count,
+    events->event_count,
+    guard_conditions->guard_condition_count);
 
   if (wait_timeout) {
     RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_wait] TIMEOUT: %ld s %ld ns",

@@ -30,10 +30,11 @@ rmw_create_subscription(
   const rmw_qos_profile_t * qos_profile,
   const rmw_subscription_options_t * subscription_options)
 {
-  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp",
-                          "[rmw_create_subscription] %s with queue of depth %ld",
-                          topic_name,
-                          qos_profile->depth);
+  RCUTILS_LOG_DEBUG_NAMED(
+    "rmw_zenoh_cpp",
+    "[rmw_create_subscription] %s with queue of depth %ld",
+    topic_name,
+    qos_profile->depth);
 
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(node, nullptr);
@@ -164,9 +165,10 @@ rmw_create_subscription(
   auto map_iter = rmw_subscription_data_t::zn_topic_to_sub_data.find(key);
 
   if (map_iter == rmw_subscription_data_t::zn_topic_to_sub_data.end()) {
-    RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp",
-                            "[rmw_create_subscription] New topic detected: %s",
-                            topic_name);
+    RCUTILS_LOG_DEBUG_NAMED(
+      "rmw_zenoh_cpp",
+      "[rmw_create_subscription] New topic detected: %s",
+      topic_name);
 
     // If no elements for this Zenoh topic key expression exists, add it in
     std::vector<rmw_subscription_data_t *> sub_data_vec{subscription_data};
@@ -175,23 +177,25 @@ rmw_create_subscription(
     // We initialise subscribers ONCE (otherwise we'll get duplicate messages)
     // The topic name will be the same for any duplicate subscribers, so it is ok
     subscription_data->zn_subscriber_ = zn_declare_subscriber(
-        subscription_data->zn_session_,
-        subscription->topic_name,
-        zn_subinfo_default(),  // NOTE(CH3): Default for now
-        subscription_data->zn_sub_callback);
+      subscription_data->zn_session_,
+      subscription->topic_name,
+      zn_subinfo_default(),  // NOTE(CH3): Default for now
+      subscription_data->zn_sub_callback);
 
-    RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp",
-                            "[rmw_create_subscription] Zenoh subscription declared for %s",
-                            topic_name);
+    RCUTILS_LOG_DEBUG_NAMED(
+      "rmw_zenoh_cpp",
+      "[rmw_create_subscription] Zenoh subscription declared for %s",
+      topic_name);
   } else {
     // Otherwise, append to the vector
     map_iter->second.push_back(subscription_data);
   }
 
-  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp",
-                          "[rmw_create_subscription] Subscription for %s (ID: %ld) added to topic map",
-                          topic_name,
-                          subscription_data->subscription_id_);
+  RCUTILS_LOG_DEBUG_NAMED(
+    "rmw_zenoh_cpp",
+    "[rmw_create_subscription] Subscription for %s (ID: %ld) added to topic map",
+    topic_name,
+    subscription_data->subscription_id_);
 
   // TODO(CH3): Put the subscription name/pointer into its corresponding node for tracking?
 
@@ -223,10 +227,11 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
   // OBTAIN SUBSCRIPTION MEMBERS ===============================================
   auto subscription_data = static_cast<rmw_subscription_data_t *>(subscription->data);
 
-  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp",
-                          "[rmw_destroy_subscription] %s (ID: %ld)",
-                          subscription->topic_name,
-                          subscription_data->subscription_id_);
+  RCUTILS_LOG_DEBUG_NAMED(
+    "rmw_zenoh_cpp",
+    "[rmw_destroy_subscription] %s (ID: %ld)",
+    subscription->topic_name,
+    subscription_data->subscription_id_);
 
   // OBTAIN ALLOCATOR ==========================================================
   rcutils_allocator_t * allocator = &node->context->options.allocator;
@@ -236,9 +241,10 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
   auto map_iter = rmw_subscription_data_t::zn_topic_to_sub_data.find(key);
 
   if (map_iter == rmw_subscription_data_t::zn_topic_to_sub_data.end()) {
-    RCUTILS_LOG_WARN_NAMED("rmw_zenoh_cpp",
-                           "subscription not found in Zenoh topic to subscription data map! %s",
-                           subscription->topic_name);
+    RCUTILS_LOG_WARN_NAMED(
+      "rmw_zenoh_cpp",
+      "subscription not found in Zenoh topic to subscription data map! %s",
+      subscription->topic_name);
   } else {
     // Delete the subscription data pointer in the Zenoh topic to subscription data map
     for (auto it = map_iter->second.begin(); it != map_iter->second.end(); ++it) {
@@ -271,8 +277,7 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
   }
 
   // CLEANUP ===================================================================
-  allocator->deallocate(subscription_data->type_support_,
-                        allocator->state);
+  allocator->deallocate(subscription_data->type_support_, allocator->state);
   allocator->deallocate(subscription->data, allocator->state);
 
   allocator->deallocate(const_cast<char *>(subscription->topic_name), allocator->state);
@@ -331,9 +336,10 @@ rmw_take(
 
   subscription_data->message_queue_mutex_.unlock();
 
-  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp",
-                          "[rmw_take] Message found: %s",
-                          subscription->topic_name);
+  RCUTILS_LOG_DEBUG_NAMED(
+    "rmw_zenoh_cpp",
+    "[rmw_take] Message found: %s",
+    subscription->topic_name);
 
   // DESERIALIZE MESSAGE =======================================================
   //
@@ -426,9 +432,10 @@ rmw_take_with_info(
 
   subscription_data->message_queue_mutex_.unlock();
 
-  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp",
-                          "[rmw_take] Message found: %s",
-                          subscription->topic_name);
+  RCUTILS_LOG_DEBUG_NAMED(
+    "rmw_zenoh_cpp",
+    "[rmw_take] Message found: %s",
+    subscription->topic_name);
 
   // DESERIALIZE MESSAGE =======================================================
   //
