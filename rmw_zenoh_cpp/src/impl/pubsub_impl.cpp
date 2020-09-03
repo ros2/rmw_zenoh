@@ -46,12 +46,13 @@ void rmw_subscription_data_t::zn_sub_callback(const zn_sample * sample) {
 
       if ((*it)->zn_message_queue_.size() >= (*it)->queue_depth_) {
         // Log warning if message is discarded due to hitting the queue depth
-        RCUTILS_LOG_WARN_NAMED("rmw_zenoh_cpp",
-                               "Message queue depth of %ld reached, discarding oldest message "
-                               "for subscription for %s (ID: %ld)",
-                               (*it)->queue_depth_,
-                               key.c_str(),
-                               (*it)->subscription_id_);
+        RCUTILS_LOG_WARN_NAMED(
+          "rmw_zenoh_cpp",
+          "Message queue depth of %ld reached, discarding oldest message "
+          "for subscription for %s (ID: %ld)",
+          (*it)->queue_depth_,
+          key.c_str(),
+          (*it)->subscription_id_);
 
         (*it)->zn_message_queue_.pop_back();
       }
