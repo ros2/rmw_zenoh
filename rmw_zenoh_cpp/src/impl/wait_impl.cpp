@@ -14,6 +14,14 @@ bool check_wait_conditions(
   const rmw_events_t * events,
   bool finalize)
 {
+  // NOTE(CH3): On the finalize parameter
+  // This check function is used as a predicate to wait on a condition variable. But rcl expects
+  // rmw to set any passed in pointers to NULL if the condition is not ready.
+  //
+  // The finalize parameter is used to make sure that this setting to NULL only happens ONCE per
+  // rmw_wait call. Otherwise on repeat calls to check the predicate, things will break since
+  // it'll try to compare or dereference a nullptr.
+
   bool stop_wait = false;
 
   // Subscriptions
