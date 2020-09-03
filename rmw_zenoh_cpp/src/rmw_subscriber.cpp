@@ -156,9 +156,6 @@ rmw_create_subscription(
     rmw_subscription_data_t::subscription_id_counter.fetch_add(1, std::memory_order_relaxed);
 
   // Configure message queue
-  std::deque<std::shared_ptr<std::vector<unsigned char> > > empty_deque;
-
-  subscription_data->zn_message_queue_ = empty_deque;
   subscription_data->queue_depth_ = qos_profile->depth;
 
   // ADD SUBSCRIPTION DATA TO TOPIC MAP ============================================================
