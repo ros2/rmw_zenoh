@@ -46,7 +46,7 @@ void rmw_subscription_data_t::zn_sub_callback(const zn_sample * sample) {
   if (map_iter != rmw_subscription_data_t::zn_topic_to_sub_data.end()) {
     // Push shared pointer to message bytes to all associated subscription message queues
     for (auto it = map_iter->second.begin(); it != map_iter->second.end(); ++it) {
-      if ((*it)->zn_message_queue_.size() == (*it)->queue_depth_) {
+      if ((*it)->zn_message_queue_.size() >= (*it)->queue_depth_) {
         // Log warning if message is discarded due to hitting the queue depth
         RCUTILS_LOG_WARN_NAMED("rmw_zenoh_cpp",
                                "Message queue depth reached, discarding oldest message: %s",
