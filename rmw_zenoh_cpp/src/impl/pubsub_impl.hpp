@@ -42,7 +42,7 @@ struct rmw_subscription_data_t
   static void zn_sub_callback(const zn_sample * sample);
 
   // Counter to give subscriptions unique IDs
-  static std::atomic<size_t> sub_id_counter;
+  static std::atomic<size_t> subscription_id_counter;
 
   // Map of Zenoh topic key expression to subscription data struct instances
   static std::unordered_map<std::string, std::vector<rmw_subscription_data_t *> >

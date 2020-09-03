@@ -153,7 +153,7 @@ rmw_create_subscription(
 
   // Assign and increment unique subscription ID atomically
   subscription_data->subscription_id_ =
-    rmw_subscription_data_t::sub_id_counter.fetch_add(1, std::memory_order_relaxed);
+    rmw_subscription_data_t::subscription_id_counter.fetch_add(1, std::memory_order_relaxed);
 
   // Configure message queue
   std::deque<std::shared_ptr<std::vector<unsigned char> > > empty_deque;
