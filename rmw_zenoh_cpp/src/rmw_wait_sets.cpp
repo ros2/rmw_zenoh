@@ -182,6 +182,12 @@ rmw_wait(  // All parameters are in parameters
     }
   }
 
+  // The finalize parameter passed in here enables debug and setting of non-ready conditions
+  // to NULL (as expected by rcl)
+  //
+  // (In other words, it ensures that this happens once per rmw_wait call)
+  //
+  // Debug logs and NULL assignments do not happen in the predicate above, and only on this call
   check_wait_conditions(subscriptions, guard_conditions, services, clients, events, true);
   lock.unlock();
 
