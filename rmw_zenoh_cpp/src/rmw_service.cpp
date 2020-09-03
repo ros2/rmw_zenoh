@@ -1,7 +1,9 @@
+#include <string>
+
 #include "rcutils/logging_macros.h"
 #include "rcutils/strdup.h"
 
-#include <rmw/validate_full_topic_name.h>
+#include "rmw/validate_full_topic_name.h"
 #include "rmw/impl/cpp/macros.hpp"
 #include "rmw/error_handling.h"
 #include "rmw/event.h"
@@ -16,7 +18,6 @@
 
 extern "C"
 {
-
 /// CREATE SERVICE SERVER ======================================================
 // Create and return an rmw service server
 rmw_service_t *
@@ -126,7 +127,9 @@ rmw_create_service(
       (zn_topic_key + "/response").c_str(), *allocator);
   if (!service_data->zn_response_topic_key_) {
     RMW_SET_ERROR_MSG("failed to allocate zenoh response topic key");
-    allocator->deallocate(const_cast<char *>(service_data->zn_request_topic_key_), allocator->state);
+    allocator->deallocate(
+      const_cast<char *>(service_data->zn_request_topic_key_),
+      allocator->state);
     allocator->deallocate(service->data, allocator->state);
 
     allocator->deallocate(const_cast<char *>(service->service_name), allocator->state);
@@ -134,10 +137,10 @@ rmw_create_service(
     return nullptr;
   }
 
-  // NOTE(CH3): This topic ID only unique WITHIN this process!
-  //
-  // Another topic on another process might clash with the ID on this process, even within the
-  // same Zenoh network! It is not a UUID!!
+  // The topic ID must be unique within a single process, but separate processes can reuse IDs,
+  // even in the same Zenoh network, because the ID is never transmitted over the wire. Conversely,
+  // the ID used in two communicating processes cannot be used to determine if they are using the
+  // same topic or not.
   service_data->zn_response_topic_id_ = zn_declare_resource(
       s, service_data->zn_response_topic_key_);
 
@@ -158,8 +161,12 @@ rmw_create_service(
   new(service_data->request_type_support_) rmw_zenoh_cpp::RequestTypeSupport(service_members);
   if (!service_data->request_type_support_) {
     RMW_SET_ERROR_MSG("failed to allocate RequestTypeSupport");
-    allocator->deallocate(const_cast<char *>(service_data->zn_request_topic_key_), allocator->state);
-    allocator->deallocate(const_cast<char *>(service_data->zn_response_topic_key_), allocator->state);
+    allocator->deallocate(
+      const_cast<char *>(service_data->zn_request_topic_key_),
+      allocator->state);
+    allocator->deallocate(
+      const_cast<char *>(service_data->zn_response_topic_key_),
+      allocator->state);
     allocator->deallocate(service->data, allocator->state);
 
     allocator->deallocate(const_cast<char *>(service->service_name), allocator->state);
@@ -172,8 +179,12 @@ rmw_create_service(
   new(service_data->response_type_support_) rmw_zenoh_cpp::ResponseTypeSupport(service_members);
   if (!service_data->response_type_support_) {
     RMW_SET_ERROR_MSG("failed to allocate ResponseTypeSupport");
-    allocator->deallocate(const_cast<char *>(service_data->zn_request_topic_key_), allocator->state);
-    allocator->deallocate(const_cast<char *>(service_data->zn_response_topic_key_), allocator->state);
+    allocator->deallocate(
+      const_cast<char *>(service_data->zn_request_topic_key_),
+      allocator->state);
+    allocator->deallocate(
+      const_cast<char *>(service_data->zn_response_topic_key_),
+      allocator->state);
     allocator->deallocate(service_data->request_type_support_, allocator->state);
     allocator->deallocate(service->data, allocator->state);
 
@@ -204,18 +215,23 @@ rmw_create_service(
         std::string key(resource->val, resource->len);
         std::string response("available");  // NOTE(CH3): The contents actually don't matter...
 
-        zn_send_reply(query,
-                      key.c_str(),
-                      (const unsigned char *)response.c_str(),
-                      response.length());
+        zn_send_reply(
+          query,
+          key.c_str(),
+          (const unsigned char *)response.c_str(),
+          response.length());
       }
   );
   if (service_data->zn_queryable_ == 0) {
     RMW_SET_ERROR_MSG("failed to create availability queryable for service");
     zn_undeclare_subscriber(service_data->zn_request_subscriber_);
 
-    allocator->deallocate(const_cast<char *>(service_data->zn_request_topic_key_), allocator->state);
-    allocator->deallocate(const_cast<char *>(service_data->zn_response_topic_key_), allocator->state);
+    allocator->deallocate(
+      const_cast<char *>(service_data->zn_request_topic_key_),
+      allocator->state);
+    allocator->deallocate(
+      const_cast<char *>(service_data->zn_response_topic_key_),
+      allocator->state);
     allocator->deallocate(service_data->request_type_support_, allocator->state);
     allocator->deallocate(service_data->response_type_support_, allocator->state);
     allocator->deallocate(service->data, allocator->state);
@@ -381,11 +397,11 @@ rmw_send_response(const rmw_service_t * service,
       service->data, "service implementation pointer is null", RMW_RET_INVALID_ARGUMENT);
 
   // OBTAIN SERVICE MEMBERS ====================================================
-  auto service_data = static_cast<rmw_service_data_t *>(service->data);
+  auto * service_data = static_cast<rmw_service_data_t *>(service->data);
 
   // ASSIGN ALLOCATOR ==========================================================
   rcutils_allocator_t * allocator =
-    &static_cast<rmw_service_data_t *>(service->data)->node_->context->options.allocator;
+    &(static_cast<rmw_service_data_t *>(service->data)->node_->context->options.allocator);
 
   // SERIALIZE DATA ============================================================
   size_t max_data_length = (static_cast<rmw_service_data_t *>(service->data)
@@ -435,5 +451,4 @@ rmw_send_response(const rmw_service_t * service,
     return RMW_RET_ERROR;
   }
 }
-
-} // extern "C"
+}  // extern "C"

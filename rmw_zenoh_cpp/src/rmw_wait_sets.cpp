@@ -14,7 +14,6 @@
 
 extern "C"
 {
-
 /// CREATE WAIT SET ============================================================
 // Create and return a wait set to wait to store conditions that the middleware will block on
 rmw_wait_set_t *
@@ -117,12 +116,13 @@ rmw_wait(  // All parameters are in parameters
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(wait_set, RMW_RET_INVALID_ARGUMENT);
 
-  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp",
-                          "[rmw_wait] %ld subscriptions, %ld srv_servers, %ld srv_clients, %ld events",
-                          subscriptions->subscriber_count,
-                          services->service_count,
-                          clients->client_count,
-                          events->event_count);
+  RCUTILS_LOG_DEBUG_NAMED(
+    "rmw_zenoh_cpp",
+    "[rmw_wait] %ld subscriptions, %ld srv_servers, %ld srv_clients, %ld events",
+    subscriptions->subscriber_count,
+    services->service_count,
+    clients->client_count,
+    events->event_count);
 
   if (wait_timeout) {
     RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_wait] TIMEOUT: %ld s %ld ns",
@@ -167,8 +167,8 @@ rmw_wait(  // All parameters are in parameters
 
   if (!ready) {
     if (!wait_timeout) {
-      // TODO(CH3): Remove this magic number once stable. This is to slow things down so things are visible
-      // with all the printouts flying everywhere.
+      // TODO(CH3): Remove this magic number once stable. This is to slow things down so things are
+      // visible with all the printouts flying everywhere.
       condition_variable->wait_for(lock, std::chrono::milliseconds(1500), predicate);
     } else if (wait_timeout->sec > 0 || wait_timeout->nsec > 0) {
       auto wait_time = std::chrono::duration_cast<std::chrono::nanoseconds>(
@@ -190,5 +190,4 @@ rmw_wait(  // All parameters are in parameters
     return RMW_RET_OK;
   }
 }
-
-} // extern "C"
+}  // extern "C"

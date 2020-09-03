@@ -1,5 +1,5 @@
-#ifndef RMW_ZENOH_CPP__ZENOH_PUBSUB_HPP_
-#define RMW_ZENOH_CPP__ZENOH_PUBSUB_HPP_
+#ifndef IMPL__PUBSUB_IMPL_HPP_
+#define IMPL__PUBSUB_IMPL_HPP_
 
 #include <unordered_map>
 #include <utility>
@@ -16,7 +16,6 @@ extern "C"
 
 struct rmw_node_impl_t
 {
-
 };
 
 struct rmw_publisher_data_t
@@ -50,4 +49,4 @@ struct rmw_subscription_data_t
   ZNSubscriber * zn_subscriber_;
 };
 
-#endif // RMW_ZENOH_CPP__ZENOH_PUBSUB_HPP_
+#endif  // IMPL__PUBSUB_IMPL_HPP_

@@ -1,5 +1,5 @@
-#ifndef RMW_ZENOH_CPP_TYPES__WAIT_SET_DATA_HPP_
-#define RMW_ZENOH_CPP_TYPES__WAIT_SET_DATA_HPP_
+#ifndef IMPL__WAIT_IMPL_HPP_
+#define IMPL__WAIT_IMPL_HPP_
 
 #include <condition_variable>
 #include <mutex>
@@ -24,4 +24,4 @@ bool check_wait_conditions(
   const rmw_events_t * events
 );
 
-#endif  // RMW_ZENOH_CPP_TYPES__WAIT_SET_DATA_HPP_
+#endif  // IMPL__WAIT_IMPL_HPP_

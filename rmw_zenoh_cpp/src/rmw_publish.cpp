@@ -44,7 +44,7 @@ rmw_publish(
 
   // ASSIGN ALLOCATOR ==========================================================
   rcutils_allocator_t * allocator =
-    &static_cast<rmw_publisher_data_t *>(publisher->data)->node_->context->options.allocator;
+    &(static_cast<rmw_publisher_data_t *>(publisher->data)->node_->context->options.allocator);
 
   // SERIALIZE DATA ============================================================
   size_t max_data_length = (static_cast<rmw_publisher_data_t *>(publisher->data)
@@ -111,5 +111,4 @@ rmw_publish_loaned_message(
   RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_publish_loaned_message");
   return RMW_RET_ERROR;
 }
-
-} // extern "C"
+}  // extern "C"

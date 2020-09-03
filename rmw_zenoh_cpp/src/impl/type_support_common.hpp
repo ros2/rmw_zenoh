@@ -1,5 +1,5 @@
-#ifndef TYPE_SUPPORT_COMMON_HPP_
-#define TYPE_SUPPORT_COMMON_HPP_
+#ifndef IMPL__TYPE_SUPPORT_COMMON_HPP_
+#define IMPL__TYPE_SUPPORT_COMMON_HPP_
 
 #include <sstream>
 #include <string>
@@ -20,4 +20,4 @@
 #define RMW_ZENOH_CPP_TYPESUPPORT_C rosidl_typesupport_zenoh_c__identifier
 #define RMW_ZENOH_CPP_TYPESUPPORT_CPP rosidl_typesupport_zenoh_cpp::typesupport_identifier
 
-#endif  // TYPE_SUPPORT_COMMON_HPP_
+#endif  // IMPL__TYPE_SUPPORT_COMMON_HPP_

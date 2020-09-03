@@ -1,7 +1,9 @@
+#include <string>
+
 #include "rcutils/logging_macros.h"
 #include "rcutils/strdup.h"
 
-#include <rmw/validate_full_topic_name.h>
+#include "rmw/validate_full_topic_name.h"
 #include "rmw/impl/cpp/macros.hpp"
 #include "rmw/error_handling.h"
 #include "rmw/event.h"
@@ -15,7 +17,6 @@
 
 extern "C"
 {
-
 /// CHECK IF SERVER IS AVAILABLE ===============================================
 // Check if a service server is available for the given service client
 rmw_ret_t
@@ -220,8 +221,12 @@ rmw_create_client(
   new(client_data->request_type_support_) rmw_zenoh_cpp::RequestTypeSupport(service_members);
   if (!client_data->request_type_support_) {
     RMW_SET_ERROR_MSG("failed to allocate RequestTypeSupport");
-    allocator->deallocate(const_cast<char *>(client_data->zn_request_topic_key_), allocator->state);
-    allocator->deallocate(const_cast<char *>(client_data->zn_response_topic_key_), allocator->state);
+    allocator->deallocate(
+      const_cast<char *>(client_data->zn_request_topic_key_),
+      allocator->state);
+    allocator->deallocate(
+      const_cast<char *>(client_data->zn_response_topic_key_),
+      allocator->state);
     allocator->deallocate(client->data, allocator->state);
 
     allocator->deallocate(const_cast<char *>(client->service_name), allocator->state);
@@ -235,7 +240,9 @@ rmw_create_client(
   if (!client_data->response_type_support_) {
     RMW_SET_ERROR_MSG("failed to allocate ResponseTypeSupport");
     allocator->deallocate(const_cast<char *>(client_data->zn_request_topic_key_), allocator->state);
-    allocator->deallocate(const_cast<char *>(client_data->zn_response_topic_key_), allocator->state);
+    allocator->deallocate(
+      const_cast<char *>(client_data->zn_response_topic_key_),
+      allocator->state);
     allocator->deallocate(client_data->request_type_support_, allocator->state);
     allocator->deallocate(client->data, allocator->state);
 
@@ -319,11 +326,11 @@ rmw_send_request(const rmw_client_t * client, const void * ros_request, int64_t 
                                    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   RMW_CHECK_ARGUMENT_FOR_NULL(client->data, RMW_RET_ERROR);
-  auto client_data = static_cast<rmw_client_data_t *>(client->data);
+  auto * client_data = static_cast<rmw_client_data_t *>(client->data);
 
   // ASSIGN ALLOCATOR ==========================================================
   rcutils_allocator_t * allocator =
-    &static_cast<rmw_client_data_t *>(client->data)->node_->context->options.allocator;
+    &(static_cast<rmw_client_data_t *>(client->data)->node_->context->options.allocator);
 
   // SERIALIZE DATA ============================================================
   size_t max_data_length = (static_cast<rmw_client_data_t *>(client->data)
@@ -474,5 +481,4 @@ rmw_take_response(
 
   return RMW_RET_OK;
 }
-
-} // extern "C"
+}  // extern "C"

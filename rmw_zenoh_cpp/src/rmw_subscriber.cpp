@@ -1,9 +1,10 @@
 #include <functional>
+#include <string>
 
 #include "rcutils/logging_macros.h"
 #include "rcutils/strdup.h"
 
-#include <rmw/validate_full_topic_name.h>
+#include "rmw/validate_full_topic_name.h"
 #include "rmw/impl/cpp/macros.hpp"
 #include "rmw/error_handling.h"
 #include "rmw/event.h"
@@ -470,5 +471,4 @@ rmw_return_loaned_message_from_subscription(
   RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_return_loaned_message_from_subscription");
   return RMW_RET_ERROR;
 }
-
-} // extern "C"
+}  // extern "C"
