@@ -39,10 +39,11 @@ rmw_create_subscription(
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(node, nullptr);
 
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(node,
-                                   node->implementation_identifier,
-                                   eclipse_zenoh_identifier,
-                                   return nullptr);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    node,
+    node->implementation_identifier,
+    eclipse_zenoh_identifier,
+    return nullptr);
 
   RMW_CHECK_ARGUMENT_FOR_NULL(topic_name, nullptr);
   if (strlen(topic_name) == 0) {
@@ -80,11 +81,10 @@ rmw_create_subscription(
 
   // OBTAIN TYPESUPPORT ========================================================
   const rosidl_message_type_support_t * type_support = get_message_typesupport_handle(
-      type_supports, RMW_ZENOH_CPP_TYPESUPPORT_C);
+    type_supports, RMW_ZENOH_CPP_TYPESUPPORT_C);
 
   if (!type_support) {
-    type_support = get_message_typesupport_handle(
-      type_supports, RMW_ZENOH_CPP_TYPESUPPORT_CPP);
+    type_support = get_message_typesupport_handle(type_supports, RMW_ZENOH_CPP_TYPESUPPORT_CPP);
     if (!type_support) {
       RCUTILS_LOG_INFO("%s", topic_name);
       RMW_SET_ERROR_MSG("type support not from this implementation");
@@ -92,9 +92,9 @@ rmw_create_subscription(
     }
   }
 
-  // CREATE SUBSCRIPTION ==========================================================
+  // CREATE SUBSCRIPTION =======================================================
   rmw_subscription_t * subscription = static_cast<rmw_subscription_t *>(
-      allocator->allocate(sizeof(rmw_subscription_t), allocator->state));
+    allocator->allocate(sizeof(rmw_subscription_t), allocator->state));
   if (!subscription) {
     RMW_SET_ERROR_MSG("failed to allocate rmw_subscription_t");
     return nullptr;
@@ -113,7 +113,7 @@ rmw_create_subscription(
   }
 
   subscription->data = static_cast<rmw_subscription_data_t *>(
-      allocator->allocate(sizeof(rmw_subscription_data_t), allocator->state));
+    allocator->allocate(sizeof(rmw_subscription_data_t), allocator->state));
   new(subscription->data) rmw_subscription_data_t();
   if (!subscription->data) {
     RMW_SET_ERROR_MSG("failed to allocate subscription data");
@@ -124,7 +124,7 @@ rmw_create_subscription(
 
   // CREATE SUBSCRIPTION MEMBERS ===============================================
   // Init type support callbacks
-  auto callbacks = static_cast<const message_type_support_callbacks_t *>(type_support->data);
+  auto * callbacks = static_cast<const message_type_support_callbacks_t *>(type_support->data);
 
   // Obtain Zenoh session
   ZNSession * s = node->context->impl->session;
@@ -138,7 +138,7 @@ rmw_create_subscription(
 
   // Allocate and in-place assign new message typesupport instance
   subscription_data->type_support_ = static_cast<rmw_zenoh_cpp::MessageTypeSupport *>(
-      allocator->allocate(sizeof(rmw_zenoh_cpp::MessageTypeSupport), allocator->state));
+    allocator->allocate(sizeof(rmw_zenoh_cpp::MessageTypeSupport), allocator->state));
   new(subscription_data->type_support_) rmw_zenoh_cpp::MessageTypeSupport(callbacks);
   if (!subscription_data->type_support_) {
     RMW_SET_ERROR_MSG("failed to allocate MessageTypeSupport");
@@ -159,7 +159,7 @@ rmw_create_subscription(
   // Configure message queue
   subscription_data->queue_depth_ = qos_profile->depth;
 
-  // ADD SUBSCRIPTION DATA TO TOPIC MAP ============================================================
+  // ADD SUBSCRIPTION DATA TO TOPIC MAP ========================================
   // This will allow us to access the subscription data structs for this Zenoh topic key expression
   std::string key(subscription->topic_name);
   auto map_iter = rmw_subscription_data_t::zn_topic_to_sub_data.find(key);
@@ -215,14 +215,16 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription, RMW_RET_INVALID_ARGUMENT);
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(node,
-                                   node->implementation_identifier,
-                                   eclipse_zenoh_identifier,
-                                   return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(subscription,
-                                   subscription->implementation_identifier,
-                                   eclipse_zenoh_identifier,
-                                   return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    node,
+    node->implementation_identifier,
+    eclipse_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    subscription,
+    subscription->implementation_identifier,
+    eclipse_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   // OBTAIN SUBSCRIPTION MEMBERS ===============================================
   auto subscription_data = static_cast<rmw_subscription_data_t *>(subscription->data);
@@ -236,7 +238,7 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
   // OBTAIN ALLOCATOR ==========================================================
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
-  // DELETE SUBSCRIPTION DATA IN TOPIC MAP =========================================================
+  // DELETE SUBSCRIPTION DATA IN TOPIC MAP =====================================
   std::string key(subscription->topic_name);
   auto map_iter = rmw_subscription_data_t::zn_topic_to_sub_data.find(key);
 
@@ -308,10 +310,11 @@ rmw_take(
   RMW_CHECK_ARGUMENT_FOR_NULL(ros_message, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(taken, RMW_RET_INVALID_ARGUMENT);
 
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(subscription,
-                                   subscription->implementation_identifier,
-                                   eclipse_zenoh_identifier,
-                                   return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    subscription,
+    subscription->implementation_identifier,
+    eclipse_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription->data, RMW_RET_ERROR);
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription->topic_name, RMW_RET_INVALID_ARGUMENT);
@@ -360,9 +363,10 @@ rmw_take(
   eprosima::fastcdr::FastBuffer fastbuffer(reinterpret_cast<char *>(cdr_buffer), msg_bytes_ptr->size());
 
   // Object that serializes the data
-  eprosima::fastcdr::Cdr deser(fastbuffer,
-                               eprosima::fastcdr::Cdr::DEFAULT_ENDIAN,
-                               eprosima::fastcdr::Cdr::DDS_CDR);
+  eprosima::fastcdr::Cdr deser(
+    fastbuffer,
+    eprosima::fastcdr::Cdr::DEFAULT_ENDIAN,
+    eprosima::fastcdr::Cdr::DDS_CDR);
   if (!subscription_data->type_support_->deserializeROSmessage(
       deser, ros_message, subscription_data->type_support_impl_)) {
     RMW_SET_ERROR_MSG("could not deserialize ROS message");
@@ -404,10 +408,11 @@ rmw_take_with_info(
   RMW_CHECK_ARGUMENT_FOR_NULL(taken, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(message_info, RMW_RET_INVALID_ARGUMENT);
 
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(subscription,
-                                   subscription->implementation_identifier,
-                                   eclipse_zenoh_identifier,
-                                   return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    subscription,
+    subscription->implementation_identifier,
+    eclipse_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription->topic_name, RMW_RET_ERROR);
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription->data, RMW_RET_ERROR);
@@ -456,9 +461,10 @@ rmw_take_with_info(
   eprosima::fastcdr::FastBuffer fastbuffer(reinterpret_cast<char *>(cdr_buffer), msg_bytes_ptr->size());
 
   // Object that serializes the data
-  eprosima::fastcdr::Cdr deser(fastbuffer,
-                               eprosima::fastcdr::Cdr::DEFAULT_ENDIAN,
-                               eprosima::fastcdr::Cdr::DDS_CDR);
+  eprosima::fastcdr::Cdr deser(
+    fastbuffer,
+    eprosima::fastcdr::Cdr::DEFAULT_ENDIAN,
+    eprosima::fastcdr::Cdr::DDS_CDR);
   if (!subscription_data->type_support_->deserializeROSmessage(
       deser, ros_message, subscription_data->type_support_impl_)) {
     RMW_SET_ERROR_MSG("could not deserialize ROS message");
