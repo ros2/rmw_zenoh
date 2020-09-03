@@ -49,7 +49,8 @@ void rmw_subscription_data_t::zn_sub_callback(const zn_sample * sample) {
       if ((*it)->zn_message_queue_.size() >= (*it)->queue_depth_) {
         // Log warning if message is discarded due to hitting the queue depth
         RCUTILS_LOG_WARN_NAMED("rmw_zenoh_cpp",
-                               "Message queue depth reached, discarding oldest message: %s",
+                               "Message queue depth of %ld reached, discarding oldest message: %s",
+                               (*it)->queue_depth_,
                                key.c_str());
         (*it)->zn_message_queue_.pop_front();
       }
