@@ -27,7 +27,11 @@ rmw_create_service(
   const char * service_name,
   const rmw_qos_profile_t * qos_profile)
 {
-  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_create_service] %s", service_name);
+  RCUTILS_LOG_DEBUG_NAMED(
+    "rmw_zenoh_cpp",
+    "[rmw_create_service] %s with queue of depth %ld",
+    service_name,
+  qos_profile->depth);
 
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(node, nullptr);
@@ -64,7 +68,7 @@ rmw_create_service(
 
   // OBTAIN TYPESUPPORT ========================================================
   const rosidl_service_type_support_t * type_support = get_service_typesupport_handle(
-      type_supports, RMW_ZENOH_CPP_TYPESUPPORT_C);
+    type_supports, RMW_ZENOH_CPP_TYPESUPPORT_C);
 
   if (!type_support) {
     type_support = get_service_typesupport_handle(type_supports, RMW_ZENOH_CPP_TYPESUPPORT_CPP);
