@@ -35,7 +35,7 @@ void rmw_subscription_data_t::zn_sub_callback(const zn_sample * sample) {
   // Get shared pointer to byte array vector
   // NOTE(CH3): We use a shared pointer to avoid copies and to leverage on the smart pointer's
   // reference counting
-  auto byte_vec_ptr = std::make_shared<std::vector<unsigned char> >(byte_vec);
+  auto byte_vec_ptr = std::make_shared<std::vector<unsigned char> >(std::move(byte_vec));
 
   auto map_iter = rmw_subscription_data_t::zn_topic_to_sub_data.find(key);
 
