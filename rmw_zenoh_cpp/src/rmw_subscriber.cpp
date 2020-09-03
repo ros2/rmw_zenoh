@@ -239,36 +239,36 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
     RCUTILS_LOG_WARN_NAMED("rmw_zenoh_cpp",
                            "subscription not found in Zenoh topic to subscription data map! %s",
                            subscription->topic_name);
-  }
-
-  // Delete the subscription data pointer in the Zenoh topic to subscription data map
-  for (auto it = map_iter->second.begin(); it != map_iter->second.end(); ++it) {
-    if ((*it)->subscription_id_ == subscription_data->subscription_id_){
-      map_iter->second.erase(it);
-      break;
+  } else {
+    // Delete the subscription data pointer in the Zenoh topic to subscription data map
+    for (auto it = map_iter->second.begin(); it != map_iter->second.end(); ++it) {
+      if ((*it)->subscription_id_ == subscription_data->subscription_id_){
+        map_iter->second.erase(it);
+        break;
+      }
     }
-  }
 
-  // Delete the map element if no other subscription data pointers exist
-  // (That is, when no other subscriptions are listening to the Zenoh topic)
-  if (map_iter->second.empty()) {
+    // Delete the map element if no other subscription data pointers exist
+    // (That is, when no other subscriptions are listening to the Zenoh topic)
+    if (map_iter->second.empty()) {
+      RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp",
+                              "[rmw_destroy_subscription] No more subscriptions listening to %s",
+                              subscription->topic_name);
+
+      // We undeclare subscribers ONCE no active subscribers are listening on this Zenoh topic
+      zn_undeclare_subscriber(subscription_data->zn_subscriber_);
+      RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp",
+                              "[rmw_destroy_subscription] Zenoh subcriber undeclared for %s",
+                              subscription->topic_name);
+
+      rmw_subscription_data_t::zn_topic_to_sub_data.erase(map_iter);
+    }
+
     RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp",
-                            "[rmw_destroy_subscription] No more subscriptions listening to %s",
-                            subscription->topic_name);
-
-    // We undeclare subscribers ONCE no active subscribers are listening on this Zenoh topic
-    zn_undeclare_subscriber(subscription_data->zn_subscriber_);
-    RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp",
-                            "[rmw_destroy_subscription] Zenoh subcriber undeclared for %s",
-                            subscription->topic_name);
-
-    rmw_subscription_data_t::zn_topic_to_sub_data.erase(map_iter);
+                            "[rmw_destroy_subscription] Subscription for %s (ID: %ld) removed from topic map",
+                            subscription->topic_name,
+                            subscription_data->subscription_id_);
   }
-
-  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp",
-                          "[rmw_destroy_subscription] Subscription for %s (ID: %ld) removed from topic map",
-                          subscription->topic_name,
-                          subscription_data->subscription_id_);
 
   // CLEANUP ===================================================================
   allocator->deallocate(subscription_data->type_support_,
