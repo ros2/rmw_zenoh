@@ -250,7 +250,7 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
   } else {
     // Delete the subscription data pointer in the Zenoh topic to subscription data map
     for (auto it = map_iter->second.begin(); it != map_iter->second.end(); ++it) {
-      if ((*it)->subscription_id_ == subscription_data->subscription_id_){
+      if ((*it)->subscription_id_ == subscription_data->subscription_id_) {
         map_iter->second.erase(it);
         break;
       }
@@ -320,7 +320,7 @@ rmw_take(
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription->topic_name, RMW_RET_INVALID_ARGUMENT);
 
   // OBTAIN SUBSCRIPTION MEMBERS ===============================================
-  auto subscription_data = static_cast<rmw_subscription_data_t *>(subscription->data);
+  auto * subscription_data = static_cast<rmw_subscription_data_t *>(subscription->data);
 
   // OBTAIN ALLOCATOR ==========================================================
   rcutils_allocator_t * allocator = &subscription_data->node_->context->options.allocator;
@@ -418,7 +418,7 @@ rmw_take_with_info(
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription->data, RMW_RET_ERROR);
 
   // OBTAIN SUBSCRIPTION MEMBERS ===============================================
-  auto subscription_data = static_cast<rmw_subscription_data_t *>(subscription->data);
+  auto * subscription_data = static_cast<rmw_subscription_data_t *>(subscription->data);
 
   // OBTAIN ALLOCATOR ==========================================================
   rcutils_allocator_t * allocator = &subscription_data->node_->context->options.allocator;

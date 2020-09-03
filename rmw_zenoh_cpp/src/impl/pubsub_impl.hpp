@@ -45,7 +45,7 @@ struct rmw_subscription_data_t
   static std::atomic<size_t> subscription_id_counter;
 
   // Map of Zenoh topic key expression to subscription data struct instances
-  static std::unordered_map<std::string, std::vector<rmw_subscription_data_t *> >
+  static std::unordered_map<std::string, std::vector<rmw_subscription_data_t *>>
     zn_topic_to_sub_data;
 
   /// INSTANCE MEMBERS =============================================================================
@@ -59,7 +59,7 @@ struct rmw_subscription_data_t
   ZNSubscriber * zn_subscriber_;
 
   // Instanced message queue
-  std::deque<std::shared_ptr<std::vector<unsigned char> > > zn_message_queue_;
+  std::deque<std::shared_ptr<std::vector<unsigned char>>> zn_message_queue_;
   std::mutex message_queue_mutex_;
 
   size_t subscription_id_;
