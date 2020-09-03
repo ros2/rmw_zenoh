@@ -306,14 +306,16 @@ rmw_destroy_service(rmw_node_t * node, rmw_service_t * service)
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(service, RMW_RET_INVALID_ARGUMENT);
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(node,
-                                   node->implementation_identifier,
-                                   eclipse_zenoh_identifier,
-                                   return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(service,
-                                   service->implementation_identifier,
-                                   eclipse_zenoh_identifier,
-                                   return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    node,
+    node->implementation_identifier,
+    eclipse_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    service,
+    service->implementation_identifier,
+    eclipse_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   // OBTAIN ALLOCATOR ==========================================================
   rcutils_allocator_t * allocator = &node->context->options.allocator;

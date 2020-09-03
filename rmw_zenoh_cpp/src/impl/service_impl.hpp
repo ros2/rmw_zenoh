@@ -27,7 +27,7 @@ struct rmw_service_data_t
   static std::atomic<size_t> service_id_counter;
 
   // Map of Zenoh topic key expression to service data struct instances
-  static std::unordered_map<std::string, std::vector<rmw_service_data_t *> >
+  static std::unordered_map<std::string, std::vector<rmw_service_data_t *>>
     zn_topic_to_service_data;
 
   /// INSTANCE MEMBERS =========================================================
@@ -55,7 +55,7 @@ struct rmw_service_data_t
   const rmw_node_t * node_;
 
   // Instanced request message queue
-  std::deque<std::shared_ptr<std::vector<unsigned char> > > zn_request_message_queue_;
+  std::deque<std::shared_ptr<std::vector<unsigned char>>> zn_request_message_queue_;
   std::mutex request_queue_mutex_;
 
   size_t service_id_;

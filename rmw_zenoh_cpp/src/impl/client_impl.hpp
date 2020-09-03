@@ -27,7 +27,7 @@ struct rmw_client_data_t
   static int64_t sequence_id;
 
   // Serialized ROS response messages
-  static std::unordered_map<std::string, std::vector<unsigned char> > zn_response_messages_;
+  static std::unordered_map<std::string, std::vector<unsigned char>> zn_response_messages_;
 
   // Availability query Zenoh responses
   static std::unordered_set<std::string> zn_availability_query_responses_;

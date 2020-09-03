@@ -16,7 +16,7 @@ std::mutex query_callback_mutex;
 int64_t rmw_client_data_t::sequence_id = -1;
 
 // Static response ROS message map
-std::unordered_map<std::string, std::vector<unsigned char> >
+std::unordered_map<std::string, std::vector<unsigned char>>
   rmw_client_data_t::zn_response_messages_;
 
 // Static availability query Zenoh response set
