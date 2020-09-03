@@ -1,10 +1,6 @@
 #include "pubsub_impl.hpp"
 
 #include <iostream>
-#include <mutex>
-#include <string>
-#include <unordered_map>
-#include <vector>
 
 #include "rmw_zenoh_cpp/TypeSupport.hpp"
 #include "rcutils/logging_macros.h"
@@ -46,16 +42,20 @@ void rmw_subscription_data_t::zn_sub_callback(const zn_sample * sample) {
   if (map_iter != rmw_subscription_data_t::zn_topic_to_sub_data.end()) {
     // Push shared pointer to message bytes to all associated subscription message queues
     for (auto it = map_iter->second.begin(); it != map_iter->second.end(); ++it) {
+      std::unique_lock<std::mutex> lock((*it)->message_queue_mutex_);
+
       if ((*it)->zn_message_queue_.size() >= (*it)->queue_depth_) {
         // Log warning if message is discarded due to hitting the queue depth
         RCUTILS_LOG_WARN_NAMED("rmw_zenoh_cpp",
                                "Message queue depth of %ld reached, discarding oldest message: %s",
                                (*it)->queue_depth_,
                                key.c_str());
-        (*it)->zn_message_queue_.pop_front();
-      }
 
-      (*it)->zn_message_queue_.push_back(byte_vec_ptr);
+        (*it)->zn_message_queue_.pop_back();
+      }
+      (*it)->zn_message_queue_.push_front(byte_vec_ptr);
+
+      (*it)->message_queue_mutex_.unlock();
     }
   }
 }

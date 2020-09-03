@@ -7,6 +7,7 @@
 #include <vector>
 #include <memory>
 #include <deque>
+#include <mutex>
 #include <atomic>
 
 #include "rmw/rmw.h"
@@ -59,6 +60,7 @@ struct rmw_subscription_data_t
 
   // Instanced message queue
   std::deque<std::shared_ptr<std::vector<unsigned char> > > zn_message_queue_;
+  std::mutex message_queue_mutex_;
 
   size_t subscription_id_;
   size_t queue_depth_;

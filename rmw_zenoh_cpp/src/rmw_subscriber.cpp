@@ -318,6 +318,8 @@ rmw_take(
   rcutils_allocator_t * allocator = &subscription_data->node_->context->options.allocator;
 
   // RETRIEVE SERIALIZED MESSAGE ===============================================
+  std::unique_lock<std::mutex> lock(subscription_data->message_queue_mutex_);
+
   if (subscription_data->zn_message_queue_.empty()) {
     // NOTE(CH3): It is correct to be returning RMW_RET_OK. The information that the message
     // was not found is encoded in the fact that the taken-out parameter is still False.
@@ -327,8 +329,10 @@ rmw_take(
   }
 
   // NOTE(CH3): Potential place to handle "QoS" (e.g. could pop from back so it is LIFO)
-  auto msg_bytes = *subscription_data->zn_message_queue_.front();
-  subscription_data->zn_message_queue_.pop_front();
+  auto msg_bytes_ptr = subscription_data->zn_message_queue_.back();
+  subscription_data->zn_message_queue_.pop_back();
+
+  subscription_data->message_queue_mutex_.unlock();
 
   RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp",
                           "[rmw_take] Message found: %s",
@@ -343,11 +347,11 @@ rmw_take(
   //
   // But that will mean tracking the serialisation state of the message (perhaps with a pair?)
   unsigned char * cdr_buffer = static_cast<unsigned char *>(
-      allocator->allocate(msg_bytes.size(), allocator->state));
-  memcpy(cdr_buffer, &msg_bytes.front(), msg_bytes.size());
+      allocator->allocate((*msg_bytes_ptr).size(), allocator->state));
+  memcpy(cdr_buffer, &(*msg_bytes_ptr).front(), (*msg_bytes_ptr).size());
 
   // Object that manages the raw buffer
-  eprosima::fastcdr::FastBuffer fastbuffer(reinterpret_cast<char *>(cdr_buffer), msg_bytes.size());
+  eprosima::fastcdr::FastBuffer fastbuffer(reinterpret_cast<char *>(cdr_buffer), (*msg_bytes_ptr).size());
 
   // Object that serializes the data
   eprosima::fastcdr::Cdr deser(fastbuffer,
@@ -418,8 +422,8 @@ rmw_take_with_info(
   }
 
   // NOTE(CH3): Potential place to handle "QoS" (e.g. could pop from back so it is LIFO)
-  auto msg_bytes = *subscription_data->zn_message_queue_.front();
-  subscription_data->zn_message_queue_.pop_front();
+  auto msg_bytes = *subscription_data->zn_message_queue_.back();
+  subscription_data->zn_message_queue_.pop_back();
 
   RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp",
                           "[rmw_take] Message found: %s",
