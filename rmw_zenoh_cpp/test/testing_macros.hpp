@@ -12,12 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "gtest/gtest.h"
+#ifndef TESTING_MACROS_HPP_
+#define TESTING_MACROS_HPP_
 
-#include "osrf_testing_tools_cpp/scope_exit.hpp"
+#include <chrono>
+#include <thread>
 
-#include "rmw/init.h"
+/// Retry until `timeout` expires, sleeping for `delay` in between attempts.
+/*
+ * \note Time is measured against OS provided steady clock.
+ */
+#define SLEEP_AND_RETRY_UNTIL(delay, timeout) for ( \
+    auto loop_start_time = std::chrono::steady_clock::now(); \
+    std::chrono::steady_clock::now() - loop_start_time < timeout; \
+    std::this_thread::sleep_for(delay))
 
-TEST(RMWInitTest, FillMeIn) {
-  EXPECT_TRUE(false);
-}
+#endif  // TESTING_MACROS_HPP_
