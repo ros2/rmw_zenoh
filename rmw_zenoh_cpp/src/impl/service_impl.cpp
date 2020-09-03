@@ -29,13 +29,16 @@ std::mutex request_callback_mutex;
 /// STATIC SERVICE DATA MEMBERS ================================================
 std::atomic<size_t> rmw_service_data_t::service_id_counter(0);
 
+// *INDENT-OFF* because uncrustify can't decide which way to format this
 // Map of Zenoh topic key expression to service data
 std::unordered_map<std::string, std::vector<rmw_service_data_t *>>
   rmw_service_data_t::zn_topic_to_service_data;
+// *INDENT-ON*
 
 
 /// ZENOH REQUEST MESSAGE SUBSCRIPTION CALLBACK (static method) ================
-void rmw_service_data_t::zn_request_sub_callback(const zn_sample * sample) {
+void rmw_service_data_t::zn_request_sub_callback(const zn_sample * sample)
+{
   std::lock_guard<std::mutex> guard(request_callback_mutex);
 
   // NOTE(CH3): We unfortunately have to do this copy construction since we shouldn't be using
@@ -79,7 +82,8 @@ void rmw_service_data_t::zn_request_sub_callback(const zn_sample * sample) {
 }
 
 /// ZENOH SERVICE AVAILABILITY QUERYABLE CALLBACK ==============================
-void rmw_service_data_t::zn_service_availability_queryable_callback(ZNQuery * query) {
+void rmw_service_data_t::zn_service_availability_queryable_callback(ZNQuery * query)
+{
   const zn_string * resource = zn_query_res_name(query);
   const zn_string * predicate = zn_query_predicate(query);
 

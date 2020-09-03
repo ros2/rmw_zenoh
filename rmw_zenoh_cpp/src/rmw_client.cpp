@@ -70,12 +70,13 @@ rmw_service_server_is_available(
 
   // CHECK SERVER AVAILABILITY =================================================
   // Check if server is alive by querying its availability Zenoh queryable
-  zn_query(client_data->zn_session_,
-           client->service_name,
-           "",  // NOTE(CH3): Maybe use this predicate if we want to more things in the queryable
-           zn_query_target_default(),
-           zn_query_consolidation_default(),
-           rmw_client_data_t::zn_service_availability_query_callback);
+  zn_query(
+    client_data->zn_session_,
+    client->service_name,
+    "",  // NOTE(CH3): Maybe use this predicate if we want to more things in the queryable
+    zn_query_target_default(),
+    zn_query_consolidation_default(),
+    rmw_client_data_t::zn_service_availability_query_callback);
 
   std::string key(client->service_name);
 
@@ -166,8 +167,8 @@ rmw_create_client(
 
   // CREATE CLIENT =============================================================
   rmw_client_t * client = static_cast<rmw_client_t *>(allocator->allocate(
-    sizeof(rmw_client_t),
-    allocator->state));
+      sizeof(rmw_client_t),
+      allocator->state));
   if (!client) {
     RMW_SET_ERROR_MSG("failed to allocate rmw_client_t");
     return nullptr;
@@ -184,8 +185,8 @@ rmw_create_client(
   }
 
   client->data = static_cast<rmw_client_data_t *>(allocator->allocate(
-    sizeof(rmw_client_data_t),
-    allocator->state));
+      sizeof(rmw_client_data_t),
+      allocator->state));
   new(client->data) rmw_client_data_t();
   if (!client->data) {
     RMW_SET_ERROR_MSG("failed to allocate client data");
@@ -231,7 +232,9 @@ rmw_create_client(
   //
   // Another topic on another process might clash with the ID on this process, even within the
   // same Zenoh network! It is not a UUID!!
-  client_data->zn_request_topic_id_ = zn_declare_resource(session, client_data->zn_request_topic_key_);
+  client_data->zn_request_topic_id_ = zn_declare_resource(
+    session,
+    client_data->zn_request_topic_key_);
 
   // INSERT TYPE SUPPORT =======================================================
   // Init type support callbacks
@@ -247,7 +250,7 @@ rmw_create_client(
 
   // Allocate and in-place assign new typesupport instances
   client_data->request_type_support_ = static_cast<rmw_zenoh_cpp::RequestTypeSupport *>(
-      allocator->allocate(sizeof(rmw_zenoh_cpp::RequestTypeSupport), allocator->state));
+    allocator->allocate(sizeof(rmw_zenoh_cpp::RequestTypeSupport), allocator->state));
   new(client_data->request_type_support_) rmw_zenoh_cpp::RequestTypeSupport(service_members);
   if (!client_data->request_type_support_) {
     RMW_SET_ERROR_MSG("failed to allocate RequestTypeSupport");
@@ -267,7 +270,8 @@ rmw_create_client(
   if (!client_data->response_type_support_) {
     RMW_SET_ERROR_MSG("failed to allocate ResponseTypeSupport");
     allocator->deallocate(const_cast<char *>(client_data->zn_request_topic_key_), allocator->state);
-    allocator->deallocate(const_cast<char *>(client_data->zn_response_topic_key_),
+    allocator->deallocate(
+      const_cast<char *>(client_data->zn_response_topic_key_),
       allocator->state);
     allocator->deallocate(client_data->request_type_support_, allocator->state);
     allocator->deallocate(client->data, allocator->state);
@@ -377,7 +381,7 @@ rmw_create_client(
     session,
     client->service_name,
     STORAGE,
-    [](ZNQuery * query){});
+    [](ZNQuery * query) {});
 
   return client;
 }
@@ -530,7 +534,8 @@ rmw_send_request(const rmw_client_t * client, const void * ros_request, int64_t 
   if (!client_data->request_type_support_->serializeROSmessage(
       ros_request,
       ser,
-      client_data->request_type_support_impl_)) {
+      client_data->request_type_support_impl_))
+  {
     RMW_SET_ERROR_MSG("failed serialize ROS request message");
     allocator->deallocate(request_bytes, allocator->state);
     return RMW_RET_ERROR;
@@ -545,9 +550,10 @@ rmw_send_request(const rmw_client_t * client, const void * ros_request, int64_t 
   *sequence_id = rmw_client_data_t::sequence_id_counter.fetch_add(1, std::memory_order_relaxed);
 
   size_t meta_length = sizeof(std::int64_t); // Internal type of the atomic sequence ID
-  memcpy(request_bytes + data_length,
-         reinterpret_cast<char *>(sequence_id),
-         meta_length);
+  memcpy(
+    request_bytes + data_length,
+    reinterpret_cast<char *>(sequence_id),
+    meta_length);
 
   // PUBLISH ON ZENOH MIDDLEWARE LAYER =========================================
   size_t wrid_ret = zn_write_wrid(
@@ -649,7 +655,7 @@ rmw_take_response(
     eprosima::fastcdr::Cdr::DDS_CDR);
   if (!client_data->response_type_support_->deserializeROSmessage(
       deser, ros_response, client_data->response_type_support_impl_))
-    {
+  {
     RMW_SET_ERROR_MSG("could not deserialize ROS response message");
     return RMW_RET_ERROR;
   }

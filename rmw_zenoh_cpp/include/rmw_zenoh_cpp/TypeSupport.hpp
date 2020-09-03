@@ -36,13 +36,15 @@ class TypeSupport
 public:
   size_t getEstimatedSerializedSize(const void * ros_message);
 
-  bool serializeROSmessage(const void * ros_message,
-                           eprosima::fastcdr::Cdr & ser,
-                           const void * impl) const;
+  bool serializeROSmessage(
+    const void * ros_message,
+    eprosima::fastcdr::Cdr & ser,
+    const void * impl) const;
 
-  bool deserializeROSmessage(eprosima::fastcdr::Cdr & deser,
-                             void * ros_message,
-                             const void * impl) const;
+  bool deserializeROSmessage(
+    eprosima::fastcdr::Cdr & deser,
+    void * ros_message,
+    const void * impl) const;
 
 protected:
   TypeSupport();

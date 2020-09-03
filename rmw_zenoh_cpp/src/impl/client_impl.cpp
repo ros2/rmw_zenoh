@@ -25,17 +25,21 @@ std::mutex query_callback_mutex;
 std::atomic<std::int64_t> rmw_client_data_t::sequence_id_counter(0);
 std::atomic<size_t> rmw_client_data_t::client_id_counter(0);
 
+// *INDENT-OFF* because uncrustify can't decide which way to format this
 // Map of Zenoh topic key expression to client data
 std::unordered_map<std::string, std::vector<rmw_client_data_t *>>
   rmw_client_data_t::zn_topic_to_client_data;
+// *INDENT-ON*
 
+// *INDENT-OFF* because uncrustify can't decide which way to format this
 // Map of Zenoh queryable key expression to client data
 std::unordered_map<std::string, std::vector<rmw_client_data_t *>>
   rmw_client_data_t::zn_queryable_to_client_data;
-
+// *INDENT-ON*
 
 /// ZENOH RESPONSE SUBSCRIPTION CALLBACK (static method) =======================
-void rmw_client_data_t::zn_response_sub_callback(const zn_sample * sample) {
+void rmw_client_data_t::zn_response_sub_callback(const zn_sample * sample)
+{
   std::lock_guard<std::mutex> guard(response_callback_mutex);
 
   // NOTE(CH3): We unfortunately have to do this copy construction since we shouldn't be using
@@ -78,8 +82,10 @@ void rmw_client_data_t::zn_response_sub_callback(const zn_sample * sample) {
   }
 }
 /// ZENOH SERVICE AVAILABILITY QUERY CALLBACK ==================================
-void rmw_client_data_t::zn_service_availability_query_callback(const zn_source_info * info,
-                                                               const zn_sample * sample) {
+void rmw_client_data_t::zn_service_availability_query_callback(
+  const zn_source_info * info,
+  const zn_sample * sample)
+{
   std::lock_guard<std::mutex> guard(query_callback_mutex);
 
   // NOTE(CH3): We unfortunately have to do this copy construction since we shouldn't be using

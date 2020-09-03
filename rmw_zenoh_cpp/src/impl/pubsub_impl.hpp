@@ -58,9 +58,11 @@ struct rmw_subscription_data_t
   // Counter to give subscriptions unique IDs
   static std::atomic<size_t> subscription_id_counter;
 
+  // *INDENT-OFF* because uncrustify can't decide which way to format this
   // Map of Zenoh topic key expression to subscription data struct instances
   static std::unordered_map<std::string, std::vector<rmw_subscription_data_t *>>
     zn_topic_to_sub_data;
+  // *INDENT-ON*
 
   /// INSTANCE MEMBERS =============================================================================
   const void * type_support_impl_;

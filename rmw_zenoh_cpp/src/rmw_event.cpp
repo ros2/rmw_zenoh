@@ -49,13 +49,15 @@ rmw_publisher_event_init(
   RMW_CHECK_ARGUMENT_FOR_NULL(publisher, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(event, RMW_RET_INVALID_ARGUMENT);
 
-  if (event_type == RMW_EVENT_INVALID)
+  if (event_type == RMW_EVENT_INVALID) {
     return RMW_RET_INVALID_ARGUMENT;
+  }
 
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(publisher,
-                                   publisher->implementation_identifier,
-                                   eclipse_zenoh_identifier,
-                                   return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    publisher,
+    publisher->implementation_identifier,
+    eclipse_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   // TODO(CH3) NOTE(CH3): Check if event type is supported
   // Most likely no. It seems to be a DDS QoS specific thing
@@ -84,8 +86,9 @@ rmw_subscription_event_init(
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(event, RMW_RET_INVALID_ARGUMENT);
 
-  if (event_type == RMW_EVENT_INVALID)
+  if (event_type == RMW_EVENT_INVALID) {
     return RMW_RET_INVALID_ARGUMENT;
+  }
 
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     subscription,

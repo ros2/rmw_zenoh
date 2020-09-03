@@ -376,7 +376,9 @@ rmw_take(
   memcpy(cdr_buffer, &msg_bytes_ptr->front(), msg_bytes_ptr->size());
 
   // Object that manages the raw buffer
-  eprosima::fastcdr::FastBuffer fastbuffer(reinterpret_cast<char *>(cdr_buffer), msg_bytes_ptr->size());
+  eprosima::fastcdr::FastBuffer fastbuffer(
+    reinterpret_cast<char *>(cdr_buffer),
+    msg_bytes_ptr->size());
 
   // Object that serializes the data
   eprosima::fastcdr::Cdr deser(
@@ -384,7 +386,10 @@ rmw_take(
     eprosima::fastcdr::Cdr::DEFAULT_ENDIAN,
     eprosima::fastcdr::Cdr::DDS_CDR);
   if (!subscription_data->type_support_->deserializeROSmessage(
-      deser, ros_message, subscription_data->type_support_impl_)) {
+      deser,
+      ros_message,
+      subscription_data->type_support_impl_))
+  {
     RMW_SET_ERROR_MSG("could not deserialize ROS message");
     return RMW_RET_ERROR;
   }
@@ -471,12 +476,15 @@ rmw_take_with_info(
   // once.
   //
   // But that will mean tracking the serialisation state of the message (perhaps with a pair?)
-  unsigned char * cdr_buffer = static_cast<unsigned char *>(
-    allocator->allocate(msg_bytes_ptr->size(), allocator->state));
+  unsigned char * cdr_buffer = static_cast<unsigned char *>(allocator->allocate(
+      msg_bytes_ptr->size(),
+      allocator->state));
   memcpy(cdr_buffer, &msg_bytes_ptr->front(), msg_bytes_ptr->size());
 
   // Object that manages the raw buffer
-  eprosima::fastcdr::FastBuffer fastbuffer(reinterpret_cast<char *>(cdr_buffer), msg_bytes_ptr->size());
+  eprosima::fastcdr::FastBuffer fastbuffer(
+    reinterpret_cast<char *>(cdr_buffer),
+    msg_bytes_ptr->size());
 
   // Object that serializes the data
   eprosima::fastcdr::Cdr deser(
@@ -484,7 +492,10 @@ rmw_take_with_info(
     eprosima::fastcdr::Cdr::DEFAULT_ENDIAN,
     eprosima::fastcdr::Cdr::DDS_CDR);
   if (!subscription_data->type_support_->deserializeROSmessage(
-      deser, ros_message, subscription_data->type_support_impl_)) {
+      deser,
+      ros_message,
+      subscription_data->type_support_impl_))
+  {
     RMW_SET_ERROR_MSG("could not deserialize ROS message");
     return RMW_RET_ERROR;
   }

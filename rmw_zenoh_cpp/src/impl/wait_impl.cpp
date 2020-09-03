@@ -43,17 +43,17 @@ bool check_wait_conditions(
     size_t subscriptions_ready = 0;
 
     for (size_t i = 0; i < subscriptions->subscriber_count; ++i) {
-        auto subscription_data = static_cast<rmw_subscription_data_t *>(
-          subscriptions->subscribers[i]);
-        if (subscription_data->zn_message_queue_.empty()) {
-          if (finalize) {
-            // Setting to nullptr lets rcl know that this subscription is not ready
-            subscriptions->subscribers[i] = nullptr;
-          }
-        } else {
-          subscriptions_ready++;
-          stop_wait = true;
+      auto subscription_data = static_cast<rmw_subscription_data_t *>(
+        subscriptions->subscribers[i]);
+      if (subscription_data->zn_message_queue_.empty()) {
+        if (finalize) {
+          // Setting to nullptr lets rcl know that this subscription is not ready
+          subscriptions->subscribers[i] = nullptr;
         }
+      } else {
+        subscriptions_ready++;
+        stop_wait = true;
+      }
     }
 
     if (finalize && subscriptions_ready > 0) {
@@ -68,16 +68,16 @@ bool check_wait_conditions(
     size_t services_ready = 0;
 
     for (size_t i = 0; i < services->service_count; ++i) {
-        auto service_data = static_cast<rmw_service_data_t *>(services->services[i]);
-        if (service_data->zn_request_message_queue_.empty()) {
-          if (finalize) {
-            // Setting to nullptr lets rcl know that this service is not ready
-            services->services[i] = nullptr;
-          }
-        } else {
-          services_ready++;
-          stop_wait = true;
+      auto service_data = static_cast<rmw_service_data_t *>(services->services[i]);
+      if (service_data->zn_request_message_queue_.empty()) {
+        if (finalize) {
+          // Setting to nullptr lets rcl know that this service is not ready
+          services->services[i] = nullptr;
         }
+      } else {
+        services_ready++;
+        stop_wait = true;
+      }
     }
 
     if (finalize && services_ready > 0) {
@@ -93,17 +93,18 @@ bool check_wait_conditions(
     size_t clients_ready = 0;
 
     for (size_t i = 0; i < clients->client_count; ++i) {
-        auto client_data = static_cast<rmw_client_data_t *>(clients->clients[i]);
-        if (client_data->zn_response_message_queue_.empty()
-            && client_data->zn_availability_query_responses_.empty()) {
-          if (finalize) {
-            // Setting to nullptr lets rcl know that this client is not ready
-            clients->clients[i] = nullptr;
-          }
-        } else {
-          clients_ready++;
-          stop_wait = true;
+      auto client_data = static_cast<rmw_client_data_t *>(clients->clients[i]);
+      if (client_data->zn_response_message_queue_.empty() &&
+        client_data->zn_availability_query_responses_.empty())
+      {
+        if (finalize) {
+          // Setting to nullptr lets rcl know that this client is not ready
+          clients->clients[i] = nullptr;
         }
+      } else {
+        clients_ready++;
+        stop_wait = true;
+      }
     }
 
     if (finalize && clients_ready > 0) {
