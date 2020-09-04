@@ -24,8 +24,9 @@
 #include "rmw/event.h"
 #include "rmw/rmw.h"
 
-#include "rmw_zenoh_cpp/rmw_context_impl.hpp"
 #include "rmw_zenoh_cpp/identifier.hpp"
+#include "rmw_zenoh_cpp/qos.hpp"
+#include "rmw_zenoh_cpp/rmw_context_impl.hpp"
 
 #include "impl/type_support_common.hpp"
 #include "impl/pubsub_impl.hpp"
@@ -76,6 +77,11 @@ rmw_create_subscription(
 
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription_options, nullptr);
   RMW_CHECK_ARGUMENT_FOR_NULL(type_supports, nullptr);
+
+  // Although we do not yet support QoS we still fail on clearly-bad settings
+  if (!rmw_zenoh_cpp::is_valid_qos(qos_profile)) {
+    return nullptr;
+  }
 
   // OBTAIN ALLOCATOR ==========================================================
   rcutils_allocator_t * allocator = &node->context->options.allocator;
@@ -543,6 +549,13 @@ rmw_subscription_get_actual_qos(
   const rmw_subscription_t * subscription,
   rmw_qos_profile_t * qos_profile)
 {
+  auto subscription_data = static_cast<rmw_subscription_data_t *>(subscription->data);
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "rmw_subscription_get_actual_qos");
+  qos_profile->history = RMW_QOS_POLICY_HISTORY_KEEP_LAST;
+  qos_profile->reliability = RMW_QOS_POLICY_RELIABILITY_RELIABLE;
+  qos_profile->durability = RMW_QOS_POLICY_DURABILITY_VOLATILE;
+  qos_profile->liveliness = RMW_QOS_POLICY_LIVELINESS_AUTOMATIC;
+  return RMW_RET_OK;
   (void)subscription;
   (void)qos_profile;
   RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "rmw_subscription_get_actual_qos (STUB)");
