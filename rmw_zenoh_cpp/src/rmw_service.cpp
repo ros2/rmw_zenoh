@@ -109,7 +109,7 @@ rmw_create_service(
   }
 
   // CREATE SERVICE MEMBERS ====================================================
-  // Get typed pointer to implementation specific subscription data struct
+  // Get typed pointer to implementation specific service data struct
   auto * service_data = static_cast<rmw_service_data_t *>(service->data);
 
   // Obtain Zenoh session and create Zenoh resource for response messages
@@ -134,8 +134,7 @@ rmw_create_service(
   if (!service_data->zn_response_topic_key_) {
     RMW_SET_ERROR_MSG("failed to allocate zenoh response topic key");
     allocator->deallocate(
-      const_cast<char *>(service_data->zn_request_topic_key_),
-      allocator->state);
+      const_cast<char *>(service_data->zn_request_topic_key_), allocator->state);
     allocator->deallocate(service->data, allocator->state);
 
     allocator->deallocate(const_cast<char *>(service->service_name), allocator->state);
@@ -236,7 +235,7 @@ rmw_create_service(
 
     RCUTILS_LOG_DEBUG_NAMED(
       "rmw_zenoh_cpp",
-      "[rmw_create_service] Zenoh service declared for %s",
+      "[rmw_create_service] Zenoh subscriber declared for %s",
       service_data->zn_request_topic_key_);
   } else {
     // Otherwise, append to the vector
@@ -246,7 +245,7 @@ rmw_create_service(
   RCUTILS_LOG_DEBUG_NAMED(
     "rmw_zenoh_cpp",
     "[rmw_create_service] Service for %s (ID: %ld) added to topic map",
-    service_data->zn_request_topic_key_,
+    service->service_name,
     service_data->service_id_);
 
   // DECLARE SERVICE IS AVAILABLE ==============================================
@@ -267,7 +266,7 @@ rmw_create_service(
   if (service_data->zn_queryable_ == 0) {
     RMW_SET_ERROR_MSG("failed to create availability queryable for service");
 
-    // Delete the subscription data pointer in the Zenoh topic to subscription data map
+    // Delete the service data pointer in the Zenoh topic to service data map
     for (auto it = map_iter->second.begin(); it != map_iter->second.end(); ++it) {
       if ((*it)->service_id_ == service_data->service_id_) {
         map_iter->second.erase(it);
@@ -275,8 +274,8 @@ rmw_create_service(
       }
     }
 
-    // Delete the map element if no other subscription data pointers exist
-    // (That is, when no other subscriptions are listening to the Zenoh topic)
+    // Delete the map element if no other client data pointers exist
+    // (That is, when no other services are listening to the Zenoh request topic)
     if (map_iter->second.empty()) {
       zn_undeclare_subscriber(service_data->zn_request_subscriber_);
       rmw_service_data_t::zn_topic_to_service_data.erase(map_iter);
@@ -323,7 +322,7 @@ rmw_destroy_service(rmw_node_t * node, rmw_service_t * service)
   // OBTAIN SERVICE MEMBERS ====================================================
   auto * service_data = static_cast<rmw_service_data_t *>(service->data);
 
-  // DELETE SUBSCRIPTION DATA IN TOPIC MAP =====================================
+  // DELETE SERVICE DATA IN TOPIC MAP ==========================================
   std::string key(service_data->zn_request_topic_key_);
   auto map_iter = rmw_service_data_t::zn_topic_to_service_data.find(key);
 
@@ -333,7 +332,7 @@ rmw_destroy_service(rmw_node_t * node, rmw_service_t * service)
       "service not found in Zenoh topic to service data map! %s",
       service_data->zn_request_topic_key_);
   } else {
-    // Delete the subscription data pointer in the Zenoh topic to subscription data map
+    // Delete the subscription data pointer in the Zenoh topic to service data map
     for (auto it = map_iter->second.begin(); it != map_iter->second.end(); ++it) {
       if ((*it)->service_id_ == service_data->service_id_) {
         map_iter->second.erase(it);
@@ -341,19 +340,19 @@ rmw_destroy_service(rmw_node_t * node, rmw_service_t * service)
       }
     }
 
-    // Delete the map element if no other subscription data pointers exist
-    // (That is, when no other subscriptions are listening to the Zenoh topic)
+    // Delete the map element if no other service data pointers exist
+    // (That is, when no other services are listening to the Zenoh topic)
     if (map_iter->second.empty()) {
       RCUTILS_LOG_DEBUG_NAMED(
         "rmw_zenoh_cpp",
         "[rmw_destroy_service] No more services listening to %s",
         service_data->zn_request_topic_key_);
 
-      // We undeclare subscribers ONCE no active subscribers are listening on this Zenoh topic
+      // We undeclare subscribers ONCE no active Zenoh services are listening on this Zenoh topic
       zn_undeclare_subscriber(service_data->zn_request_subscriber_);
       RCUTILS_LOG_DEBUG_NAMED(
         "rmw_zenoh_cpp",
-        "[rmw_destroy_serice] Zenoh subcriber undeclared for %s",
+        "[rmw_destroy_service] Zenoh subcriber undeclared for %s",
         service_data->zn_request_topic_key_);
 
       rmw_service_data_t::zn_topic_to_service_data.erase(map_iter);
@@ -361,7 +360,7 @@ rmw_destroy_service(rmw_node_t * node, rmw_service_t * service)
 
     RCUTILS_LOG_DEBUG_NAMED(
       "rmw_zenoh_cpp",
-      "[rmw_destroy_serice] Service for %s (ID: %ld) removed from topic map",
+      "[rmw_destroy_service] Service for %s (ID: %ld) removed from topic map",
       service_data->zn_request_topic_key_,
       service_data->service_id_);
   }
@@ -484,11 +483,12 @@ rmw_send_response(const rmw_service_t * service,
 {
   RCUTILS_LOG_DEBUG_NAMED(
     "rmw_zenoh_cpp", "[rmw_send_response] %s (%ld)",
-    service->service_name,
+    static_cast<rmw_service_data_t *>(service->data)->zn_response_topic_key_,
     static_cast<rmw_service_data_t *>(service->data)->zn_response_topic_id_);
 
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(service, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(request_header, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(ros_response, RMW_RET_INVALID_ARGUMENT);
 
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
@@ -508,7 +508,8 @@ rmw_send_response(const rmw_service_t * service,
     &(static_cast<rmw_service_data_t *>(service->data)->node_->context->options.allocator);
 
   // SERIALIZE DATA ============================================================
-  size_t max_data_length = (static_cast<rmw_service_data_t *>(service->data)
+  size_t max_data_length = (
+    static_cast<rmw_service_data_t *>(service->data)
     ->response_type_support_->getEstimatedSerializedSize(ros_response));
 
   // Account for metadata
@@ -517,15 +518,18 @@ rmw_send_response(const rmw_service_t * service,
   // Init serialized message byte array
   char * response_bytes = static_cast<char *>(
     allocator->allocate(max_data_length, allocator->state));
+  if (!response_bytes) {
+    RMW_SET_ERROR_MSG("failed allocate response message bytes");
+    allocator->deallocate(response_bytes, allocator->state);
+    return RMW_RET_ERROR;
+  }
 
   // Object that manages the raw buffer
   eprosima::fastcdr::FastBuffer fastbuffer(response_bytes, max_data_length);
 
   // Object that serializes the data
   eprosima::fastcdr::Cdr ser(
-    fastbuffer,
-    eprosima::fastcdr::Cdr::DEFAULT_ENDIAN,
-    eprosima::fastcdr::Cdr::DDS_CDR);
+    fastbuffer, eprosima::fastcdr::Cdr::DEFAULT_ENDIAN, eprosima::fastcdr::Cdr::DDS_CDR);
   if (!service_data->response_type_support_->serializeROSmessage(
       ros_response, ser, service_data->response_type_support_impl_)) {
     allocator->deallocate(response_bytes, allocator->state);
