@@ -68,7 +68,7 @@ rmw_service_server_is_available(
     client_data->zn_availability_query_responses_.erase(key);
     *result = true;
   } else {
-    sleep(1); // Don't spam the service
+    sleep(0.5); // Don't spam the service
   }
 
   return RMW_RET_OK;
