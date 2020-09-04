@@ -54,8 +54,7 @@ bool check_wait_conditions(
     size_t services_ready = 0;
 
     for (size_t i = 0; i < services->service_count; ++i) {
-        auto service_data = static_cast<rmw_service_data_t *>(
-          services->services[i]);
+        auto service_data = static_cast<rmw_service_data_t *>(services->services[i]);
         if (service_data->zn_request_message_queue_.empty()) {
           if (finalize) {
             // Setting to nullptr lets rcl know that this service is not ready
@@ -74,20 +73,30 @@ bool check_wait_conditions(
     }
   }
 
-  return stop_wait;
 
   // CLIENTS ===================================================================
-  if (!rmw_client_data_t::zn_response_messages_.empty()) {
-    RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_wait] RESPONSE MESSAGES IN QUEUE: %ld",
-                            rmw_client_data_t::zn_response_messages_.size());
-    return true;
-  }
+  if (clients) {
+    size_t clients_ready = 0;
 
-  // Clients: If there are service server availabiity messages ready, continue
-  if (!rmw_client_data_t::zn_availability_query_responses_.empty()) {
-    RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_wait] AVAILABILITY QUERY RESPONSES: %ld",
-                            rmw_client_data_t::zn_availability_query_responses_.size());
-    return true;
+    for (size_t i = 0; i < clients->client_count; ++i) {
+        auto client_data = static_cast<rmw_client_data_t *>(clients->clients[i]);
+        if (client_data->zn_response_message_queue_.empty()
+            || client_data->zn_availability_query_responses_.empty()) {
+          if (finalize) {
+            // Setting to nullptr lets rcl know that this client is not ready
+            clients->clients[i] = nullptr;
+          }
+        } else {
+          clients_ready++;
+          stop_wait = true;
+        }
+    }
+
+    if (finalize) {
+      RCUTILS_LOG_DEBUG_NAMED(
+        "rmw_zenoh_cpp", "[rmw_wait] CLIENTS READY: %ld",
+        clients_ready);
+    }
   }
 
   // TODO(CH3): Handle events
@@ -114,5 +123,5 @@ bool check_wait_conditions(
   //   }
   // }
 
-  return false;
+  return stop_wait;
 }
