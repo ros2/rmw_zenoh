@@ -39,7 +39,7 @@ struct rmw_service_data_t
   rmw_zenoh_cpp::TypeSupport * request_type_support_;
   rmw_zenoh_cpp::TypeSupport * response_type_support_;
 
-  /// Zenoh
+  /// ZENOH ====================================================================
   ZNSession * zn_session_;
   ZNQueryable * zn_queryable_;
 
