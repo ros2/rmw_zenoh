@@ -42,7 +42,7 @@ bool check_wait_conditions(
         }
     }
 
-    if (finalize) {
+    if (finalize && subscriptions_ready != 0) {
       RCUTILS_LOG_DEBUG_NAMED(
         "rmw_zenoh_cpp", "[rmw_wait] SUBSCRIPTIONS READY: %ld",
         subscriptions_ready);
@@ -66,7 +66,7 @@ bool check_wait_conditions(
         }
     }
 
-    if (finalize) {
+    if (finalize && services_ready != 0) {
       RCUTILS_LOG_DEBUG_NAMED(
         "rmw_zenoh_cpp", "[rmw_wait] SERVICES READY: %ld",
         services_ready);
@@ -81,7 +81,7 @@ bool check_wait_conditions(
     for (size_t i = 0; i < clients->client_count; ++i) {
         auto client_data = static_cast<rmw_client_data_t *>(clients->clients[i]);
         if (client_data->zn_response_message_queue_.empty()
-            || client_data->zn_availability_query_responses_.empty()) {
+            && client_data->zn_availability_query_responses_.empty()) {
           if (finalize) {
             // Setting to nullptr lets rcl know that this client is not ready
             clients->clients[i] = nullptr;
@@ -92,7 +92,7 @@ bool check_wait_conditions(
         }
     }
 
-    if (finalize) {
+    if (finalize && clients_ready != 0) {
       RCUTILS_LOG_DEBUG_NAMED(
         "rmw_zenoh_cpp", "[rmw_wait] CLIENTS READY: %ld",
         clients_ready);
