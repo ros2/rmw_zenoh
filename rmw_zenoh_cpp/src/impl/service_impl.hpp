@@ -23,6 +23,8 @@ struct rmw_service_data_t
   /// STATIC MEMBERS ===========================================================
   static void zn_request_sub_callback(const zn_sample * sample);
 
+  static void zn_service_availability_queryable_callback(ZNQuery * query);
+
   // Counter to give service servers unique IDs
   static std::atomic<size_t> service_id_counter;
 

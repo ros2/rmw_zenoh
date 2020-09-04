@@ -249,19 +249,9 @@ rmw_create_service(
     service_data->service_id_);
 
   // DECLARE SERVICE IS AVAILABLE ==============================================
-  // Init Zenoh queryable for availability checking
   service_data->zn_queryable_ = zn_declare_queryable(
-    s, service->service_name, EVAL,
-    [](ZNQuery * query) {
-      const zn_string * resource = zn_query_res_name(query);
-      const zn_string * predicate = zn_query_predicate(query);
-
-      std::string res(resource->val, resource->len);
-      std::string response("available");  // NOTE(CH3): The contents actually don't matter...
-
-      zn_send_reply(query, res.c_str(), (const unsigned char *)response.c_str(), response.length());
-    }
-  );
+    s, service->service_name, STORAGE,
+    rmw_service_data_t::zn_service_availability_queryable_callback);
 
   if (service_data->zn_queryable_ == 0) {
     RMW_SET_ERROR_MSG("failed to create availability queryable for service");
