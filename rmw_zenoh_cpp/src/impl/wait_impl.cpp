@@ -123,5 +123,16 @@ bool check_wait_conditions(
   //   }
   // }
 
+  // STUB: NULLIFY/IGNORE ALL GUARD CONDITIONS AND EVENTS FOR NOW
+  // Notably, this causes the QoS warning to be suppressed..
+  // Since that arises from the taking of QoS events, which aren't supported by Zenoh at the moment
+  for (size_t i = 0; i < events->event_count; ++i) {
+    events->events[i] = nullptr;
+  }
+
+  for (size_t i = 0; i < guard_conditions->guard_condition_count; ++i) {
+    guard_conditions->guard_conditions[i] = nullptr;
+  }
+
   return stop_wait;
 }
