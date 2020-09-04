@@ -11,14 +11,43 @@ bool check_wait_conditions(
   const rmw_guard_conditions_t * guard_conditions,
   const rmw_services_t * services,
   const rmw_clients_t * clients,
-  const rmw_events_t * events)
+  const rmw_events_t * events,
+  bool finalize)
 {
-  // Subscriptions: If there are subscription messages ready, continue
-  if (!rmw_subscription_data_t::zn_messages_.empty()) {
-    RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_wait] SUBSCRIPTION MESSAGES IN QUEUE: %ld",
-                             rmw_subscription_data_t::zn_messages_.size());
-    return true;
+  // NOTE(CH3): On the finalize parameter
+  // This check function is used as a predicate to wait on a condition variable. But rcl expects
+  // rmw to set any passed in pointers to NULL if the condition is not ready.
+  //
+  // The finalize parameter is used to make sure that this setting to NULL only happens ONCE per
+  // rmw_wait call. Otherwise on repeat calls to check the predicate, things will break since
+  // it'll try to compare or dereference a nullptr.
+
+  bool stop_wait = false;
+
+  // Subscriptions
+  if (subscriptions) {
+    size_t subscriptions_ready = 0;
+
+    for (size_t i = 0; i < subscriptions->subscriber_count; ++i) {
+        auto subscription_data = static_cast<rmw_subscription_data_t *>(subscriptions->subscribers[i]);
+        if (subscription_data->zn_message_queue_.empty()) {
+          if (finalize) {
+            // Setting to nullptr lets rcl know that this subscription is not ready
+            subscriptions->subscribers[i] = nullptr;
+          }
+        } else {
+          subscriptions_ready++;
+          stop_wait = true;
+        }
+    }
+
+    if (finalize) {
+      RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_wait] SUBSCRIPTIONS READY: %ld",
+                               subscriptions_ready);
+    }
   }
+
+  return stop_wait;
 
   // Services: If there are request messages ready, continue
   if (!rmw_service_data_t::zn_request_messages_.empty()) {

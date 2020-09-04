@@ -21,7 +21,8 @@ bool check_wait_conditions(
   const rmw_guard_conditions_t * guard_conditions,
   const rmw_services_t * services,
   const rmw_clients_t * clients,
-  const rmw_events_t * events
+  const rmw_events_t * events,
+  bool finalize
 );
 
 #endif  // IMPL__WAIT_IMPL_HPP_

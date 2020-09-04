@@ -118,11 +118,12 @@ rmw_wait(  // All parameters are in parameters
 
   RCUTILS_LOG_DEBUG_NAMED(
     "rmw_zenoh_cpp",
-    "[rmw_wait] %ld subscriptions, %ld srv_servers, %ld srv_clients, %ld events",
+    "[rmw_wait] %ld subscriptions, %ld srv_servers, %ld srv_clients, %ld events, %ld guard conditions",
     subscriptions->subscriber_count,
     services->service_count,
     clients->client_count,
-    events->event_count);
+    events->event_count,
+    guard_conditions->guard_condition_count);
 
   if (wait_timeout) {
     RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_wait] TIMEOUT: %ld s %ld ns",
@@ -158,9 +159,9 @@ rmw_wait(  // All parameters are in parameters
   // CHECK WAIT CONDITIONS =====================================================
   std::unique_lock<std::mutex> lock(*condition_mutex);
 
-  bool ready = check_wait_conditions(subscriptions, guard_conditions, services, clients, events);
+  bool ready = check_wait_conditions(subscriptions, guard_conditions, services, clients, events, false);
   auto predicate = [subscriptions, guard_conditions, services, clients, events]() {
-    return check_wait_conditions(subscriptions, guard_conditions, services, clients, events);
+    return check_wait_conditions(subscriptions, guard_conditions, services, clients, events, false);
   };
 
   bool timed_out = false;
@@ -181,6 +182,13 @@ rmw_wait(  // All parameters are in parameters
     }
   }
 
+  // The finalize parameter passed in here enables debug and setting of non-ready conditions
+  // to NULL (as expected by rcl)
+  //
+  // (In other words, it ensures that this happens once per rmw_wait call)
+  //
+  // Debug logs and NULL assignments do not happen in the predicate above, and only on this call
+  check_wait_conditions(subscriptions, guard_conditions, services, clients, events, true);
   lock.unlock();
 
   if (timed_out) {

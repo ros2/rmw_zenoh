@@ -5,6 +5,10 @@
 #include <utility>
 #include <string>
 #include <vector>
+#include <memory>
+#include <deque>
+#include <mutex>
+#include <atomic>
 
 #include "rmw/rmw.h"
 #include "rmw_zenoh_cpp/TypeSupport.hpp"
@@ -34,11 +38,17 @@ struct rmw_publisher_data_t
 // Functionally a struct. But with a method for handling incoming Zenoh messages
 struct rmw_subscription_data_t
 {
+  /// STATIC MEMBERS ===============================================================================
   static void zn_sub_callback(const zn_sample * sample);
 
-  // Map of Zenoh topic key expression to latest serialized ROS messages
-  static std::unordered_map<std::string, std::vector<unsigned char> > zn_messages_;
+  // Counter to give subscriptions unique IDs
+  static std::atomic<size_t> subscription_id_counter;
 
+  // Map of Zenoh topic key expression to subscription data struct instances
+  static std::unordered_map<std::string, std::vector<rmw_subscription_data_t *>>
+    zn_topic_to_sub_data;
+
+  /// INSTANCE MEMBERS =============================================================================
   const void * type_support_impl_;
   const char * typesupport_identifier_;
 
@@ -47,6 +57,13 @@ struct rmw_subscription_data_t
 
   ZNSession * zn_session_;
   ZNSubscriber * zn_subscriber_;
+
+  // Instanced message queue
+  std::deque<std::shared_ptr<std::vector<unsigned char>>> zn_message_queue_;
+  std::mutex message_queue_mutex_;
+
+  size_t subscription_id_;
+  size_t queue_depth_;
 };
 
 #endif  // IMPL__PUBSUB_IMPL_HPP_

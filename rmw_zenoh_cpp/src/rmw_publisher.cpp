@@ -127,9 +127,9 @@ rmw_create_publisher(
   ZNSession * s = node->context->impl->session;
 
   // The topic ID must be unique within a single process, but separate processes can reuse IDs,
-  // even in the same Zenoh network, because the ID is never transmitted over the wire. Conversely,
-  // the ID used in two communicating processes cannot be used to determine if they are using the
-  // same topic or not.
+  // even in the same Zenoh network, because the ID is never transmitted over the wire.
+  // Conversely, the ID used in two communicating processes cannot be used to determine if they are
+  // using the same topic or not.
   publisher_data->zn_topic_id_ = zn_declare_resource(s, publisher->topic_name);
 
   // Assign publisher data members
