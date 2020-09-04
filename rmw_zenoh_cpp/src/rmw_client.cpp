@@ -337,7 +337,7 @@ rmw_send_request(const rmw_client_t * client, const void * ros_request, int64_t 
                               ->request_type_support_->getEstimatedSerializedSize(ros_request));
 
   // Account for metadata
-  max_data_length += sizeof(rmw_client_data_t::sequence_id);
+  max_data_length += sizeof(std::int64_t); // Internal type of the atomic sequence ID
 
   // Init serialized message byte array
   char * request_bytes = static_cast<char *>(
@@ -368,12 +368,11 @@ rmw_send_request(const rmw_client_t * client, const void * ros_request, int64_t 
   //
   // TODO(CH3): Refactor this into its own modular set of functions eventually to make adding
   // more metadata convenient
-  rmw_client_data_t::sequence_id++;
-  *sequence_id = rmw_client_data_t::sequence_id;
+  *sequence_id = rmw_client_data_t::sequence_id_counter.fetch_add(1, std::memory_order_relaxed);
 
-  size_t meta_length = sizeof(rmw_client_data_t::sequence_id);
+  size_t meta_length = sizeof(std::int64_t); // Internal type of the atomic sequence ID
   memcpy(request_bytes + data_length,
-         reinterpret_cast<char *>(&rmw_client_data_t::sequence_id),
+         reinterpret_cast<char *>(sequence_id),
          meta_length);
 
   // PUBLISH ON ZENOH MIDDLEWARE LAYER =========================================
@@ -440,7 +439,7 @@ rmw_take_response(
 
   // RETRIEVE METADATA =========================================================
   // TODO(CH3): Again, refactor this into a modular set of functions eventually
-  size_t meta_length = sizeof(rmw_client_data_t::sequence_id);
+  size_t meta_length = sizeof(std::int64_t); // Internal type of the atomic sequence ID
 
   // Use metadata
   memcpy(&request_header->request_id.sequence_number,

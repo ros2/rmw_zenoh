@@ -13,7 +13,7 @@ std::mutex response_callback_mutex;
 std::mutex query_callback_mutex;
 
 // Static sequence ID
-int64_t rmw_client_data_t::sequence_id = -1;
+std::atomic<std::int64_t> rmw_client_data_t::sequence_id_counter(0);
 
 // Static response ROS message map
 std::unordered_map<std::string, std::vector<unsigned char>>

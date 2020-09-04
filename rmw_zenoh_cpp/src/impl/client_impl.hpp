@@ -6,6 +6,10 @@
 #include <utility>
 #include <string>
 #include <vector>
+#include <memory>
+#include <deque>
+#include <mutex>
+#include <atomic>
 
 #include "rmw/rmw.h"
 #include "rmw_zenoh_cpp/TypeSupport.hpp"
@@ -24,7 +28,7 @@ struct rmw_client_data_t
   );
 
   // Sequence id
-  static int64_t sequence_id;
+  static std::atomic<std::int64_t> sequence_id_counter;
 
   // Serialized ROS response messages
   static std::unordered_map<std::string, std::vector<unsigned char>> zn_response_messages_;
