@@ -1,3 +1,4 @@
+#include <unistd.h>
 #include <string>
 
 #include "rcutils/logging_macros.h"
@@ -66,6 +67,8 @@ rmw_service_server_is_available(
       != client_data->zn_availability_query_responses_.end()) {
     client_data->zn_availability_query_responses_.erase(key);
     *result = true;
+  } else {
+    sleep(1); // Don't spam the service
   }
 
   return RMW_RET_OK;
@@ -328,6 +331,32 @@ rmw_create_client(
     "[rmw_create_client] Client for %s (ID: %ld) added to queryable map",
     client->service_name,
     client_data->client_id_);
+
+  // Spoof Zenoh queryable for availability checking
+  //
+  // NOTE(CH3): I know this code chunk looks super super random...
+  // But it is necessary to resolve some as of yet unknown bug that causes the queryable on the
+  // service server side to ignore the queries from a client (if the client is started first)
+  //
+  // I've tested this using pure Zenoh, and the bug doesn't arise. But somehow, despite using
+  // exactly the same code in pure Zenoh, it doesn't want to work here in rmw_zenoh unless this
+  // block is included.
+  //
+  // (Having a listener for queries on a separate process from the service seems to be all that is
+  // necessary.
+  //
+  // Also, the issue is most likely happening on the SERVICE SERVER'S SIDE! But somehow adding this
+  // queryable listener on the SERVICE CLIENT side fixes that issue.
+  //
+  // Additional note: Note that this means that for most use-cases (but not all), we should be fine.
+  // the one edge case is if someone starts a service and client on the same process, but there is
+  // a delay between when the client and service starts (and the client is started first, and there
+  // are no other processes anywhere on the network where the Zenoh queryable is being listened to.)
+  zn_declare_queryable(
+    s,
+    client->service_name,
+    STORAGE,
+    [](ZNQuery * query){});
 
   return client;
 }
