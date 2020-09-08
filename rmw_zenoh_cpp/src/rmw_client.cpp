@@ -65,7 +65,7 @@ rmw_service_server_is_available(
 
   std::string key(client->service_name);
 
-  if (client_data->zn_availability_query_responses_.find(key) != 
+  if (client_data->zn_availability_query_responses_.find(key) !=
     client_data->zn_availability_query_responses_.end())
   {
     client_data->zn_availability_query_responses_.erase(key);
@@ -184,8 +184,8 @@ rmw_create_client(
   auto client_data = static_cast<rmw_client_data_t *>(client->data);
 
   // Obtain Zenoh session and create Zenoh resource for request messages
-  ZNSession * s = node->context->impl->session;
-  client_data->zn_session_ = s;
+  ZNSession * session = node->context->impl->session;
+  client_data->zn_session_ = session;
 
   // Obtain qualified request-response topics
   std::string zn_topic_key(client->service_name);
@@ -216,7 +216,7 @@ rmw_create_client(
   //
   // Another topic on another process might clash with the ID on this process, even within the
   // same Zenoh network! It is not a UUID!!
-  client_data->zn_request_topic_id_ = zn_declare_resource(s, client_data->zn_request_topic_key_);
+  client_data->zn_request_topic_id_ = zn_declare_resource(session, client_data->zn_request_topic_key_);
 
   // INSERT TYPE SUPPORT =======================================================
   // Init type support callbacks
@@ -351,7 +351,7 @@ rmw_create_client(
   // (Having a listener for queries on a separate process from the service seems to be all that is
   // necessary.
   //
-  // Also, the issue is most likely happening on the SERVICE SERVER'S SIDE! But somehow adding this
+  // Also, the issue is most likely happening on the SERVICE SERVER'session SIDE! But somehow adding this
   // queryable listener on the SERVICE CLIENT side fixes that issue.
   //
   // Additional note: Note that this means that for most use-cases (but not all), we should be fine.
@@ -359,7 +359,7 @@ rmw_create_client(
   // a delay between when the client and service starts (and the client is started first, and there
   // are no other processes anywhere on the network where the Zenoh queryable is being listened to.)
   zn_declare_queryable(
-    s,
+    session,
     client->service_name,
     STORAGE,
     [](ZNQuery * query){});

@@ -127,12 +127,12 @@ rmw_create_subscription(
   auto * callbacks = static_cast<const message_type_support_callbacks_t *>(type_support->data);
 
   // Obtain Zenoh session
-  ZNSession * s = node->context->impl->session;
+  ZNSession * session = node->context->impl->session;
 
   // Get typed pointer to implementation specific subscription data struct
   auto * subscription_data = static_cast<rmw_subscription_data_t *>(subscription->data);
 
-  subscription_data->zn_session_ = s;
+  subscription_data->zn_session_ = session;
   subscription_data->typesupport_identifier_ = type_support->typesupport_identifier;
   subscription_data->type_support_impl_ = type_support->data;
 

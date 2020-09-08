@@ -103,14 +103,14 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
     SESSION_MODE = PEER;
   }
 
-  ZNSession * s = zn_open(SESSION_MODE, context->options.impl->session_locator, 0);
+  ZNSession * session = zn_open(SESSION_MODE, context->options.impl->session_locator, 0);
 
-  if (s == nullptr) {
+  if (session == nullptr) {
     RMW_SET_ERROR_MSG("failed to create Zenoh session when starting context");
     allocator->deallocate(context_impl, allocator->state);
     return RMW_RET_ERROR;
   } else {
-    context_impl->session = s;
+    context_impl->session = session;
     context_impl->is_shutdown = false;
   }
 

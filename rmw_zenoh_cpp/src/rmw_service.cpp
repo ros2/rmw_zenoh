@@ -116,8 +116,8 @@ rmw_create_service(
   auto * service_data = static_cast<rmw_service_data_t *>(service->data);
 
   // Obtain Zenoh session and create Zenoh resource for response messages
-  ZNSession * s = node->context->impl->session;
-  service_data->zn_session_ = s;
+  ZNSession * session = node->context->impl->session;
+  service_data->zn_session_ = session;
 
   // Obtain qualified request-response topics
   std::string zn_topic_key(service->service_name);
@@ -153,7 +153,7 @@ rmw_create_service(
   // Conversely, the ID used in two communicating processes cannot be used to determine if they are
   // using the same topic or not.
   service_data->zn_response_topic_id_ = zn_declare_resource(
-    s,
+    session,
     service_data->zn_response_topic_key_);
 
   // INSERT TYPE SUPPORT =======================================================
@@ -259,7 +259,7 @@ rmw_create_service(
 
   // DECLARE SERVICE IS AVAILABLE ==============================================
   service_data->zn_queryable_ = zn_declare_queryable(
-    s,
+    session,
     service->service_name,
     STORAGE,
     rmw_service_data_t::zn_service_availability_queryable_callback);
