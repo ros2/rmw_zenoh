@@ -38,7 +38,8 @@ void rmw_service_data_t::zn_request_sub_callback(const zn_sample * sample) {
 
   auto map_iter = rmw_service_data_t::zn_topic_to_service_data.find(key);
 
-  // If the key was not found in the map, the map_iter will return a pointer to the map's end
+  // If the key was not found in the map, it means that there are no RMW services listening on this
+  // topic, so this message can be dropped without issue
   if (map_iter != rmw_service_data_t::zn_topic_to_service_data.end()) {
     // Push shared pointer to message bytes to all associated service request message queues
     for (auto it = map_iter->second.begin(); it != map_iter->second.end(); ++it) {

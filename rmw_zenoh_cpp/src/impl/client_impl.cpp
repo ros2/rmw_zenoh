@@ -38,6 +38,8 @@ void rmw_client_data_t::zn_response_sub_callback(const zn_sample * sample) {
 
   auto map_iter = rmw_client_data_t::zn_topic_to_client_data.find(key);
 
+  // If the key was not found in the map, it means that there are no RMW clients listening on this
+  // topic, so this message can be dropped without issue
   if (map_iter != rmw_client_data_t::zn_topic_to_client_data.end()) {
     // Push shared pointer to message bytes to all associated client response message queues
     for (auto it = map_iter->second.begin(); it != map_iter->second.end(); ++it) {
