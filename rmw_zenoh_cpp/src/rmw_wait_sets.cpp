@@ -170,7 +170,7 @@ rmw_wait(  // All parameters are in parameters
     if (!wait_timeout) {
       // TODO(CH3): Remove this magic number once stable. This is to slow things down so things are
       // visible with all the printouts flying everywhere.
-      condition_variable->wait_for(lock, std::chrono::milliseconds(1500), predicate);
+      condition_variable->wait_for(lock, std::chrono::milliseconds(500), predicate);
     } else if (wait_timeout->sec > 0 || wait_timeout->nsec > 0) {
       auto wait_time = std::chrono::duration_cast<std::chrono::nanoseconds>(
         std::chrono::seconds(wait_timeout->sec));
