@@ -24,12 +24,13 @@ bool check_wait_conditions(
 
   bool stop_wait = false;
 
-  // Subscriptions
+  // SUBSCRIPTIONS =============================================================
   if (subscriptions) {
     size_t subscriptions_ready = 0;
 
     for (size_t i = 0; i < subscriptions->subscriber_count; ++i) {
-        auto subscription_data = static_cast<rmw_subscription_data_t *>(subscriptions->subscribers[i]);
+        auto subscription_data = static_cast<rmw_subscription_data_t *>(
+          subscriptions->subscribers[i]);
         if (subscription_data->zn_message_queue_.empty()) {
           if (finalize) {
             // Setting to nullptr lets rcl know that this subscription is not ready
@@ -41,33 +42,102 @@ bool check_wait_conditions(
         }
     }
 
-    if (finalize) {
-      RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_wait] SUBSCRIPTIONS READY: %ld",
-                               subscriptions_ready);
+    if (finalize && subscriptions_ready > 0) {
+      RCUTILS_LOG_DEBUG_NAMED(
+        "rmw_zenoh_cpp", "[rmw_wait] SUBSCRIPTIONS READY: %ld",
+        subscriptions_ready);
     }
   }
 
-  return stop_wait;
+  // SERVICES ==================================================================
+  if (services) {
+    size_t services_ready = 0;
 
-  // Services: If there are request messages ready, continue
-  if (!rmw_service_data_t::zn_request_messages_.empty()) {
-    RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_wait] REQUEST MESSAGES IN QUEUE: %ld",
-                            rmw_service_data_t::zn_request_messages_.size());
-    return true;
+    for (size_t i = 0; i < services->service_count; ++i) {
+        auto service_data = static_cast<rmw_service_data_t *>(services->services[i]);
+        if (service_data->zn_request_message_queue_.empty()) {
+          if (finalize) {
+            // Setting to nullptr lets rcl know that this service is not ready
+            services->services[i] = nullptr;
+          }
+        } else {
+          services_ready++;
+          stop_wait = true;
+        }
+    }
+
+    if (finalize && services_ready > 0) {
+      RCUTILS_LOG_DEBUG_NAMED(
+        "rmw_zenoh_cpp", "[rmw_wait] SERVICES READY: %ld",
+        services_ready);
+    }
   }
 
-  // Clients: If there are response messages ready, continue
-  if (!rmw_client_data_t::zn_response_messages_.empty()) {
-    RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_wait] RESPONSE MESSAGES IN QUEUE: %ld",
-                            rmw_client_data_t::zn_response_messages_.size());
-    return true;
+
+  // CLIENTS ===================================================================
+  if (clients) {
+    size_t clients_ready = 0;
+
+    for (size_t i = 0; i < clients->client_count; ++i) {
+        auto client_data = static_cast<rmw_client_data_t *>(clients->clients[i]);
+        if (client_data->zn_response_message_queue_.empty()
+            && client_data->zn_availability_query_responses_.empty()) {
+          if (finalize) {
+            // Setting to nullptr lets rcl know that this client is not ready
+            clients->clients[i] = nullptr;
+          }
+        } else {
+          clients_ready++;
+          stop_wait = true;
+        }
+    }
+
+    if (finalize && clients_ready > 0) {
+      RCUTILS_LOG_DEBUG_NAMED(
+        "rmw_zenoh_cpp", "[rmw_wait] CLIENTS READY: %ld",
+        clients_ready);
+    }
   }
 
-  // Clients: If there are service server availabiity messages ready, continue
-  if (!rmw_client_data_t::zn_availability_query_responses_.empty()) {
-    RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_wait] AVAILABILITY QUERY RESPONSES: %ld",
-                            rmw_client_data_t::zn_availability_query_responses_.size());
-    return true;
+  // GUARD CONDITIONS ==========================================================
+  // STUB: NULLIFY/IGNORE ALL GUARD CONDITIONS FOR NOW
+  for (size_t i = 0; i < guard_conditions->guard_condition_count; ++i) {
+    guard_conditions->guard_conditions[i] = nullptr;
+  }
+
+  // NOTE(CH3): TODO(CH3): Uncomment this block when finalizing the RMW implementation
+  // IGNORE GUARD CONDITIONS FOR NOW (They'll keep getting triggered super often, which is good for
+  // responsiveness but not so much for debugging)
+
+  // if (guard_conditions) {
+  //   size_t guard_conditions_ready = 0;
+  //
+  //   for (size_t i = 0; i < guard_conditions->guard_condition_count; ++i) {
+  //       auto guard_condition = static_cast<GuardCondition *>(guard_conditions->guard_conditions[i]);
+  //       if (guard_condition && guard_condition->hasTriggered()) {
+  //         if (finalize) {
+  //           // Setting to nullptr lets rcl know that this guard_condition is not ready
+  //           guard_conditions->guard_conditions[i] = nullptr;
+  //         }
+  //       } else {
+  //         guard_conditions_ready++;
+  //         stop_wait = true;
+  //       }
+  //   }
+  //
+  //   if (finalize && guard_conditions_ready > 0) {
+  //     RCUTILS_LOG_DEBUG_NAMED(
+  //       "rmw_zenoh_cpp", "[rmw_wait] GUARD CONDITIONS READY: %ld",
+  //       guard_conditions_ready);
+  //   }
+  // }
+
+  // EVENTS ====================================================================
+  // STUB: NULLIFY/IGNORE ALL EVENTS FOR NOW
+  // Notably, this causes the QoS warning to be suppressed..
+  // Since that arises from the taking of QoS events, which aren't supported by Zenoh at the moment
+  for (size_t i = 0; i < events->event_count; ++i) {
+    events->events[i] = nullptr;
   }
 
   // TODO(CH3): Handle events
@@ -81,18 +151,5 @@ bool check_wait_conditions(
   //   }
   // }
 
-  // TODO(CH3): Handle guard conditions
-  // For now we'll wait because they keep getting triggered by the client libraries.
-  // if (guard_conditions) {
-  //   for (size_t i = 0; i < guard_conditions->guard_condition_count; ++i) {
-  //     void * data = guard_conditions->guard_conditions[i];
-  //     auto guard_condition = static_cast<GuardCondition *>(data);
-  //     if (guard_condition && guard_condition->hasTriggered()) {
-  //       RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "[rmw_wait] GUARD CONDITION TRIGGERED");
-  //       return true;
-  //     }
-  //   }
-  // }
-
-  return false;
+  return stop_wait;
 }

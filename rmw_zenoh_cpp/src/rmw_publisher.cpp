@@ -124,16 +124,16 @@ rmw_create_publisher(
   auto callbacks = static_cast<const message_type_support_callbacks_t *>(type_support->data);
 
   // Create Zenoh resource
-  ZNSession * s = node->context->impl->session;
+  ZNSession * session = node->context->impl->session;
 
   // The topic ID must be unique within a single process, but separate processes can reuse IDs,
   // even in the same Zenoh network, because the ID is never transmitted over the wire.
   // Conversely, the ID used in two communicating processes cannot be used to determine if they are
   // using the same topic or not.
-  publisher_data->zn_topic_id_ = zn_declare_resource(s, publisher->topic_name);
+  publisher_data->zn_topic_id_ = zn_declare_resource(session, publisher->topic_name);
 
   // Assign publisher data members
-  publisher_data->zn_session_ = s;
+  publisher_data->zn_session_ = session;
   publisher_data->typesupport_identifier_ = type_support->typesupport_identifier;
   publisher_data->type_support_impl_ = type_support->data;
   RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp",

@@ -127,12 +127,12 @@ rmw_create_subscription(
   auto * callbacks = static_cast<const message_type_support_callbacks_t *>(type_support->data);
 
   // Obtain Zenoh session
-  ZNSession * s = node->context->impl->session;
+  ZNSession * session = node->context->impl->session;
 
   // Get typed pointer to implementation specific subscription data struct
   auto * subscription_data = static_cast<rmw_subscription_data_t *>(subscription->data);
 
-  subscription_data->zn_session_ = s;
+  subscription_data->zn_session_ = session;
   subscription_data->typesupport_identifier_ = type_support->typesupport_identifier;
   subscription_data->type_support_impl_ = type_support->data;
 
@@ -264,7 +264,9 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
         "[rmw_destroy_subscription] No more subscriptions listening to %s",
         subscription->topic_name);
 
-      // We undeclare subscribers ONCE no active subscribers are listening on this Zenoh topic
+      // Only when there are no more active RMW subscriptions listening to this Zenoh topic, do we
+      // undeclare the subscriber on Zenoh's end (which means no more Zenoh callbacks will trigger
+      // on this topic)
       zn_undeclare_subscriber(subscription_data->zn_subscriber_);
       RCUTILS_LOG_DEBUG_NAMED(
         "rmw_zenoh_cpp",
@@ -374,6 +376,8 @@ rmw_take(
   }
 
   *taken = true;
+  allocator->deallocate(cdr_buffer, allocator->state);
+
   return RMW_RET_OK;
 }
 
@@ -472,6 +476,8 @@ rmw_take_with_info(
   }
 
   *taken = true;
+  allocator->deallocate(cdr_buffer, allocator->state);
+
   return RMW_RET_OK;
 }
 
