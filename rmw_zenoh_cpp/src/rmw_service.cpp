@@ -349,7 +349,9 @@ rmw_destroy_service(rmw_node_t * node, rmw_service_t * service)
         "[rmw_destroy_service] No more services listening to %s",
         service_data->zn_request_topic_key_);
 
-      // We undeclare subscribers ONCE no active Zenoh services are listening on this Zenoh topic
+      // Only when there are no more active RMW services listening to this Zenoh topic, do we
+      // undeclare the subscriber on Zenoh's end (which means no more Zenoh callbacks will trigger
+      // on this topic)
       zn_undeclare_subscriber(service_data->zn_request_subscriber_);
       RCUTILS_LOG_DEBUG_NAMED(
         "rmw_zenoh_cpp",

@@ -420,7 +420,9 @@ rmw_destroy_client(rmw_node_t * node, rmw_client_t * client)
         "[rmw_destroy_client] No more clients listening to %s",
         client_data->zn_response_topic_key_);
 
-      // We undeclare subscribers ONCE no active subscribers are listening on this Zenoh topic
+      // Only when there are no more active RMW clients listening to this Zenoh topic, do we
+      // undeclare the subscriber on Zenoh's end (which means no more Zenoh callbacks will trigger
+      // on this topic)
       zn_undeclare_subscriber(client_data->zn_response_subscriber_);
       RCUTILS_LOG_DEBUG_NAMED(
         "rmw_zenoh_cpp",
