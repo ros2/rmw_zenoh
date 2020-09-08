@@ -628,6 +628,8 @@ rmw_take_response(
   }
 
   *taken = true;
+  allocator->deallocate(cdr_buffer, allocator->state);
+
   return RMW_RET_OK;
 }
 }  // extern "C"

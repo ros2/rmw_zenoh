@@ -461,6 +461,8 @@ rmw_take_request(
   }
 
   *taken = true;
+  allocator->deallocate(cdr_buffer, allocator->state);
+
   return RMW_RET_OK;
 }
 

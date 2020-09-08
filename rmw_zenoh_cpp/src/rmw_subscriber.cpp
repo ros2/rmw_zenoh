@@ -374,6 +374,8 @@ rmw_take(
   }
 
   *taken = true;
+  allocator->deallocate(cdr_buffer, allocator->state);
+
   return RMW_RET_OK;
 }
 
@@ -472,6 +474,8 @@ rmw_take_with_info(
   }
 
   *taken = true;
+  allocator->deallocate(cdr_buffer, allocator->state);
+
   return RMW_RET_OK;
 }
 
