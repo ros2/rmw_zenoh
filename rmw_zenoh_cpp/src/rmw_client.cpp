@@ -71,6 +71,7 @@ rmw_service_server_is_available(
     client_data->zn_availability_query_responses_.erase(key);
     *result = true;
   } else {
+    // TODO(CH3): Change this if a better way to throttle availability checks is found
     sleep(0.5); // Don't spam the service
   }
 
