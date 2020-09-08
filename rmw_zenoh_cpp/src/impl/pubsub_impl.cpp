@@ -39,6 +39,7 @@ void rmw_subscription_data_t::zn_sub_callback(const zn_sample * sample) {
 
   auto map_iter = rmw_subscription_data_t::zn_topic_to_sub_data.find(key);
 
+  // If the key was not found in the map, the map_iter will return a pointer to the map's end
   if (map_iter != rmw_subscription_data_t::zn_topic_to_sub_data.end()) {
     // Push shared pointer to message bytes to all associated subscription message queues
     for (auto it = map_iter->second.begin(); it != map_iter->second.end(); ++it) {
