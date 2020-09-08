@@ -95,8 +95,6 @@ if(BUILD_TESTING)
 
   find_package(ament_cmake_gtest REQUIRED)
   find_package(osrf_testing_tools_cpp REQUIRED)
-  #find_package(rmw_implementation REQUIRED)
-  #find_package(rmw_implementation_cmake REQUIRED)
 
   ament_add_gtest(test_init_shutdown test/test_init_shutdown.cpp)
   ament_target_dependencies(test_init_shutdown
