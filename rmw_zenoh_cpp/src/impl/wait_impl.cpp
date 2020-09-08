@@ -66,7 +66,7 @@ bool check_wait_conditions(
         }
     }
 
-    if (finalize && services_ready != 0) {
+    if (finalize && services_ready > 0) {
       RCUTILS_LOG_DEBUG_NAMED(
         "rmw_zenoh_cpp", "[rmw_wait] SERVICES READY: %ld",
         services_ready);
@@ -92,7 +92,7 @@ bool check_wait_conditions(
         }
     }
 
-    if (finalize && clients_ready != 0) {
+    if (finalize && clients_ready > 0) {
       RCUTILS_LOG_DEBUG_NAMED(
         "rmw_zenoh_cpp", "[rmw_wait] CLIENTS READY: %ld",
         clients_ready);

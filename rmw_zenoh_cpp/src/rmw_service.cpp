@@ -69,7 +69,8 @@ rmw_create_service(
 
   // OBTAIN TYPESUPPORT ========================================================
   const rosidl_service_type_support_t * type_support = get_service_typesupport_handle(
-    type_supports, RMW_ZENOH_CPP_TYPESUPPORT_C);
+    type_supports,
+    RMW_ZENOH_CPP_TYPESUPPORT_C);
 
   if (!type_support) {
     type_support = get_service_typesupport_handle(type_supports, RMW_ZENOH_CPP_TYPESUPPORT_CPP);
@@ -82,7 +83,8 @@ rmw_create_service(
 
   // CREATE SERVICE ============================================================
   rmw_service_t * service = static_cast<rmw_service_t *>(
-    allocator->allocate(sizeof(rmw_service_t), allocator->state));
+    allocator->allocate(sizeof(rmw_service_t),
+    allocator->state));
   if (!service) {
     RMW_SET_ERROR_MSG("failed to allocate rmw_service_t");
     return nullptr;
@@ -99,7 +101,8 @@ rmw_create_service(
   }
 
   service->data = static_cast<rmw_service_data_t *>(
-    allocator->allocate(sizeof(rmw_service_data_t), allocator->state));
+    allocator->allocate(sizeof(rmw_service_data_t),
+    allocator->state));
   new(service->data) rmw_service_data_t();
   if (!service->data) {
     RMW_SET_ERROR_MSG("failed to allocate service data");
@@ -119,7 +122,8 @@ rmw_create_service(
   // Obtain qualified request-response topics
   std::string zn_topic_key(service->service_name);
   service_data->zn_request_topic_key_ = rcutils_strdup(
-    (zn_topic_key + "/request").c_str(), *allocator);
+    (zn_topic_key + "/request").c_str(),
+    *allocator);
   if (!service_data->zn_request_topic_key_) {
     RMW_SET_ERROR_MSG("failed to allocate zenoh request topic key");
     allocator->deallocate(service->data, allocator->state);
@@ -130,11 +134,13 @@ rmw_create_service(
   }
 
   service_data->zn_response_topic_key_ = rcutils_strdup(
-    (zn_topic_key + "/response").c_str(), *allocator);
+    (zn_topic_key + "/response").c_str(),
+    *allocator);
   if (!service_data->zn_response_topic_key_) {
     RMW_SET_ERROR_MSG("failed to allocate zenoh response topic key");
     allocator->deallocate(
-      const_cast<char *>(service_data->zn_request_topic_key_), allocator->state);
+      const_cast<char *>(service_data->zn_request_topic_key_),
+      allocator->state);
     allocator->deallocate(service->data, allocator->state);
 
     allocator->deallocate(const_cast<char *>(service->service_name), allocator->state);
@@ -147,7 +153,8 @@ rmw_create_service(
   // Conversely, the ID used in two communicating processes cannot be used to determine if they are
   // using the same topic or not.
   service_data->zn_response_topic_id_ = zn_declare_resource(
-    s, service_data->zn_response_topic_key_);
+    s,
+    service_data->zn_response_topic_key_);
 
   // INSERT TYPE SUPPORT =======================================================
   // Init type support callbacks
@@ -163,7 +170,8 @@ rmw_create_service(
 
   // Allocate and in-place assign new typesupport instances
   service_data->request_type_support_ = static_cast<rmw_zenoh_cpp::RequestTypeSupport *>(
-    allocator->allocate(sizeof(rmw_zenoh_cpp::RequestTypeSupport), allocator->state));
+    allocator->allocate(sizeof(rmw_zenoh_cpp::RequestTypeSupport),
+    allocator->state));
   new(service_data->request_type_support_) rmw_zenoh_cpp::RequestTypeSupport(service_members);
   if (!service_data->request_type_support_) {
     RMW_SET_ERROR_MSG("failed to allocate RequestTypeSupport");
@@ -181,7 +189,8 @@ rmw_create_service(
   }
 
   service_data->response_type_support_ = static_cast<rmw_zenoh_cpp::ResponseTypeSupport *>(
-    allocator->allocate(sizeof(rmw_zenoh_cpp::ResponseTypeSupport), allocator->state));
+    allocator->allocate(sizeof(rmw_zenoh_cpp::ResponseTypeSupport),
+    allocator->state));
   new(service_data->response_type_support_) rmw_zenoh_cpp::ResponseTypeSupport(service_members);
   if (!service_data->response_type_support_) {
     RMW_SET_ERROR_MSG("failed to allocate ResponseTypeSupport");
@@ -250,7 +259,9 @@ rmw_create_service(
 
   // DECLARE SERVICE IS AVAILABLE ==============================================
   service_data->zn_queryable_ = zn_declare_queryable(
-    s, service->service_name, STORAGE,
+    s,
+    service->service_name,
+    STORAGE,
     rmw_service_data_t::zn_service_availability_queryable_callback);
 
   if (service_data->zn_queryable_ == 0) {
@@ -442,7 +453,8 @@ rmw_take_request(
   size_t data_length = request_bytes_ptr->size() - meta_length;
 
   unsigned char * cdr_buffer = static_cast<unsigned char *>(
-    allocator->allocate(data_length, allocator->state));
+    allocator->allocate(data_length,
+    allocator->state));
   memcpy(cdr_buffer, &request_bytes_ptr->front(), data_length);
 
   // Object that manages the raw buffer.
@@ -490,7 +502,9 @@ rmw_send_response(const rmw_service_t * service,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   RMW_CHECK_FOR_NULL_WITH_MSG(
-    service->data, "service implementation pointer is null", RMW_RET_INVALID_ARGUMENT);
+    service->data,
+    "service implementation pointer is null",
+    RMW_RET_INVALID_ARGUMENT);
 
   // OBTAIN SERVICE MEMBERS ====================================================
   auto * service_data = static_cast<rmw_service_data_t *>(service->data);
@@ -509,7 +523,8 @@ rmw_send_response(const rmw_service_t * service,
 
   // Init serialized message byte array
   char * response_bytes = static_cast<char *>(
-    allocator->allocate(max_data_length, allocator->state));
+    allocator->allocate(max_data_length,
+    allocator->state));
   if (!response_bytes) {
     RMW_SET_ERROR_MSG("failed allocate response message bytes");
     allocator->deallocate(response_bytes, allocator->state);
@@ -521,9 +536,14 @@ rmw_send_response(const rmw_service_t * service,
 
   // Object that serializes the data
   eprosima::fastcdr::Cdr ser(
-    fastbuffer, eprosima::fastcdr::Cdr::DEFAULT_ENDIAN, eprosima::fastcdr::Cdr::DDS_CDR);
+    fastbuffer,
+    eprosima::fastcdr::Cdr::DEFAULT_ENDIAN,
+    eprosima::fastcdr::Cdr::DDS_CDR);
   if (!service_data->response_type_support_->serializeROSmessage(
-      ros_response, ser, service_data->response_type_support_impl_)) {
+      ros_response,
+      ser,
+      service_data->response_type_support_impl_))
+    {
     allocator->deallocate(response_bytes, allocator->state);
     return RMW_RET_ERROR;
   }

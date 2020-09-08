@@ -47,7 +47,9 @@ rmw_service_server_is_available(
   RMW_CHECK_ARGUMENT_FOR_NULL(result, RMW_RET_INVALID_ARGUMENT);
 
   RMW_CHECK_FOR_NULL_WITH_MSG(
-    client->data, "client implementation pointer is null", RMW_RET_INVALID_ARGUMENT);
+    client->data,
+    "client implementation pointer is null",
+    RMW_RET_INVALID_ARGUMENT);
 
   // OBTAIN CLIENT MEMBERS =====================================================
   auto client_data = static_cast<rmw_client_data_t *>(client->data);
@@ -63,8 +65,9 @@ rmw_service_server_is_available(
 
   std::string key(client->service_name);
 
-  if (client_data->zn_availability_query_responses_.find(key)
-      != client_data->zn_availability_query_responses_.end()) {
+  if (client_data->zn_availability_query_responses_.find(key) != 
+    client_data->zn_availability_query_responses_.end())
+  {
     client_data->zn_availability_query_responses_.erase(key);
     *result = true;
   } else {
@@ -134,7 +137,8 @@ rmw_create_client(
 
   // OBTAIN TYPESUPPORT ========================================================
   const rosidl_service_type_support_t * type_support = get_service_typesupport_handle(
-    type_supports, RMW_ZENOH_CPP_TYPESUPPORT_C);
+    type_supports,
+    RMW_ZENOH_CPP_TYPESUPPORT_C);
 
   if (!type_support) {
     type_support = get_service_typesupport_handle(type_supports, RMW_ZENOH_CPP_TYPESUPPORT_CPP);
@@ -147,7 +151,8 @@ rmw_create_client(
 
   // CREATE CLIENT =============================================================
   rmw_client_t * client = static_cast<rmw_client_t *>(allocator->allocate(
-    sizeof(rmw_client_t), allocator->state));
+    sizeof(rmw_client_t),
+    allocator->state));
   if (!client) {
     RMW_SET_ERROR_MSG("failed to allocate rmw_client_t");
     return nullptr;
@@ -164,7 +169,8 @@ rmw_create_client(
   }
 
   client->data = static_cast<rmw_client_data_t *>(allocator->allocate(
-    sizeof(rmw_client_data_t), allocator->state));
+    sizeof(rmw_client_data_t),
+    allocator->state));
   new(client->data) rmw_client_data_t();
   if (!client->data) {
     RMW_SET_ERROR_MSG("failed to allocate client data");
@@ -500,10 +506,14 @@ rmw_send_request(const rmw_client_t * client, const void * ros_request, int64_t 
 
   // Object that serializes the data.
   eprosima::fastcdr::Cdr ser(
-    fastbuffer, eprosima::fastcdr::Cdr::DEFAULT_ENDIAN, eprosima::fastcdr::Cdr::DDS_CDR);
+    fastbuffer,
+    eprosima::fastcdr::Cdr::DEFAULT_ENDIAN,
+    eprosima::fastcdr::Cdr::DDS_CDR);
 
   if (!client_data->request_type_support_->serializeROSmessage(
-      ros_request, ser, client_data->request_type_support_impl_)) {
+      ros_request,
+      ser,
+      client_data->request_type_support_impl_)) {
     RMW_SET_ERROR_MSG("failed serialize ROS request message");
     allocator->deallocate(request_bytes, allocator->state);
     return RMW_RET_ERROR;
@@ -621,8 +631,8 @@ rmw_take_response(
     eprosima::fastcdr::Cdr::DEFAULT_ENDIAN,
     eprosima::fastcdr::Cdr::DDS_CDR);
   if (!client_data->response_type_support_->deserializeROSmessage(
-      deser, ros_response, client_data->response_type_support_impl_)
-  ) {
+      deser, ros_response, client_data->response_type_support_impl_))
+    {
     RMW_SET_ERROR_MSG("could not deserialize ROS response message");
     return RMW_RET_ERROR;
   }
