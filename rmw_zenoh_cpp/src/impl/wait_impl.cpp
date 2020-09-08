@@ -42,7 +42,7 @@ bool check_wait_conditions(
         }
     }
 
-    if (finalize && subscriptions_ready != 0) {
+    if (finalize && subscriptions_ready > 0) {
       RCUTILS_LOG_DEBUG_NAMED(
         "rmw_zenoh_cpp", "[rmw_wait] SUBSCRIPTIONS READY: %ld",
         subscriptions_ready);
