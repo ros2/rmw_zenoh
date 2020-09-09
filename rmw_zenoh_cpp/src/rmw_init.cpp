@@ -175,7 +175,6 @@ rmw_context_fini(rmw_context_t * context)
 
   // CLEANUP ===================================================================
   // Deallocate implementation specific members
-  allocator->deallocate(context->impl->session, allocator->state);
   allocator->deallocate(context->impl, allocator->state);
 
   // Reset context
