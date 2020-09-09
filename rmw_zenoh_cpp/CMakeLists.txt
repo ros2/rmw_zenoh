@@ -99,12 +99,12 @@ if(BUILD_TESTING)
   ament_add_gtest(test_init_shutdown test/test_init_shutdown.cpp)
   ament_target_dependencies(test_init_shutdown
     rcutils
-    #rmw
     )
   target_link_libraries(test_init_shutdown rmw_zenoh_cpp)
 
   ament_add_gtest(test_init_options test/test_init_options.cpp)
   ament_target_dependencies(test_init_options
+    osrf_testing_tools_cpp
     rcutils
     )
   target_link_libraries(test_init_options rmw_zenoh_cpp)
