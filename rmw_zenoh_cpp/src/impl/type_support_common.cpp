@@ -1,4 +1,4 @@
-// Copyright 2020 Open Source Robotics Foundation, Inc.
+// Copyright 2016-2018 Proyectos y Sistemas de Mantenimiento SL (eProsima).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,6 +11,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+// This file is originally from:
+// https://github.com/ros2/rmw_fastrtps/blob/0134bcf52244cbbb6e7e8ac631de391beaa85f17/rmw_fastrtps_cpp/src/type_support_common.cpp
 
 #include <string>
 
