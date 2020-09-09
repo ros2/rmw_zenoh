@@ -1,3 +1,4 @@
+// Copyright 2016-2018 Proyectos y Sistemas de Mantenimiento SL (eProsima).
 // Copyright 2020 Open Source Robotics Foundation, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,6 +12,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+// This file is originally from:
+// https://github.com/ros2/rmw_fastrtps/blob/469624e3d483290d6f88fe4b89ee5feaa7694e61/rmw_fastrtps_cpp/src/type_support_common.hpp
 
 #ifndef IMPL__TYPE_SUPPORT_COMMON_HPP_
 #define IMPL__TYPE_SUPPORT_COMMON_HPP_
