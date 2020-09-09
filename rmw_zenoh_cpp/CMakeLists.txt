@@ -46,7 +46,6 @@ add_library(rmw_zenoh_cpp
   src/rmw_client.cpp
   src/rmw_subscriber.cpp
   src/rmw_wait_sets.cpp
-  src/qos.cpp
 
   src/impl/identifier.cpp
   src/impl/wait_impl.cpp
@@ -54,6 +53,7 @@ add_library(rmw_zenoh_cpp
   src/impl/service_impl.cpp
   src/impl/client_impl.cpp
   src/impl/type_support_common.cpp
+  src/impl/qos.cpp
 )
 target_link_libraries(rmw_zenoh_cpp
   fastcdr
