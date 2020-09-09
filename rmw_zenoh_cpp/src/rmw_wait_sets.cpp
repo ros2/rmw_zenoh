@@ -1,3 +1,4 @@
+// Copyright 2016-2018 Proyectos y Sistemas de Mantenimiento SL (eProsima).
 // Copyright 2020 Open Source Robotics Foundation, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,9 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Edited from: https://github.com/ros2/rmw_fastrtps/blob/master/rmw_fastrtps_shared_cpp/src/rmw_wait_set.cpp
-
-// Doc: http://docs.ros2.org/latest/api/rmw/rmw_8h.html
+// This file was significantly modified from:
+// https://github.com/ros2/rmw_fastrtps/blob/47a369ea9a4b042d4ffea5e614ed84e766fdb049/rmw_fastrtps_shared_cpp/src/rmw_wait_set.cpp
 
 #include "rcutils/logging_macros.h"
 
