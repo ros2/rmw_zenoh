@@ -11,6 +11,7 @@
 
 #include "rmw_zenoh_cpp/identifier.hpp"
 #include "impl/guard_condition_impl.hpp"
+#include <rmw/ret_types.h>
 
 extern "C"
 {
@@ -43,14 +44,13 @@ rmw_ret_t
 rmw_destroy_guard_condition(rmw_guard_condition_t * guard_condition_handle)
 {
   RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "rmw_destroy_guard_condition");
+  RMW_CHECK_ARGUMENT_FOR_NULL(guard_condition_handle, RMW_RET_INVALID_ARGUMENT);
 
-  if (guard_condition_handle) {
+  if (guard_condition_handle->data) {
     delete static_cast<GuardCondition *>(guard_condition_handle->data);
-    delete guard_condition_handle;
-    return RMW_RET_OK;
   }
-
-  return RMW_RET_ERROR;
+  rmw_guard_condition_free(guard_condition_handle);
+  return RMW_RET_OK;
 }
 
 /// TRIGGER GUARD CONDITION ====================================================
