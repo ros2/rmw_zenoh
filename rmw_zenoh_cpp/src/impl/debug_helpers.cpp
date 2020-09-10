@@ -74,8 +74,7 @@ void rmw_zenoh_cpp::log_debug_qos_profile(const rmw_qos_profile_t * qos_profile)
   }
 
   const char * liveliness_string = NULL;
-  switch (qos_profile->liveliness)
-  {
+  switch (qos_profile->liveliness) {
     case RMW_QOS_POLICY_LIVELINESS_SYSTEM_DEFAULT:
       liveliness_string = "system default";
       break;
