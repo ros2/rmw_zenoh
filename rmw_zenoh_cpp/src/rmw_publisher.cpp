@@ -23,11 +23,11 @@
 #include "rmw/rmw.h"
 
 #include "rmw_zenoh_cpp/identifier.hpp"
-#include "rmw_zenoh_cpp/qos.hpp"
 #include "rmw_zenoh_cpp/rmw_context_impl.hpp"
 
-#include "impl/type_support_common.hpp"
 #include "impl/pubsub_impl.hpp"
+#include "impl/qos.hpp"
+#include "impl/type_support_common.hpp"
 
 
 extern "C"
