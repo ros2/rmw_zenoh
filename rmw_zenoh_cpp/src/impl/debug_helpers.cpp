@@ -55,8 +55,7 @@ void rmw_zenoh_cpp::log_debug_qos_profile(const rmw_qos_profile_t * qos_profile)
       break;
   }
   const char * durability_string = NULL;
-  switch (qos_profile->durability)
-  {
+  switch (qos_profile->durability) {
     case RMW_QOS_POLICY_DURABILITY_SYSTEM_DEFAULT:
       durability_string = "system default";
       break;
