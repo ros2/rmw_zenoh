@@ -17,7 +17,7 @@
 
 void rmw_zenoh_cpp::log_debug_qos_profile(const rmw_qos_profile_t * qos_profile)
 {
-  const char * reliability_string = NULL;
+  const char * reliability_string = nullptr;
   switch (qos_profile->reliability) {
     case RMW_QOS_POLICY_RELIABILITY_SYSTEM_DEFAULT:
       reliability_string = "system default";
