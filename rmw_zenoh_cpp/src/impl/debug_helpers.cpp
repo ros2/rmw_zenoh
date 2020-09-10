@@ -106,7 +106,9 @@ void rmw_zenoh_cpp::log_debug_qos_profile(const rmw_qos_profile_t * qos_profile)
     "    deadline: (%zu, %zu)",
     qos_profile->deadline.sec,
     qos_profile->deadline.nsec);
-  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "    lifespan: (%zu, %zu)",
+  RCUTILS_LOG_DEBUG_NAMED(
+    "rmw_zenoh_cpp",
+    "    lifespan: (%zu, %zu)",
     qos_profile->lifespan.sec,
     qos_profile->lifespan.nsec);
   RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "    liveliness: %s", liveliness_string);
