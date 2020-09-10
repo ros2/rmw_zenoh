@@ -54,6 +54,7 @@ add_library(rmw_zenoh_cpp
   src/impl/client_impl.cpp
   src/impl/type_support_common.cpp
   src/impl/qos.cpp
+  src/impl/debug_helpers.cpp
 )
 target_link_libraries(rmw_zenoh_cpp
   fastcdr
