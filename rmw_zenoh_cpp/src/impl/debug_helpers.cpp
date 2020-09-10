@@ -81,9 +81,10 @@ void rmw_zenoh_cpp::log_debug_qos_profile(const rmw_qos_profile_t * qos_profile)
     case RMW_QOS_POLICY_LIVELINESS_AUTOMATIC:
       liveliness_string = "automatic";
       break;
-
-    // we want to print the debug message, but not trigger the compiler warning
-    case RMW_QOS_POLICY_LIVELINESS_AUTOMATIC+1:
+    case RMW_QOS_POLICY_LIVELINESS_AUTOMATIC + 1:
+      // Use the previous enum value + 1 to print the debug message for
+      // RMW_QOS_POLICY_LIVELINESS_MANUAL_BY_NODE without triggering the compiler warning for using
+      // a deprecated value
       liveliness_string = "manual by node (deprecated)";
       break;
     case RMW_QOS_POLICY_LIVELINESS_MANUAL_BY_TOPIC:
