@@ -28,8 +28,6 @@
 #include "impl/pubsub_impl.hpp"
 #include "impl/qos.hpp"
 #include "impl/type_support_common.hpp"
-
-
 #include "impl/debug_helpers.hpp"
 
 extern "C"
