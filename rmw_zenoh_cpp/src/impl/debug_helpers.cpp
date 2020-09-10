@@ -112,7 +112,9 @@ void rmw_zenoh_cpp::log_debug_qos_profile(const rmw_qos_profile_t * qos_profile)
     qos_profile->lifespan.sec,
     qos_profile->lifespan.nsec);
   RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "    liveliness: %s", liveliness_string);
-  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "    liveliness lease duration: (%zu, %zu)",
+  RCUTILS_LOG_DEBUG_NAMED(
+    "rmw_zenoh_cpp",
+    "    liveliness lease duration: (%zu, %zu)",
     qos_profile->liveliness_lease_duration.sec,
     qos_profile->liveliness_lease_duration.nsec);
   RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "    avoid ros namespace conventions: %s",
