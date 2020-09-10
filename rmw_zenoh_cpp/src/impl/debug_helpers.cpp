@@ -36,7 +36,7 @@ void rmw_zenoh_cpp::log_debug_qos_profile(const rmw_qos_profile_t * qos_profile)
       break;
   }
 
-  const char * history_string = NULL;
+  const char * history_string = nullptr;
   switch (qos_profile->history) {
     case RMW_QOS_POLICY_HISTORY_SYSTEM_DEFAULT:
       history_string = "system default";
