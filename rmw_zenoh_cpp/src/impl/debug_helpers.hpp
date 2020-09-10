@@ -10,4 +10,4 @@ void log_debug_qos_profile(const rmw_qos_profile_t * qos_profile);
 
 }
 
-#endif
+#endif  // IMPL__DEBUG_HELPERS_HPP_
