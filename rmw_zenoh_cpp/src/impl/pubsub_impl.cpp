@@ -30,13 +30,16 @@ std::mutex sub_callback_mutex;
 /// STATIC SUBSCRIPTION DATA MEMBERS ===========================================
 std::atomic<size_t> rmw_subscription_data_t::subscription_id_counter(0);
 
+// *INDENT-OFF* because uncrustify can't decide which way to format this
 // Map of Zenoh topic key expression to subscription data
 std::unordered_map<std::string, std::vector<rmw_subscription_data_t *>>
   rmw_subscription_data_t::zn_topic_to_sub_data;
+// *INDENT-ON*
 
 
 /// ZENOH MESSAGE SUBSCRIPTION CALLBACK (static method) ========================
-void rmw_subscription_data_t::zn_sub_callback(const zn_sample * sample) {
+void rmw_subscription_data_t::zn_sub_callback(const zn_sample * sample)
+{
   std::lock_guard<std::mutex> guard(sub_callback_mutex);
 
   // NOTE(CH3): We unfortunately have to do this copy construction since we shouldn't be using

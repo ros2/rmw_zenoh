@@ -38,10 +38,11 @@ rmw_create_wait_set(rmw_context_t * context, size_t max_conditions)
   RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "rmw_create_wait_set");
 
   RCUTILS_CHECK_ARGUMENT_FOR_NULL(context, NULL);
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(context,
-                                   context->implementation_identifier,
-                                   eclipse_zenoh_identifier,
-                                   return nullptr);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    context,
+    context->implementation_identifier,
+    eclipse_zenoh_identifier,
+    return nullptr);
 
   // NOTE(CH3): Unfortunately we can't do custom allocation here because the destruction method
   // does not pass in a context from which we can draw an allocator from
@@ -68,8 +69,9 @@ rmw_create_wait_set(rmw_context_t * context, size_t max_conditions)
 fail:
   if (wait_set) {
     if (wait_set->data) {
-      RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(static_cast<rmw_wait_set_data_t *>(wait_set->data)
-          ->~rmw_wait_set_data_t(), wait_set->data);
+      RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(
+        static_cast<rmw_wait_set_data_t *>(wait_set->data)->~rmw_wait_set_data_t(),
+        wait_set->data);
       rmw_free(wait_set->data);
     }
     rmw_wait_set_free(wait_set);
@@ -85,10 +87,11 @@ rmw_destroy_wait_set(rmw_wait_set_t * wait_set)
   RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "rmw_destroy_wait_set");
 
   RMW_CHECK_ARGUMENT_FOR_NULL(wait_set, RMW_RET_INVALID_ARGUMENT);
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(wait_set,
-                                   wait_set->implementation_identifier,
-                                   eclipse_zenoh_identifier,
-                                   return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    wait_set,
+    wait_set->implementation_identifier,
+    eclipse_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   auto result = RMW_RET_OK;
   auto wait_set_data = static_cast<rmw_wait_set_data_t *>(wait_set->data);
@@ -106,7 +109,8 @@ rmw_destroy_wait_set(rmw_wait_set_t * wait_set)
   if (wait_set->data) {
     if (wait_set_data) {
       RMW_TRY_DESTRUCTOR(
-          wait_set_data->~rmw_wait_set_data_t(), wait_set_data, result = RMW_RET_ERROR);
+        wait_set_data->~rmw_wait_set_data_t(),
+        wait_set_data, result = RMW_RET_ERROR);
     }
     rmw_free(wait_set->data);
   }
@@ -118,7 +122,8 @@ rmw_destroy_wait_set(rmw_wait_set_t * wait_set)
 /// WAIT =======================================================================
 // Block until data arrives, or wait set conditions are fulfilled, or timeout
 rmw_ret_t
-rmw_wait(  // All parameters are in parameters
+rmw_wait(
+  // All parameters are in parameters
   rmw_subscriptions_t * subscriptions,
   rmw_guard_conditions_t * guard_conditions,
   rmw_services_t * services,
@@ -140,9 +145,10 @@ rmw_wait(  // All parameters are in parameters
     guard_conditions->guard_condition_count);
 
   if (wait_timeout) {
-    RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_wait] TIMEOUT: %ld s %ld ns",
-                            wait_timeout->sec,
-                            wait_timeout->nsec);
+    RCUTILS_LOG_DEBUG_NAMED(
+      "rmw_zenoh_cpp", "[rmw_wait] TIMEOUT: %ld s %ld ns",
+      wait_timeout->sec,
+      wait_timeout->nsec);
   }
 
   // OBTAIN SYNCHRONIZATION OBJECTS ============================================
@@ -173,10 +179,22 @@ rmw_wait(  // All parameters are in parameters
   // CHECK WAIT CONDITIONS =====================================================
   std::unique_lock<std::mutex> lock(*condition_mutex);
 
-  bool ready = check_wait_conditions(subscriptions, guard_conditions, services, clients, events, false);
+  bool ready = check_wait_conditions(
+    subscriptions,
+    guard_conditions,
+    services,
+    clients,
+    events,
+    false);
   auto predicate = [subscriptions, guard_conditions, services, clients, events]() {
-    return check_wait_conditions(subscriptions, guard_conditions, services, clients, events, false);
-  };
+      return check_wait_conditions(
+        subscriptions,
+        guard_conditions,
+        services,
+        clients,
+        events,
+        false);
+    };
 
   bool timed_out = false;
 

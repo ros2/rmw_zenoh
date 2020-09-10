@@ -56,10 +56,11 @@ rmw_create_node(
 
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(context, nullptr);
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(context,
-                                   context->implementation_identifier,
-                                   eclipse_zenoh_identifier,
-                                   return nullptr);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    context,
+    context->implementation_identifier,
+    eclipse_zenoh_identifier,
+    return nullptr);
   RMW_CHECK_FOR_NULL_WITH_MSG(context->impl, "expected initialized context", return nullptr);
 
   if (context->impl->is_shutdown) {
@@ -103,7 +104,7 @@ rmw_create_node(
   //
   // TODO(CH3): Once it is, replace the repeated deallocate calls with a scope exit handler
   rmw_node_t * node = static_cast<rmw_node_t *>(
-      allocator->allocate(sizeof(rmw_node_t), allocator->state));
+    allocator->allocate(sizeof(rmw_node_t), allocator->state));
   if (!node) {
     RMW_SET_ERROR_MSG("failed to allocate rmw_node_t");
     return nullptr;
@@ -147,7 +148,7 @@ rmw_create_node(
 
   // Create graph guard condition
   node_data->graph_guard_condition_ = static_cast<rmw_guard_condition_t *>(
-      allocator->allocate(sizeof(rmw_guard_condition_t), allocator->state));
+    allocator->allocate(sizeof(rmw_guard_condition_t), allocator->state));
   node_data->graph_guard_condition_ = rmw_create_guard_condition(node->context);
   if (!node_data->graph_guard_condition_) {
     if (rmw_destroy_guard_condition(node_data->graph_guard_condition_) != RMW_RET_OK) {
@@ -184,10 +185,11 @@ rmw_destroy_node(rmw_node_t * node)
 {
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(node,
-                                   node->implementation_identifier,
-                                   eclipse_zenoh_identifier,
-                                   return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    node,
+    node->implementation_identifier,
+    eclipse_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   // NOTE(CH3) TODO(CH3): Again, no graph updates are implemented yet
   // I am not sure how this will work with Zenoh
@@ -199,7 +201,7 @@ rmw_destroy_node(rmw_node_t * node)
 
   // CLEANUP ===================================================================
   const rmw_ret_t destroyed = rmw_destroy_guard_condition(
-      static_cast<rmw_node_impl_t *>(node->data)->graph_guard_condition_);
+    static_cast<rmw_node_impl_t *>(node->data)->graph_guard_condition_);
   if (destroyed != RMW_RET_OK) {
     RMW_SAFE_FWRITE_TO_STDERR("Failed to destroy guard condition in rmw_destroy_node");
   }

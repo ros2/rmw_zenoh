@@ -60,9 +60,10 @@ size_t TypeSupport::getEstimatedSerializedSize(const void * ros_message)
   return 4 + members_->get_serialized_size(ros_message);
 }
 
-bool TypeSupport::serializeROSmessage(const void * ros_message,
-                                      eprosima::fastcdr::Cdr & ser,
-                                      const void * impl) const
+bool TypeSupport::serializeROSmessage(
+  const void * ros_message,
+  eprosima::fastcdr::Cdr & ser,
+  const void * impl) const
 {
   assert(ros_message);
   assert(impl);
@@ -81,9 +82,10 @@ bool TypeSupport::serializeROSmessage(const void * ros_message,
   return true;
 }
 
-bool TypeSupport::deserializeROSmessage(eprosima::fastcdr::Cdr & deser,
-                                        void * ros_message,
-                                        const void * impl) const
+bool TypeSupport::deserializeROSmessage(
+  eprosima::fastcdr::Cdr & deser,
+  void * ros_message,
+  const void * impl) const
 {
   assert(ros_message);
   assert(impl);

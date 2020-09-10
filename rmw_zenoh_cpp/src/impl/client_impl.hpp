@@ -47,13 +47,17 @@ struct rmw_client_data_t
   // Request-response sequence id (To identify and match individual requests)
   static std::atomic<std::int64_t> sequence_id_counter;
 
+  // *INDENT-OFF* because uncrustify can't decide which way to format this
   // Map of Zenoh topic key expression to client data struct instances
   static std::unordered_map<std::string, std::vector<rmw_client_data_t *>>
     zn_topic_to_client_data;
+  // *INDENT-ON*
 
+  // *INDENT-OFF* because uncrustify can't decide which way to format this
   // Map of Zenoh queryable key expression to client data struct instances
   static std::unordered_map<std::string, std::vector<rmw_client_data_t *>>
     zn_queryable_to_client_data;
+  // *INDENT-ON*
 
   /// TYPE SUPPORT =============================================================
   const void * request_type_support_impl_;

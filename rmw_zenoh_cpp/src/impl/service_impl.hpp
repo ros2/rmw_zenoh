@@ -42,9 +42,11 @@ struct rmw_service_data_t
   // Counter to give service servers unique IDs
   static std::atomic<size_t> service_id_counter;
 
+  // *INDENT-OFF* because uncrustify can't decide which way to format this
   // Map of Zenoh topic key expression to service data struct instances
   static std::unordered_map<std::string, std::vector<rmw_service_data_t *>>
     zn_topic_to_service_data;
+  // *INDENT-ON*
 
   /// INSTANCE MEMBERS =========================================================
   // Type support

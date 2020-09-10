@@ -27,13 +27,14 @@
 #include "rmw_zenoh_cpp/identifier.hpp"
 
 // Helper case-insensitive string comparison function
-int strcicmp(char const *a, char const *b)
+int strcicmp(char const * a, char const * b)
 {
-    for (;; a++, b++) {
-        int d = tolower((unsigned char)*a) - tolower((unsigned char)*b);
-        if (d != 0 || !*a)
-            return d;
+  for (;; a++, b++) {
+    int d = tolower((unsigned char)*a) - tolower((unsigned char)*b);
+    if (d != 0 || !*a) {
+      return d;
     }
+  }
 }
 
 extern "C"
@@ -82,7 +83,7 @@ rmw_init_options_init(rmw_init_options_t * init_options, rcutils_allocator_t all
   // POPULATE ZENOH SPECIFIC OPTIONS ===========================================
   // Allocate options implementation
   init_options->impl = static_cast<rmw_init_options_impl_t *>(
-      allocator.allocate(sizeof(rmw_init_options_impl_t), allocator.state));
+    allocator.allocate(sizeof(rmw_init_options_impl_t), allocator.state));
   if (!init_options->impl) {
     RMW_SET_ERROR_MSG("failed to allocate init_options impl");
     allocator.deallocate(init_options->enclave, allocator.state);
@@ -152,10 +153,11 @@ rmw_init_options_copy(const rmw_init_options_t * src, rmw_init_options_t * dst)
     RMW_SET_ERROR_MSG("expected zero-initialized dst");
     return RMW_RET_INVALID_ARGUMENT;
   }
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(src,
-                                   src->implementation_identifier,
-                                   eclipse_zenoh_identifier,
-                                   return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    src,
+    src->implementation_identifier,
+    eclipse_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   const rcutils_allocator_t allocator = src->allocator;
   RCUTILS_CHECK_ALLOCATOR(&allocator, return RMW_RET_INVALID_ARGUMENT);
@@ -175,7 +177,7 @@ rmw_init_options_copy(const rmw_init_options_t * src, rmw_init_options_t * dst)
   }
 
   tmp.impl = static_cast<rmw_init_options_impl_t *>(  // Allocate new impl member for tmp
-      allocator.allocate(sizeof(rmw_init_options_impl_t), allocator.state));
+    allocator.allocate(sizeof(rmw_init_options_impl_t), allocator.state));
   if (nullptr != src->impl && nullptr == tmp.impl) {
     RMW_SET_ERROR_MSG("failed to allocate options impl");
     allocator.deallocate(tmp.enclave, allocator.state);
@@ -227,10 +229,11 @@ rmw_init_options_fini(rmw_init_options_t * init_options)
     return RMW_RET_INVALID_ARGUMENT;
   }
 
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(init_options,
-                                   init_options->implementation_identifier,
-                                   eclipse_zenoh_identifier,
-                                   return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    init_options,
+    init_options->implementation_identifier,
+    eclipse_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   rcutils_allocator_t allocator = init_options->allocator;
   RCUTILS_CHECK_ALLOCATOR(&allocator, return RMW_RET_INVALID_ARGUMENT);
