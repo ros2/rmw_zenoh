@@ -293,16 +293,18 @@ rmw_publisher_get_actual_qos(const rmw_publisher_t * publisher, rmw_qos_profile_
     publisher->implementation_identifier,
     eclipse_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
-  auto publisher_data = static_cast<rmw_publisher_data_t *>(publisher->data);
-  RCUTILS_LOG_DEBUG_NAMED(
-    "rmw_zenoh_cpp",
-    "Returning placeholder hard-coded QoS for publisher on topic with ID %ld",
-    publisher_data->zn_topic_id_);
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "rmw_publisher_get_actual_qos (STUB)");
+
   qos_profile->history = RMW_QOS_POLICY_HISTORY_KEEP_LAST;
-  qos_profile->depth = 1;
+  qos_profile->depth = 1000;
   qos_profile->reliability = RMW_QOS_POLICY_RELIABILITY_RELIABLE;
   qos_profile->durability = RMW_QOS_POLICY_DURABILITY_VOLATILE;
-  qos_profile->liveliness = RMW_QOS_POLICY_LIVELINESS_AUTOMATIC;
+  qos_profile->deadline = RMW_QOS_DEADLINE_DEFAULT;
+  qos_profile->lifespan = RMW_QOS_LIFESPAN_DEFAULT;
+  qos_profile->liveliness = RMW_QOS_POLICY_LIVELINESS_SYSTEM_DEFAULT;
+  qos_profile->liveliness_lease_duration = RMW_QOS_LIVELINESS_LEASE_DURATION_DEFAULT;
+
+  rmw_zenoh_cpp::log_debug_qos_profile(qos_profile);
   return RMW_RET_OK;
 }
 
