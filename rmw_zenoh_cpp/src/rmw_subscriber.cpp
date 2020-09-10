@@ -79,7 +79,7 @@ rmw_create_subscription(
   // }
 
   RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "rmw_create_subscriber() qos_profile:");
-  log_debug_qos_profile(qos_profile);
+  rmw_zenoh_cpp::log_debug_qos_profile(qos_profile);
 
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription_options, nullptr);
   RMW_CHECK_ARGUMENT_FOR_NULL(type_supports, nullptr);
