@@ -122,5 +122,4 @@ void rmw_zenoh_cpp::log_debug_qos_profile(const rmw_qos_profile_t * qos_profile)
     "rmw_zenoh_cpp",
     "    avoid ros namespace conventions: %s",
     qos_profile->avoid_ros_namespace_conventions ? "true" : "false");
-
 }
