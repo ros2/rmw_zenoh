@@ -1,5 +1,5 @@
-#ifndef RMW_ZENOH_CPP__DEBUG_HELPERS_HPP_
-#define RMW_ZENOH_CPP__DEBUG_HELPERS_HPP_
+#ifndef IMPL__DEBUG_HELPERS_HPP_
+#define IMPL__DEBUG_HELPERS_HPP_
 
 #include "rmw/types.h"
 
