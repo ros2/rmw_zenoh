@@ -33,7 +33,6 @@
 #include "impl/type_support_common.hpp"
 
 #include "impl/debug_helpers.hpp"
-using rmw_zenoh_cpp::log_debug_qos_profile;
 
 extern "C"
 {
