@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <functional>
+#include <rmw/ret_types.h>
 #include <string>
 
 #include "rcutils/logging_macros.h"
@@ -24,11 +25,12 @@
 #include "rmw/event.h"
 #include "rmw/rmw.h"
 
-#include "rmw_zenoh_cpp/rmw_context_impl.hpp"
 #include "rmw_zenoh_cpp/identifier.hpp"
+#include "rmw_zenoh_cpp/rmw_context_impl.hpp"
 
-#include "impl/type_support_common.hpp"
 #include "impl/pubsub_impl.hpp"
+#include "impl/qos.hpp"
+#include "impl/type_support_common.hpp"
 
 extern "C"
 {
@@ -76,6 +78,11 @@ rmw_create_subscription(
 
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription_options, nullptr);
   RMW_CHECK_ARGUMENT_FOR_NULL(type_supports, nullptr);
+
+  // Although we do not yet support QoS we still fail on clearly-bad settings
+  if (!rmw_zenoh_cpp::is_valid_qos(qos_profile)) {
+    return nullptr;
+  }
 
   // OBTAIN ALLOCATOR ==========================================================
   rcutils_allocator_t * allocator = &node->context->options.allocator;
@@ -516,7 +523,7 @@ rmw_init_subscription_allocation(
   (void)type_support;
   (void)message_bounds;
   (void)allocation;
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_init_subscription_allocation");
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "rmw_init_subscription_allocation");
   return RMW_RET_ERROR;
 }
 
@@ -524,28 +531,43 @@ rmw_ret_t
 rmw_fini_subscription_allocation(rmw_subscription_allocation_t * allocation)
 {
   (void)allocation;
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_fini_subscription_allocation");
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "rmw_fini_subscription_allocation");
   return RMW_RET_ERROR;
 }
 
 rmw_ret_t
 rmw_subscription_count_matched_publishers(const rmw_subscription_t * subscription, size_t * count)
 {
-  (void)subscription;
-  (void)count;
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_subscription_count_matched_publishers");
-  return RMW_RET_ERROR;
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "rmw_subscription_count_matched_publishers");
+  RMW_CHECK_ARGUMENT_FOR_NULL(subscription, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(count, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    subscription,
+    subscription->implementation_identifier,
+    eclipse_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  return RMW_RET_OK;
 }
 
-// STUB
 rmw_ret_t
 rmw_subscription_get_actual_qos(
   const rmw_subscription_t * subscription,
   rmw_qos_profile_t * qos_profile)
 {
-  (void)subscription;
-  (void)qos_profile;
-  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "rmw_subscription_get_actual_qos (STUB)");
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "rmw_subscription_get_actual_qos");
+  RMW_CHECK_ARGUMENT_FOR_NULL(subscription, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(qos_profile, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    subscription,
+    subscription->implementation_identifier,
+    eclipse_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  auto subscription_data = static_cast<rmw_subscription_data_t *>(subscription->data);
+  qos_profile->history = RMW_QOS_POLICY_HISTORY_KEEP_LAST;
+  qos_profile->depth = subscription_data->queue_depth_;
+  qos_profile->reliability = RMW_QOS_POLICY_RELIABILITY_RELIABLE;
+  qos_profile->durability = RMW_QOS_POLICY_DURABILITY_VOLATILE;
+  qos_profile->liveliness = RMW_QOS_POLICY_LIVELINESS_AUTOMATIC;
   return RMW_RET_OK;
 }
 
@@ -560,7 +582,7 @@ rmw_take_serialized_message(
   (void)serialized_message;
   (void)taken;
   (void)allocation;
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_take_serialized_message");
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "rmw_take_serialized_message");
   return RMW_RET_ERROR;
 }
 
@@ -577,7 +599,7 @@ rmw_take_serialized_message_with_info(
   (void)taken;
   (void)message_info;
   (void)allocation;
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_take_serialized_message");
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "rmw_take_serialized_message");
   return RMW_RET_ERROR;
 }
 
@@ -592,7 +614,7 @@ rmw_take_loaned_message(
   (void)loaned_message;
   (void)taken;
   (void)allocation;
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_take_loaned_message (Unsupported)");
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "rmw_take_loaned_message (Unsupported)");
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -609,7 +631,7 @@ rmw_take_loaned_message_with_info(
   (void)taken;
   (void)message_info;
   (void)allocation;
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_take_loaned_message_with_info (Unsupported)");
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "rmw_take_loaned_message_with_info (Unsupported)");
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -620,7 +642,7 @@ rmw_return_loaned_message_from_subscription(
 {
   (void)subscription;
   (void)loaned_message;
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_return_loaned_message_from_subscription");
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "rmw_return_loaned_message_from_subscription");
   return RMW_RET_ERROR;
 }
 }  // extern "C"

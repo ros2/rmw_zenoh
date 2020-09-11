@@ -20,7 +20,7 @@
 #include "rmw/error_handling.h"
 #include "rmw/rmw.h"
 
-#define RMW_IMPLEMENTATION rmw_zenoh_cpp
+
 #ifdef RMW_IMPLEMENTATION
 # define CLASSNAME_(NAME, SUFFIX) NAME ## __ ## SUFFIX
 # define CLASSNAME(NAME, SUFFIX) CLASSNAME_(NAME, SUFFIX)

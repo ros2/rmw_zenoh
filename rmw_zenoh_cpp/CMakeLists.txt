@@ -53,6 +53,7 @@ add_library(rmw_zenoh_cpp
   src/impl/service_impl.cpp
   src/impl/client_impl.cpp
   src/impl/type_support_common.cpp
+  src/impl/qos.cpp
 )
 target_link_libraries(rmw_zenoh_cpp
   fastcdr
@@ -91,7 +92,37 @@ register_rmw_implementation(
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   ament_lint_auto_find_test_dependencies()
-  add_subdirectory(test)
+
+  find_package(ament_cmake_gtest REQUIRED)
+  find_package(osrf_testing_tools_cpp REQUIRED)
+
+  ament_add_gtest(test_init_shutdown test/test_init_shutdown.cpp)
+  ament_target_dependencies(test_init_shutdown rcutils)
+  target_link_libraries(test_init_shutdown rmw_zenoh_cpp)
+
+  ament_add_gtest(test_init_options test/test_init_options.cpp)
+  ament_target_dependencies(test_init_options osrf_testing_tools_cpp rcutils)
+  target_link_libraries(test_init_options rmw_zenoh_cpp)
+
+  ament_add_gtest(test_create_destroy_node test/test_create_destroy_node.cpp)
+  ament_target_dependencies(test_create_destroy_node rcutils)
+  target_link_libraries(test_create_destroy_node rmw_zenoh_cpp)
+
+  # Not yet implemented
+  #ament_add_gtest(test_serialize_deserialize test/test_serialize_deserialize.cpp)
+  #ament_target_dependencies(test_serialize_deserialize
+    #rcutils
+    #test_msgs
+    #)
+  #target_link_libraries(test_serialize_deserialize rmw_zenoh_cpp)
+
+  ament_add_gtest(test_publisher test/test_publisher.cpp)
+  ament_target_dependencies(test_publisher osrf_testing_tools_cpp rcutils test_msgs)
+  target_link_libraries(test_publisher rmw_zenoh_cpp)
+
+  ament_add_gtest(test_subscription test/test_subscription.cpp)
+  ament_target_dependencies(test_subscription osrf_testing_tools_cpp rcutils test_msgs)
+  target_link_libraries(test_subscription rmw_zenoh_cpp)
 endif()
 
 ament_package(

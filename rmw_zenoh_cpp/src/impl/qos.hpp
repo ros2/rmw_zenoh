@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "gtest/gtest.h"
 
-#include "osrf_testing_tools_cpp/scope_exit.hpp"
+#include <rmw/types.h>
 
-#include "rmw/init.h"
 
-TEST(RMWInitTest, FillMeIn) {
-  EXPECT_TRUE(false);
-}
+namespace rmw_zenoh_cpp
+{
+bool is_valid_qos(const rmw_qos_profile_t * qos_profile);
+}  // namespace rmw_zenoh_cpp

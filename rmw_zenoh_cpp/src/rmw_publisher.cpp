@@ -15,17 +15,20 @@
 #include "rcutils/logging_macros.h"
 #include "rcutils/strdup.h"
 
-#include "rmw/validate_full_topic_name.h"
+#include <rmw/types.h>
+#include <rmw/validate_full_topic_name.h>
 #include "rmw/impl/cpp/macros.hpp"
 #include "rmw/error_handling.h"
 #include "rmw/event.h"
 #include "rmw/rmw.h"
 
-#include "rmw_zenoh_cpp/rmw_context_impl.hpp"
 #include "rmw_zenoh_cpp/identifier.hpp"
+#include "rmw_zenoh_cpp/rmw_context_impl.hpp"
 
-#include "impl/type_support_common.hpp"
 #include "impl/pubsub_impl.hpp"
+#include "impl/qos.hpp"
+#include "impl/type_support_common.hpp"
+
 
 extern "C"
 {
@@ -70,6 +73,11 @@ rmw_create_publisher(
 
   RMW_CHECK_ARGUMENT_FOR_NULL(publisher_options, nullptr);
   RMW_CHECK_ARGUMENT_FOR_NULL(type_supports, nullptr);
+
+  // Although we do not yet support QoS we still fail on clearly-bad settings
+  if (!rmw_zenoh_cpp::is_valid_qos(qos_profile)) {
+    return nullptr;
+  }
 
   // OBTAIN ALLOCATOR ==========================================================
   rcutils_allocator_t * allocator = &node->context->options.allocator;
@@ -123,7 +131,6 @@ rmw_create_publisher(
   if (!publisher->data) {
     RMW_SET_ERROR_MSG("failed to allocate publisher data");
     allocator->deallocate(publisher->data, allocator->state);
-
     allocator->deallocate(const_cast<char *>(publisher->topic_name), allocator->state);
     allocator->deallocate(publisher, allocator->state);
     return nullptr;
@@ -157,7 +164,7 @@ rmw_create_publisher(
     topic_name,
     publisher_data->zn_topic_id_);
 
-  // Allocate and in-place assign new message typesupport instance
+  // Allocate and in-place construct new message typesupport instance
   publisher_data->type_support_ = static_cast<rmw_zenoh_cpp::MessageTypeSupport *>(
     allocator->allocate(sizeof(rmw_zenoh_cpp::MessageTypeSupport), allocator->state));
   new(publisher_data->type_support_) rmw_zenoh_cpp::MessageTypeSupport(callbacks);
@@ -229,7 +236,7 @@ rmw_init_publisher_allocation(
   (void)type_support;
   (void)message_bounds;
   (void)allocation;
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_init_publisher_allocation");
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "rmw_init_publisher_allocation");
   return RMW_RET_ERROR;
 }
 
@@ -237,7 +244,7 @@ rmw_ret_t
 rmw_fini_publisher_allocation(rmw_publisher_allocation_t * allocation)
 {
   (void)allocation;
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_fini_publisher_allocation");
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "rmw_fini_publisher_allocation");
   return RMW_RET_ERROR;
 }
 
@@ -250,7 +257,7 @@ rmw_borrow_loaned_message(
   (void)publisher;
   (void)type_support;
   (void)ros_message;
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_borrow_loaned_message");
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "rmw_borrow_loaned_message");
   return RMW_RET_ERROR;
 }
 
@@ -259,26 +266,40 @@ rmw_return_loaned_message_from_publisher(const rmw_publisher_t * publisher, void
 {
   (void)publisher;
   (void)loaned_message;
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_return_loaned_message_from_publisher");
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "rmw_return_loaned_message_from_publisher");
   return RMW_RET_ERROR;
 }
 
 rmw_ret_t
 rmw_publisher_count_matched_subscriptions(const rmw_publisher_t * publisher, size_t * count)
 {
-  (void)publisher;
-  (void)count;
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_publisher_count_matched_subscriptions");
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "rmw_publisher_count_matched_subscriptions");
+  RMW_CHECK_ARGUMENT_FOR_NULL(publisher, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(count, RMW_RET_INVALID_ARGUMENT);
   return RMW_RET_ERROR;
 }
 
-// STUB
 rmw_ret_t
 rmw_publisher_get_actual_qos(const rmw_publisher_t * publisher, rmw_qos_profile_t * qos_profile)
 {
-  (void)publisher;
-  (void)qos_profile;
-  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "rmw_publisher_get_actual_qos (STUB)");
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "rmw_publisher_get_actual_qos");
+  RMW_CHECK_ARGUMENT_FOR_NULL(publisher, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(qos_profile, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    publisher,
+    publisher->implementation_identifier,
+    eclipse_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  auto publisher_data = static_cast<rmw_publisher_data_t *>(publisher->data);
+  RCUTILS_LOG_DEBUG_NAMED(
+    "rmw_zenoh_cpp",
+    "Returning placeholder hard-coded QoS for publisher on topic with ID %ld",
+    publisher_data->zn_topic_id_);
+  qos_profile->history = RMW_QOS_POLICY_HISTORY_KEEP_LAST;
+  qos_profile->depth = 1;
+  qos_profile->reliability = RMW_QOS_POLICY_RELIABILITY_RELIABLE;
+  qos_profile->durability = RMW_QOS_POLICY_DURABILITY_VOLATILE;
+  qos_profile->liveliness = RMW_QOS_POLICY_LIVELINESS_AUTOMATIC;
   return RMW_RET_OK;
 }
 
@@ -286,7 +307,7 @@ rmw_ret_t
 rmw_publisher_assert_liveliness(const rmw_publisher_t * publisher)
 {
   (void)publisher;
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "rmw_publisher_assert_liveliness");
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "rmw_publisher_assert_liveliness");
   return RMW_RET_ERROR;
 }
 }  // extern "C"
