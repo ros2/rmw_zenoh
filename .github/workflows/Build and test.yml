@@ -19,13 +19,35 @@ jobs:
           curl https://sh.rustup.rs -sSf > rustup.sh
           chmod +x rustup.sh
           ./rustup.sh --default-toolchain nightly --profile minimal -y 
-      - name: Build and test
-        uses: ros-tooling/action-ros-ci@0.0.19
-        with:
-          target-ros2-distro: foxy
-          vcs-repo-file-url: https://raw.githubusercontent.com/osrf/rmw_zenoh/main/rmw_zenoh.repos
-          package-name: rmw_zenoh_cpp
-      - uses: actions/upload-artifact@v1
+#      - name: Build and test
+#        uses: ros-tooling/action-ros-ci@0.0.19
+#        with:
+#          target-ros2-distro: foxy
+#          vcs-repo-file-url: https://raw.githubusercontent.com/osrf/rmw_zenoh/main/rmw_zenoh.repos
+#          package-name: rmw_zenoh_cpp
+      - name Setup workspace
+        run: |
+          mkdir -p rmw_zenoh/src
+          cd rmw_zenoh
+          wget https://raw.githubusercontent.com/osrf/rmw_zenoh/main/rmw_zenoh.repos
+          vcs import src < rmw_zenoh.repos
+      - name: Package dependencies
+        run: |
+          cd rmw_zenoh
+          rosdep update
+          rosdep install --from-paths src --ignore-src --rosdistro foxy -yr
+      - name: Build
+        shell: bash
+        run: |
+          cd rmw_zenoh
+          source /opt/ros/foxy/setup.bash
+          colcon build --cmake-args -DCMAKE_BUILD_TYPE=RELEASE --packages-up-to rmw_zenoh_cpp
+          source install/setup.bash
+          colcon build --cmake-args -DCMAKE_BUILD_TYPE=RELEASE --packages-up-to rmw_zenoh_cpp --cmake-force-configure
+      - name: Test
+        run: colcon test --packages-select rmw_zenoh_cpp
+      - name: Upload results
+        uses: actions/upload-artifact@v1
         with:
           name: colcon-logs
           path: ros_ws/log
