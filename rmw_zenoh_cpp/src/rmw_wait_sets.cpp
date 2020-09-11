@@ -137,8 +137,7 @@ rmw_wait(
 
   RCUTILS_LOG_DEBUG_NAMED(
     "rmw_zenoh_cpp",
-    "[rmw_wait] %ld subscriptions, %ld srv_servers, %ld srv_clients, %ld events, "
-    "%ld guard conditions",
+    "[rmw_wait] %ld subscriptions, %ld services, %ld clients, %ld events, %ld guard conditions",
     subscriptions->subscriber_count,
     services->service_count,
     clients->client_count,

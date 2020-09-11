@@ -25,6 +25,7 @@
 #include "rmw/error_handling.h"
 #include "rmw/event.h"
 #include "rmw/rmw.h"
+#include "rmw/ret_types.h"
 
 #include "rmw_zenoh_cpp/identifier.hpp"
 #include "rmw_zenoh_cpp/rmw_context_impl.hpp"

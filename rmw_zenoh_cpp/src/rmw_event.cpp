@@ -39,11 +39,9 @@ rmw_take_event(const rmw_event_t * event_handle, void * event_info, bool * taken
     case RMW_EVENT_REQUESTED_QOS_INCOMPATIBLE:
       RCUTILS_LOG_WARN_NAMED("rmw_zenoh_cpp", "rmw_take_event(): requested qos incompatible");
       break;
-
     case RMW_EVENT_OFFERED_QOS_INCOMPATIBLE:
       RCUTILS_LOG_WARN_NAMED("rmw_zenoh_cpp", "rmw_take_event(): offered qos incompatible");
       break;
-
     default:
       break;
   }
@@ -74,13 +72,12 @@ rmw_publisher_event_init(
     eclipse_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
-  if (event_type == RMW_EVENT_OFFERED_QOS_INCOMPATIBLE)
-  {
-    // Because rmw_zenoh_cpp does not currently have multiple QoS, we will not be handling this event.
+  if (event_type == RMW_EVENT_OFFERED_QOS_INCOMPATIBLE) {
+    // Because rmw_zenoh_cpp does not currently have multiple QoS, we will handle this event.
     return RMW_RET_UNSUPPORTED;
   }
 
-  RCUTILS_LOG_ERROR_NAMED("rmw_zenoh_cpp", "accepting rmw_subscriber_event_init() for unhandled event!");
+  RCUTILS_LOG_ERROR_NAMED("rmw_zenoh_cpp", "rmw_subscriber_event_init() for unhandled event!");
   event->implementation_identifier = publisher->implementation_identifier;
   event->data = publisher->data;
   event->event_type = event_type;
@@ -110,13 +107,12 @@ rmw_subscription_event_init(
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION
   );
 
-  if (event_type == RMW_EVENT_REQUESTED_QOS_INCOMPATIBLE)
-  {
-    // Because rmw_zenoh_cpp does not currently have multiple QoS, we will not be handling this event.
+  if (event_type == RMW_EVENT_REQUESTED_QOS_INCOMPATIBLE) {
+    // Because rmw_zenoh_cpp does not currently have multiple QoS, we will not handle this event.
     return RMW_RET_UNSUPPORTED;
   }
 
-  RCUTILS_LOG_ERROR_NAMED("rmw_zenoh_cpp", "accepting rmw_subscriber_event_init() for unhandled event!");
+  RCUTILS_LOG_ERROR_NAMED("rmw_zenoh_cpp", "rmw_subscriber_event_init() for unhandled event!");
   event->implementation_identifier = subscription->implementation_identifier;
   event->data = subscription->data;
   event->event_type = event_type;
