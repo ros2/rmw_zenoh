@@ -15,6 +15,11 @@
 #include "service_impl.hpp"
 
 #include <iostream>
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include "rcutils/logging_macros.h"
 #include "rmw_zenoh_cpp/TypeSupport.hpp"

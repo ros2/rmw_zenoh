@@ -253,10 +253,6 @@ TEST_F(CLASSNAME(TestPublisherUse, RMW_IMPLEMENTATION), get_actual_qos) {
   rmw_ret_t ret = rmw_publisher_get_actual_qos(pub, &actual_qos_profile);
   EXPECT_EQ(RMW_RET_OK, ret) << rmw_get_error_string().str;
   EXPECT_EQ(qos_profile.history, actual_qos_profile.history);
-  // No buffer on publisher side yet
-  //EXPECT_EQ(qos_profile.depth, actual_qos_profile.depth);
-  // Reliability changes not supported yet
-  //EXPECT_EQ(qos_profile.reliability, actual_qos_profile.reliability);
   EXPECT_EQ(qos_profile.durability, actual_qos_profile.durability);
 }
 

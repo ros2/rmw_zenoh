@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <string>
+#include <vector>
 
 #include "rcutils/logging_macros.h"
 #include "rcutils/strdup.h"
@@ -463,7 +464,7 @@ rmw_take_request(
   //
   // TODO(CH3): Refactor this into its own modular set of functions eventually to make adding
   // more metadata convenient
-  size_t meta_length = sizeof(std::int64_t); // Internal type of the atomic sequence ID
+  size_t meta_length = sizeof(std::int64_t);  // Internal type of the atomic sequence ID
 
   // Use metadata
   memcpy(

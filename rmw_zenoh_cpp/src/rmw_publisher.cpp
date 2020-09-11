@@ -15,8 +15,8 @@
 #include "rcutils/logging_macros.h"
 #include "rcutils/strdup.h"
 
-#include <rmw/types.h>
-#include <rmw/validate_full_topic_name.h>
+#include "rmw/types.h"
+#include "rmw/validate_full_topic_name.h"
 #include "rmw/impl/cpp/macros.hpp"
 #include "rmw/error_handling.h"
 #include "rmw/event.h"
