@@ -48,4 +48,5 @@ jobs:
         uses: actions/upload-artifact@v1
         with:
           name: colcon-logs
-          path: ros_ws/log
+          path: rmw_zenoh/log
+        if: ${{ always() }}
