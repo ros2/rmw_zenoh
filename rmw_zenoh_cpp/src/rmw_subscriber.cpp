@@ -13,12 +13,13 @@
 // limitations under the License.
 
 #include <functional>
-#include <rmw/ret_types.h>
 #include <string>
+#include <vector>
 
 #include "rcutils/logging_macros.h"
 #include "rcutils/strdup.h"
 
+#include "rmw/ret_types.h"
 #include "rmw/validate_full_topic_name.h"
 #include "rmw/impl/cpp/macros.hpp"
 #include "rmw/error_handling.h"

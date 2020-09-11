@@ -128,7 +128,8 @@ bool check_wait_conditions(
   //   size_t guard_conditions_ready = 0;
   //
   //   for (size_t i = 0; i < guard_conditions->guard_condition_count; ++i) {
-  //       auto guard_condition = static_cast<GuardCondition *>(guard_conditions->guard_conditions[i]);
+  //       auto guard_condition = static_cast<GuardCondition *>(
+  //         guard_conditions->guard_conditions[i]);
   //       if (guard_condition && guard_condition->hasTriggered()) {
   //         if (finalize) {
   //           // Setting to nullptr lets rcl know that this guard_condition is not ready

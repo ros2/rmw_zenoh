@@ -14,6 +14,7 @@
 
 #include <unistd.h>
 #include <string>
+#include <vector>
 
 #include "rcutils/logging_macros.h"
 #include "rcutils/strdup.h"
@@ -87,7 +88,7 @@ rmw_service_server_is_available(
     *result = true;
   } else {
     // TODO(CH3): Change this if a better way to throttle availability checks is found
-    sleep(0.5); // Don't spam the service
+    sleep(0.5);  // Don't spam the service
   }
 
   return RMW_RET_OK;
@@ -370,8 +371,8 @@ rmw_create_client(
   // (Having a listener for queries on a separate process from the service seems to be all that is
   // necessary.
   //
-  // Also, the issue is most likely happening on the SERVICE SERVER'session SIDE! But somehow adding this
-  // queryable listener on the SERVICE CLIENT side fixes that issue.
+  // Also, the issue is most likely happening on the SERVICE SERVER'session SIDE! But somehow
+  // adding this queryable listener on the SERVICE CLIENT side fixes that issue.
   //
   // Additional note: Note that this means that for most use-cases (but not all), we should be fine.
   // the one edge case is if someone starts a service and client on the same process, but there is
@@ -511,7 +512,7 @@ rmw_send_request(const rmw_client_t * client, const void * ros_request, int64_t 
     ->request_type_support_->getEstimatedSerializedSize(ros_request));
 
   // Account for metadata
-  max_data_length += sizeof(std::int64_t); // Internal type of the atomic sequence ID
+  max_data_length += sizeof(std::int64_t);  // Internal type of the atomic sequence ID
 
   // Init serialized message byte array
   char * request_bytes = static_cast<char *>(
@@ -549,7 +550,7 @@ rmw_send_request(const rmw_client_t * client, const void * ros_request, int64_t 
   // more metadata convenient
   *sequence_id = rmw_client_data_t::sequence_id_counter.fetch_add(1, std::memory_order_relaxed);
 
-  size_t meta_length = sizeof(std::int64_t); // Internal type of the atomic sequence ID
+  size_t meta_length = sizeof(std::int64_t);  // Internal type of the atomic sequence ID
   memcpy(
     request_bytes + data_length,
     reinterpret_cast<char *>(sequence_id),
@@ -630,7 +631,7 @@ rmw_take_response(
 
   // RETRIEVE METADATA =========================================================
   // TODO(CH3): Again, refactor this into a modular set of functions eventually
-  size_t meta_length = sizeof(std::int64_t); // Internal type of the atomic sequence ID
+  size_t meta_length = sizeof(std::int64_t);  // Internal type of the atomic sequence ID
 
   // Use metadata
   memcpy(

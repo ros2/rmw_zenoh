@@ -15,6 +15,11 @@
 #include "pubsub_impl.hpp"
 
 #include <iostream>
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include "rmw_zenoh_cpp/TypeSupport.hpp"
 #include "rcutils/logging_macros.h"
