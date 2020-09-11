@@ -19,12 +19,6 @@ jobs:
           curl https://sh.rustup.rs -sSf > rustup.sh
           chmod +x rustup.sh
           ./rustup.sh --default-toolchain nightly --profile minimal -y 
-#      - name: Build and test
-#        uses: ros-tooling/action-ros-ci@0.0.19
-#        with:
-#          target-ros2-distro: foxy
-#          vcs-repo-file-url: https://raw.githubusercontent.com/osrf/rmw_zenoh/main/rmw_zenoh.repos
-#          package-name: rmw_zenoh_cpp
       - name: Setup workspace
         run: |
           mkdir -p rmw_zenoh/src
@@ -45,7 +39,10 @@ jobs:
           source install/setup.bash
           colcon build --cmake-args -DCMAKE_BUILD_TYPE=RELEASE --packages-up-to rmw_zenoh_cpp --cmake-force-configure
       - name: Test
-        run: colcon test --packages-select rmw_zenoh_cpp
+        run: |
+          source /opt/ros/foxy/setup.bash
+          source install/setup.bash         
+          colcon test --packages-select rmw_zenoh_cpp
       - name: Upload results
         uses: actions/upload-artifact@v1
         with:
