@@ -97,22 +97,15 @@ if(BUILD_TESTING)
   find_package(osrf_testing_tools_cpp REQUIRED)
 
   ament_add_gtest(test_init_shutdown test/test_init_shutdown.cpp)
-  ament_target_dependencies(test_init_shutdown
-    rcutils
-    )
+  ament_target_dependencies(test_init_shutdown rcutils)
   target_link_libraries(test_init_shutdown rmw_zenoh_cpp)
 
   ament_add_gtest(test_init_options test/test_init_options.cpp)
-  ament_target_dependencies(test_init_options
-    osrf_testing_tools_cpp
-    rcutils
-    )
+  ament_target_dependencies(test_init_options osrf_testing_tools_cpp rcutils)
   target_link_libraries(test_init_options rmw_zenoh_cpp)
 
   ament_add_gtest(test_create_destroy_node test/test_create_destroy_node.cpp)
-  ament_target_dependencies(test_create_destroy_node
-    rcutils
-    )
+  ament_target_dependencies(test_create_destroy_node rcutils)
   target_link_libraries(test_create_destroy_node rmw_zenoh_cpp)
 
   # Not yet implemented
@@ -124,19 +117,11 @@ if(BUILD_TESTING)
   #target_link_libraries(test_serialize_deserialize rmw_zenoh_cpp)
 
   ament_add_gtest(test_publisher test/test_publisher.cpp)
-  ament_target_dependencies(test_publisher
-    osrf_testing_tools_cpp
-    rcutils
-    test_msgs
-    )
+  ament_target_dependencies(test_publisher osrf_testing_tools_cpp rcutils test_msgs)
   target_link_libraries(test_publisher rmw_zenoh_cpp)
 
   ament_add_gtest(test_subscription test/test_subscription.cpp)
-  ament_target_dependencies(test_subscription
-    osrf_testing_tools_cpp
-    rcutils
-    test_msgs
-    )
+  ament_target_dependencies(test_subscription osrf_testing_tools_cpp rcutils test_msgs)
   target_link_libraries(test_subscription rmw_zenoh_cpp)
 endif()
 

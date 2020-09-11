@@ -18,5 +18,5 @@
 
 namespace rmw_zenoh_cpp
 {
-  bool is_valid_qos(const rmw_qos_profile_t * qos_profile);
+bool is_valid_qos(const rmw_qos_profile_t * qos_profile);
 }  // namespace rmw_zenoh_cpp

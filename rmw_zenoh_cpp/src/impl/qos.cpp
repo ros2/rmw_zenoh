@@ -24,9 +24,9 @@ bool is_valid_qos(const rmw_qos_profile_t * qos_profile)
   // Deadline being RMW_QOS_DEADLINE_DEFAULT is OK
   // Lifespan being RMW_QOS_LIFESPAN_DEFAULT is OK
   // Liveliness lease duration being RMW_QOS_LIVELINESS_LEASE_DURATION_DEFAULT is OK
-  return (qos_profile->history != RMW_QOS_POLICY_HISTORY_UNKNOWN &&
-    qos_profile->reliability != RMW_QOS_POLICY_RELIABILITY_UNKNOWN &&
-    qos_profile->durability != RMW_QOS_POLICY_DURABILITY_UNKNOWN &&
-    qos_profile->liveliness != RMW_QOS_POLICY_LIVELINESS_UNKNOWN);
+  return qos_profile->history != RMW_QOS_POLICY_HISTORY_UNKNOWN &&
+         qos_profile->reliability != RMW_QOS_POLICY_RELIABILITY_UNKNOWN &&
+         qos_profile->durability != RMW_QOS_POLICY_DURABILITY_UNKNOWN &&
+         qos_profile->liveliness != RMW_QOS_POLICY_LIVELINESS_UNKNOWN;
 }
 }  // namespace rmw_zenoh_cpp
