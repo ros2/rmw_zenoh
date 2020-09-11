@@ -149,23 +149,15 @@ bool check_wait_conditions(
   // }
 
   // EVENTS ====================================================================
-  // STUB: NULLIFY/IGNORE ALL EVENTS FOR NOW
-  // Notably, this causes the QoS warning to be suppressed..
-  // Since that arises from the taking of QoS events, which aren't supported by Zenoh at the moment
+  // currently rmw_zenoh_cpp does not handle any events. In the future, if it
+  // does, we'll need to handle it appropriately. This error message is left
+  // here to help remember this, if we accidentally enable some event in the
+  // future.
+
   for (size_t i = 0; i < events->event_count; ++i) {
+    RCUTILS_LOG_ERROR_NAMED("rmw_zenoh_cpp", "woah! we're ignoring an event!");
     events->events[i] = nullptr;
   }
-
-  // TODO(CH3): Handle events
-  // if (events) {
-  //   for (size_t i = 0; i < events->event_count; ++i) {
-  //     auto event = static_cast<rmw_event_t *>(events->events[i]);
-  //     auto custom_event_info = static_cast<rmw_publisher_data_t *>(event->data);
-  //     if (custom_event_info->getListener()->hasEvent(event->event_type)) {
-  //       return true;
-  //     }
-  //   }
-  // }
 
   return stop_wait;
 }
