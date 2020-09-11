@@ -25,6 +25,7 @@
 #include "rmw/error_handling.h"
 #include "rmw/event.h"
 #include "rmw/rmw.h"
+#include "rmw/ret_types.h"
 
 #include "rmw_zenoh_cpp/identifier.hpp"
 #include "rmw_zenoh_cpp/rmw_context_impl.hpp"
@@ -567,12 +568,21 @@ rmw_subscription_get_actual_qos(
     subscription->implementation_identifier,
     eclipse_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+
   auto subscription_data = static_cast<rmw_subscription_data_t *>(subscription->data);
+
   qos_profile->history = RMW_QOS_POLICY_HISTORY_KEEP_LAST;
   qos_profile->depth = subscription_data->queue_depth_;
   qos_profile->reliability = RMW_QOS_POLICY_RELIABILITY_RELIABLE;
   qos_profile->durability = RMW_QOS_POLICY_DURABILITY_VOLATILE;
-  qos_profile->liveliness = RMW_QOS_POLICY_LIVELINESS_AUTOMATIC;
+  qos_profile->deadline = RMW_QOS_DEADLINE_DEFAULT;
+  qos_profile->liveliness = RMW_QOS_POLICY_LIVELINESS_SYSTEM_DEFAULT;
+  qos_profile->liveliness_lease_duration =
+    RMW_QOS_LIVELINESS_LEASE_DURATION_DEFAULT;
+  qos_profile->lifespan = RMW_QOS_LIFESPAN_DEFAULT;
+
+  rmw_zenoh_cpp::log_debug_qos_profile(qos_profile);
+
   return RMW_RET_OK;
 }
 

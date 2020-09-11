@@ -29,10 +29,23 @@ extern "C"
 rmw_ret_t
 rmw_take_event(const rmw_event_t * event_handle, void * event_info, bool * taken)
 {
-  (void)event_handle;
   (void)event_info;
 
-  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "rmw_take_event (STUB)");
+  // Because we are currently not (intentionally) requesting any events, this
+  // message is a warning to future-us that we aren't expecting to be here!
+  RCUTILS_LOG_WARN_NAMED("rmw_zenoh_cpp", "rmw_take_event() WOAH");
+
+  switch (event_handle->event_type) {
+    case RMW_EVENT_REQUESTED_QOS_INCOMPATIBLE:
+      RCUTILS_LOG_WARN_NAMED("rmw_zenoh_cpp", "rmw_take_event(): requested qos incompatible");
+      break;
+    case RMW_EVENT_OFFERED_QOS_INCOMPATIBLE:
+      RCUTILS_LOG_WARN_NAMED("rmw_zenoh_cpp", "rmw_take_event(): offered qos incompatible");
+      break;
+    default:
+      break;
+  }
+
   *taken = true;
 
   return RMW_RET_OK;
@@ -44,7 +57,7 @@ rmw_publisher_event_init(
   const rmw_publisher_t * publisher,
   rmw_event_type_t event_type)
 {
-  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "rmw_publisher_event_init (STUB)");
+  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "rmw_publisher_event_init");
 
   RMW_CHECK_ARGUMENT_FOR_NULL(publisher, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(event, RMW_RET_INVALID_ARGUMENT);
@@ -59,15 +72,12 @@ rmw_publisher_event_init(
     eclipse_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
-  // TODO(CH3) NOTE(CH3): Check if event type is supported
-  // Most likely no. It seems to be a DDS QoS specific thing
-  // if (!internal::is_event_supported(event_type)) {
-  //   RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
-  //     "provided event_type is not supported by %s",
-  //     identifier);
-  //   return RMW_RET_UNSUPPORTED;
-  // }
+  if (event_type == RMW_EVENT_OFFERED_QOS_INCOMPATIBLE) {
+    // Because rmw_zenoh_cpp does not currently have multiple QoS, we will handle this event.
+    return RMW_RET_UNSUPPORTED;
+  }
 
+  RCUTILS_LOG_ERROR_NAMED("rmw_zenoh_cpp", "rmw_subscriber_event_init() for unhandled event!");
   event->implementation_identifier = publisher->implementation_identifier;
   event->data = publisher->data;
   event->event_type = event_type;
@@ -97,15 +107,12 @@ rmw_subscription_event_init(
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION
   );
 
-  // TODO(CH3) NOTE(CH3): Check if event type is supported
-  // Most likely no. It seems to be a DDS QoS specific thing
-  // if (!internal::is_event_supported(event_type)) {
-  //   RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
-  //     "provided event_type is not supported by %s",
-  //     identifier);
-  //   return RMW_RET_UNSUPPORTED;
-  // }
+  if (event_type == RMW_EVENT_REQUESTED_QOS_INCOMPATIBLE) {
+    // Because rmw_zenoh_cpp does not currently have multiple QoS, we will not handle this event.
+    return RMW_RET_UNSUPPORTED;
+  }
 
+  RCUTILS_LOG_ERROR_NAMED("rmw_zenoh_cpp", "rmw_subscriber_event_init() for unhandled event!");
   event->implementation_identifier = subscription->implementation_identifier;
   event->data = subscription->data;
   event->event_type = event_type;
