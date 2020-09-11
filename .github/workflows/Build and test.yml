@@ -25,7 +25,7 @@ jobs:
 #          target-ros2-distro: foxy
 #          vcs-repo-file-url: https://raw.githubusercontent.com/osrf/rmw_zenoh/main/rmw_zenoh.repos
 #          package-name: rmw_zenoh_cpp
-      - name Setup workspace
+      - name: Setup workspace
         run: |
           mkdir -p rmw_zenoh/src
           cd rmw_zenoh
