@@ -43,7 +43,7 @@ jobs:
           cd rmw_zenoh
           source /opt/ros/foxy/setup.bash
           source install/setup.bash         
-          colcon test --packages-select rmw_zenoh_cpp
+          RMW_IMPLEMENTATION=rmw_zenoh_cpp colcon test --packages-select rmw_zenoh_cpp
       - name: Upload results
         uses: actions/upload-artifact@v1
         with:
