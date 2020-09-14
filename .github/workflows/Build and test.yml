@@ -39,6 +39,7 @@ jobs:
           source install/setup.bash
           colcon build --cmake-args -DCMAKE_BUILD_TYPE=RELEASE --packages-up-to rmw_zenoh_cpp --cmake-force-configure
       - name: Test
+        shell: bash
         run: |
           cd rmw_zenoh
           source /opt/ros/foxy/setup.bash
