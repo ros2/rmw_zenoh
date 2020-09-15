@@ -1,5 +1,7 @@
 # rmw_zenoh
 
+![](https://github.com/osrf/rmw_zenoh/workflows/CI/badge.svg)
+
 `rmw_zenoh` provides an experimental implementation of the ROS middleware interface using Eclipse Zenoh as the middleware.
 The RMW implementation is contained in the `rmw_zenoh_cpp` package.
 
