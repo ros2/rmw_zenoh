@@ -14,11 +14,9 @@
 
 # copied from rmw_fastrtps_cpp/rmw_fastrtps_cpp-extras.cmake
 
-find_package(fastrtps_cmake_module REQUIRED)
-find_package(fastcdr REQUIRED CONFIG)
-find_package(fastrtps REQUIRED CONFIG)
-find_package(FastRTPS REQUIRED MODULE)
+find_package(zenoh_vendor REQUIRED)
+find_package(zenoh REQUIRED)
 
-list(APPEND rmw_fastrtps_cpp_INCLUDE_DIRS ${FastRTPS_INCLUDE_DIR})
+list(APPEND rmw_zenoh_cpp_INCLUDE_DIRS ${zenoh_INCLUDE_DIRS})
 # specific order: dependents before dependencies
-list(APPEND rmw_fastrtps_cpp_LIBRARIES fastrtps fastcdr)
+list(APPEND rmw_zenoh_cpp_LIBRARIES ${zenoh_LIBRARIES})

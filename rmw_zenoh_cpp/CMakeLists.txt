@@ -64,6 +64,7 @@ ament_target_dependencies(rmw_zenoh_cpp
   rcutils
   rmw
   zenoh
+  zenoh_vendor
   rosidl_typesupport_zenoh_c
   rosidl_typesupport_zenoh_cpp
   rosidl_generator_c
@@ -83,7 +84,7 @@ ament_export_dependencies(rosidl_typesupport_zenoh_c)
 ament_export_dependencies(rosidl_generator_c)
 ament_export_dependencies(rcutils)
 ament_export_dependencies(rmw)
-ament_export_dependencies(zenoh)
+ament_export_dependencies(zenoh_vendor)
 
 register_rmw_implementation(
   "c:rosidl_typesupport_c:rosidl_typesupport_zenoh_c"
