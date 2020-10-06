@@ -70,8 +70,8 @@ else()
 endif()
 
 # Search for headers and the library
-find_path(zenoh_INCLUDE_DIR NAMES "zenoh/zenoh-ffi.h" ${zenoh_INCLUDE_PATH})
-find_library(zenoh_LIBRARY NAMES zenoh_ffi ${zenoh_LIBRARY_PATH})
+find_path(zenoh_INCLUDE_DIR NAMES "zenoh/zenoh.h" ${zenoh_INCLUDE_PATH})
+find_library(zenoh_LIBRARY NAMES zenohc ${zenoh_LIBRARY_PATH})
 
 mark_as_advanced(zenoh_INCLUDE_DIR zenoh_LIBRARY)
 
@@ -85,8 +85,8 @@ if(${zenoh_FOUND})
   set(zenoh_INCLUDE_DIRS ${zenoh_INCLUDE_DIR})
   set(zenoh_LIBRARIES ${zenoh_LIBRARY})
 
-  add_library(zenoh::zenoh-ffi UNKNOWN IMPORTED)
-  set_property(TARGET zenoh::zenoh-ffi PROPERTY IMPORTED_LOCATION ${zenoh_LIBRARY})
-  set_property(TARGET zenoh::zenoh-ffi PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${zenoh_INCLUDE_DIR})
-  list(APPEND zenoh_TARGETS zenoh::zenoh-ffi)
+  add_library(zenoh::zenohc UNKNOWN IMPORTED)
+  set_property(TARGET zenoh::zenohc PROPERTY IMPORTED_LOCATION ${zenoh_LIBRARY})
+  set_property(TARGET zenoh::zenohc PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${zenoh_INCLUDE_DIR})
+  list(APPEND zenoh_TARGETS zenoh::zenohc)
 endif()

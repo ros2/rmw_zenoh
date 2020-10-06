@@ -29,7 +29,7 @@
 
 extern "C"
 {
-  #include "zenoh/zenoh-ffi.h"
+  #include "zenoh/zenoh.h"
 }
 
 struct rmw_service_data_t

@@ -29,7 +29,7 @@
 
 extern "C"
 {
-#include "zenoh/zenoh-ffi.h"
+#include "zenoh/zenoh.h"
 
 /// PUBLISH ROS MESSAGE ========================================================
 // Serialize and publish a ROS message using Zenoh.

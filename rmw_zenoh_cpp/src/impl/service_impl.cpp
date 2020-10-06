@@ -24,11 +24,6 @@
 #include "rcutils/logging_macros.h"
 #include "rmw_zenoh_cpp/TypeSupport.hpp"
 
-extern "C"
-{
-  #include "zenoh/zenoh-ffi.h"
-}
-
 std::mutex request_callback_mutex;
 
 /// STATIC SERVICE DATA MEMBERS ================================================

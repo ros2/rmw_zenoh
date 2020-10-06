@@ -32,7 +32,7 @@
 
 extern "C"
 {
-#include "zenoh/zenoh-ffi.h"
+#include "zenoh/zenoh.h"
 
 /// CREATE PUBLISHER ===========================================================
 // Create and return an rmw publisher.
