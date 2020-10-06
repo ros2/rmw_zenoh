@@ -31,7 +31,7 @@
 
 extern "C"
 {
-#include "zenoh/zenoh-ffi.h"
+#include "zenoh/zenoh.h"
 
 /// INIT CONTEXT ===============================================================
 // Initialize the middleware with the given options, and yielding an context.

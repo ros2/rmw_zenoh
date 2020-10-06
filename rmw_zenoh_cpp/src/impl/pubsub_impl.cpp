@@ -24,11 +24,6 @@
 #include "rmw_zenoh_cpp/TypeSupport.hpp"
 #include "rcutils/logging_macros.h"
 
-extern "C"
-{
-  #include "zenoh/zenoh-ffi.h"
-}
-
 std::mutex sub_callback_mutex;
 
 
