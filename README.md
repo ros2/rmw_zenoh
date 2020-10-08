@@ -45,7 +45,7 @@ rosdep install --ignore-src --from-paths src --rosdistro=foxy -y
 ```
 
 You are now ready to compile the workspace.
-Because of an as-yet unresolved quirk in the typesupport compilation, this needs to be done twice.
+Because of an as-yet unresolved quirk in the typesupport compilation (https://github.com/osrf/rmw_zenoh/issues/39), this needs to be done twice.
 
 ```shell
 cd ~/rmw_zenoh_ws
