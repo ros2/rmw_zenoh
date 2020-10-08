@@ -45,7 +45,7 @@ rosdep install --ignore-src --from-paths src --rosdistro=foxy -y
 ```
 
 You are now ready to compile the workspace.
-Because of an as-yet unresolved quirk in the typesupport compilation, this needs to be done twice.
+Because of an as-yet unresolved quirk in the typesupport compilation (https://github.com/osrf/rmw_zenoh/issues/39), this needs to be done twice.
 
 ```shell
 cd ~/rmw_zenoh_ws
@@ -69,7 +69,7 @@ Terminal 1:
 cd ~/rmw_zenoh_ws
 source install/setup.bash
 export RMW_IMPLEMENTATION=rmw_zenoh_cpp
-ros2 run demon_nodes_cpp talker
+ros2 run demo_nodes_cpp talker
 ```
 
 Terminal 2:
@@ -78,7 +78,7 @@ Terminal 2:
 cd ~/rmw_zenoh_ws
 source install/setup.bash
 export RMW_IMPLEMENTATION=rmw_zenoh_cpp
-ros2 run demon_nodes_cpp listener
+ros2 run demo_nodes_cpp listener
 ```
 
 You should see data being transmitted from the `talker` program to the `listener` program.
