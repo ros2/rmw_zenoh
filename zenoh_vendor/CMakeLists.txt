@@ -10,7 +10,7 @@ if(DEFINED CMAKE_TOOLCHAIN_FILE)
 endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-  set(CARGO_BUILD_FLAG "")
+  set(CARGO_BUILD_FLAG "Debug")
   set(ZENOH_OBJECTS_DIR "debug")
 else()
   set(CARGO_BUILD_FLAG "--release")
