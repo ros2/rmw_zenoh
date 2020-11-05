@@ -38,7 +38,7 @@ std::unordered_map<std::string, std::vector<rmw_subscription_data_t *>>
 
 
 /// ZENOH MESSAGE SUBSCRIPTION CALLBACK (static method) ========================
-void rmw_subscription_data_t::zn_sub_callback(const zn_sample * sample)
+void rmw_subscription_data_t::zn_sub_callback(const zn_sample_t * sample, const void *)
 {
   std::lock_guard<std::mutex> guard(sub_callback_mutex);
 

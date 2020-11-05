@@ -153,7 +153,7 @@ rmw_create_subscription(
   auto * callbacks = static_cast<const message_type_support_callbacks_t *>(type_support->data);
 
   // Obtain Zenoh session
-  ZNSession * session = node->context->impl->session;
+  zn_session_t * session = node->context->impl->session;
 
   // Get typed pointer to implementation specific subscription data struct
   auto * subscription_data = static_cast<rmw_subscription_data_t *>(subscription->data);
@@ -204,9 +204,10 @@ rmw_create_subscription(
     // The topic name will be the same for any duplicate subscribers, so it is ok
     subscription_data->zn_subscriber_ = zn_declare_subscriber(
       subscription_data->zn_session_,
-      subscription->topic_name,
+      zn_rname(subscription->topic_name),
       zn_subinfo_default(),  // NOTE(CH3): Default for now
-      subscription_data->zn_sub_callback);
+      subscription_data->zn_sub_callback,
+      nullptr);
 
     RCUTILS_LOG_DEBUG_NAMED(
       "rmw_zenoh_cpp",

@@ -37,7 +37,7 @@ std::unordered_map<std::string, std::vector<rmw_service_data_t *>>
 
 
 /// ZENOH REQUEST MESSAGE SUBSCRIPTION CALLBACK (static method) ================
-void rmw_service_data_t::zn_request_sub_callback(const zn_sample * sample)
+void rmw_service_data_t::zn_request_sub_callback(const zn_sample_t * sample, const void *)
 {
   std::lock_guard<std::mutex> guard(request_callback_mutex);
 
@@ -82,12 +82,12 @@ void rmw_service_data_t::zn_request_sub_callback(const zn_sample * sample)
 }
 
 /// ZENOH SERVICE AVAILABILITY QUERYABLE CALLBACK ==============================
-void rmw_service_data_t::zn_service_availability_queryable_callback(ZNQuery * query)
+void rmw_service_data_t::zn_service_availability_queryable_callback(zn_query_t * query, const void *)
 {
-  const zn_string * resource = zn_query_res_name(query);
-  const zn_string * predicate = zn_query_predicate(query);
+  z_string_t resource = zn_query_res_name(query);
+  z_string_t predicate = zn_query_predicate(query);
 
-  std::string res(resource->val, resource->len);
+  std::string res(resource.val, resource.len);
   std::string response("available");  // NOTE(CH3): The contents actually don't matter...
 
   zn_send_reply(query, res.c_str(), (const unsigned char *)response.c_str(), response.length());

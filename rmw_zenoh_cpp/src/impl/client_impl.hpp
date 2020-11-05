@@ -36,9 +36,9 @@ extern "C"
 struct rmw_client_data_t
 {
   /// STATIC MEMBERS ===========================================================
-  static void zn_response_sub_callback(const zn_sample * sample);
+  static void zn_response_sub_callback(const zn_sample_t * sample, const void * arg);
   static void zn_service_availability_query_callback(
-    const zn_source_info * info, const zn_sample * sample
+    const zn_source_info_t * info, const zn_sample_t * sample, const void * arg
   );
 
   // Counter to give client servers unique IDs
@@ -68,11 +68,11 @@ struct rmw_client_data_t
   rmw_zenoh_cpp::TypeSupport * response_type_support_;
 
   /// ZENOH ====================================================================
-  ZNSession * zn_session_;
+  zn_session_t * zn_session_;
 
   // Response Sub
   const char * zn_response_topic_key_;
-  ZNSubscriber * zn_response_subscriber_;
+  zn_subscriber_t * zn_response_subscriber_;
 
   // Request Pub
   const char * zn_request_topic_key_;

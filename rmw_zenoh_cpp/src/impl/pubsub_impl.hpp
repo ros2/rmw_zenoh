@@ -44,7 +44,7 @@ struct rmw_publisher_data_t
   rmw_zenoh_cpp::TypeSupport * type_support_;
 
   size_t zn_topic_id_;
-  ZNSession * zn_session_;
+  zn_session_t * zn_session_;
 
   const rmw_node_t * node_;
 };
@@ -53,7 +53,7 @@ struct rmw_publisher_data_t
 struct rmw_subscription_data_t
 {
   /// STATIC MEMBERS ===============================================================================
-  static void zn_sub_callback(const zn_sample * sample);
+  static void zn_sub_callback(const zn_sample_t * sample, const void * arg);
 
   // Counter to give subscriptions unique IDs
   static std::atomic<size_t> subscription_id_counter;
@@ -71,8 +71,8 @@ struct rmw_subscription_data_t
   rmw_zenoh_cpp::TypeSupport * type_support_;
   const rmw_node_t * node_;
 
-  ZNSession * zn_session_;
-  ZNSubscriber * zn_subscriber_;
+  zn_session_t * zn_session_;
+  zn_subscriber_t * zn_subscriber_;
 
   // Instanced message queue
   std::deque<std::shared_ptr<std::vector<unsigned char>>> zn_message_queue_;

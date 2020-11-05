@@ -35,9 +35,9 @@ extern "C"
 struct rmw_service_data_t
 {
   /// STATIC MEMBERS ===========================================================
-  static void zn_request_sub_callback(const zn_sample * sample);
+  static void zn_request_sub_callback(const zn_sample_t * sample, const void * arg);
 
-  static void zn_service_availability_queryable_callback(ZNQuery * query);
+  static void zn_service_availability_queryable_callback(zn_query_t * query, const void * arg);
 
   // Counter to give service servers unique IDs
   static std::atomic<size_t> service_id_counter;
@@ -58,12 +58,12 @@ struct rmw_service_data_t
   rmw_zenoh_cpp::TypeSupport * response_type_support_;
 
   /// ZENOH ====================================================================
-  ZNSession * zn_session_;
-  ZNQueryable * zn_queryable_;
+  zn_session_t * zn_session_;
+  zn_queryable_t * zn_queryable_;
 
   // Request Sub
   const char * zn_request_topic_key_;
-  ZNSubscriber * zn_request_subscriber_;
+  zn_subscriber_t * zn_request_subscriber_;
 
   // Response Pub
   const char * zn_response_topic_key_;

@@ -73,11 +73,12 @@ rmw_service_server_is_available(
   // Check if server is alive by querying its availability Zenoh queryable
   zn_query(
     client_data->zn_session_,
-    client->service_name,
+    zn_rname(client->service_name),
     "",  // NOTE(CH3): Maybe use this predicate if we want to more things in the queryable
     zn_query_target_default(),
     zn_query_consolidation_default(),
-    rmw_client_data_t::zn_service_availability_query_callback);
+    rmw_client_data_t::zn_service_availability_query_callback,
+    nullptr);
 
   std::string key(client->service_name);
 
@@ -201,7 +202,7 @@ rmw_create_client(
   auto client_data = static_cast<rmw_client_data_t *>(client->data);
 
   // Obtain Zenoh session and create Zenoh resource for request messages
-  ZNSession * session = node->context->impl->session;
+  zn_session_t * session = node->context->impl->session;
   client_data->zn_session_ = session;
 
   // Obtain qualified request-response topics
@@ -235,7 +236,7 @@ rmw_create_client(
   // same Zenoh network! It is not a UUID!!
   client_data->zn_request_topic_id_ = zn_declare_resource(
     session,
-    client_data->zn_request_topic_key_);
+    zn_rname(client_data->zn_request_topic_key_));
 
   // INSERT TYPE SUPPORT =======================================================
   // Init type support callbacks
@@ -313,9 +314,10 @@ rmw_create_client(
     // The topic name will be the same for any duplicate subscribers, so it is ok
     client_data->zn_response_subscriber_ = zn_declare_subscriber(
       client_data->zn_session_,
-      client_data->zn_response_topic_key_,
+      zn_rname(client_data->zn_response_topic_key_),
       zn_subinfo_default(),  // NOTE(CH3): Default for now
-      client_data->zn_response_sub_callback);
+      client_data->zn_response_sub_callback,
+      nullptr);
 
     RCUTILS_LOG_DEBUG_NAMED(
       "rmw_zenoh_cpp",
@@ -380,9 +382,10 @@ rmw_create_client(
   // are no other processes anywhere on the network where the Zenoh queryable is being listened to.)
   zn_declare_queryable(
     session,
-    client->service_name,
-    STORAGE,
-    [](ZNQuery * query) {});
+    zn_rname(client->service_name),
+    ZN_QUERYABLE_STORAGE,
+    [](zn_query_t *, const void *) {},
+    nullptr);
 
   return client;
 }
@@ -557,9 +560,9 @@ rmw_send_request(const rmw_client_t * client, const void * ros_request, int64_t 
     meta_length);
 
   // PUBLISH ON ZENOH MIDDLEWARE LAYER =========================================
-  size_t wrid_ret = zn_write_wrid(
+  size_t wrid_ret = zn_write(
     client_data->zn_session_,
-    client_data->zn_request_topic_id_,
+    zn_rid(client_data->zn_request_topic_id_),
     request_bytes,
     data_length + meta_length);
 

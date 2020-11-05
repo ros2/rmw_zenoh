@@ -22,7 +22,7 @@ extern "C"
 
 struct rmw_context_impl_t
 {
-  ZNSession * session;
+  zn_session_t * session;
   bool is_shutdown;
 };
 

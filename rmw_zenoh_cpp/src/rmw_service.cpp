@@ -131,7 +131,7 @@ rmw_create_service(
   auto * service_data = static_cast<rmw_service_data_t *>(service->data);
 
   // Obtain Zenoh session and create Zenoh resource for response messages
-  ZNSession * session = node->context->impl->session;
+  zn_session_t * session = node->context->impl->session;
   service_data->zn_session_ = session;
 
   // Obtain qualified request-response topics
@@ -169,7 +169,7 @@ rmw_create_service(
   // using the same topic or not.
   service_data->zn_response_topic_id_ = zn_declare_resource(
     session,
-    service_data->zn_response_topic_key_);
+    zn_rname(service_data->zn_response_topic_key_));
 
   // INSERT TYPE SUPPORT =======================================================
   // Init type support callbacks
@@ -255,9 +255,10 @@ rmw_create_service(
     // The topic name will be the same for any duplicate subscribers, so it is ok
     service_data->zn_request_subscriber_ = zn_declare_subscriber(
       service_data->zn_session_,
-      service_data->zn_request_topic_key_,
+      zn_rname(service_data->zn_request_topic_key_),
       zn_subinfo_default(),  // NOTE(CH3): Default for now
-      service_data->zn_request_sub_callback);
+      service_data->zn_request_sub_callback,
+      nullptr);
 
     RCUTILS_LOG_DEBUG_NAMED(
       "rmw_zenoh_cpp",
@@ -277,9 +278,10 @@ rmw_create_service(
   // DECLARE SERVICE IS AVAILABLE ==============================================
   service_data->zn_queryable_ = zn_declare_queryable(
     session,
-    service->service_name,
-    STORAGE,
-    rmw_service_data_t::zn_service_availability_queryable_callback);
+    zn_rname(service->service_name),
+    ZN_QUERYABLE_STORAGE,
+    rmw_service_data_t::zn_service_availability_queryable_callback,
+    nullptr);
 
   if (service_data->zn_queryable_ == 0) {
     RMW_SET_ERROR_MSG("failed to create availability queryable for service");
@@ -585,9 +587,9 @@ rmw_send_response(
     meta_length);
 
   // PUBLISH ON ZENOH MIDDLEWARE LAYER =========================================
-  size_t wrid_ret = zn_write_wrid(
+  size_t wrid_ret = zn_write(
     service_data->zn_session_,
-    service_data->zn_response_topic_id_,
+    zn_rid(service_data->zn_response_topic_id_),
     response_bytes,
     data_length + meta_length);
 

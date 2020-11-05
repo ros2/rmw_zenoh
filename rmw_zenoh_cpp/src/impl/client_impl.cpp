@@ -43,7 +43,7 @@ std::unordered_map<std::string, std::vector<rmw_client_data_t *>>
 // *INDENT-ON*
 
 /// ZENOH RESPONSE SUBSCRIPTION CALLBACK (static method) =======================
-void rmw_client_data_t::zn_response_sub_callback(const zn_sample * sample)
+void rmw_client_data_t::zn_response_sub_callback(const zn_sample_t * sample, const void *)
 {
   std::lock_guard<std::mutex> guard(response_callback_mutex);
 
@@ -88,8 +88,9 @@ void rmw_client_data_t::zn_response_sub_callback(const zn_sample * sample)
 }
 /// ZENOH SERVICE AVAILABILITY QUERY CALLBACK ==================================
 void rmw_client_data_t::zn_service_availability_query_callback(
-  const zn_source_info * info,
-  const zn_sample * sample)
+  const zn_source_info_t *,
+  const zn_sample_t * sample,
+  const void *)
 {
   std::lock_guard<std::mutex> guard(query_callback_mutex);
 

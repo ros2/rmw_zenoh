@@ -110,17 +110,15 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   }
 
   // Open configured Zenoh session, then assign it to the context
-  int SESSION_MODE;
+  zn_properties_t * config;
 
   if (strcmp(context->options.impl->mode, "CLIENT") == 0) {
-    SESSION_MODE = CLIENT;
-  } else if (strcmp(context->options.impl->mode, "CLIENT") == 0) {
-    SESSION_MODE = ROUTER;
+    config = zn_config_client(context->options.impl->session_locator);
   } else {
-    SESSION_MODE = PEER;
+    config = zn_config_peer();
   }
 
-  ZNSession * session = zn_open(SESSION_MODE, context->options.impl->session_locator, 0);
+  zn_session_t * session = zn_open(config);
 
   if (session == nullptr) {
     RMW_SET_ERROR_MSG("failed to create Zenoh session when starting context");
