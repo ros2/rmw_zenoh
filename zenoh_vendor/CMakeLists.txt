@@ -17,26 +17,28 @@ else()
   set(ZENOH_OBJECTS_DIR "release")
 endif()
 
+set(ZENOH_C_TAG "0.5.0-b5")
+
 include(ExternalProject)
-ExternalProject_Add(zenoh-c-0.5.0-b5
+ExternalProject_Add(zenoh-c-${ZENOH_C_TAG}
   PREFIX zenoh-c
   GIT_REPOSITORY https://github.com/eclipse-zenoh/zenoh-c.git
-  GIT_TAG 0.5.0-b5
+  GIT_TAG ${ZENOH_C_TAG}
   GIT_SHALLOW FALSE
   CONFIGURE_COMMAND ""
   BUILD_COMMAND BUILD_TYPE=${CARGO_BUILD_FLAG} make
   BUILD_IN_SOURCE TRUE
   INSTALL_COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_INSTALL_PREFIX}/lib"
   COMMAND ${CMAKE_COMMAND} -E copy
-      "${CMAKE_CURRENT_BINARY_DIR}/zenoh-c/src/zenoh-c-20201006/target/${ZENOH_OBJECTS_DIR}/libzenohc.so"
+      "${CMAKE_CURRENT_BINARY_DIR}/zenoh-c/src/zenoh-c-${ZENOH_C_TAG}/target/${ZENOH_OBJECTS_DIR}/libzenohc.so"
       "${CMAKE_INSTALL_PREFIX}/lib"
   COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_INSTALL_PREFIX}/include/zenoh"
   COMMAND ${CMAKE_COMMAND} -E copy
-      "${CMAKE_CURRENT_BINARY_DIR}/zenoh-c/src/zenoh-c-20201006/include/zenoh.h"
+      "${CMAKE_CURRENT_BINARY_DIR}/zenoh-c/src/zenoh-c-${ZENOH_C_TAG}/include/zenoh.h"
       "${CMAKE_INSTALL_PREFIX}/include/zenoh"
   COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_INSTALL_PREFIX}/include/zenoh/zenoh"
   COMMAND ${CMAKE_COMMAND} -E copy
-      "${CMAKE_CURRENT_BINARY_DIR}/zenoh-c/src/zenoh-c-20201006/include/zenoh/net.h"
+      "${CMAKE_CURRENT_BINARY_DIR}/zenoh-c/src/zenoh-c-${ZENOH_C_TAG}/include/zenoh/net.h"
       "${CMAKE_INSTALL_PREFIX}/include/zenoh/zenoh"
   )
 
