@@ -82,7 +82,9 @@ void rmw_service_data_t::zn_request_sub_callback(const zn_sample_t * sample, con
 }
 
 /// ZENOH SERVICE AVAILABILITY QUERYABLE CALLBACK ==============================
-void rmw_service_data_t::zn_service_availability_queryable_callback(zn_query_t * query, const void *)
+void rmw_service_data_t::zn_service_availability_queryable_callback(
+  zn_query_t * query,
+  const void *)
 {
   z_string_t resource = zn_query_res_name(query);
   z_string_t predicate = zn_query_predicate(query);
