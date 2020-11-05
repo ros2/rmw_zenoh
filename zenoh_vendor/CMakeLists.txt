@@ -18,10 +18,10 @@ else()
 endif()
 
 include(ExternalProject)
-ExternalProject_Add(zenoh-c-20201006
+ExternalProject_Add(zenoh-c-0.5.0-b5
   PREFIX zenoh-c
   GIT_REPOSITORY https://github.com/eclipse-zenoh/zenoh-c.git
-  GIT_TAG 6e5f5c89ff3b6791b74bf215245f170da210f5fc
+  GIT_TAG 0.5.0-b5
   GIT_SHALLOW FALSE
   CONFIGURE_COMMAND ""
   BUILD_COMMAND BUILD_TYPE=${CARGO_BUILD_FLAG} make
