@@ -142,6 +142,13 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   // CLEANUP IF PASSED =========================================================
   context->impl = context_impl;
   clean_when_fail.release();
+
+#ifdef USE_ZENOH_PICO
+  // Start the read session session lease loops
+  znp_start_read_task(session);
+  znp_start_lease_task(session);
+#endif
+
   return RMW_RET_OK;
 }
 
