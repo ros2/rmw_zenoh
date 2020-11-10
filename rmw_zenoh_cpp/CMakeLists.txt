@@ -25,6 +25,11 @@ find_package(zenoh_pico REQUIRED)
 
 include_directories(include)
 
+if(WITH_ZENOH_PICO)
+  add_definitions(-DUSE_ZENOH_PICO)
+endif()
+
+message("ASFASFASFASDFASDF ======= asdfasfd ${WITH_ZENOH_PICO} ---")
 add_library(rmw_zenoh_cpp
   src/rmw_event.cpp
   src/rmw_get_node_info_and_types.cpp
@@ -63,8 +68,8 @@ target_link_libraries(rmw_zenoh_cpp
 ament_target_dependencies(rmw_zenoh_cpp
   rcutils
   rmw
-  zenoh
-  zenoh_vendor
+  zenoh_pico
+  zenoh_pico_vendor
   rosidl_typesupport_zenoh_c
   rosidl_typesupport_zenoh_cpp
   rosidl_generator_c
@@ -84,7 +89,7 @@ ament_export_dependencies(rosidl_typesupport_zenoh_c)
 ament_export_dependencies(rosidl_generator_c)
 ament_export_dependencies(rcutils)
 ament_export_dependencies(rmw)
-ament_export_dependencies(zenoh_vendor)
+ament_export_dependencies(zenoh_pico_vendor)
 
 register_rmw_implementation(
   "c:rosidl_typesupport_c:rosidl_typesupport_zenoh_c"

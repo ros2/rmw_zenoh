@@ -29,7 +29,11 @@
 
 extern "C"
 {
+#ifdef USE_ZENOH_PICO
+  #include "zenoh.h"
+#else
   #include "zenoh/zenoh.h"
+#endif
 }
 
 struct rmw_node_impl_t

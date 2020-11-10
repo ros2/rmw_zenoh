@@ -30,7 +30,11 @@
 
 extern "C"
 {
+  #ifdef USE_ZENOH_PICO
+  #include "zenoh.h"
+#else
   #include "zenoh/zenoh.h"
+#endif
 }
 
 struct rmw_client_data_t

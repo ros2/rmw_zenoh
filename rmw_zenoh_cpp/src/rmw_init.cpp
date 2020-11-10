@@ -31,7 +31,11 @@
 
 extern "C"
 {
-#include "zenoh/zenoh.h"
+#ifdef USE_ZENOH_PICO
+  #include "zenoh.h"
+#else
+  #include "zenoh/zenoh.h"
+#endif
 
 /// INIT CONTEXT ===============================================================
 // Initialize the middleware with the given options, and yielding an context.
