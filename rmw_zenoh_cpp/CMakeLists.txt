@@ -20,15 +20,17 @@ find_package(rosidl_generator_c REQUIRED)
 find_package(rosidl_typesupport_zenoh_c REQUIRED)
 find_package(rosidl_typesupport_zenoh_cpp REQUIRED)
 
-find_package(zenoh_pico_vendor REQUIRED)
-find_package(zenoh_pico REQUIRED)
-
 include_directories(include)
 
 option(WITH_ZENOH_PICO "Use zenoh-pico as the underlying implementation" OFF)
 
 if(WITH_ZENOH_PICO)
+  find_package(zenoh_pico_vendor REQUIRED)
+  find_package(zenoh_pico REQUIRED)
   add_definitions(-DUSE_ZENOH_PICO -DZENOH_LINUX=1)
+else()
+  find_package(zenoh_vendor REQUIRED)
+  find_package(zenoh REQUIRED)
 endif()
 
 add_library(rmw_zenoh_cpp
@@ -66,15 +68,27 @@ target_link_libraries(rmw_zenoh_cpp
   fastcdr
 )
 
-ament_target_dependencies(rmw_zenoh_cpp
+set(ZENOH_TARGET_DEPENDENCIES
   rcutils
   rmw
-  zenoh_pico
-  zenoh_pico_vendor
   rosidl_typesupport_zenoh_c
   rosidl_typesupport_zenoh_cpp
   rosidl_generator_c
 )
+
+if(WITH_ZENOH_PICO)
+  list(APPEND ZENOH_TARGET_DEPENDENCIES
+    zenoh_pico
+    zenoh_pico_vendor
+  )
+else()
+  list(APPEND ZENOH_TARGET_DEPENDENCIES
+    zenoh
+    zenoh_vendor
+  )
+endif()
+
+ament_target_dependencies(rmw_zenoh_cpp ${ZENOH_TARGET_DEPENDENCIES})
 
 configure_rmw_library(rmw_zenoh_cpp)
 
@@ -90,7 +104,11 @@ ament_export_dependencies(rosidl_typesupport_zenoh_c)
 ament_export_dependencies(rosidl_generator_c)
 ament_export_dependencies(rcutils)
 ament_export_dependencies(rmw)
-ament_export_dependencies(zenoh_pico_vendor)
+if(WITH_ZENOH_PICO)
+  ament_export_dependencies(zenoh_pico_vendor)
+else()
+  ament_export_dependencies(zenoh_vendor)
+endif()
 
 register_rmw_implementation(
   "c:rosidl_typesupport_c:rosidl_typesupport_zenoh_c"
@@ -135,9 +153,15 @@ if(BUILD_TESTING)
   #target_link_libraries(test_subscription rmw_zenoh_cpp)
 endif()
 
-ament_package(
-  CONFIG_EXTRAS_POST "rmw_zenoh_cpp-extras.cmake"
-)
+if(WITH_ZENOH_PICO)
+  ament_package(
+    CONFIG_EXTRAS_POST "rmw_zenoh_pico_cpp-extras.cmake"
+  )
+else()
+  ament_package(
+    CONFIG_EXTRAS_POST "rmw_zenoh_cpp-extras.cmake"
+  )
+endif()
 
 install(
   DIRECTORY include/
