@@ -17,10 +17,11 @@
 
 extern "C"
 {
-  #ifdef USE_ZENOH_PICO
-  #include "zenoh.h"
+#ifdef USE_ZENOH_PICO
+#include "zenoh/net/private/unix/types.h"
+#include "zenoh.h"
 #else
-  #include "zenoh/zenoh.h"
+#include "zenoh/zenoh.h"
 #endif
 }
 

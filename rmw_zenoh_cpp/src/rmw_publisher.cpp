@@ -33,9 +33,9 @@
 extern "C"
 {
 #ifdef USE_ZENOH_PICO
-  #include "zenoh.h"
+#include "zenoh.h"
 #else
-  #include "zenoh/zenoh.h"
+#include "zenoh/zenoh.h"
 #endif
 
 /// CREATE PUBLISHER ===========================================================

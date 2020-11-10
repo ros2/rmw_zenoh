@@ -32,9 +32,9 @@
 extern "C"
 {
 #ifdef USE_ZENOH_PICO
-  #include "zenoh.h"
+#include "zenoh.h"
 #else
-  #include "zenoh/zenoh.h"
+#include "zenoh/zenoh.h"
 #endif
 
 /// INIT CONTEXT ===============================================================
@@ -119,7 +119,13 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   if (strcmp(context->options.impl->mode, "CLIENT") == 0) {
     config = zn_config_client(context->options.impl->session_locator);
   } else {
+#ifdef USE_ZENOH_PICO
+    RMW_SET_ERROR_MSG("zenoh-pico can only work in client mode");
+    allocator->deallocate(context_impl, allocator->state);
+    return RMW_RET_ERROR;
+#else
     config = zn_config_peer();
+#endif
   }
 
   zn_session_t * session = zn_open(config);

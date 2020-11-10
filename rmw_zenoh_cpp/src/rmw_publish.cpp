@@ -30,9 +30,9 @@
 extern "C"
 {
 #ifdef USE_ZENOH_PICO
-  #include "zenoh.h"
+#include "zenoh.h"
 #else
-  #include "zenoh/zenoh.h"
+#include "zenoh/zenoh.h"
 #endif
 
 /// PUBLISH ROS MESSAGE ========================================================
@@ -97,7 +97,7 @@ rmw_publish(
   size_t wrid_ret = zn_write(
     publisher_data->zn_session_,
     zn_rid(publisher_data->zn_topic_id_),
-    msg_bytes,
+    reinterpret_cast<uint8_t *>(msg_bytes),
     data_length);
 
   allocator->deallocate(msg_bytes, allocator->state);

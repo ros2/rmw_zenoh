@@ -590,7 +590,7 @@ rmw_send_response(
   size_t wrid_ret = zn_write(
     service_data->zn_session_,
     zn_rid(service_data->zn_response_topic_id_),
-    response_bytes,
+    reinterpret_cast<uint8_t *>(response_bytes),
     data_length + meta_length);
 
   allocator->deallocate(response_bytes, allocator->state);

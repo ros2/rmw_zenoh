@@ -25,11 +25,12 @@ find_package(zenoh_pico REQUIRED)
 
 include_directories(include)
 
+option(WITH_ZENOH_PICO "Use zenoh-pico as the underlying implementation" OFF)
+
 if(WITH_ZENOH_PICO)
   add_definitions(-DUSE_ZENOH_PICO)
 endif()
 
-message("ASFASFASFASDFASDF ======= asdfasfd ${WITH_ZENOH_PICO} ---")
 add_library(rmw_zenoh_cpp
   src/rmw_event.cpp
   src/rmw_get_node_info_and_types.cpp
