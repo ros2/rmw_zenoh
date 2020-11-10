@@ -20,8 +20,8 @@ find_package(rosidl_generator_c REQUIRED)
 find_package(rosidl_typesupport_zenoh_c REQUIRED)
 find_package(rosidl_typesupport_zenoh_cpp REQUIRED)
 
-find_package(zenoh_vendor REQUIRED)
-find_package(zenoh REQUIRED)
+find_package(zenoh_pico_vendor REQUIRED)
+find_package(zenoh_pico REQUIRED)
 
 include_directories(include)
 
