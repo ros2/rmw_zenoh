@@ -28,7 +28,7 @@ include_directories(include)
 option(WITH_ZENOH_PICO "Use zenoh-pico as the underlying implementation" OFF)
 
 if(WITH_ZENOH_PICO)
-  add_definitions(-DUSE_ZENOH_PICO)
+  add_definitions(-DUSE_ZENOH_PICO -DZENOH_LINUX=1)
 endif()
 
 add_library(rmw_zenoh_cpp

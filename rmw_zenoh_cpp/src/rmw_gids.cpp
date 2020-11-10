@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifdef USE_ZENOH_PICO
-#include "zenoh/net/private/unix/types.h"
-#endif
-
 #include "rcutils/logging_macros.h"
 
 #include "rmw/topic_endpoint_info_array.h"
