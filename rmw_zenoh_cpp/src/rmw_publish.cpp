@@ -30,9 +30,9 @@
 extern "C"
 {
 #ifdef USE_ZENOH_PICO
-#include "zenoh.h"
+#include "zenoh-pico/net.h"
 #else
-#include "zenoh/zenoh.h"
+#include "zenoh/net.h"
 #endif
 
 /// PUBLISH ROS MESSAGE ========================================================

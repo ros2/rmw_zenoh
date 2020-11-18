@@ -70,7 +70,7 @@ else()
 endif()
 
 # Search for headers and the library
-find_path(zenoh_INCLUDE_DIR NAMES "zenoh/zenoh.h" ${zenoh_INCLUDE_PATH})
+find_path(zenoh_INCLUDE_DIR NAMES "zenoh.h" ${zenoh_INCLUDE_PATH})
 find_library(zenoh_LIBRARY NAMES zenohc ${zenoh_LIBRARY_PATH})
 
 mark_as_advanced(zenoh_INCLUDE_DIR zenoh_LIBRARY)
