@@ -28,18 +28,7 @@ ExternalProject_Add(zenoh-c-${ZENOH_C_TAG}
   CONFIGURE_COMMAND ""
   BUILD_COMMAND BUILD_TYPE=${CARGO_BUILD_FLAG} make
   BUILD_IN_SOURCE TRUE
-  INSTALL_COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_INSTALL_PREFIX}/lib"
-  COMMAND ${CMAKE_COMMAND} -E copy
-      "${CMAKE_CURRENT_BINARY_DIR}/zenoh-c/src/zenoh-c-${ZENOH_C_TAG}/target/${ZENOH_OBJECTS_DIR}/libzenohc.so"
-      "${CMAKE_INSTALL_PREFIX}/lib"
-  COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_INSTALL_PREFIX}/include/zenoh"
-  COMMAND ${CMAKE_COMMAND} -E copy
-      "${CMAKE_CURRENT_BINARY_DIR}/zenoh-c/src/zenoh-c-${ZENOH_C_TAG}/include/zenoh.h"
-      "${CMAKE_INSTALL_PREFIX}/include/zenoh"
-  COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_INSTALL_PREFIX}/include/zenoh/zenoh"
-  COMMAND ${CMAKE_COMMAND} -E copy
-      "${CMAKE_CURRENT_BINARY_DIR}/zenoh-c/src/zenoh-c-${ZENOH_C_TAG}/include/zenoh/net.h"
-      "${CMAKE_INSTALL_PREFIX}/include/zenoh/zenoh"
+  INSTALL_COMMAND PREFIX=${CMAKE_INSTALL_PREFIX} make install
   )
 
 install(DIRECTORY cmake DESTINATION share/${PROJECT_NAME})
