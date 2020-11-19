@@ -29,7 +29,7 @@
 
 extern "C"
 {
-  #include "zenoh/zenoh.h"
+#include "rmw_zenoh_cpp/zenoh-net-interface.h"
 }
 
 struct rmw_node_impl_t

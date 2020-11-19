@@ -1,4 +1,4 @@
-// Copyright 2020 Open Source Robotics Foundation, Inc.
+// Copyright 2020 ADLINK, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,21 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef RMW_ZENOH_CPP__RMW_CONTEXT_IMPL_HPP_
-#define RMW_ZENOH_CPP__RMW_CONTEXT_IMPL_HPP_
-
-extern "C"
-{
+#include "rmw/rmw.h"
+#include "rmw_zenoh_cpp/rmw_init_options_impl.hpp"
 #include "rmw_zenoh_cpp/zenoh-net-interface.h"
 
-extern zn_properties_t * configure_connection_mode(rmw_context_t * context);
-extern void configure_session(zn_session_t * session);
+zn_properties_t * configure_connection_mode(rmw_context_t * context)
+{
+  if (strcmp(context->options.impl->mode, "CLIENT") == 0) {
+    return zn_config_client(context->options.impl->session_locator);
+  } else {
+    return zn_config_peer();
+  }
 }
 
-struct rmw_context_impl_t
+void configure_session(zn_session_t * session)
 {
-  zn_session_t * session;
-  bool is_shutdown;
-};
-
-#endif  // RMW_ZENOH_CPP__RMW_CONTEXT_IMPL_HPP_
+  (void)session;
+}

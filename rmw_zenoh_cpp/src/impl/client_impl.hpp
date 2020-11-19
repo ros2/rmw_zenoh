@@ -30,7 +30,7 @@
 
 extern "C"
 {
-  #include "zenoh/zenoh.h"
+#include "rmw_zenoh_cpp/zenoh-net-interface.h"
 }
 
 struct rmw_client_data_t

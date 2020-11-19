@@ -20,12 +20,23 @@ find_package(rosidl_generator_c REQUIRED)
 find_package(rosidl_typesupport_zenoh_c REQUIRED)
 find_package(rosidl_typesupport_zenoh_cpp REQUIRED)
 
-find_package(zenoh_vendor REQUIRED)
-find_package(zenoh REQUIRED)
-
 include_directories(include)
 
-add_library(rmw_zenoh_cpp
+find_package(zenoh_pico_vendor QUIET)
+if(zenoh_pico_vendor_FOUND)
+  find_package(zenoh_pico QUIET)
+endif()
+
+find_package(zenoh_vendor QUIET)
+if(zenoh_vendor_FOUND)
+  find_package(zenoh QUIET)
+endif()
+
+if(NOT zenoh_FOUND AND NOT zenoh_pico_FOUND)
+  message(FATAL_ERROR "rmw_zenoh_cpp needs at least zenoh-c or zenoh-pico, could not find either")
+endif()
+
+add_library(rmw_zenoh_common_cpp OBJECT
   src/rmw_event.cpp
   src/rmw_get_node_info_and_types.cpp
   src/rmw_get_service_names_and_types.cpp
@@ -47,7 +58,6 @@ add_library(rmw_zenoh_cpp
   src/rmw_subscriber.cpp
   src/rmw_wait_sets.cpp
 
-  src/impl/identifier.cpp
   src/impl/wait_impl.cpp
   src/impl/pubsub_impl.cpp
   src/impl/service_impl.cpp
@@ -56,40 +66,74 @@ add_library(rmw_zenoh_cpp
   src/impl/qos.cpp
   src/impl/debug_helpers.cpp
 )
-target_link_libraries(rmw_zenoh_cpp
-  fastcdr
-)
-
-ament_target_dependencies(rmw_zenoh_cpp
+set_property(TARGET rmw_zenoh_common_cpp PROPERTY POSITION_INDEPENDENT_CODE ON)
+set(ZENOH_COMMON_TARGET_DEPENDENCIES
   rcutils
   rmw
-  zenoh
-  zenoh_vendor
   rosidl_typesupport_zenoh_c
   rosidl_typesupport_zenoh_cpp
   rosidl_generator_c
 )
-
-configure_rmw_library(rmw_zenoh_cpp)
-
+ament_target_dependencies(rmw_zenoh_common_cpp ${ZENOH_COMMON_TARGET_DEPENDENCIES})
 # Causes the visibility macros to use dllexport rather than dllimport,
 # which is appropriate when building the dll but not consuming it.
-target_compile_definitions(${PROJECT_NAME} PRIVATE "RMW_ZENOH_CPP_BUILDING_LIBRARY")
-
+target_compile_definitions(rmw_zenoh_common_cpp PRIVATE "RMW_ZENOH_CPP_BUILDING_LIBRARY")
 ament_export_include_directories(include)
-ament_export_libraries(rmw_zenoh_cpp)
 
 ament_export_dependencies(rosidl_typesupport_zenoh_cpp)
 ament_export_dependencies(rosidl_typesupport_zenoh_c)
 ament_export_dependencies(rosidl_generator_c)
 ament_export_dependencies(rcutils)
 ament_export_dependencies(rmw)
-ament_export_dependencies(zenoh_vendor)
 
 register_rmw_implementation(
   "c:rosidl_typesupport_c:rosidl_typesupport_zenoh_c"
   "cpp:rosidl_typesupport_cpp:rosidl_typesupport_zenoh_cpp"
 )
+
+if(zenoh_FOUND)
+  add_library(rmw_zenoh_cpp
+    src/rmw_zenoh_c.c
+    src/impl/identifier_zenoh_c.c
+    $<TARGET_OBJECTS:rmw_zenoh_common_cpp>
+  )
+  target_link_libraries(rmw_zenoh_cpp
+    fastcdr
+  )
+
+  set(ZENOH_C_TARGET_DEPENDENCIES
+    zenoh
+    zenoh_vendor
+    ${ZENOH_COMMON_TARGET_DEPENDENCIES}
+  )
+  ament_target_dependencies(rmw_zenoh_cpp ${ZENOH_C_TARGET_DEPENDENCIES})
+  configure_rmw_library(rmw_zenoh_cpp)
+  ament_export_libraries(rmw_zenoh_cpp)
+  ament_export_dependencies(zenoh_vendor)
+endif()
+
+if(zenoh_pico_FOUND)
+  add_library(rmw_zenoh_pico_cpp
+    src/rmw_zenoh_pico.c
+    src/impl/identifier_zenoh_pico.c
+    $<TARGET_OBJECTS:rmw_zenoh_common_cpp>
+  )
+  target_link_libraries(rmw_zenoh_pico_cpp
+    fastcdr
+    ${zenoh_pico_LIBRARIES}
+  )
+
+  set(ZENOH_PICO_TARGET_DEPENDENCIES
+    zenoh_pico
+    zenoh_pico_vendor
+    ${ZENOH_COMMON_TARGET_DEPENDENCIES}
+  )
+
+  ament_target_dependencies(rmw_zenoh_pico_cpp ${ZENOH_PICO_TARGET_DEPENDENCIES})
+  configure_rmw_library(rmw_zenoh_pico_cpp)
+  ament_export_libraries(rmw_zenoh_pico_cpp)
+  ament_export_dependencies(zenoh_pico_vendor)
+endif()
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
@@ -129,9 +173,15 @@ if(BUILD_TESTING)
   #target_link_libraries(test_subscription rmw_zenoh_cpp)
 endif()
 
-ament_package(
-  CONFIG_EXTRAS_POST "rmw_zenoh_cpp-extras.cmake"
-)
+if(WITH_ZENOH_PICO)
+  ament_package(
+    CONFIG_EXTRAS_POST "rmw_zenoh_pico_cpp-extras.cmake"
+  )
+else()
+  ament_package(
+    CONFIG_EXTRAS_POST "rmw_zenoh_cpp-extras.cmake"
+  )
+endif()
 
 install(
   DIRECTORY include/
@@ -139,7 +189,7 @@ install(
 )
 
 install(
-  TARGETS rmw_zenoh_cpp
+  TARGETS rmw_zenoh_cpp rmw_zenoh_pico_cpp
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin

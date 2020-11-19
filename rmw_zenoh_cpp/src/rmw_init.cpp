@@ -31,7 +31,7 @@
 
 extern "C"
 {
-#include "zenoh/zenoh.h"
+#include "rmw_zenoh_cpp/zenoh-net-interface.h"
 
 /// INIT CONTEXT ===============================================================
 // Initialize the middleware with the given options, and yielding an context.
@@ -110,12 +110,10 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   }
 
   // Open configured Zenoh session, then assign it to the context
-  zn_properties_t * config;
-
-  if (strcmp(context->options.impl->mode, "CLIENT") == 0) {
-    config = zn_config_client(context->options.impl->session_locator);
-  } else {
-    config = zn_config_peer();
+  zn_properties_t * config = configure_connection_mode(context);
+  if (nullptr == config) {
+    allocator->deallocate(context_impl, allocator->state);
+    return RMW_RET_ERROR;
   }
 
   zn_session_t * session = zn_open(config);
@@ -132,6 +130,9 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   // CLEANUP IF PASSED =========================================================
   context->impl = context_impl;
   clean_when_fail.release();
+
+  configure_session(session);
+
   return RMW_RET_OK;
 }
 

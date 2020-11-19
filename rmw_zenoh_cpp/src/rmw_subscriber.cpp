@@ -36,7 +36,7 @@
 
 extern "C"
 {
-#include "zenoh/zenoh.h"
+#include "rmw_zenoh_cpp/zenoh-net-interface.h"
 
 /// CREATE SUBSCRIPTION ========================================================
 // Create and return an rmw subscriber
