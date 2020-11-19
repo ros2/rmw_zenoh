@@ -1,5 +1,19 @@
-#ifndef ZENOH_NET_INTERFACE_
-#define ZENOH_NET_INTERFACE_
+// Copyright 2020 ADLINK, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#ifndef RMW_ZENOH_CPP__ZENOH_NET_INTERFACE_H_
+#define RMW_ZENOH_CPP__ZENOH_NET_INTERFACE_H_
 
 #include <stdarg.h>
 #include <stdbool.h>
@@ -14,7 +28,8 @@
  *     - **zn_consolidation_mode_t_LAZY**: Does not garanty unicity. Optimizes latency.
  *     - **zn_consolidation_mode_t_NONE**: No consolidation.
  */
-typedef enum zn_consolidation_mode_t {
+typedef enum zn_consolidation_mode_t
+{
   zn_consolidation_mode_t_FULL,
   zn_consolidation_mode_t_LAZY,
   zn_consolidation_mode_t_NONE,
@@ -26,7 +41,8 @@ typedef enum zn_consolidation_mode_t {
  *     - **zn_reliability_t_BEST_EFFORT**
  *     - **zn_reliability_t_RELIABLE**
  */
-typedef enum zn_reliability_t {
+typedef enum zn_reliability_t
+{
   zn_reliability_t_BEST_EFFORT,
   zn_reliability_t_RELIABLE,
 } zn_reliability_t;
@@ -37,7 +53,8 @@ typedef enum zn_reliability_t {
  *     - **zn_submode_t_PUSH**
  *     - **zn_submode_t_PULL**
  */
-typedef enum zn_submode_t {
+typedef enum zn_submode_t
+{
   zn_submode_t_PUSH,
   zn_submode_t_PULL,
 } zn_submode_t;
@@ -62,8 +79,9 @@ typedef struct zn_subscriber_t zn_subscriber_t;
  *   unsigned int len: The length of the string.
  *
  */
-typedef struct z_string_t {
-  const char *val;
+typedef struct z_string_t
+{
+  const char * val;
   size_t len;
 } z_string_t;
 
@@ -85,9 +103,10 @@ typedef struct z_string_t {
  *   unsigned long id: The id or prefix of this resource key. ``0`` if empty.
  *   const char *suffix: The suffix of this resource key. ``NULL`` if pure numerical id.
  */
-typedef struct zn_reskey_t {
+typedef struct zn_reskey_t
+{
   unsigned long id;
-  const char *suffix;
+  const char * suffix;
 } zn_reskey_t;
 
 /**
@@ -98,7 +117,8 @@ typedef struct zn_reskey_t {
  *     unsigned int period:
  *     unsigned int duration:
  */
-typedef struct zn_period_t {
+typedef struct zn_period_t
+{
   unsigned int origin;
   unsigned int period;
   unsigned int duration;
@@ -112,10 +132,11 @@ typedef struct zn_period_t {
  *     zn_submode_t mode: The subscription mode.
  *     zn_period_t *period: The subscription period.
  */
-typedef struct zn_subinfo_t {
+typedef struct zn_subinfo_t
+{
   zn_reliability_t reliability;
   zn_submode_t mode;
-  zn_period_t *period;
+  zn_period_t * period;
 } zn_subinfo_t;
 
 /**
@@ -126,8 +147,9 @@ typedef struct zn_subinfo_t {
  *   unsigned int len: The length of the bytes array.
  *
  */
-typedef struct z_bytes_t {
-  const uint8_t *val;
+typedef struct z_bytes_t
+{
+  const uint8_t * val;
   size_t len;
 } z_bytes_t;
 
@@ -140,7 +162,8 @@ typedef struct z_bytes_t {
  *   z_string_t key: The resource key of this data sample.
  *   z_bytes_t value: The value of this data sample.
  */
-typedef struct zn_sample_t {
+typedef struct zn_sample_t
+{
   z_string_t key;
   z_bytes_t value;
 } zn_sample_t;
@@ -153,8 +176,9 @@ typedef struct zn_sample_t {
  *   unsigned int len: The length of the array.
  *
  */
-typedef struct z_str_array_t {
-  const char *const *val;
+typedef struct z_str_array_t
+{
+  const char * const * val;
   size_t len;
 } z_str_array_t;
 
@@ -167,7 +191,8 @@ typedef struct z_str_array_t {
  *   z_str_array_t locators: The locators of the scouted entity.
  *
  */
-typedef struct zn_hello_t {
+typedef struct zn_hello_t
+{
   unsigned int whatami;
   z_bytes_t pid;
   z_str_array_t locators;
@@ -181,8 +206,9 @@ typedef struct zn_hello_t {
  *   unsigned int len: The length of the array.
  *
  */
-typedef struct zn_hello_array_t {
-  const zn_hello_t *val;
+typedef struct zn_hello_array_t
+{
+  const zn_hello_t * val;
   size_t len;
 } zn_hello_array_t;
 
@@ -194,18 +220,21 @@ typedef struct zn_hello_array_t {
  *     - **zn_target_t_ALL**: All matching queryables.
  *     - **zn_target_t_NONE**: No queryables.
  */
-typedef enum zn_target_t_Tag {
+typedef enum zn_target_t_Tag
+{
   zn_target_t_BEST_MATCHING,
   zn_target_t_COMPLETE,
   zn_target_t_ALL,
   zn_target_t_NONE,
 } zn_target_t_Tag;
 
-typedef struct zn_target_t_COMPLETE_Body {
+typedef struct zn_target_t_COMPLETE_Body
+{
   unsigned int n;
 } zn_target_t_COMPLETE_Body;
 
-typedef struct zn_target_t {
+typedef struct zn_target_t
+{
   zn_target_t_Tag tag;
   union {
     zn_target_t_COMPLETE_Body complete;
@@ -219,7 +248,8 @@ typedef struct zn_target_t {
  *     unsigned int kind: A mask of queryable kinds.
  *     zn_target_t target: The query target.
  */
-typedef struct zn_query_target_t {
+typedef struct zn_query_target_t
+{
   unsigned int kind;
   zn_target_t target;
 } zn_query_target_t;
@@ -233,7 +263,8 @@ typedef struct zn_query_target_t {
  *   zn_consolidation_mode_t last_router: The consolidation mode to apply on last router of the replies routing path.
  *   zn_consolidation_mode_t reception: The consolidation mode to apply at reception of the replies.
  */
-typedef struct zn_query_consolidation_t {
+typedef struct zn_query_consolidation_t
+{
   zn_consolidation_mode_t first_routers;
   zn_consolidation_mode_t last_router;
   zn_consolidation_mode_t reception;
@@ -246,7 +277,8 @@ typedef struct zn_query_consolidation_t {
  *   unsigned int kind: The kind of source.
  *   z_bytes_t id: The unique id of the source.
  */
-typedef struct zn_source_info_t {
+typedef struct zn_source_info_t
+{
   unsigned int kind;
   z_bytes_t id;
 } zn_source_info_t;
@@ -310,7 +342,7 @@ void z_init_logger(void);
  * Returns:
  *     A new :c:type:`z_string_t`.
  */
-z_string_t z_string_make(const char *s);
+z_string_t z_string_make(const char * s);
 
 /**
  * Close a zenoh-net session.
@@ -318,13 +350,13 @@ z_string_t z_string_make(const char *s);
  * Parameters:
  *     session: A zenoh-net session.
  */
-void zn_close(zn_session_t *session);
+void zn_close(zn_session_t * session);
 
 /**
  * Notifies the zenoh runtime that there won't be any more replies sent for this
  * query.
  */
-void zn_close_query(zn_query_t *query);
+void zn_close_query(zn_query_t * query);
 
 /**
  * Create a default set of properties for client mode zenoh-net session configuration.
@@ -333,22 +365,22 @@ void zn_close_query(zn_query_t *query);
  * Parameters:
  *   peer: An optional peer locator.
  */
-zn_properties_t *zn_config_client(char *peer);
+zn_properties_t * zn_config_client(char * peer);
 
 /**
  * Create a default set of properties for zenoh-net session configuration.
  */
-zn_properties_t *zn_config_default(void);
+zn_properties_t * zn_config_default(void);
 
 /**
  * Create an empty set of properties for zenoh-net session configuration.
  */
-zn_properties_t *zn_config_empty(void);
+zn_properties_t * zn_config_empty(void);
 
 /**
  * Create a default set of properties for peer mode zenoh-net session configuration.
  */
-zn_properties_t *zn_config_peer(void);
+zn_properties_t * zn_config_peer(void);
 
 /**
  * Declare a :c:type:`zn_publisher_t` for the given resource key.
@@ -363,7 +395,7 @@ zn_properties_t *zn_config_peer(void);
  * Returns:
  *    The created :c:type:`zn_publisher_t` or null if the declaration failed.
  */
-zn_publisher_t *zn_declare_publisher(zn_session_t *session, zn_reskey_t reskey);
+zn_publisher_t * zn_declare_publisher(zn_session_t * session, zn_reskey_t reskey);
 
 /**
  * Declare a :c:type:`zn_queryable_t` for the given resource key.
@@ -378,11 +410,12 @@ zn_publisher_t *zn_declare_publisher(zn_session_t *session, zn_reskey_t reskey);
  * Returns:
  *    The created :c:type:`zn_queryable_t` or null if the declaration failed.
  */
-zn_queryable_t *zn_declare_queryable(zn_session_t *session,
-                                     zn_reskey_t reskey,
-                                     unsigned int kind,
-                                     void (*callback)(zn_query_t*, const void*),
-                                     void *arg);
+zn_queryable_t * zn_declare_queryable(
+  zn_session_t * session,
+  zn_reskey_t reskey,
+  unsigned int kind,
+  void (* callback)(zn_query_t *, const void *),
+  void * arg);
 
 /**
  * Associate a numerical id with the given resource key.
@@ -397,7 +430,7 @@ zn_queryable_t *zn_declare_queryable(zn_session_t *session,
  * Returns:
  *     A numerical id.
  */
-unsigned long zn_declare_resource(zn_session_t *session, zn_reskey_t reskey);
+unsigned long zn_declare_resource(zn_session_t * session, zn_reskey_t reskey);
 
 /**
  * Declare a :c:type:`zn_subscriber_t` for the given resource key.
@@ -412,11 +445,12 @@ unsigned long zn_declare_resource(zn_session_t *session, zn_reskey_t reskey);
  * Returns:
  *    The created :c:type:`zn_subscriber_t` or null if the declaration failed.
  */
-zn_subscriber_t *zn_declare_subscriber(zn_session_t *session,
-                                       zn_reskey_t reskey,
-                                       zn_subinfo_t sub_info,
-                                       void (*callback)(const zn_sample_t*, const void*),
-                                       void *arg);
+zn_subscriber_t * zn_declare_subscriber(
+  zn_session_t * session,
+  zn_reskey_t reskey,
+  zn_subinfo_t sub_info,
+  void (* callback)(const zn_sample_t *, const void *),
+  void * arg);
 
 /**
  * Free an array of :c:struct:`zn_hello_t` messages and it's contained :c:struct:`zn_hello_t` messages recursively.
@@ -436,7 +470,7 @@ void zn_hello_array_free(zn_hello_array_t hellos);
  * Returns:
  *     A :c:type:`zn_properties_t` map containing informations on the given zenoh-net session.
  */
-zn_properties_t *zn_info(zn_session_t *session);
+zn_properties_t * zn_info(zn_session_t * session);
 
 /**
  * Open a zenoh-net session
@@ -447,7 +481,7 @@ zn_properties_t *zn_info(zn_session_t *session);
  * Returns:
  *     The created zenoh-net session or null if the creation did not succeed.
  */
-zn_session_t *zn_open(zn_properties_t *config);
+zn_session_t * zn_open(zn_properties_t * config);
 
 /**
  * Free a set of properties.
@@ -455,7 +489,7 @@ zn_session_t *zn_open(zn_properties_t *config);
  * Parameters:
  *   ps: A pointer to the properties.
  */
-void zn_properties_free(zn_properties_t *ps);
+void zn_properties_free(zn_properties_t * ps);
 
 /**
  * Get the property with the given key from a properties map.
@@ -467,7 +501,7 @@ void zn_properties_free(zn_properties_t *ps);
  * Returns:
  *     The value of the property with key ``key`` in properties map ``ps``.
  */
-z_string_t zn_properties_get(zn_properties_t *ps, unsigned int key);
+z_string_t zn_properties_get(zn_properties_t * ps, unsigned int key);
 
 /**
  * Insert a property with a given key to a properties map.
@@ -481,7 +515,7 @@ z_string_t zn_properties_get(zn_properties_t *ps, unsigned int key);
  * Returns:
  *     A pointer to the updated properties map.
  */
-zn_properties_t *zn_properties_insert(zn_properties_t *ps, unsigned long key, z_string_t value);
+zn_properties_t * zn_properties_insert(zn_properties_t * ps, unsigned long key, z_string_t value);
 
 /**
  * Get the length of the given properties map.
@@ -492,12 +526,12 @@ zn_properties_t *zn_properties_insert(zn_properties_t *ps, unsigned long key, z_
  * Returns:
  *     The length of the given properties map.
  */
-unsigned int zn_properties_len(zn_properties_t *ps);
+unsigned int zn_properties_len(zn_properties_t * ps);
 
 /**
  * Return a new empty map of properties.
  */
-zn_properties_t *zn_properties_make(void);
+zn_properties_t * zn_properties_make(void);
 
 /**
  * Pull data for a pull mode :c:type:`zn_subscriber_t`. The pulled data will be provided
@@ -506,7 +540,7 @@ zn_properties_t *zn_properties_make(void);
  * Parameters:
  *     sub: The :c:type:`zn_subscriber_t` to pull from.
  */
-void zn_pull(zn_subscriber_t *sub);
+void zn_pull(zn_subscriber_t * sub);
 
 /**
  * Query data from the matching queryables in the system.
@@ -520,13 +554,14 @@ void zn_pull(zn_subscriber_t *sub);
  *     callback: The callback function that will be called on reception of replies for this query.
  *     arg: A pointer that will be passed to the **callback** on each call.
  */
-void zn_query(zn_session_t *session,
-              zn_reskey_t reskey,
-              const char *predicate,
-              zn_query_target_t target,
-              zn_query_consolidation_t consolidation,
-              void (*callback)(const zn_source_info_t*, const zn_sample_t*, const void*),
-              void *arg);
+void zn_query(
+  zn_session_t * session,
+  zn_reskey_t reskey,
+  const char * predicate,
+  zn_query_target_t target,
+  zn_query_consolidation_t consolidation,
+  void (* callback)(const zn_source_info_t *, const zn_sample_t *, const void *),
+  void * arg);
 
 /**
  * Create a default :c:type:`zn_query_consolidation_t`.
@@ -536,12 +571,12 @@ zn_query_consolidation_t zn_query_consolidation_default(void);
 /**
  * Return the predicate for this query
  */
-z_string_t zn_query_predicate(zn_query_t *query);
+z_string_t zn_query_predicate(zn_query_t * query);
 
 /**
  * Return the resource name for this query
  */
-z_string_t zn_query_res_name(zn_query_t *query);
+z_string_t zn_query_res_name(zn_query_t * query);
 
 /**
  * Create a default :c:type:`zn_query_target_t`.
@@ -569,7 +604,7 @@ zn_reskey_t zn_rid(unsigned long id);
  * Returns:
  *     A new resource key.
  */
-zn_reskey_t zn_rid_with_suffix(unsigned long id, const char *suffix);
+zn_reskey_t zn_rid_with_suffix(unsigned long id, const char * suffix);
 
 /**
  * Create a resource key from a resource name.
@@ -580,7 +615,7 @@ zn_reskey_t zn_rid_with_suffix(unsigned long id, const char *suffix);
  * Returns:
  *     A new resource key.
  */
-zn_reskey_t zn_rname(const char *name);
+zn_reskey_t zn_rname(const char * name);
 
 /**
  * Scout for routers and/or peers.
@@ -593,15 +628,16 @@ zn_reskey_t zn_rname(const char *name);
  * Returns:
  *     An array of :c:struct:`zn_hello_t` messages.
  */
-zn_hello_array_t zn_scout(unsigned int what, zn_properties_t *config, unsigned long scout_period);
+zn_hello_array_t zn_scout(unsigned int what, zn_properties_t * config, unsigned long scout_period);
 
 /**
  * Sends a reply to a query.
  */
-void zn_send_reply(zn_query_t *query,
-                   const char *key,
-                   const unsigned char *payload,
-                   unsigned int len);
+void zn_send_reply(
+  zn_query_t * query,
+  const char * key,
+  const unsigned char * payload,
+  unsigned int len);
 
 /**
  * Free an array of NULL terminated strings and it's contained NULL terminated strings recursively.
@@ -628,7 +664,7 @@ zn_target_t zn_target_default(void);
  * Parameters:
  *     sub: The :c:type:`zn_publisher_t` to undeclare.
  */
-void zn_undeclare_publisher(zn_publisher_t *publ);
+void zn_undeclare_publisher(zn_publisher_t * publ);
 
 /**
  * Undeclare a :c:type:`zn_queryable_t`.
@@ -636,7 +672,7 @@ void zn_undeclare_publisher(zn_publisher_t *publ);
  * Parameters:
  *     qable: The :c:type:`zn_queryable_t` to undeclare.
  */
-void zn_undeclare_queryable(zn_queryable_t *qable);
+void zn_undeclare_queryable(zn_queryable_t * qable);
 
 /**
  * Undeclare a :c:type:`zn_subscriber_t`.
@@ -644,7 +680,7 @@ void zn_undeclare_queryable(zn_queryable_t *qable);
  * Parameters:
  *     sub: The :c:type:`zn_subscriber_t` to undeclare.
  */
-void zn_undeclare_subscriber(zn_subscriber_t *sub);
+void zn_undeclare_subscriber(zn_subscriber_t * sub);
 
 /**
  * Write data.
@@ -657,11 +693,11 @@ void zn_undeclare_subscriber(zn_subscriber_t *sub);
  * Returns:
  *     ``0`` in case of success, ``1`` in case of failure.
  */
-int zn_write(zn_session_t *session, zn_reskey_t reskey, const char *payload, unsigned int len);
+int zn_write(zn_session_t * session, zn_reskey_t reskey, const char * payload, unsigned int len);
 
 /*------------------ Zenoh-pico operations ------------------*/
 /**
- * Read from the network. This function should be called manually called when 
+ * Read from the network. This function should be called manually called when
  * the read loop has not been started, e.g., when running in a single thread.
  *
  * Parameters:
@@ -669,11 +705,11 @@ int zn_write(zn_session_t *session, zn_reskey_t reskey, const char *payload, uns
  * Returns:
  *     ``0`` in case of success, ``-1`` in case of failure.
  */
-int znp_read(zn_session_t *z);
+int znp_read(zn_session_t * z);
 
 /**
  * Start a separate task to read from the network and process the messages
- * as soon as they are received. Note that the task can be implemented in 
+ * as soon as they are received. Note that the task can be implemented in
  * form of thread, process, etc. and its implementation is platform-dependent.
  *
  * Parameters:
@@ -681,7 +717,7 @@ int znp_read(zn_session_t *z);
  * Returns:
  *     ``0`` in case of success, ``-1`` in case of failure.
  */
-int znp_start_read_task(zn_session_t *z);
+int znp_start_read_task(zn_session_t * z);
 
 /**
  * Stop the read task. This may result in stopping a thread or a process depending
@@ -692,7 +728,7 @@ int znp_start_read_task(zn_session_t *z);
  * Returns:
  *     ``0`` in case of success, ``-1`` in case of failure.
  */
-int znp_stop_read_task(zn_session_t *z);
+int znp_stop_read_task(zn_session_t * z);
 
 /**
  * Send a KeepAlive message.
@@ -702,12 +738,12 @@ int znp_stop_read_task(zn_session_t *z);
  * Returns:
  *     ``0`` in case of success, ``-1`` in case of failure.
  */
-int znp_send_keep_alive(zn_session_t *z);
+int znp_send_keep_alive(zn_session_t * z);
 
 /**
  * Start a separate task to handle the session lease. This task will send ``KeepAlive``
- * messages when needed and will close the session when the lease is expired. Note that 
- * the task can be implemented in form of thread, process, etc. and its implementation 
+ * messages when needed and will close the session when the lease is expired. Note that
+ * the task can be implemented in form of thread, process, etc. and its implementation
  * is platform-dependent.
  *
  * Parameters:
@@ -715,7 +751,7 @@ int znp_send_keep_alive(zn_session_t *z);
  * Returns:
  *     ``0`` in case of success, ``-1`` in case of failure.
  */
-int znp_start_lease_task(zn_session_t *z);
+int znp_start_lease_task(zn_session_t * z);
 
 /**
  * Stop the lease task. This may result in stopping a thread or a process depending
@@ -726,6 +762,6 @@ int znp_start_lease_task(zn_session_t *z);
  * Returns:
  *     ``0`` in case of success, ``-1`` in case of failure.
  */
-int znp_stop_lease_task(zn_session_t *z);
+int znp_stop_lease_task(zn_session_t * z);
 
-#endif /* ZENOH_NET_INTERFACE_ */
+#endif  // RMW_ZENOH_CPP__ZENOH_NET_INTERFACE_H_
