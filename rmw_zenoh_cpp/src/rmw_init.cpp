@@ -112,6 +112,7 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   // Open configured Zenoh session, then assign it to the context
   zn_properties_t * config = configure_connection_mode(context);
   if (nullptr == config) {
+    allocator->deallocate(context_impl, allocator->state);
     return RMW_RET_ERROR;
   }
 
