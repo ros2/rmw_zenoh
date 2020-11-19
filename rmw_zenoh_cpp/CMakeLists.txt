@@ -61,15 +61,16 @@ add_library(rmw_zenoh_common_cpp OBJECT
 set_property(TARGET rmw_zenoh_common_cpp PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 add_library(rmw_zenoh_pico_cpp
-  src/rmw_zenoh_pico.cpp
+  src/rmw_zenoh_pico.c
   $<TARGET_OBJECTS:rmw_zenoh_common_cpp>
 )
 target_link_libraries(rmw_zenoh_pico_cpp
   fastcdr
+  ${zenoh_pico_LIBRARIES}
 )
 
 add_library(rmw_zenoh_cpp
-  src/rmw_zenoh_c.cpp
+  src/rmw_zenoh_c.c
   $<TARGET_OBJECTS:rmw_zenoh_common_cpp>
 )
 target_link_libraries(rmw_zenoh_cpp

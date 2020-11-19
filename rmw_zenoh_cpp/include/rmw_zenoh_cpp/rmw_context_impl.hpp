@@ -18,6 +18,9 @@
 extern "C"
 {
 #include "rmw_zenoh_cpp/zenoh-net-interface.h"
+
+extern zn_properties_t * configure_connection_mode(rmw_context_t * context);
+extern void configure_session(zn_session_t * session);
 }
 
 struct rmw_context_impl_t
@@ -25,8 +28,5 @@ struct rmw_context_impl_t
   zn_session_t * session;
   bool is_shutdown;
 };
-
-extern zn_properties_t * configure_connection_mode(rmw_context_t * context);
-extern void configure_session(zn_session_t * session);
 
 #endif  // RMW_ZENOH_CPP__RMW_CONTEXT_IMPL_HPP_

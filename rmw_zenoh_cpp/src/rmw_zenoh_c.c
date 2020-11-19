@@ -11,5 +11,5 @@ zn_properties_t * configure_connection_mode(rmw_context_t * context)
   }
 }
 
-void configure_session(zn_session_t *)
+void configure_session(zn_session_t * session)
 {}
