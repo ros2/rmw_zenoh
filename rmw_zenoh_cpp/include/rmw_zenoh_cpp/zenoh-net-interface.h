@@ -20,6 +20,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+typedef size_t z_zint_t;
 
 /**
  * The kind of consolidation that should be applied on replies to a :c:func:`zn_query`.
@@ -100,12 +101,12 @@ typedef struct z_string_t
  *   - The combination of a numerical prefix and a string suffix.
  *
  * Members:
- *   unsigned long id: The id or prefix of this resource key. ``0`` if empty.
+ *   z_zint_t id: The id or prefix of this resource key. ``0`` if empty.
  *   const char *suffix: The suffix of this resource key. ``NULL`` if pure numerical id.
  */
 typedef struct zn_reskey_t
 {
-  unsigned long id;
+  z_zint_t id;
   const char * suffix;
 } zn_reskey_t;
 
@@ -430,7 +431,7 @@ zn_queryable_t * zn_declare_queryable(
  * Returns:
  *     A numerical id.
  */
-unsigned long zn_declare_resource(zn_session_t * session, zn_reskey_t reskey);
+z_zint_t zn_declare_resource(zn_session_t * session, zn_reskey_t reskey);
 
 /**
  * Declare a :c:type:`zn_subscriber_t` for the given resource key.
@@ -515,7 +516,7 @@ z_string_t zn_properties_get(zn_properties_t * ps, unsigned int key);
  * Returns:
  *     A pointer to the updated properties map.
  */
-zn_properties_t * zn_properties_insert(zn_properties_t * ps, unsigned long key, z_string_t value);
+zn_properties_t * zn_properties_insert(zn_properties_t * ps, z_zint_t key, z_string_t value);
 
 /**
  * Get the length of the given properties map.
@@ -592,7 +593,7 @@ zn_query_target_t zn_query_target_default(void);
  * Returns:
  *     A new resource key.
  */
-zn_reskey_t zn_rid(unsigned long id);
+zn_reskey_t zn_rid(z_zint_t id);
 
 /**
  * Create a resource key from a resource id and a suffix.
@@ -604,7 +605,7 @@ zn_reskey_t zn_rid(unsigned long id);
  * Returns:
  *     A new resource key.
  */
-zn_reskey_t zn_rid_with_suffix(unsigned long id, const char * suffix);
+zn_reskey_t zn_rid_with_suffix(z_zint_t id, const char * suffix);
 
 /**
  * Create a resource key from a resource name.
@@ -628,7 +629,7 @@ zn_reskey_t zn_rname(const char * name);
  * Returns:
  *     An array of :c:struct:`zn_hello_t` messages.
  */
-zn_hello_array_t zn_scout(unsigned int what, zn_properties_t * config, unsigned long scout_period);
+zn_hello_array_t zn_scout(unsigned int what, zn_properties_t * config, z_zint_t scout_period);
 
 /**
  * Sends a reply to a query.
