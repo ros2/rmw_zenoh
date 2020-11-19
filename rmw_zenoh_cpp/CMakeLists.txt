@@ -49,7 +49,6 @@ add_library(rmw_zenoh_common_cpp OBJECT
   src/rmw_subscriber.cpp
   src/rmw_wait_sets.cpp
 
-  src/impl/identifier.cpp
   src/impl/wait_impl.cpp
   src/impl/pubsub_impl.cpp
   src/impl/service_impl.cpp
@@ -62,6 +61,7 @@ set_property(TARGET rmw_zenoh_common_cpp PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 add_library(rmw_zenoh_pico_cpp
   src/rmw_zenoh_pico.c
+  src/impl/identifier_zenoh_pico.c
   $<TARGET_OBJECTS:rmw_zenoh_common_cpp>
 )
 target_link_libraries(rmw_zenoh_pico_cpp
@@ -71,6 +71,7 @@ target_link_libraries(rmw_zenoh_pico_cpp
 
 add_library(rmw_zenoh_cpp
   src/rmw_zenoh_c.c
+  src/impl/identifier_zenoh_c.c
   $<TARGET_OBJECTS:rmw_zenoh_common_cpp>
 )
 target_link_libraries(rmw_zenoh_cpp
