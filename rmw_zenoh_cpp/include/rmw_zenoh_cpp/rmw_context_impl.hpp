@@ -17,11 +17,7 @@
 
 extern "C"
 {
-#ifdef USE_ZENOH_PICO
-#include "zenoh-pico/net.h"
-#else
-#include "zenoh/net.h"
-#endif
+#include "rmw_zenoh_cpp/zenoh-net-interface.h"
 }
 
 struct rmw_context_impl_t

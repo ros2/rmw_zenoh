@@ -29,11 +29,7 @@
 
 extern "C"
 {
-#ifdef USE_ZENOH_PICO
-#include "zenoh-pico/net.h"
-#else
-#include "zenoh/net.h"
-#endif
+#include "rmw_zenoh_cpp/zenoh-net-interface.h"
 
 /// PUBLISH ROS MESSAGE ========================================================
 // Serialize and publish a ROS message using Zenoh.
@@ -97,7 +93,7 @@ rmw_publish(
   size_t wrid_ret = zn_write(
     publisher_data->zn_session_,
     zn_rid(publisher_data->zn_topic_id_),
-    reinterpret_cast<uint8_t *>(msg_bytes),
+    msg_bytes,
     data_length);
 
   allocator->deallocate(msg_bytes, allocator->state);

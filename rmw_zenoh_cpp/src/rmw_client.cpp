@@ -563,7 +563,7 @@ rmw_send_request(const rmw_client_t * client, const void * ros_request, int64_t 
   size_t wrid_ret = zn_write(
     client_data->zn_session_,
     zn_rid(client_data->zn_request_topic_id_),
-    reinterpret_cast<uint8_t *>(request_bytes),
+    request_bytes,
     data_length + meta_length);
 
   allocator->deallocate(request_bytes, allocator->state);
