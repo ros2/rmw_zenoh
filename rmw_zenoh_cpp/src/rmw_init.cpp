@@ -110,18 +110,10 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   }
 
   // Open configured Zenoh session, then assign it to the context
-  zn_properties_t * config;
-
-  if (strcmp(context->options.impl->mode, "CLIENT") == 0) {
-    config = zn_config_client(context->options.impl->session_locator);
-  } else {
-#ifdef USE_ZENOH_PICO
-    RMW_SET_ERROR_MSG("zenoh-pico can only work in client mode");
-    allocator->deallocate(context_impl, allocator->state);
+  zn_properties_t * config = configure_connection_mode(context);
+  if (nullptr == config)
+  {
     return RMW_RET_ERROR;
-#else
-    config = zn_config_peer();
-#endif
   }
 
   zn_session_t * session = zn_open(config);
@@ -139,11 +131,7 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   context->impl = context_impl;
   clean_when_fail.release();
 
-#ifdef USE_ZENOH_PICO
-  // Start the read session session lease loops
-  znp_start_read_task(session);
-  znp_start_lease_task(session);
-#endif
+  configure_session(session);
 
   return RMW_RET_OK;
 }

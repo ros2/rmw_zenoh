@@ -18,6 +18,7 @@
 
   <depend>zenoh_pico_vendor</depend>
   <depend>zenoh_vendor</depend>
+
   <depend>rcutils</depend>
   <depend>rmw</depend>
   <depend>rosidl_typesupport_zenoh_c</depend>
