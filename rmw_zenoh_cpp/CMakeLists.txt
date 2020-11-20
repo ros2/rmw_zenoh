@@ -111,10 +111,6 @@ if(zenoh_FOUND)
   ament_export_libraries(rmw_zenoh_cpp)
   ament_export_dependencies(zenoh_vendor)
 
-  ament_package(
-    CONFIG_EXTRAS_POST "rmw_zenoh_cpp-extras.cmake"
-  )
-
   install(
     TARGETS rmw_zenoh_cpp
     ARCHIVE DESTINATION lib
@@ -144,10 +140,6 @@ if(zenoh_pico_FOUND)
   configure_rmw_library(rmw_zenoh_pico_cpp)
   ament_export_libraries(rmw_zenoh_pico_cpp)
   ament_export_dependencies(zenoh_pico_vendor)
-
-  ament_package(
-    CONFIG_EXTRAS_POST "rmw_zenoh_pico_cpp-extras.cmake"
-  )
 
   install(
     TARGETS rmw_zenoh_pico_cpp
@@ -200,3 +192,6 @@ install(
   DESTINATION include
 )
 
+ament_package(
+  CONFIG_EXTRAS_POST "rmw_zenoh_cpp-extras.cmake"
+)
