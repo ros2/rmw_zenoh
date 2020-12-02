@@ -12,9 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef RMW_ZENOH_CPP__IDENTIFIER_HPP_
-#define RMW_ZENOH_CPP__IDENTIFIER_HPP_
+#include "rcutils/logging_macros.h"
+#include "rmw/error_handling.h"
+#include "rmw/rmw.h"
 
-extern const char * const eclipse_zenoh_identifier = "rmw_zenoh_cpp";
-
-#endif  // RMW_ZENOH_CPP__IDENTIFIER_HPP_
+extern "C"
+{
+rmw_ret_t
+rmw_set_log_severity(rmw_log_severity_t severity)
+{
+  (void)severity;
+  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_common_cpp", "rmw_set_log_severity");
+  return RMW_RET_ERROR;
+}
+}  // extern "C"

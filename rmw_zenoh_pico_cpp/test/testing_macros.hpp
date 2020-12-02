@@ -12,9 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef RMW_ZENOH_CPP__IDENTIFIER_HPP_
-#define RMW_ZENOH_CPP__IDENTIFIER_HPP_
+#ifndef TESTING_MACROS_HPP_
+#define TESTING_MACROS_HPP_
 
-extern const char * const eclipse_zenoh_identifier = "rmw_zenoh_cpp";
+#include <chrono>
+#include <thread>
 
-#endif  // RMW_ZENOH_CPP__IDENTIFIER_HPP_
+/// Retry until `timeout` expires, sleeping for `delay` in between attempts.
+/*
+ * \note Time is measured against OS provided steady clock.
+ */
+#define SLEEP_AND_RETRY_UNTIL(delay, timeout) for ( \
+    auto loop_start_time = std::chrono::steady_clock::now(); \
+    std::chrono::steady_clock::now() - loop_start_time < timeout; \
+    std::this_thread::sleep_for(delay))
+
+#endif  // TESTING_MACROS_HPP_

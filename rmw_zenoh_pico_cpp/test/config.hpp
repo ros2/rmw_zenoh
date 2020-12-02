@@ -12,9 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef RMW_ZENOH_CPP__IDENTIFIER_HPP_
-#define RMW_ZENOH_CPP__IDENTIFIER_HPP_
+#ifndef CONFIG_HPP_
+#define CONFIG_HPP_
 
-extern const char * const eclipse_zenoh_identifier = "rmw_zenoh_cpp";
+#include <chrono>
 
-#endif  // RMW_ZENOH_CPP__IDENTIFIER_HPP_
+namespace
+{
+
+// Quantities below were empirically adjusted to match the runtime
+// behavior of the following implementations:
+// - rmw_fastrtps_cpp
+// - rmw_fastrtps_dynamic_cpp
+// - rmw_connext_cpp
+// - rmw_cyclonedds_cpp
+// within ci.ros2.org instances.
+
+std::chrono::milliseconds rmw_intraprocess_discovery_delay{100};
+
+}  // namespace
+
+#endif  // CONFIG_HPP_

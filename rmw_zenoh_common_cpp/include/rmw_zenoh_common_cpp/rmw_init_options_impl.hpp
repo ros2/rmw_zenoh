@@ -12,9 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef RMW_ZENOH_CPP__IDENTIFIER_HPP_
-#define RMW_ZENOH_CPP__IDENTIFIER_HPP_
+#ifndef RMW_ZENOH_COMMON_CPP__RMW_INIT_OPTIONS_IMPL_HPP_
+#define RMW_ZENOH_COMMON_CPP__RMW_INIT_OPTIONS_IMPL_HPP_
 
-extern const char * const eclipse_zenoh_identifier = "rmw_zenoh_cpp";
+struct rmw_init_options_impl_t
+{
+  char * session_locator;  // Zenoh session TCP locator
+  char * mode;  // Zenoh session mode
+};
 
-#endif  // RMW_ZENOH_CPP__IDENTIFIER_HPP_
+#endif  // RMW_ZENOH_COMMON_CPP__RMW_INIT_OPTIONS_IMPL_HPP_
