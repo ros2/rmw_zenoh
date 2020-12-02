@@ -15,10 +15,6 @@ repositories:
     type: git
     url: https://github.com/esteve/rmw_zenoh.git
     version: main
-  zenoh_pico_vendor:
-    type: git
-    url: https://github.com/esteve/zenoh_pico_vendor.git
-    version: main
   rosidl_typesupport_zenoh:
     type: git
     url: https://github.com/esteve/rosidl_typesupport_zenoh.git
