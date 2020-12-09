@@ -12,9 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef RMW_ZENOH_CPP__IDENTIFIER_HPP_
-#define RMW_ZENOH_CPP__IDENTIFIER_HPP_
+#ifndef RMW_ZENOH_COMMON_CPP__RMW_NODE_IMPL_HPP_
+#define RMW_ZENOH_COMMON_CPP__RMW_NODE_IMPL_HPP_
 
-extern const char * const eclipse_zenoh_identifier = "rmw_zenoh_cpp";
+#include "rmw/rmw.h"
 
-#endif  // RMW_ZENOH_CPP__IDENTIFIER_HPP_
+extern "C"
+{
+#include "rmw_zenoh_common_cpp/zenoh-net-interface.h"
+}
+
+struct rmw_node_impl_t
+{
+  rmw_guard_condition_t * graph_guard_condition_;
+};
+
+#endif  // RMW_ZENOH_COMMON_CPP__RMW_NODE_IMPL_HPP_
