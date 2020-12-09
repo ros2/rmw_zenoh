@@ -12,10 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# copied from rmw_fastrtps_cpp/rmw_fastrtps_cpp-extras.cmake
+find_package(fastrtps_cmake_module REQUIRED)
+find_package(fastcdr REQUIRED CONFIG)
 
-find_package(zenoh_vendor REQUIRED)
-find_package(zenoh REQUIRED)
-list(APPEND rmw_zenoh_cpp_INCLUDE_DIRS ${zenoh_INCLUDE_DIRS})
-# specific order: dependents before dependencies
-list(APPEND rmw_zenoh_cpp_LIBRARIES ${zenoh_LIBRARIES})
+list(APPEND rmw_zenoh_common_cpp_LIBRARIES fastcdr)

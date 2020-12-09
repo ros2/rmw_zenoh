@@ -28,7 +28,9 @@ jobs:
         vcs import src < ../rmw_zenoh.repos
         rm -rf src/rmw_zenoh
         ln -s \
+          ${PWD}/../rmw_zenoh_common_cpp/ \
           ${PWD}/../rmw_zenoh_cpp/ \
+          ${PWD}/../rmw_zenoh_pico_cpp/ \
           ${PWD}/../zenoh_vendor/ \
           ${PWD}/../zenoh_pico_vendor/ \
           src/
@@ -70,15 +72,29 @@ jobs:
             -DCMAKE_BUILD_TYPE=RELEASE \
           --cmake-force-configure
 
-    - name: Test
+    - name: Test rmw_zenoh_cpp
       shell: bash
       run: |
         cd rmw_zenoh_ws
         source /opt/ros/foxy/setup.bash
-        source install/setup.bash         
+        source install/setup.bash
         export RMW_IMPLEMENTATION=rmw_zenoh_cpp
         colcon test \
           --packages-select rmw_zenoh_cpp
+        colcon test-result \
+          --verbose
+        colcon test-result \
+          --all
+
+    - name: Test rmw_zenoh_pico_cpp
+      shell: bash
+      run: |
+        cd rmw_zenoh_ws
+        source /opt/ros/foxy/setup.bash
+        source install/setup.bash
+        export RMW_IMPLEMENTATION=rmw_zenoh_pico_cpp
+        colcon test \
+          --packages-select rmw_zenoh_pico_cpp
         colcon test-result \
           --verbose
         colcon test-result \
