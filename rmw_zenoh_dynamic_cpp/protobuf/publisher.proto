@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package eCAL.rmw.pb.GraphInfo;
+
+message Publisher
+{
+	string name = 1;
+	string type = 2;
+};
+
+message Publishers
+{
+	repeated Publisher publishers = 1; 
+};

@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package eCAL.rmw.pb.GraphInfo;
+
+message Service
+{
+	string name = 1;
+	string response_type = 2;
+	string request_type = 3;
+};
+
+message Services
+{
+	repeated Service services = 1; 
+};

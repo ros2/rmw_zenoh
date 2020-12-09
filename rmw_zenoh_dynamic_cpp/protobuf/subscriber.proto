@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package eCAL.rmw.pb.GraphInfo;
+
+message Subscriber
+{
+	string name = 1;
+	string type = 2;
+};
+
+message Subscribers
+{
+	repeated Subscriber subscribers = 1; 
+};
