@@ -12,9 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef RMW_ZENOH_CPP__IDENTIFIER_HPP_
-#define RMW_ZENOH_CPP__IDENTIFIER_HPP_
+#ifndef IMPL__QOS_HPP_
+#define IMPL__QOS_HPP_
 
-extern const char * const eclipse_zenoh_identifier = "rmw_zenoh_cpp";
+#include <rmw/types.h>
 
-#endif  // RMW_ZENOH_CPP__IDENTIFIER_HPP_
+
+namespace rmw_zenoh_common_cpp
+{
+bool is_valid_qos(const rmw_qos_profile_t * qos_profile);
+}  // namespace rmw_zenoh_common_cpp
+
+#endif  // IMPL__QOS_HPP_

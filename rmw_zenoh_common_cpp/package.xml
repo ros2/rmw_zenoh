@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>rmw_zenoh_cpp</name>
+  <name>rmw_zenoh_common_cpp</name>
   <version>0.0.0</version>
   <description>Implement the ROS middleware interface using Eclipse Zenoh</description>
   <maintainer email="geoff@openrobotics.org">Geoffrey Biggs</maintainer>
@@ -16,16 +16,15 @@
 
   <buildtool_export_depend>ament_cmake</buildtool_export_depend>
 
-  <depend>zenoh_vendor</depend>
-
-  <depend>rmw_zenoh_common_cpp</depend>
+  <depend>rcutils</depend>
+  <depend>rmw</depend>
+  <depend>rosidl_typesupport_zenoh_c</depend>
+  <depend>rosidl_typesupport_zenoh_cpp</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
   <test_depend>osrf_testing_tools_cpp</test_depend>
   <test_depend>test_msgs</test_depend>
-
-  <member_of_group>rmw_implementation_packages</member_of_group>
 
   <export>
     <build_type>ament_cmake</build_type>

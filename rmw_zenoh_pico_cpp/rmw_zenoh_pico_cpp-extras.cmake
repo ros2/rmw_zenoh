@@ -14,8 +14,8 @@
 
 # copied from rmw_fastrtps_cpp/rmw_fastrtps_cpp-extras.cmake
 
-find_package(zenoh_vendor REQUIRED)
-find_package(zenoh REQUIRED)
-list(APPEND rmw_zenoh_cpp_INCLUDE_DIRS ${zenoh_INCLUDE_DIRS})
+find_package(zenoh_pico_vendor REQUIRED)
+find_package(zenoh_pico REQUIRED)
+list(APPEND rmw_zenoh_pico_cpp_INCLUDE_DIRS ${zenoh_pico_INCLUDE_DIRS})
 # specific order: dependents before dependencies
-list(APPEND rmw_zenoh_cpp_LIBRARIES ${zenoh_LIBRARIES})
+list(APPEND rmw_zenoh_pico_cpp_LIBRARIES ${zenoh_pico_LIBRARIES})
