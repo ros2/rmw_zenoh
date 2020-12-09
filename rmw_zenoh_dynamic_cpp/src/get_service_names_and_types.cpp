@@ -31,7 +31,7 @@ rmw_ret_t rmw_get_service_names_and_types(const rmw_node_t* node,
   RMW_CHECK_ARGUMENT_FOR_NULL(service_names_and_types, RMW_RET_INVALID_ARGUMENT);
   CHECK_RMW_IMPLEMENTATION(node);
 
-  auto services = eCAL::rmw::Graph::GetServices();
+  auto services = zenoh::rmw::Graph::GetServices();
 
   auto init_success = rmw_names_and_types_init(service_names_and_types, services.size(), allocator);
   if (init_success != RMW_RET_OK)
@@ -42,10 +42,10 @@ rmw_ret_t rmw_get_service_names_and_types(const rmw_node_t* node,
 
   try
   {
-    std::transform(services.begin(), services.end(), eCAL::rmw::RosArray::Begin(*service_names_and_types),
+    std::transform(services.begin(), services.end(), zenoh::rmw::RosArray::Begin(*service_names_and_types),
       [allocator](auto& service) {
-        auto demangled_name{ eCAL::rmw::DemangleServiceName(service.name) };
-        auto name{ eCAL::rmw::ConstructCString(demangled_name) };
+        auto demangled_name{ zenoh::rmw::DemangleServiceName(service.name) };
+        auto name{ zenoh::rmw::ConstructCString(demangled_name) };
 
         rcutils_string_array_t types;
         auto init_success = rcutils_string_array_init(&types, 2, allocator);
@@ -53,8 +53,8 @@ rmw_ret_t rmw_get_service_names_and_types(const rmw_node_t* node,
         {
           throw std::runtime_error("Failed to init types.");
         }
-        types.data[0] = eCAL::rmw::ConstructCString(service.request_type);
-        types.data[1] = eCAL::rmw::ConstructCString(service.response_type);
+        types.data[0] = zenoh::rmw::ConstructCString(service.request_type);
+        types.data[1] = zenoh::rmw::ConstructCString(service.response_type);
 
         return std::make_tuple(name, types);
       });

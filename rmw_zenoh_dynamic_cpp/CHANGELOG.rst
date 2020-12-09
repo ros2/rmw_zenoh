@@ -1,5 +1,5 @@
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Changelog for package rmw_ecal_dynamic_cpp
+Changelog for package rmw_zenoh_dynamic_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 0.5.0 (2020-10-19)
@@ -38,7 +38,7 @@ Known issues:
 
 0.2.0 (2020-03-24)
 ------------------
-* Renamed package to rmw_ecal_dynamic_cpp
+* Renamed package to rmw_zenoh_dynamic_cpp
 * Implemented protobuf serialization
 * Bug fixes
 * Performance improvements

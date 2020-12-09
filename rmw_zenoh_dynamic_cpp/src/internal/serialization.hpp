@@ -22,7 +22,7 @@
 #include "internal/serialization/custom/deserializer_cpp.hpp"
 #include "internal/serialization/custom/deserializer_c.hpp"
 
-namespace eCAL
+namespace zenoh
 {
   namespace rmw
   {
@@ -90,4 +90,4 @@ namespace eCAL
     }
 
   } // namespace rmw
-} // namespace eCAL
+} // namespace zenoh

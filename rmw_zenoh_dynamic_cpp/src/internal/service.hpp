@@ -28,7 +28,7 @@
 #include "internal/common.hpp"
 #include "internal/qos.hpp"
 
-namespace eCAL
+namespace zenoh
 {
   namespace rmw
   {
@@ -57,7 +57,7 @@ namespace eCAL
 
         size_t GetRequestSize() const
         {
-          return eCAL::rmw::GetSequenceDataSize(request_);
+          return zenoh::rmw::GetSequenceDataSize(request_);
         }
 
         const void* GetRequest() const
@@ -72,7 +72,7 @@ namespace eCAL
 
         sequence_number_t GetSequenceNumber() const
         {
-          return eCAL::rmw::GetSequenceNumber(request_);
+          return zenoh::rmw::GetSequenceNumber(request_);
         }
 
         void WaitForResponse()
@@ -227,4 +227,4 @@ namespace eCAL
     };
 
   } // namespace rmw
-} // namespace eCAL
+} // namespace zenoh

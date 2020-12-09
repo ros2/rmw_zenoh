@@ -16,7 +16,7 @@
 
 #include <string>
 
-namespace eCAL
+namespace zenoh
 {
   namespace rmw
   {
@@ -30,4 +30,4 @@ namespace eCAL
     };
 
   } // namespace rmw
-} // namespace eCAL
+} // namespace zenoh

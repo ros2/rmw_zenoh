@@ -35,7 +35,7 @@
 #include "internal/qos.hpp"
 #include "internal/node.hpp"
 
-namespace eCAL
+namespace zenoh
 {
 namespace rmw
 {
@@ -256,4 +256,4 @@ inline pb::GraphInfo::Clients GetClients(const std::string &node_namespace, cons
 
 } // namespace Graph
 } // namespace rmw
-} // namespace eCAL
+} // namespace zenoh

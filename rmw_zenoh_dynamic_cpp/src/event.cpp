@@ -40,7 +40,7 @@ rmw_ret_t rmw_publisher_event_init(rmw_event_t* rmw_event,
 
   rmw_event->event_type = event_type;
   rmw_event->implementation_identifier = rmw_get_implementation_identifier();
-  rmw_event->data = &eCAL::rmw::GetImplementation(publisher)->GetDataDroppedEventListener();
+  rmw_event->data = &zenoh::rmw::GetImplementation(publisher)->GetDataDroppedEventListener();
 
   return RMW_RET_OK;
 }
@@ -61,7 +61,7 @@ rmw_ret_t rmw_subscription_event_init(rmw_event_t* rmw_event,
 
   rmw_event->event_type = event_type;
   rmw_event->implementation_identifier = rmw_get_implementation_identifier();
-  rmw_event->data = &eCAL::rmw::GetImplementation(subscription)->GetDataDroppedEventListener();
+  rmw_event->data = &zenoh::rmw::GetImplementation(subscription)->GetDataDroppedEventListener();
 
   return RMW_RET_OK;
 }
@@ -74,7 +74,7 @@ rmw_ret_t rmw_take_event(const rmw_event_t* event_handle,
   RMW_CHECK_ARGUMENT_FOR_NULL(taken, RMW_RET_INVALID_ARGUMENT);
   CHECK_RMW_IMPLEMENTATION(event_handle);
 
-  auto ecal_event = eCAL::rmw::GetImplementation(event_handle);
+  auto ecal_event = zenoh::rmw::GetImplementation(event_handle);
   *taken = ecal_event->TakeTriggered();
 
   return RMW_RET_OK;
@@ -87,7 +87,7 @@ rmw_ret_t rmw_event_fini(rmw_event_t* event)
 
   event->event_type = rmw_event_type_t::RMW_EVENT_INVALID;
   event->implementation_identifier = nullptr;
-  delete eCAL::rmw::GetImplementation(event);
+  delete zenoh::rmw::GetImplementation(event);
 
   return RMW_RET_OK;
 }

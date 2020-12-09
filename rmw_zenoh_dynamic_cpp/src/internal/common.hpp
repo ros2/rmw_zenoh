@@ -41,7 +41,7 @@
 
 #include "internal/ros_array_iterator.hpp"
 
-namespace eCAL
+namespace zenoh
 {
 namespace rmw
 {
@@ -225,4 +225,4 @@ inline char *ConstructCString(const std::string &value)
 		return ReturnValue)
 
 } // namespace rmw
-} // namespace eCAL
+} // namespace zenoh

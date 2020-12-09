@@ -20,7 +20,7 @@
 
 #include "internal/serialization/serializer.hpp"
 
-namespace eCAL
+namespace zenoh
 {
   namespace rmw
   {
@@ -71,4 +71,4 @@ namespace eCAL
     };
 
   } // namespace rmw
-} // namespace eCAL
+} // namespace zenoh

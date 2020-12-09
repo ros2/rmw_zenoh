@@ -23,7 +23,7 @@
 
 #include "internal/common.hpp"
 
-namespace eCAL
+namespace zenoh
 {
   namespace rmw
   {
@@ -263,4 +263,4 @@ namespace eCAL
     }
 
   } // namespace rmw
-} // namespace eCAL
+} // namespace zenoh

@@ -35,7 +35,7 @@
 #include "service.pb.h"
 #include "client.pb.h"
 
-namespace eCAL
+namespace zenoh
 {
   namespace rmw
   {
@@ -207,4 +207,4 @@ namespace eCAL
     };
 
   } // namespace rmw
-} // namespace eCAL
+} // namespace zenoh

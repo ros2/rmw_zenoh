@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-	<name>rmw_ecal_dynamic_cpp</name>
+	<name>rmw_zenoh_dynamic_cpp</name>
 	<version>0.5.0</version>
 	<description>RMW implementation based on eCAL.</description>
 	<maintainer email="aleksandar.brakmic@continental-corporation.com">Aleksandar Brakmić</maintainer>

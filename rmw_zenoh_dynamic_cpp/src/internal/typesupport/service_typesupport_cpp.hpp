@@ -22,7 +22,7 @@
 #include "internal/typesupport/service_typesupport_base.hpp"
 #include "internal/serialization.hpp"
 
-namespace eCAL
+namespace zenoh
 {
   namespace rmw
   {
@@ -107,4 +107,4 @@ namespace eCAL
     };
 
   } // namespace rmw
-} // namespace eCAL
+} // namespace zenoh

@@ -18,7 +18,7 @@
 #include <chrono>
 #include <condition_variable>
 
-namespace eCAL
+namespace zenoh
 {
   namespace rmw
   {
@@ -47,4 +47,4 @@ namespace eCAL
     };
 
   } // namespace rmw
-} // namespace eCAL
+} // namespace zenoh

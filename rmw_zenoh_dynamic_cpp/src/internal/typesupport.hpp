@@ -25,7 +25,7 @@
 #include "internal/typesupport/service_typesupport_c.hpp"
 #include "internal/typesupport/service_typesupport_cpp.hpp"
 
-namespace eCAL
+namespace zenoh
 {
   namespace rmw
   {
@@ -63,4 +63,4 @@ namespace eCAL
     }
 
   } // namespace rmw
-} // namespace eCAL
+} // namespace zenoh

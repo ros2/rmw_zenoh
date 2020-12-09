@@ -19,7 +19,7 @@
 
 #include "internal/wait_set.hpp"
 
-namespace eCAL
+namespace zenoh
 {
   namespace rmw
   {
@@ -77,4 +77,4 @@ namespace eCAL
     };
 
   } // namespace rmw
-} // namespace eCAL
+} // namespace zenoh

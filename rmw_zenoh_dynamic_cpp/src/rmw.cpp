@@ -35,7 +35,7 @@
 #include "internal/typesupport.hpp"
 #include "internal/graph.hpp"
 
-constexpr auto implementation_identifier = "rmw_ecal_dynamic_cpp";
+constexpr auto implementation_identifier = "rmw_zenoh_dynamic_cpp";
 
 const char* rmw_get_implementation_identifier(void)
 {
@@ -44,7 +44,7 @@ const char* rmw_get_implementation_identifier(void)
 
 const char* rmw_get_serialization_format(void)
 {
-  return eCAL::rmw::serialization_format;
+  return zenoh::rmw::serialization_format;
 }
 
 #if ROS_DISTRO >= FOXY
@@ -77,12 +77,12 @@ rmw_node_t* rmw_create_node(rmw_context_t* context,
   CHECK_RMW_IMPLEMENTATION_RET_VALUE(context, nullptr);
 
   auto rmw_node = rmw_node_allocate();
-  auto ecal_node = eCAL::rmw::Graph::CreateNode(namespace_, name);
+  auto ecal_node = zenoh::rmw::Graph::CreateNode(namespace_, name);
 
   rmw_node->context = context;
   rmw_node->implementation_identifier = rmw_get_implementation_identifier();
-  rmw_node->name = eCAL::rmw::ConstructCString(name);
-  rmw_node->namespace_ = eCAL::rmw::ConstructCString(namespace_);
+  rmw_node->name = zenoh::rmw::ConstructCString(name);
+  rmw_node->namespace_ = zenoh::rmw::ConstructCString(namespace_);
   rmw_node->data = ecal_node;
   ecal_node->guard_condition = rmw_create_guard_condition(rmw_node->context);
 
@@ -94,9 +94,9 @@ rmw_ret_t rmw_destroy_node(rmw_node_t* node)
   RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
   CHECK_RMW_IMPLEMENTATION(node);
 
-  auto ecal_node = eCAL::rmw::GetImplementation(node);
+  auto ecal_node = zenoh::rmw::GetImplementation(node);
   rmw_guard_condition_free(ecal_node->guard_condition);
-  eCAL::rmw::Graph::DestroyNode(ecal_node);
+  zenoh::rmw::Graph::DestroyNode(ecal_node);
   delete[] node->name;
   delete[] node->namespace_;
 
@@ -115,7 +115,7 @@ const rmw_guard_condition_t* rmw_node_get_graph_guard_condition(const rmw_node_t
   RMW_CHECK_ARGUMENT_FOR_NULL(node, nullptr);
   CHECK_RMW_IMPLEMENTATION_RET_VALUE(node, nullptr);
 
-  return eCAL::rmw::GetImplementation(node)->guard_condition;
+  return zenoh::rmw::GetImplementation(node)->guard_condition;
 }
 
 #if ROS_DISTRO >= ELOQUENT
@@ -140,14 +140,14 @@ rmw_publisher_t* rmw_create_publisher(const rmw_node_t* node,
 #endif
   CHECK_RMW_IMPLEMENTATION_RET_VALUE(node, nullptr);
 
-  auto ecal_node = eCAL::rmw::GetImplementation(node);
-  auto ecal_ts = eCAL::rmw::CreateTypeSupport(type_support);
-  auto ecal_qos = eCAL::rmw::CreatePublisherQOS(qos_policies);
+  auto ecal_node = zenoh::rmw::GetImplementation(node);
+  auto ecal_ts = zenoh::rmw::CreateTypeSupport(type_support);
+  auto ecal_qos = zenoh::rmw::CreatePublisherQOS(qos_policies);
   auto ecal_pub = ecal_node->CreatePublisher(topic_name, ecal_ts, ecal_qos);
 
   auto rmw_pub = rmw_publisher_allocate();
   rmw_pub->implementation_identifier = rmw_get_implementation_identifier();
-  rmw_pub->topic_name = eCAL::rmw::ConstructCString(topic_name);
+  rmw_pub->topic_name = zenoh::rmw::ConstructCString(topic_name);
   rmw_pub->data = ecal_pub;
 #if ROS_DISTRO >= ELOQUENT
   rmw_pub->options = *publisher_options;
@@ -162,8 +162,8 @@ rmw_ret_t rmw_destroy_publisher(rmw_node_t* node, rmw_publisher_t* publisher)
   RMW_CHECK_ARGUMENT_FOR_NULL(publisher, RMW_RET_INVALID_ARGUMENT);
   CHECK_RMW_IMPLEMENTATION(node);
 
-  auto ecal_pub = eCAL::rmw::GetImplementation(publisher);
-  eCAL::rmw::GetImplementation(node)->DestroyPublisher(ecal_pub);
+  auto ecal_pub = zenoh::rmw::GetImplementation(publisher);
+  zenoh::rmw::GetImplementation(node)->DestroyPublisher(ecal_pub);
   delete[] publisher->topic_name;
 
   rmw_publisher_free(publisher);
@@ -179,7 +179,7 @@ rmw_ret_t rmw_publish(const rmw_publisher_t* publisher,
   RMW_CHECK_ARGUMENT_FOR_NULL(ros_message, RMW_RET_INVALID_ARGUMENT);
   CHECK_RMW_IMPLEMENTATION(publisher);
 
-  eCAL::rmw::GetImplementation(publisher)->Publish(ros_message);
+  zenoh::rmw::GetImplementation(publisher)->Publish(ros_message);
 
   return RMW_RET_OK;
 }
@@ -191,8 +191,8 @@ rmw_ret_t rmw_publisher_count_matched_subscriptions(const rmw_publisher_t* publi
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription_count, RMW_RET_INVALID_ARGUMENT);
   CHECK_RMW_IMPLEMENTATION(publisher);
 
-  auto actual_topic_name = eCAL::rmw::GetImplementation(publisher)->GetTopicName();
-  *subscription_count = eCAL::rmw::Graph::CountSubscribers(actual_topic_name);
+  auto actual_topic_name = zenoh::rmw::GetImplementation(publisher)->GetTopicName();
+  *subscription_count = zenoh::rmw::Graph::CountSubscribers(actual_topic_name);
 
   return RMW_RET_OK;
 }
@@ -204,7 +204,7 @@ rmw_ret_t rmw_publisher_get_actual_qos(const rmw_publisher_t* publisher,
   RMW_CHECK_ARGUMENT_FOR_NULL(qos, RMW_RET_INVALID_ARGUMENT);
   CHECK_RMW_IMPLEMENTATION(publisher);
 
-  auto ecal_pub = eCAL::rmw::GetImplementation(publisher);
+  auto ecal_pub = zenoh::rmw::GetImplementation(publisher);
   *qos = ecal_pub->GetRosQOSProfile();
 
   return RMW_RET_OK;
@@ -218,7 +218,7 @@ rmw_ret_t rmw_publish_serialized_message(const rmw_publisher_t* publisher,
   RMW_CHECK_ARGUMENT_FOR_NULL(serialized_message, RMW_RET_INVALID_ARGUMENT);
   CHECK_RMW_IMPLEMENTATION(publisher);
 
-  auto ecal_pub = eCAL::rmw::GetImplementation(publisher);
+  auto ecal_pub = zenoh::rmw::GetImplementation(publisher);
   ecal_pub->PublishRaw(serialized_message->buffer, serialized_message->buffer_length);
 
   return RMW_RET_OK;
@@ -245,7 +245,7 @@ rmw_ret_t rmw_serialize(const void* ros_message,
   RMW_CHECK_ARGUMENT_FOR_NULL(type_support, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(serialized_message, RMW_RET_INVALID_ARGUMENT);
 
-  std::unique_ptr<eCAL::rmw::Serializer> ecal_ser{ eCAL::rmw::CreateSerializer(type_support) };
+  std::unique_ptr<zenoh::rmw::Serializer> ecal_ser{ zenoh::rmw::CreateSerializer(type_support) };
   auto serialized_bytes = ecal_ser->Serialize(ros_message);
   auto no_of_bytes = serialized_bytes.size();
 
@@ -262,7 +262,7 @@ rmw_ret_t rmw_deserialize(const rmw_serialized_message_t* serialized_message,
                           const rosidl_message_type_support_t* type_support,
                           void* ros_message)
 {
-  std::unique_ptr<eCAL::rmw::Deserializer> ecal_deser{ eCAL::rmw::CreateDeserializer(type_support) };
+  std::unique_ptr<zenoh::rmw::Deserializer> ecal_deser{ zenoh::rmw::CreateDeserializer(type_support) };
   ecal_deser->Deserialize(ros_message, serialized_message->buffer, serialized_message->buffer_length);
 
   return RMW_RET_OK;
@@ -291,14 +291,14 @@ rmw_subscription_t* rmw_create_subscription(const rmw_node_t* node,
 #endif
   CHECK_RMW_IMPLEMENTATION_RET_VALUE(node, nullptr);
 
-  auto ecal_node = eCAL::rmw::GetImplementation(node);
-  auto ecal_ts = eCAL::rmw::CreateTypeSupport(type_support);
-  auto ecal_qos = eCAL::rmw::CreateSubscriberQOS(qos_policies);
+  auto ecal_node = zenoh::rmw::GetImplementation(node);
+  auto ecal_ts = zenoh::rmw::CreateTypeSupport(type_support);
+  auto ecal_qos = zenoh::rmw::CreateSubscriberQOS(qos_policies);
   auto ecal_sub = ecal_node->CreateSubscriber(topic_name, ecal_ts, ecal_qos);
 
   auto rmw_sub = rmw_subscription_allocate();
   rmw_sub->implementation_identifier = rmw_get_implementation_identifier();
-  rmw_sub->topic_name = eCAL::rmw::ConstructCString(topic_name);
+  rmw_sub->topic_name = zenoh::rmw::ConstructCString(topic_name);
   rmw_sub->data = ecal_sub;
 #if ROS_DISTRO >= ELOQUENT
   rmw_sub->can_loan_messages = false;
@@ -313,8 +313,8 @@ rmw_ret_t rmw_destroy_subscription(rmw_node_t* node, rmw_subscription_t* subscri
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription, RMW_RET_INVALID_ARGUMENT);
   CHECK_RMW_IMPLEMENTATION(node);
 
-  auto ecal_sub = eCAL::rmw::GetImplementation(subscription);
-  eCAL::rmw::GetImplementation(node)->DestroySubscriber(ecal_sub);
+  auto ecal_sub = zenoh::rmw::GetImplementation(subscription);
+  zenoh::rmw::GetImplementation(node)->DestroySubscriber(ecal_sub);
   delete[] subscription->topic_name;
 
   rmw_subscription_free(subscription);
@@ -329,8 +329,8 @@ rmw_ret_t rmw_subscription_count_matched_publishers(const rmw_subscription_t* su
   RMW_CHECK_ARGUMENT_FOR_NULL(publisher_count, RMW_RET_INVALID_ARGUMENT);
   CHECK_RMW_IMPLEMENTATION(subscription);
 
-  auto actual_topic_name = eCAL::rmw::GetImplementation(subscription)->GetTopicName();
-  *publisher_count = eCAL::rmw::Graph::CountPublishers(actual_topic_name);
+  auto actual_topic_name = zenoh::rmw::GetImplementation(subscription)->GetTopicName();
+  *publisher_count = zenoh::rmw::Graph::CountPublishers(actual_topic_name);
 
   return RMW_RET_OK;
 }
@@ -345,7 +345,7 @@ rmw_ret_t rmw_take(const rmw_subscription_t* subscription,
   RMW_CHECK_ARGUMENT_FOR_NULL(taken, RMW_RET_INVALID_ARGUMENT);
   CHECK_RMW_IMPLEMENTATION(subscription);
 
-  auto ecal_sub = eCAL::rmw::GetImplementation(subscription);
+  auto ecal_sub = zenoh::rmw::GetImplementation(subscription);
   if (!ecal_sub->HasData())
     return RMW_RET_OK;
   ecal_sub->TakeLatestData(ros_message);
@@ -388,7 +388,7 @@ rmw_ret_t rmw_take_sequence(const rmw_subscription_t* subscription,
   }
 
   *taken = 0;
-  auto ecal_sub = eCAL::rmw::GetImplementation(subscription);
+  auto ecal_sub = zenoh::rmw::GetImplementation(subscription);
   while (ecal_sub->HasData() && *taken != count)
   {
     ecal_sub->TakeLatestData(message_sequence->data[*taken]);
@@ -408,7 +408,7 @@ rmw_ret_t rmw_take_serialized_message(const rmw_subscription_t* subscription,
   RMW_CHECK_ARGUMENT_FOR_NULL(taken, RMW_RET_INVALID_ARGUMENT);
   CHECK_RMW_IMPLEMENTATION(subscription);
 
-  auto ecal_sub = eCAL::rmw::GetImplementation(subscription);
+  auto ecal_sub = zenoh::rmw::GetImplementation(subscription);
   if (!ecal_sub->HasData())
     return RMW_RET_OK;
 
@@ -441,15 +441,15 @@ rmw_client_t* rmw_create_client(const rmw_node_t* node,
   RMW_CHECK_ARGUMENT_FOR_NULL(qos_policies, nullptr);
   CHECK_RMW_IMPLEMENTATION_RET_VALUE(node, nullptr);
 
-  auto ecal_node = eCAL::rmw::GetImplementation(node);
-  auto ecal_ts = eCAL::rmw::CreateTypeSupport(type_support);
-  auto ecal_qos = eCAL::rmw::CreateClientQOS(qos_policies);
+  auto ecal_node = zenoh::rmw::GetImplementation(node);
+  auto ecal_ts = zenoh::rmw::CreateTypeSupport(type_support);
+  auto ecal_qos = zenoh::rmw::CreateClientQOS(qos_policies);
   auto ecal_client = ecal_node->CreateClient(service_name, ecal_ts, ecal_qos);
 
   auto rmw_client = rmw_client_allocate();
   rmw_client->data = ecal_client;
   rmw_client->implementation_identifier = rmw_get_implementation_identifier();
-  rmw_client->service_name = eCAL::rmw::ConstructCString(service_name);
+  rmw_client->service_name = zenoh::rmw::ConstructCString(service_name);
 
   return rmw_client;
 }
@@ -460,8 +460,8 @@ rmw_ret_t rmw_destroy_client(rmw_node_t* node, rmw_client_t* client)
   RMW_CHECK_ARGUMENT_FOR_NULL(client, RMW_RET_INVALID_ARGUMENT);
   CHECK_RMW_IMPLEMENTATION(node);
 
-  auto ecal_client = eCAL::rmw::GetImplementation(client);
-  eCAL::rmw::GetImplementation(node)->DestroyClient(ecal_client);
+  auto ecal_client = zenoh::rmw::GetImplementation(client);
+  zenoh::rmw::GetImplementation(node)->DestroyClient(ecal_client);
   delete[] client->service_name;
 
   rmw_client_free(client);
@@ -478,7 +478,7 @@ rmw_ret_t rmw_send_request(const rmw_client_t* client,
   RMW_CHECK_ARGUMENT_FOR_NULL(sequence_id, RMW_RET_INVALID_ARGUMENT);
   CHECK_RMW_IMPLEMENTATION(client);
 
-  auto ecal_client = eCAL::rmw::GetImplementation(client);
+  auto ecal_client = zenoh::rmw::GetImplementation(client);
   *sequence_id = ecal_client->SendRequest(ros_request);
   if (*sequence_id == -1)
     return RMW_RET_ERROR;
@@ -509,7 +509,7 @@ rmw_ret_t rmw_take_response(const rmw_client_t* client,
   RMW_CHECK_ARGUMENT_FOR_NULL(taken, RMW_RET_INVALID_ARGUMENT);
   CHECK_RMW_IMPLEMENTATION(client);
 
-  auto ecal_client = eCAL::rmw::GetImplementation(client);
+  auto ecal_client = zenoh::rmw::GetImplementation(client);
   if (ecal_client->HasResponse())
   {
 #if ROS_DISTRO >= FOXY
@@ -534,15 +534,15 @@ rmw_service_t* rmw_create_service(const rmw_node_t* node,
   RMW_CHECK_ARGUMENT_FOR_NULL(qos_policies, nullptr);
   CHECK_RMW_IMPLEMENTATION_RET_VALUE(node, nullptr);
 
-  auto ecal_node = eCAL::rmw::GetImplementation(node);
-  auto ecal_ts = eCAL::rmw::CreateTypeSupport(type_support);
-  auto ecal_qos = eCAL::rmw::CreateServiceQOS(qos_policies);
+  auto ecal_node = zenoh::rmw::GetImplementation(node);
+  auto ecal_ts = zenoh::rmw::CreateTypeSupport(type_support);
+  auto ecal_qos = zenoh::rmw::CreateServiceQOS(qos_policies);
   auto ecal_service = ecal_node->CreateService(service_name, ecal_ts, ecal_qos);
 
   auto rmw_service = rmw_service_allocate();
   rmw_service->data = ecal_service;
   rmw_service->implementation_identifier = rmw_get_implementation_identifier();
-  rmw_service->service_name = eCAL::rmw::ConstructCString(service_name);
+  rmw_service->service_name = zenoh::rmw::ConstructCString(service_name);
 
   return rmw_service;
 }
@@ -553,8 +553,8 @@ rmw_ret_t rmw_destroy_service(rmw_node_t* node, rmw_service_t* service)
   RMW_CHECK_ARGUMENT_FOR_NULL(service, RMW_RET_INVALID_ARGUMENT);
   CHECK_RMW_IMPLEMENTATION(node);
 
-  auto ecal_service = eCAL::rmw::GetImplementation(service);
-  eCAL::rmw::GetImplementation(node)->DestroyService(ecal_service);
+  auto ecal_service = zenoh::rmw::GetImplementation(service);
+  zenoh::rmw::GetImplementation(node)->DestroyService(ecal_service);
   delete[] service->service_name;
 
   rmw_service_free(service);
@@ -580,7 +580,7 @@ rmw_ret_t rmw_take_request(const rmw_service_t* service,
   RMW_CHECK_ARGUMENT_FOR_NULL(taken, RMW_RET_INVALID_ARGUMENT);
   CHECK_RMW_IMPLEMENTATION(service);
 
-  auto ecal_service = eCAL::rmw::GetImplementation(service);
+  auto ecal_service = zenoh::rmw::GetImplementation(service);
   if (ecal_service->HasRequest())
   {
 #if ROS_DISTRO >= FOXY
@@ -603,7 +603,7 @@ rmw_ret_t rmw_send_response(const rmw_service_t* service,
   RMW_CHECK_ARGUMENT_FOR_NULL(ros_response, RMW_RET_INVALID_ARGUMENT);
   CHECK_RMW_IMPLEMENTATION(service);
 
-  auto ecal_service = eCAL::rmw::GetImplementation(service);
+  auto ecal_service = zenoh::rmw::GetImplementation(service);
   ecal_service->SendResponse(ros_response, request_header->sequence_number);
 
   return RMW_RET_OK;
@@ -616,7 +616,7 @@ rmw_guard_condition_t* rmw_create_guard_condition(rmw_context_t* context)
 
   auto rmw_gc = rmw_guard_condition_allocate();
   rmw_gc->context = context;
-  rmw_gc->data = new eCAL::rmw::GuardCondition;
+  rmw_gc->data = new zenoh::rmw::GuardCondition;
   rmw_gc->implementation_identifier = rmw_get_implementation_identifier();
 
   return rmw_gc;
@@ -627,7 +627,7 @@ rmw_ret_t rmw_destroy_guard_condition(rmw_guard_condition_t* guard_condition)
   RMW_CHECK_ARGUMENT_FOR_NULL(guard_condition, RMW_RET_INVALID_ARGUMENT);
   CHECK_RMW_IMPLEMENTATION(guard_condition);
 
-  delete eCAL::rmw::GetImplementation(guard_condition);
+  delete zenoh::rmw::GetImplementation(guard_condition);
   rmw_guard_condition_free(guard_condition);
 
   return RMW_RET_OK;
@@ -638,7 +638,7 @@ rmw_ret_t rmw_trigger_guard_condition(const rmw_guard_condition_t* guard_conditi
   RMW_CHECK_ARGUMENT_FOR_NULL(guard_condition, RMW_RET_INVALID_ARGUMENT);
   CHECK_RMW_IMPLEMENTATION(guard_condition);
 
-  eCAL::rmw::GetImplementation(guard_condition)->Trigger();
+  zenoh::rmw::GetImplementation(guard_condition)->Trigger();
 
   return RMW_RET_OK;
 }
@@ -649,7 +649,7 @@ rmw_wait_set_t* rmw_create_wait_set(rmw_context_t* context, size_t /* max_condit
   CHECK_RMW_IMPLEMENTATION_RET_VALUE(context, nullptr);
 
   auto rmw_ws = rmw_wait_set_allocate();
-  rmw_ws->data = new eCAL::rmw::WaitSet;
+  rmw_ws->data = new zenoh::rmw::WaitSet;
   rmw_ws->implementation_identifier = rmw_get_implementation_identifier();
 
   return rmw_ws;
@@ -660,7 +660,7 @@ rmw_ret_t rmw_destroy_wait_set(rmw_wait_set_t* wait_set)
   RMW_CHECK_ARGUMENT_FOR_NULL(wait_set, RMW_RET_INVALID_ARGUMENT);
   CHECK_RMW_IMPLEMENTATION(wait_set);
 
-  delete eCAL::rmw::GetImplementation(wait_set);
+  delete zenoh::rmw::GetImplementation(wait_set);
   rmw_wait_set_free(wait_set);
 
   return RMW_RET_OK;
@@ -674,7 +674,7 @@ bool has_data(rmw_subscriptions_t* subscriptions,
 {
   for (size_t i = 0; i < subscriptions->subscriber_count; ++i)
   {
-    const auto ecal_sub = eCAL::rmw::GetImplementation(subscriptions, i);
+    const auto ecal_sub = zenoh::rmw::GetImplementation(subscriptions, i);
     if (ecal_sub->HasData())
     {
       return true;
@@ -683,7 +683,7 @@ bool has_data(rmw_subscriptions_t* subscriptions,
 
   for (size_t i = 0; i < guard_conditions->guard_condition_count; ++i)
   {
-    const auto ecal_gc = eCAL::rmw::GetImplementation(guard_conditions, i);
+    const auto ecal_gc = zenoh::rmw::GetImplementation(guard_conditions, i);
     if (ecal_gc->Triggered())
     {
       return true;
@@ -692,7 +692,7 @@ bool has_data(rmw_subscriptions_t* subscriptions,
 
   for (size_t i = 0; i < services->service_count; ++i)
   {
-    const auto ecal_service = eCAL::rmw::GetImplementation(services, i);
+    const auto ecal_service = zenoh::rmw::GetImplementation(services, i);
     if (ecal_service->HasRequest())
     {
       return true;
@@ -701,7 +701,7 @@ bool has_data(rmw_subscriptions_t* subscriptions,
 
   for (size_t i = 0; i < clients->client_count; ++i)
   {
-    const auto ecal_client = eCAL::rmw::GetImplementation(clients, i);
+    const auto ecal_client = zenoh::rmw::GetImplementation(clients, i);
     if (ecal_client->HasResponse())
     {
       return true;
@@ -710,7 +710,7 @@ bool has_data(rmw_subscriptions_t* subscriptions,
 
   for (size_t i = 0; i < events->event_count; ++i)
   {
-    const auto ecal_event = eCAL::rmw::GetImplementation(events, i);
+    const auto ecal_event = zenoh::rmw::GetImplementation(events, i);
     if (ecal_event->Triggered())
     {
       return true;
@@ -725,35 +725,35 @@ void attach_wait_set(rmw_subscriptions_t* subscriptions,
                      rmw_services_t* services,
                      rmw_clients_t* clients,
                      rmw_events_t* events,
-                     eCAL::rmw::WaitSet* ecal_ws)
+                     zenoh::rmw::WaitSet* ecal_ws)
 {
   for (size_t i = 0; i < subscriptions->subscriber_count; ++i)
   {
-    auto ecal_sub = eCAL::rmw::GetImplementation(subscriptions, i);
+    auto ecal_sub = zenoh::rmw::GetImplementation(subscriptions, i);
     ecal_sub->AttachWaitSet(ecal_ws);
   }
 
   for (size_t i = 0; i < guard_conditions->guard_condition_count; ++i)
   {
-    auto ecal_gc = eCAL::rmw::GetImplementation(guard_conditions, i);
+    auto ecal_gc = zenoh::rmw::GetImplementation(guard_conditions, i);
     ecal_gc->AttachWaitSet(ecal_ws);
   }
 
   for (size_t i = 0; i < services->service_count; ++i)
   {
-    auto ecal_service = eCAL::rmw::GetImplementation(services, i);
+    auto ecal_service = zenoh::rmw::GetImplementation(services, i);
     ecal_service->AttachWaitSet(ecal_ws);
   }
 
   for (size_t i = 0; i < clients->client_count; ++i)
   {
-    auto ecal_client = eCAL::rmw::GetImplementation(clients, i);
+    auto ecal_client = zenoh::rmw::GetImplementation(clients, i);
     ecal_client->AttachWaitSet(ecal_ws);
   }
 
   for (size_t i = 0; i < events->event_count; ++i)
   {
-    auto ecal_event = eCAL::rmw::GetImplementation(events, i);
+    auto ecal_event = zenoh::rmw::GetImplementation(events, i);
     ecal_event->AttachWaitSet(ecal_ws);
   }
 }
@@ -766,7 +766,7 @@ void detach_wait_set(rmw_subscriptions_t* subscriptions,
 {
   for (size_t i = 0; i < subscriptions->subscriber_count; ++i)
   {
-    auto ecal_sub = eCAL::rmw::GetImplementation(subscriptions, i);
+    auto ecal_sub = zenoh::rmw::GetImplementation(subscriptions, i);
     ecal_sub->DetachWaitSet();
     if (!ecal_sub->HasData())
     {
@@ -776,7 +776,7 @@ void detach_wait_set(rmw_subscriptions_t* subscriptions,
 
   for (size_t i = 0; i < guard_conditions->guard_condition_count; ++i)
   {
-    auto ecal_gc = eCAL::rmw::GetImplementation(guard_conditions, i);
+    auto ecal_gc = zenoh::rmw::GetImplementation(guard_conditions, i);
     ecal_gc->DetachWaitSet();
     if (!ecal_gc->TakeTriggered())
     {
@@ -786,7 +786,7 @@ void detach_wait_set(rmw_subscriptions_t* subscriptions,
 
   for (size_t i = 0; i < services->service_count; ++i)
   {
-    auto ecal_ser = eCAL::rmw::GetImplementation(services, i);
+    auto ecal_ser = zenoh::rmw::GetImplementation(services, i);
     ecal_ser->DetachWaitSet();
     if (!ecal_ser->HasRequest())
     {
@@ -796,7 +796,7 @@ void detach_wait_set(rmw_subscriptions_t* subscriptions,
 
   for (size_t i = 0; i < clients->client_count; ++i)
   {
-    auto ecal_client = eCAL::rmw::GetImplementation(clients, i);
+    auto ecal_client = zenoh::rmw::GetImplementation(clients, i);
     ecal_client->DetachWaitSet();
     if (!ecal_client->HasResponse())
     {
@@ -806,7 +806,7 @@ void detach_wait_set(rmw_subscriptions_t* subscriptions,
 
   for (size_t i = 0; i < events->event_count; ++i)
   {
-    auto ecal_event = eCAL::rmw::GetImplementation(events, i);
+    auto ecal_event = zenoh::rmw::GetImplementation(events, i);
     ecal_event->DetachWaitSet();
     if (!ecal_event->Triggered())
     {
@@ -823,7 +823,7 @@ rmw_ret_t rmw_wait(rmw_subscriptions_t* subscriptions,
                    rmw_wait_set_t* wait_set,
                    const rmw_time_t* wait_timeout)
 {
-  auto ecal_ws = eCAL::rmw::GetImplementation(wait_set);
+  auto ecal_ws = zenoh::rmw::GetImplementation(wait_set);
   bool timed_out = false;
 
   attach_wait_set(subscriptions, guard_conditions, services, clients, events, ecal_ws);
@@ -859,7 +859,7 @@ rmw_ret_t rmw_get_node_names(const rmw_node_t* node,
   RMW_CHECK_ARGUMENT_FOR_NULL(node_namespaces, RMW_RET_INVALID_ARGUMENT);
   CHECK_RMW_IMPLEMENTATION(node);
 
-  auto nodes = eCAL::rmw::Graph::GetNodes();
+  auto nodes = zenoh::rmw::Graph::GetNodes();
 
   auto allocator = rcutils_get_default_allocator();
   auto init_success = rcutils_string_array_init(node_names, nodes.size(), &allocator);
@@ -875,13 +875,13 @@ rmw_ret_t rmw_get_node_names(const rmw_node_t* node,
     return RMW_RET_ERROR;
   }
 
-  std::transform(nodes.begin(), nodes.end(), eCAL::rmw::RosArray::Begin(*node_names),
+  std::transform(nodes.begin(), nodes.end(), zenoh::rmw::RosArray::Begin(*node_names),
     [](auto& node) {
-      return eCAL::rmw::ConstructCString(node.name);
+      return zenoh::rmw::ConstructCString(node.name);
     });
-  std::transform(nodes.begin(), nodes.end(), eCAL::rmw::RosArray::Begin(*node_namespaces),
+  std::transform(nodes.begin(), nodes.end(), zenoh::rmw::RosArray::Begin(*node_namespaces),
     [](auto& node) {
-      return eCAL::rmw::ConstructCString(node.name_space);
+      return zenoh::rmw::ConstructCString(node.name_space);
     });
 
   return RMW_RET_OK;
@@ -906,7 +906,7 @@ rmw_ret_t rmw_count_publishers(const rmw_node_t* node,
   RMW_CHECK_ARGUMENT_FOR_NULL(count, RMW_RET_INVALID_ARGUMENT);
   CHECK_RMW_IMPLEMENTATION(node);
 
-  *count = eCAL::rmw::Graph::CountPublishers(topic_name);
+  *count = zenoh::rmw::Graph::CountPublishers(topic_name);
 
   return RMW_RET_OK;
 }
@@ -920,7 +920,7 @@ rmw_ret_t rmw_count_subscribers(const rmw_node_t* node,
   RMW_CHECK_ARGUMENT_FOR_NULL(count, RMW_RET_INVALID_ARGUMENT);
   CHECK_RMW_IMPLEMENTATION(node);
 
-  *count = eCAL::rmw::Graph::CountSubscribers(topic_name);
+  *count = zenoh::rmw::Graph::CountSubscribers(topic_name);
 
   return RMW_RET_OK;
 }
@@ -957,7 +957,7 @@ rmw_ret_t rmw_service_server_is_available(const rmw_node_t* node,
   RMW_CHECK_ARGUMENT_FOR_NULL(is_available, RMW_RET_INVALID_ARGUMENT);
   CHECK_RMW_IMPLEMENTATION(node);
 
-  auto ecal_client = eCAL::rmw::GetImplementation(client);
+  auto ecal_client = zenoh::rmw::GetImplementation(client);
   *is_available = ecal_client->IsServiceAvailable();
 
   return RMW_RET_OK;
@@ -993,7 +993,7 @@ rmw_ret_t rmw_subscription_get_actual_qos(const rmw_subscription_t* subscription
   RMW_CHECK_ARGUMENT_FOR_NULL(qos, RMW_RET_ERROR);
   CHECK_RMW_IMPLEMENTATION(subscription);
 
-  auto ecal_sub = eCAL::rmw::GetImplementation(subscription);
+  auto ecal_sub = zenoh::rmw::GetImplementation(subscription);
   *qos = ecal_sub->GetRosQOSProfile();
 
   return RMW_RET_OK;

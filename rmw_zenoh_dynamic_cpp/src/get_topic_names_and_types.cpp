@@ -31,7 +31,7 @@ rmw_ret_t rmw_get_topic_names_and_types(const rmw_node_t* node,
   RMW_CHECK_ARGUMENT_FOR_NULL(topic_names_and_types, RMW_RET_INVALID_ARGUMENT);
   CHECK_RMW_IMPLEMENTATION(node);
 
-  auto topics = eCAL::rmw::Graph::GetTopics();
+  auto topics = zenoh::rmw::Graph::GetTopics();
   auto init_success = rmw_names_and_types_init(topic_names_and_types, topics.size(), allocator);
   if (init_success != RMW_RET_OK)
   {
@@ -41,10 +41,10 @@ rmw_ret_t rmw_get_topic_names_and_types(const rmw_node_t* node,
 
   try
   {
-    std::transform(topics.begin(), topics.end(), eCAL::rmw::RosArray::Begin(*topic_names_and_types),
+    std::transform(topics.begin(), topics.end(), zenoh::rmw::RosArray::Begin(*topic_names_and_types),
       [no_demangle, allocator](auto& topic) {
-        std::string demangled_name{ no_demangle ? topic.name : eCAL::rmw::DemangleTopicName(topic.name) };
-        auto name = eCAL::rmw::ConstructCString(demangled_name);
+        std::string demangled_name{ no_demangle ? topic.name : zenoh::rmw::DemangleTopicName(topic.name) };
+        auto name = zenoh::rmw::ConstructCString(demangled_name);
 
         rcutils_string_array_t types;
         auto init_success = rcutils_string_array_init(&types, 1, allocator);
@@ -52,7 +52,7 @@ rmw_ret_t rmw_get_topic_names_and_types(const rmw_node_t* node,
         {
           throw std::runtime_error("Failed to init types.");
         }
-        types.data[0] = eCAL::rmw::ConstructCString(topic.type);
+        types.data[0] = zenoh::rmw::ConstructCString(topic.type);
 
         return std::make_tuple(name, types);
       });

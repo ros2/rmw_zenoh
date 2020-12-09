@@ -21,7 +21,7 @@
 #include <rmw/types.h>
 #include <rmw/names_and_types.h>
 
-namespace eCAL
+namespace zenoh
 {
   namespace rmw
   {
@@ -299,4 +299,4 @@ namespace eCAL
 
     } // namespace RosArrayIterator
   } // namespace rmw
-} // namespace eCAL
+} // namespace zenoh
