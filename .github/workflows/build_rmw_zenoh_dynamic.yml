@@ -23,6 +23,7 @@ jobs:
         sudo apt update
         wget -O /tmp/ecal.deb https://github.com/continental/ecal/releases/download/v5.7.5/ecal_5.7.5-focal_amd64.deb
         sudo apt install -y /tmp/ecal.deb
+        sudo apt install -y libc6 libcurl4 libgcc1 libhdf5-103 libqt5core5a libqt5gui5 libqt5widgets5 libstdc++6
         rosdep update
         DEBIAN_FRONTEND=noninteractive rosdep install \
           --default-yes \

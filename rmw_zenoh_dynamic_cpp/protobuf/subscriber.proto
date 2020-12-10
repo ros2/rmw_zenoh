@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package eCAL.rmw.pb.GraphInfo;
+package zenoh.rmw.pb.GraphInfo;
 
 message Subscriber
 {

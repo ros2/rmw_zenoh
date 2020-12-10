@@ -69,7 +69,7 @@ namespace zenoh
         responses_.emplace(seq_no, data, actual_data_size);
       }
 
-      void OnResponse(const SServiceInfo& /* service_info */, const std::string& response)
+      void OnResponse(const eCAL::SServiceInfo& /* service_info */, const std::string& response)
       {
         EnqueueResponse(response);
         NotifyWaitSet();
