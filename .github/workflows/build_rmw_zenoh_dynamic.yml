@@ -1,4 +1,4 @@
-name: Build zenoh-pico_vendor
+name: Build rmw_zenoh_dynamic_cpp
 
 on:
   push:
@@ -27,7 +27,7 @@ jobs:
         rosdep update
         DEBIAN_FRONTEND=noninteractive rosdep install \
           --default-yes \
-          --from-paths zenoh_pico_vendor \
+          --from-paths rmw_zenoh_dynamic_cpp \
           --ignore-src \
           --rosdistro foxy
 
@@ -36,7 +36,7 @@ jobs:
         . /opt/ros/foxy/setup.sh
         colcon build \
           --event-handlers console_cohesion+ \
-          --packages-up-to zenoh_pico_vendor
+          --packages-up-to rmw_zenoh_dynamic_cpp
 
     - name: Run tests
       run: |
@@ -44,4 +44,4 @@ jobs:
         colcon test \
           --return-code-on-test-failure \
           --event-handlers console_cohesion+ \
-          --packages-up-to zenoh_pico_vendor
+          --packages-up-to rmw_zenoh_dynamic_cpp
