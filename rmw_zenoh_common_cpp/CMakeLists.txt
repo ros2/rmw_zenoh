@@ -23,33 +23,35 @@ find_package(rosidl_typesupport_zenoh_cpp REQUIRED)
 include_directories(include)
 
 add_library(rmw_zenoh_common_cpp
-  src/rmw_zenoh_common_event.cpp
-  src/rmw_zenoh_common_get_node_info_and_types.cpp
-  src/rmw_zenoh_common_get_service_names_and_types.cpp
-  src/rmw_zenoh_common_get_topic_names_and_types.cpp
-  src/rmw_zenoh_common_get_topic_endpoint_info.cpp
-  src/rmw_zenoh_common_graph_info.cpp
-  src/rmw_zenoh_common_gids.cpp
-  src/rmw_zenoh_common_guard_conditions.cpp
-  src/rmw_zenoh_common_init.cpp
-  src/rmw_zenoh_common_init_options.cpp
-  src/rmw_zenoh_common_logging.cpp
-  src/rmw_zenoh_common_node.cpp
-  src/rmw_zenoh_common_publish.cpp
-  src/rmw_zenoh_common_publisher.cpp
-  src/rmw_zenoh_common_serialization.cpp
-  src/rmw_zenoh_common_service.cpp
-  src/rmw_zenoh_common_client.cpp
-  src/rmw_zenoh_common_subscriber.cpp
-  src/rmw_zenoh_common_wait_sets.cpp
+  # src/rmw_zenoh_common_event.cpp
+  # src/rmw_zenoh_common_get_node_info_and_types.cpp
+  # src/rmw_zenoh_common_get_service_names_and_types.cpp
+  # src/rmw_zenoh_common_get_topic_names_and_types.cpp
+  # src/rmw_zenoh_common_get_topic_endpoint_info.cpp
+  # src/rmw_zenoh_common_graph_info.cpp
+  # src/rmw_zenoh_common_gids.cpp
+  # src/rmw_zenoh_common_guard_conditions.cpp
+  # src/rmw_zenoh_common_init.cpp
+  # src/rmw_zenoh_common_init_options.cpp
+  # src/rmw_zenoh_common_logging.cpp
+  # src/rmw_zenoh_common_node.cpp
+  # src/rmw_zenoh_common_publish.cpp
+  # src/rmw_zenoh_common_publisher.cpp
+  # src/rmw_zenoh_common_serialization.cpp
+  # src/rmw_zenoh_common_service.cpp
+  # src/rmw_zenoh_common_client.cpp
+  # src/rmw_zenoh_common_subscriber.cpp
+  # src/rmw_zenoh_common_wait_sets.cpp
 
-  src/impl/wait_impl.cpp
-  src/impl/pubsub_impl.cpp
-  src/impl/service_impl.cpp
-  src/impl/client_impl.cpp
-  src/impl/type_support_common.cpp
-  src/impl/qos.cpp
-  src/impl/debug_helpers.cpp
+  # src/impl/wait_impl.cpp
+  # src/impl/pubsub_impl.cpp
+  # src/impl/service_impl.cpp
+  # src/impl/client_impl.cpp
+  # src/impl/type_support_common.cpp
+  # src/impl/qos.cpp
+  # src/impl/debug_helpers.cpp
+
+  src/rmw_init.cpp
 )
 
 ament_target_dependencies(rmw_zenoh_common_cpp
