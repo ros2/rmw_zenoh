@@ -14,7 +14,7 @@
 // limitations under the License.
 
 // This file was significantly modified from:
-// https://github.com/ros2/rmw_fastrtps/blob/47a369ea9a4b042d4ffea5e614ed84e766fdb049/rmw_fastrtps_shared_cpp/src/rmw_wait_set.cpp
+// https://github.com/ros2/rmw_fastrtps/blob/47a369ea9a4b042d4ffea5e614ed84e766fdb049/RMW_ZENOH_COMMON_cpp/src/rmw_wait_set.cpp
 
 #include "rcutils/logging_macros.h"
 

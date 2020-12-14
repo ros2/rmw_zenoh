@@ -43,6 +43,7 @@ include_directories(include)
 
 add_library(rmw_zenoh_dynamic_cpp
   src/rmw.cpp
+  src/get_session.cpp
 )
 
 # specific order: dependents before dependencies
@@ -52,6 +53,7 @@ ament_target_dependencies(rmw_zenoh_dynamic_cpp
   "rosidl_typesupport_introspection_c"
   "rosidl_typesupport_introspection_cpp"
   "rmw"
+  "rmw_zenoh_common_cpp"
   "rosidl_runtime_c"
   "zenoh_pico_vendor"
   "zenoh_pico"
@@ -71,6 +73,7 @@ ament_export_libraries(rmw_zenoh_dynamic_cpp)
 ament_export_dependencies(rcpputils)
 ament_export_dependencies(rcutils)
 ament_export_dependencies(rmw)
+ament_export_dependencies(rmw_zenoh_common_cpp)
 ament_export_dependencies(rosidl_runtime_c)
 ament_export_dependencies(rosidl_typesupport_introspection_c)
 ament_export_dependencies(rosidl_typesupport_introspection_cpp)

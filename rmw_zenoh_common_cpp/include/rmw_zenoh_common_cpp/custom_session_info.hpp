@@ -1,4 +1,4 @@
-// Copyright 2020 Open Source Robotics Foundation, Inc.
+// Copyright 2016-2018 Proyectos y Sistemas de Mantenimiento SL (eProsima).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,15 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef RMW_ZENOH_COMMON_CPP__RMW_NODE_IMPL_HPP_
-#define RMW_ZENOH_COMMON_CPP__RMW_NODE_IMPL_HPP_
+#ifndef RMW_ZENOH_COMMON_CPP__CUSTOM_SESSION_INFO_HPP_
+#define RMW_ZENOH_COMMON_CPP__CUSTOM_SESSION_INFO_HPP_
 
-#include "rmw_zenoh_common_cpp/zenoh-net-interface.h"
+#include <map>
+#include <mutex>
+#include <string>
+#include <vector>
+
+#include "rcpputils/thread_safety_annotations.hpp"
+#include "rcutils/logging_macros.h"
+
+#include "rmw/impl/cpp/key_value.hpp"
+#include "rmw/qos_profiles.h"
 #include "rmw/rmw.h"
 
-struct rmw_node_impl_t
+typedef struct CustomSessionInfo
 {
-  rmw_guard_condition_t * graph_guard_condition_;
-};
+  zn_session_t * session;
+} CustomSessionInfo;
 
-#endif  // RMW_ZENOH_COMMON_CPP__RMW_NODE_IMPL_HPP_
+#endif  // RMW_ZENOH_COMMON_CPP__CUSTOM_SESSION_INFO_HPP_

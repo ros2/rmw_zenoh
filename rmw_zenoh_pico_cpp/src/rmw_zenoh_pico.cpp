@@ -30,11 +30,11 @@
 
 #include "rmw_zenoh_pico_cpp/identifier.hpp"
 
+#include "rmw_zenoh_common_cpp/rmw_zenoh_common.h"
+#include "rmw_zenoh_common_cpp/zenoh-net-interface.h"
+
 extern "C"
 {
-#include "rmw_zenoh_common_cpp/rmw_zenoh_common.h"
-
-#include "rmw_zenoh_common_cpp/zenoh-net-interface.h"
 
 zn_properties_t * configure_connection_mode(rmw_context_t * context)
 {

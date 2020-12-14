@@ -22,11 +22,11 @@
 #include "rmw/error_handling.h"
 #include "rmw/rmw.h"
 
-// #include "rmw_zenoh_dynamic_cpp/get_client.hpp"
-// #include "rmw_zenoh_dynamic_cpp/get_participant.hpp"
-// #include "rmw_zenoh_dynamic_cpp/get_publisher.hpp"
-// #include "rmw_zenoh_dynamic_cpp/get_service.hpp"
-// #include "rmw_zenoh_dynamic_cpp/get_subscriber.hpp"
+#include "rmw_zenoh_dynamic_cpp/get_client.hpp"
+#include "rmw_zenoh_dynamic_cpp/get_session.hpp"
+#include "rmw_zenoh_dynamic_cpp/get_publisher.hpp"
+#include "rmw_zenoh_dynamic_cpp/get_service.hpp"
+#include "rmw_zenoh_dynamic_cpp/get_subscriber.hpp"
 
 #include "test_msgs/msg/basic_types.h"
 #include "test_msgs/srv/basic_types.h"
@@ -50,7 +50,7 @@ protected:
     ASSERT_EQ(RMW_RET_OK, ret) << rmw_get_error_string().str;
     constexpr char node_name[] = "my_node";
     constexpr char node_namespace[] = "/my_ns";
-    node = rmw_create_node(&context, node_name, node_namespace);
+    node = rmw_create_node(&context, node_name, node_namespace, 1, false);
     ASSERT_NE(nullptr, node) << rmw_get_error_string().str;
   }
 
@@ -68,15 +68,15 @@ protected:
   rmw_node_t * node{nullptr};
 };
 
-TEST_F(TestNativeEntities, get_participant) {
-  EXPECT_EQ(nullptr, rmw_zenoh_dynamic_cpp::get_participant(nullptr));
+TEST_F(TestNativeEntities, get_sessions) {
+  EXPECT_EQ(nullptr, rmw_zenoh_dynamic_cpp::get_session(nullptr));
 
   const char * implementation_identifier = node->implementation_identifier;
   node->implementation_identifier = "not-an-rmw-implementation-identifier";
-  EXPECT_EQ(nullptr, rmw_zenoh_dynamic_cpp::get_participant(node));
+  EXPECT_EQ(nullptr, rmw_zenoh_dynamic_cpp::get_session(node));
   node->implementation_identifier = implementation_identifier;
 
-  EXPECT_NE(nullptr, rmw_zenoh_dynamic_cpp::get_participant(node));
+  EXPECT_NE(nullptr, rmw_zenoh_dynamic_cpp::get_session(node));
 }
 
 TEST_F(TestNativeEntities, get_publisher) {

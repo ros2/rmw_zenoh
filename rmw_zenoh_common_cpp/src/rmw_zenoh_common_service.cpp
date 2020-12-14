@@ -131,7 +131,7 @@ rmw_zenoh_common_create_service(
   auto * service_data = static_cast<rmw_service_data_t *>(service->data);
 
   // Obtain Zenoh session and create Zenoh resource for response messages
-  zn_session_t * session = node->context->impl->session;
+  zn_session_t * session = node->context->impl->session_info->session;
   service_data->zn_session_ = session;
 
   // Obtain qualified request-response topics

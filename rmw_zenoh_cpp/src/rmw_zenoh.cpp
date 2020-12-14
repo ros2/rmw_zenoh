@@ -30,11 +30,11 @@
 
 #include "rmw_zenoh_cpp/identifier.hpp"
 
+#include "rmw_zenoh_common_cpp/rmw_zenoh_common.h"
+#include "rmw_zenoh_common_cpp/zenoh-net-interface.h"
+
 extern "C"
 {
-#include "rmw_zenoh_common_cpp/rmw_zenoh_common.h"
-
-#include "rmw_zenoh_common_cpp/zenoh-net-interface.h"
 
 zn_properties_t * configure_connection_mode(rmw_context_t * context)
 {
@@ -111,7 +111,7 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
     *context = rmw_get_zero_initialized_context();
     return RMW_RET_ERROR;
   } else {
-    context_impl->session = session;
+    context_impl->session = new CustomSessionInfo{.session = session};
     context_impl->is_shutdown = false;
   }
 

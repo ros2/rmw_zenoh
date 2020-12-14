@@ -29,9 +29,10 @@
 #include "impl/type_support_common.hpp"
 #include "impl/debug_helpers.hpp"
 
+#include "rmw_zenoh_common_cpp/zenoh-net-interface.h"
+
 extern "C"
 {
-#include "rmw_zenoh_common_cpp/zenoh-net-interface.h"
 
 /// CREATE PUBLISHER ===========================================================
 // Create and return an rmw publisher.
@@ -149,7 +150,7 @@ rmw_zenoh_common_create_publisher(
   auto callbacks = static_cast<const message_type_support_callbacks_t *>(type_support->data);
 
   // Create Zenoh resource
-  zn_session_t * session = node->context->impl->session;
+  zn_session_t * session = node->context->impl->session_info->session;
 
   // The topic ID must be unique within a single process, but separate processes can reuse IDs,
   // even in the same Zenoh network, because the ID is never transmitted over the wire.

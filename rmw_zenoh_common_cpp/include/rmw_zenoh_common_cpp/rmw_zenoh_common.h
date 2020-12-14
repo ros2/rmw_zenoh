@@ -15,6 +15,11 @@
 #ifndef RMW_ZENOH_COMMON_CPP__RMW_ZENOH_COMMON_H_
 #define RMW_ZENOH_COMMON_CPP__RMW_ZENOH_COMMON_H_
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 rmw_ret_t
 rmw_zenoh_common_init_pre(
   const rmw_init_options_t * options, rmw_context_t * context,
@@ -57,5 +62,9 @@ rmw_ret_t
 rmw_zenoh_common_init_options_fini(
   rmw_init_options_t * init_options,
   const char * const eclipse_zenoh_identifier);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // RMW_ZENOH_COMMON_CPP__RMW_ZENOH_COMMON_H_

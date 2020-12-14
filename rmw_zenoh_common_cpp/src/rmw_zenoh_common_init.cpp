@@ -120,7 +120,7 @@ rmw_zenoh_common_shutdown(rmw_context_t * context, const char * const eclipse_ze
   // CLEANUP ===================================================================
   // Close Zenoh session
   if (context->impl->is_shutdown == false) {
-    zn_close(context->impl->session);
+    zn_close(context->impl->session_info->session);
     context->impl->is_shutdown = true;
   }
 

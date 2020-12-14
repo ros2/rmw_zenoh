@@ -28,10 +28,7 @@
 #include "rmw/rmw.h"
 #include "rmw_zenoh_common_cpp/TypeSupport.hpp"
 
-extern "C"
-{
 #include "rmw_zenoh_common_cpp/zenoh-net-interface.h"
-}
 
 struct rmw_client_data_t
 {

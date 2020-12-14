@@ -15,17 +15,18 @@
 #ifndef RMW_ZENOH_COMMON_CPP__RMW_CONTEXT_IMPL_HPP_
 #define RMW_ZENOH_COMMON_CPP__RMW_CONTEXT_IMPL_HPP_
 
+#include "rmw_zenoh_common_cpp/zenoh-net-interface.h"
+#include "rmw_zenoh_common_cpp/custom_session_info.hpp"
+
 extern "C"
 {
-#include "rmw_zenoh_common_cpp/zenoh-net-interface.h"
-
 extern zn_properties_t * configure_connection_mode(rmw_context_t * context);
 extern void configure_session(zn_session_t * session);
 }
 
 struct rmw_context_impl_t
 {
-  zn_session_t * session;
+  CustomSessionInfo * session_info;
   bool is_shutdown;
 };
 

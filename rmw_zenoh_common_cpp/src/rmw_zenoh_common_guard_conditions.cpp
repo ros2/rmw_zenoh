@@ -14,7 +14,7 @@
 // limitations under the License.
 
 // This file is significantly modified from:
-// https://github.com/ros2/rmw_fastrtps/blob/112c6e14c30dc53e5f9112e03db242c6360b14ff/rmw_fastrtps_shared_cpp/src/rmw_guard_condition.cpp
+// https://github.com/ros2/rmw_fastrtps/blob/112c6e14c30dc53e5f9112e03db242c6360b14ff/RMW_ZENOH_COMMON_cpp/src/rmw_guard_condition.cpp
 
 #include "rmw/impl/cpp/macros.hpp"
 #include "rmw/error_handling.h"

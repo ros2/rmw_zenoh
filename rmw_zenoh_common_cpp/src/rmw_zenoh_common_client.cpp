@@ -203,7 +203,7 @@ rmw_zenoh_common_create_client(
   auto client_data = static_cast<rmw_client_data_t *>(client->data);
 
   // Obtain Zenoh session and create Zenoh resource for request messages
-  zn_session_t * session = node->context->impl->session;
+  zn_session_t * session = node->context->impl->session_info->session;
   client_data->zn_session_ = session;
 
   // Obtain qualified request-response topics
