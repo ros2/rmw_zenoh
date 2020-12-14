@@ -12,25 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "rmw_zenoh_dynamic_cpp/get_publisher.hpp"
+#ifndef RMW_ZENOH_DYNAMIC_CPP__MESSAGETYPESUPPORT_HPP_
+#define RMW_ZENOH_DYNAMIC_CPP__MESSAGETYPESUPPORT_HPP_
 
-#include "rmw_zenoh_common_cpp/custom_publisher_info.hpp"
-#include "rmw_zenoh_dynamic_cpp/identifier.hpp"
+#include <fastcdr/FastBuffer.h>
+#include <fastcdr/Cdr.h>
+
+#include <cassert>
+#include <memory>
+
+#include "TypeSupport.hpp"
+#include "rosidl_typesupport_introspection_cpp/message_introspection.hpp"
+#include "rosidl_typesupport_introspection_cpp/field_types.hpp"
 
 namespace rmw_zenoh_dynamic_cpp
 {
 
-zn_publisher_t *
-get_publisher(rmw_publisher_t * publisher)
+template<typename MembersType>
+class MessageTypeSupport : public TypeSupport<MembersType>
 {
-  if (!publisher) {
-    return nullptr;
-  }
-  if (publisher->implementation_identifier != eclipse_zenoh_identifier) {
-    return nullptr;
-  }
-  auto impl = static_cast<CustomPublisherInfo *>(publisher->data);
-  return impl->publisher_;
-}
+public:
+  MessageTypeSupport(const MembersType * members, const void * ros_type_support);
+};
 
 }  // namespace rmw_zenoh_dynamic_cpp
+
+#include "MessageTypeSupport_impl.hpp"
+
+#endif  // RMW_ZENOH_DYNAMIC_CPP__MESSAGETYPESUPPORT_HPP_

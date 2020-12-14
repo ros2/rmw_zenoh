@@ -15,22 +15,15 @@
 #ifndef RMW_ZENOH_DYNAMIC_CPP__GET_PUBLISHER_HPP_
 #define RMW_ZENOH_DYNAMIC_CPP__GET_PUBLISHER_HPP_
 
-#include "fastrtps/publisher/Publisher.h"
+#include "rmw_zenoh_common_cpp/zenoh-net-interface.h"
 #include "rmw/rmw.h"
 #include "rmw_zenoh_dynamic_cpp/visibility_control.h"
 
 namespace rmw_zenoh_dynamic_cpp
 {
 
-/// Return a native FastRTPS publisher handle.
-/**
- * The function returns `NULL` when either the publisher handle is `NULL` or
- * when the publisher handle is from a different rmw implementation.
- *
- * \return native FastRTPS publisher handle if successful, otherwise `NULL`
- */
 RMW_ZENOH_DYNAMIC_CPP_PUBLIC
-eprosima::fastrtps::Publisher *
+zn_publisher_t *
 get_publisher(rmw_publisher_t * publisher);
 
 }  // namespace rmw_zenoh_dynamic_cpp
