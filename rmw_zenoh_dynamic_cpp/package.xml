@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>rmw_zenoh_dynamic_cpp</name>
+  <version>0.0.1</version>
+  <description>Implement the ROS middleware interface using introspection type support.</description>
+  <maintainer email="esteve@apache.org">Esteve Fernandez</maintainer>
+  <license>Apache License 2.0</license>
+  <author email="esteve@apache.org">Esteve Fernandez</author>
+
+  <buildtool_depend>ament_cmake_ros</buildtool_depend>
+
+  <buildtool_export_depend>ament_cmake</buildtool_export_depend>
+
+  <build_depend>zenoh_pico_vendor</build_depend>
+  <build_depend>rcpputils</build_depend>
+  <build_depend>rcutils</build_depend>
+  <build_depend>rmw</build_depend>
+  <build_depend>rosidl_runtime_c</build_depend>
+  <build_depend>rosidl_typesupport_introspection_c</build_depend>
+  <build_depend>rosidl_typesupport_introspection_cpp</build_depend>
+
+  <build_export_depend>zenoh_pico_vendor</build_export_depend>
+  <build_export_depend>rcpputils</build_export_depend>
+  <build_export_depend>rcutils</build_export_depend>
+  <build_export_depend>rmw</build_export_depend>
+  <build_export_depend>rosidl_runtime_c</build_export_depend>
+  <build_export_depend>rosidl_typesupport_introspection_c</build_export_depend>
+  <build_export_depend>rosidl_typesupport_introspection_cpp</build_export_depend>
+
+  <test_depend>ament_cmake_gtest</test_depend>
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+  <test_depend>osrf_testing_tools_cpp</test_depend>
+  <test_depend>test_msgs</test_depend>
+
+  <member_of_group>rmw_implementation_packages</member_of_group>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
