@@ -46,6 +46,7 @@ add_library(rmw_zenoh_dynamic_cpp
   src/rmw.cpp
   src/rmw_init.cpp
   src/identifier.cpp
+  src/rmw_publisher.cpp
 )
 
 # specific order: dependents before dependencies

@@ -421,7 +421,7 @@ rmw_zenoh_common_take(
 // Take message out of the message queue, and obtain its message info
 //
 // TODO(CH3): By right the passed rmw_message_info_t should have its members filled, which include:
-// Source and message reception timestamps, publisher_gid, and whether the message was from
+// Source and message reception timestamps, publisher_reskey, and whether the message was from
 // inside the process.
 //
 // The problem is I'm not sure how to get this data from the way we've done things...
