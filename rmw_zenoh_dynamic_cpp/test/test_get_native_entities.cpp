@@ -124,50 +124,50 @@ TEST_F(TestNativeEntities, get_subscriber) {
   EXPECT_EQ(RMW_RET_OK, ret) << rmw_get_error_string().str;
 }
 
-TEST_F(TestNativeEntities, get_service) {
-  EXPECT_EQ(nullptr, rmw_zenoh_dynamic_cpp::get_request_subscriber(nullptr));
-  EXPECT_EQ(nullptr, rmw_zenoh_dynamic_cpp::get_response_publisher(nullptr));
+// TEST_F(TestNativeEntities, get_service) {
+//   EXPECT_EQ(nullptr, rmw_zenoh_dynamic_cpp::get_request_subscriber(nullptr));
+//   EXPECT_EQ(nullptr, rmw_zenoh_dynamic_cpp::get_response_publisher(nullptr));
 
-  const rosidl_service_type_support_t * ts =
-    ROSIDL_GET_SRV_TYPE_SUPPORT(test_msgs, srv, BasicTypes);
-  constexpr char service_name[] = "/test";
-  rmw_qos_profile_t qos_profile = rmw_qos_profile_default;
-  rmw_service_t * srv = rmw_create_service(node, ts, service_name, &qos_profile);
-  ASSERT_NE(nullptr, srv) << rmw_get_error_string().str;
+//   const rosidl_service_type_support_t * ts =
+//     ROSIDL_GET_SRV_TYPE_SUPPORT(test_msgs, srv, BasicTypes);
+//   constexpr char service_name[] = "/test";
+//   rmw_qos_profile_t qos_profile = rmw_qos_profile_default;
+//   rmw_service_t * srv = rmw_create_service(node, ts, service_name, &qos_profile);
+//   ASSERT_NE(nullptr, srv) << rmw_get_error_string().str;
 
-  const char * implementation_identifier = srv->implementation_identifier;
-  srv->implementation_identifier = "not-an-rmw-implementation-identifier";
-  EXPECT_EQ(nullptr, rmw_zenoh_dynamic_cpp::get_request_subscriber(srv));
-  EXPECT_EQ(nullptr, rmw_zenoh_dynamic_cpp::get_response_publisher(srv));
-  srv->implementation_identifier = implementation_identifier;
+//   const char * implementation_identifier = srv->implementation_identifier;
+//   srv->implementation_identifier = "not-an-rmw-implementation-identifier";
+//   EXPECT_EQ(nullptr, rmw_zenoh_dynamic_cpp::get_request_subscriber(srv));
+//   EXPECT_EQ(nullptr, rmw_zenoh_dynamic_cpp::get_response_publisher(srv));
+//   srv->implementation_identifier = implementation_identifier;
 
-  EXPECT_NE(nullptr, rmw_zenoh_dynamic_cpp::get_request_subscriber(srv));
-  EXPECT_NE(nullptr, rmw_zenoh_dynamic_cpp::get_response_publisher(srv));
+//   EXPECT_NE(nullptr, rmw_zenoh_dynamic_cpp::get_request_subscriber(srv));
+//   EXPECT_NE(nullptr, rmw_zenoh_dynamic_cpp::get_response_publisher(srv));
 
-  rmw_ret_t ret = rmw_destroy_service(node, srv);
-  EXPECT_EQ(RMW_RET_OK, ret) << rmw_get_error_string().str;
-}
+//   rmw_ret_t ret = rmw_destroy_service(node, srv);
+//   EXPECT_EQ(RMW_RET_OK, ret) << rmw_get_error_string().str;
+// }
 
-TEST_F(TestNativeEntities, get_client) {
-  EXPECT_EQ(nullptr, rmw_zenoh_dynamic_cpp::get_request_publisher(nullptr));
-  EXPECT_EQ(nullptr, rmw_zenoh_dynamic_cpp::get_response_subscriber(nullptr));
+// TEST_F(TestNativeEntities, get_client) {
+//   EXPECT_EQ(nullptr, rmw_zenoh_dynamic_cpp::get_request_publisher(nullptr));
+//   EXPECT_EQ(nullptr, rmw_zenoh_dynamic_cpp::get_response_subscriber(nullptr));
 
-  const rosidl_service_type_support_t * ts =
-    ROSIDL_GET_SRV_TYPE_SUPPORT(test_msgs, srv, BasicTypes);
-  constexpr char service_name[] = "/test";
-  rmw_qos_profile_t qos_profile = rmw_qos_profile_default;
-  rmw_client_t * client = rmw_create_client(node, ts, service_name, &qos_profile);
-  ASSERT_NE(nullptr, client) << rmw_get_error_string().str;
+//   const rosidl_service_type_support_t * ts =
+//     ROSIDL_GET_SRV_TYPE_SUPPORT(test_msgs, srv, BasicTypes);
+//   constexpr char service_name[] = "/test";
+//   rmw_qos_profile_t qos_profile = rmw_qos_profile_default;
+//   rmw_client_t * client = rmw_create_client(node, ts, service_name, &qos_profile);
+//   ASSERT_NE(nullptr, client) << rmw_get_error_string().str;
 
-  const char * implementation_identifier = client->implementation_identifier;
-  client->implementation_identifier = "not-an-rmw-implementation-identifier";
-  EXPECT_EQ(nullptr, rmw_zenoh_dynamic_cpp::get_request_publisher(client));
-  EXPECT_EQ(nullptr, rmw_zenoh_dynamic_cpp::get_response_subscriber(client));
-  client->implementation_identifier = implementation_identifier;
+//   const char * implementation_identifier = client->implementation_identifier;
+//   client->implementation_identifier = "not-an-rmw-implementation-identifier";
+//   EXPECT_EQ(nullptr, rmw_zenoh_dynamic_cpp::get_request_publisher(client));
+//   EXPECT_EQ(nullptr, rmw_zenoh_dynamic_cpp::get_response_subscriber(client));
+//   client->implementation_identifier = implementation_identifier;
 
-  EXPECT_NE(nullptr, rmw_zenoh_dynamic_cpp::get_request_publisher(client));
-  EXPECT_NE(nullptr, rmw_zenoh_dynamic_cpp::get_response_subscriber(client));
+//   EXPECT_NE(nullptr, rmw_zenoh_dynamic_cpp::get_request_publisher(client));
+//   EXPECT_NE(nullptr, rmw_zenoh_dynamic_cpp::get_response_subscriber(client));
 
-  rmw_ret_t ret = rmw_destroy_client(node, client);
-  EXPECT_EQ(RMW_RET_OK, ret) << rmw_get_error_string().str;
-}
+//   rmw_ret_t ret = rmw_destroy_client(node, client);
+//   EXPECT_EQ(RMW_RET_OK, ret) << rmw_get_error_string().str;
+// }
