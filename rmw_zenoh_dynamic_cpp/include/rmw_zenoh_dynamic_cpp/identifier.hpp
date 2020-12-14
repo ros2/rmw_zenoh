@@ -15,6 +15,6 @@
 #ifndef RMW_ZENOH_DYNAMIC_CPP__IDENTIFIER_HPP_
 #define RMW_ZENOH_DYNAMIC_CPP__IDENTIFIER_HPP_
 
-extern const char * const eclipse_zenoh_identifier = "rmw_zenoh_dynamic_cpp";
+extern const char * const eclipse_zenoh_identifier;
 
 #endif  // RMW_ZENOH_DYNAMIC_CPP__IDENTIFIER_HPP_

@@ -42,8 +42,10 @@ find_package(rosidl_typesupport_introspection_cpp REQUIRED)
 include_directories(include)
 
 add_library(rmw_zenoh_dynamic_cpp
-  src/rmw.cpp
   src/get_session.cpp
+  src/rmw.cpp
+  src/rmw_init.cpp
+  src/identifier.cpp
 )
 
 # specific order: dependents before dependencies

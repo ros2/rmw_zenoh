@@ -27,6 +27,8 @@
 #include "rmw/qos_profiles.h"
 #include "rmw/rmw.h"
 
+#include "rmw_zenoh_common_cpp/zenoh-net-interface.h"
+
 typedef struct CustomSessionInfo
 {
   zn_session_t * session;

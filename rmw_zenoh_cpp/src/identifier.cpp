@@ -1,4 +1,4 @@
-// Copyright 2020 Open Source Robotics Foundation, Inc.
+// Copyright 2020 ADLINK, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef RMW_ZENOH_PICO_CPP__IDENTIFIER_HPP_
-#define RMW_ZENOH_PICO_CPP__IDENTIFIER_HPP_
+#include "rmw_zenoh_cpp/identifier.hpp"
 
-extern const char * const eclipse_zenoh_identifier;
-
-#endif  // RMW_ZENOH_PICO_CPP__IDENTIFIER_HPP_
+const char * const eclipse_zenoh_identifier = "rmw_zenoh_cpp";
