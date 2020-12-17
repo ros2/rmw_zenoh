@@ -90,7 +90,7 @@ if(BUILD_TESTING)
     rcutils
     test_msgs
     rmw_zenoh_common_cpp
-    )
+  )
   target_link_libraries(test_serialize_deserialize rmw_zenoh_cpp)
 
   ament_add_gtest_executable(test_publisher test/test_publisher.cpp)
