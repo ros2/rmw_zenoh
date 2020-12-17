@@ -89,15 +89,18 @@ if(BUILD_TESTING)
   ament_target_dependencies(test_serialize_deserialize
     rcutils
     test_msgs
+    rmw_zenoh_common_cpp
     )
   target_link_libraries(test_serialize_deserialize rmw_zenoh_cpp)
 
   ament_add_gtest_executable(test_publisher test/test_publisher.cpp)
-  ament_target_dependencies(test_publisher osrf_testing_tools_cpp rcutils test_msgs)
+  ament_target_dependencies(
+    test_publisher osrf_testing_tools_cpp rcutils test_msgs rmw_zenoh_common_cpp)
   target_link_libraries(test_publisher rmw_zenoh_cpp)
 
   ament_add_gtest_executable(test_subscription test/test_subscription.cpp)
-  ament_target_dependencies(test_subscription osrf_testing_tools_cpp rcutils test_msgs)
+  ament_target_dependencies(
+    test_subscription osrf_testing_tools_cpp rcutils test_msgs rmw_zenoh_common_cpp)
   target_link_libraries(test_subscription rmw_zenoh_cpp)
 endif()
 
