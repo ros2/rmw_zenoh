@@ -227,3 +227,81 @@ rmw_create_subscription(
     subscription_options,
     eclipse_zenoh_identifier);
 }
+
+/// DESTROY SUBSCRIPTION =======================================================
+// Destroy and deallocate an RMW subscription
+rmw_ret_t
+rmw_destroy_subscription(
+  rmw_node_t * node,
+  rmw_subscription_t * subscription)
+{
+  return rmw_zenoh_common_destroy_subscription(
+    node,
+    subscription,
+    eclipse_zenoh_identifier);
+}
+
+rmw_ret_t
+rmw_subscription_get_actual_qos(
+  const rmw_subscription_t * subscription,
+  rmw_qos_profile_t * qos_profile)
+{
+  return rmw_zenoh_common_subscription_get_actual_qos(
+    subscription,
+    qos_profile,
+    eclipse_zenoh_identifier);
+}
+
+rmw_ret_t
+rmw_subscription_count_matched_publishers(
+  const rmw_subscription_t * subscription,
+  size_t * count)
+{
+  return rmw_zenoh_common_subscription_count_matched_publishers(
+    subscription,
+    count,
+    eclipse_zenoh_identifier);
+}
+
+/// CREATE PUBLISHER ===========================================================
+// Create and return an rmw publisher.
+rmw_publisher_t *
+rmw_create_publisher(
+  const rmw_node_t * node,
+  const rosidl_message_type_support_t * type_supports,
+  const char * topic_name,
+  const rmw_qos_profile_t * qos_profile,
+  const rmw_publisher_options_t * publisher_options)
+{
+  return rmw_zenoh_common_create_publisher(
+    node,
+    type_supports,
+    topic_name,
+    qos_profile,
+    publisher_options,
+    eclipse_zenoh_identifier);
+}
+
+/// DESTROY PUBLISHER ==========================================================
+// Destroy and deallocate an rmw publisher.
+rmw_ret_t
+rmw_destroy_publisher(
+  rmw_node_t * node,
+  rmw_publisher_t * publisher)
+{
+  return rmw_zenoh_common_destroy_publisher(
+    node,
+    publisher,
+    eclipse_zenoh_identifier);
+}
+
+rmw_ret_t
+rmw_publisher_get_actual_qos(
+  const rmw_publisher_t * publisher,
+  rmw_qos_profile_t * qos_profile)
+{
+  return rmw_zenoh_common_publisher_get_actual_qos(
+    publisher,
+    qos_profile,
+    eclipse_zenoh_identifier);
+}

@@ -30,6 +30,7 @@
 #include "impl/debug_helpers.hpp"
 
 #include "rmw_zenoh_common_cpp/zenoh-net-interface.h"
+#include "rmw_zenoh_common_cpp/rmw_zenoh_common.h"
 
 /// CREATE PUBLISHER ===========================================================
 // Create and return an rmw publisher.
