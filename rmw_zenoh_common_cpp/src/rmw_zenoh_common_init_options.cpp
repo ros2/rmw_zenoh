@@ -23,6 +23,7 @@
 #include "rcutils/get_env.h"
 #include "rcutils/strdup.h"
 
+#include "rmw_zenoh_common_cpp/rmw_zenoh_common.h"
 #include "rmw_zenoh_common_cpp/rmw_init_options_impl.hpp"
 
 // Helper case-insensitive string comparison function

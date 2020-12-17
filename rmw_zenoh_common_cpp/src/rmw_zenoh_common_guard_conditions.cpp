@@ -26,6 +26,8 @@
 
 #include "impl/guard_condition_impl.hpp"
 
+#include "rmw_zenoh_common_cpp/rmw_zenoh_common.h"
+
 /// CREATE GUARD CONDITION =====================================================
 // Create a guard condition and return a handle to that guard condition.
 rmw_guard_condition_t *
