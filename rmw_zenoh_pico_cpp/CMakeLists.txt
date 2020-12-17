@@ -68,41 +68,37 @@ if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   ament_lint_auto_find_test_dependencies()
 
-  # NOTE(esteve): disabled for now until we have integration tests and we launch zenohd
-  # zenoh-pico can only work in client mode
-  # find_package(ament_cmake_gtest REQUIRED)
-  # find_package(osrf_testing_tools_cpp REQUIRED)
+  # NOTE(esteve): for now we only build the tests, but can't run them until we have
+  # integration tests and we launch zenohd. zenoh-pico can only work in client mode
+  find_package(ament_cmake_gtest REQUIRED)
+  find_package(osrf_testing_tools_cpp REQUIRED)
 
-  # ament_add_gtest(test_init_shutdown test/test_init_shutdown.cpp)
-  # ament_target_dependencies(test_init_shutdown rcutils rmw_zenoh_common_cpp)
-  # target_link_libraries(test_init_shutdown rmw_zenoh_pico_cpp)
+  ament_add_gtest_executable(test_init_shutdown test/test_init_shutdown.cpp)
+  ament_target_dependencies(test_init_shutdown rcutils rmw_zenoh_common_cpp)
+  target_link_libraries(test_init_shutdown rmw_zenoh_pico_cpp)
 
-  # ament_add_gtest(test_init_options test/test_init_options.cpp)
-  # ament_target_dependencies(test_init_options osrf_testing_tools_cpp rcutils rmw_zenoh_common_cpp)
-  # target_link_libraries(test_init_options rmw_zenoh_pico_cpp)
+  ament_add_gtest_executable(test_init_options test/test_init_options.cpp)
+  ament_target_dependencies(test_init_options osrf_testing_tools_cpp rcutils rmw_zenoh_common_cpp)
+  target_link_libraries(test_init_options rmw_zenoh_pico_cpp)
 
-  # ament_add_gtest(test_create_destroy_node test/test_create_destroy_node.cpp)
-  # ament_target_dependencies(test_create_destroy_node rcutils rmw_zenoh_common_cpp)
-  # target_link_libraries(test_create_destroy_node rmw_zenoh_pico_cpp)
-  # NOTE(esteve): end comment
+  ament_add_gtest_executable(test_create_destroy_node test/test_create_destroy_node.cpp)
+  ament_target_dependencies(test_create_destroy_node rcutils rmw_zenoh_common_cpp)
+  target_link_libraries(test_create_destroy_node rmw_zenoh_pico_cpp)
 
-  # Not yet implemented
-  #ament_add_gtest(test_serialize_deserialize test/test_serialize_deserialize.cpp)
-  #ament_target_dependencies(test_serialize_deserialize
-    #rcutils
-    #test_msgs
-    #)
-  #target_link_libraries(test_serialize_deserialize rmw_zenoh_pico_cpp)
+  ament_add_gtest_executable(test_serialize_deserialize test/test_serialize_deserialize.cpp)
+  ament_target_dependencies(test_serialize_deserialize
+    rcutils
+    test_msgs
+    )
+  target_link_libraries(test_serialize_deserialize rmw_zenoh_pico_cpp)
 
-  # Broken by the type support build order problem
-  #ament_add_gtest(test_publisher test/test_publisher.cpp)
-  #ament_target_dependencies(test_publisher osrf_testing_tools_cpp rcutils test_msgs)
-  #target_link_libraries(test_publisher rmw_zenoh_pico_cpp)
+  ament_add_gtest_executable(test_publisher test/test_publisher.cpp)
+  ament_target_dependencies(test_publisher osrf_testing_tools_cpp rcutils test_msgs)
+  target_link_libraries(test_publisher rmw_zenoh_pico_cpp)
 
-  # Broken by the type support build order problem
-  #ament_add_gtest(test_subscription test/test_subscription.cpp)
-  #ament_target_dependencies(test_subscription osrf_testing_tools_cpp rcutils test_msgs)
-  #target_link_libraries(test_subscription rmw_zenoh_pico_cpp)
+  ament_add_gtest_executable(test_subscription test/test_subscription.cpp)
+  ament_target_dependencies(test_subscription osrf_testing_tools_cpp rcutils test_msgs)
+  target_link_libraries(test_subscription rmw_zenoh_pico_cpp)
 endif()
 
 ament_package(
