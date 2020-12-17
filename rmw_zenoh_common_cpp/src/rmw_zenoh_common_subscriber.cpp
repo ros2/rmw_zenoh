@@ -533,7 +533,7 @@ rmw_init_subscription_allocation(
   (void)message_bounds;
   (void)allocation;
   RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_common_cpp", "rmw_init_subscription_allocation");
-  return RMW_RET_ERROR;
+  return RMW_RET_UNSUPPORTED;
 }
 
 rmw_ret_t
@@ -541,7 +541,7 @@ rmw_fini_subscription_allocation(rmw_subscription_allocation_t * allocation)
 {
   (void)allocation;
   RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_common_cpp", "rmw_fini_subscription_allocation");
-  return RMW_RET_ERROR;
+  return RMW_RET_UNSUPPORTED;
 }
 
 rmw_ret_t
@@ -605,7 +605,7 @@ rmw_take_serialized_message(
   (void)taken;
   (void)allocation;
   RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_common_cpp", "rmw_take_serialized_message");
-  return RMW_RET_ERROR;
+  return RMW_RET_UNSUPPORTED;
 }
 
 rmw_ret_t
@@ -622,7 +622,7 @@ rmw_take_serialized_message_with_info(
   (void)message_info;
   (void)allocation;
   RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_common_cpp", "rmw_take_serialized_message");
-  return RMW_RET_ERROR;
+  return RMW_RET_UNSUPPORTED;
 }
 
 rmw_ret_t
@@ -667,5 +667,5 @@ rmw_zenoh_common_return_loaned_message_from_subscription(
   (void)subscription;
   (void)loaned_message;
   RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_common_cpp", "rmw_return_loaned_message_from_subscription");
-  return RMW_RET_ERROR;
+  return RMW_RET_UNSUPPORTED;
 }

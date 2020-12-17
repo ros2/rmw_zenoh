@@ -243,7 +243,7 @@ rmw_init_publisher_allocation(
   (void)message_bounds;
   (void)allocation;
   RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_common_cpp", "rmw_init_publisher_allocation");
-  return RMW_RET_ERROR;
+  return RMW_RET_UNSUPPORTED;
 }
 
 rmw_ret_t
@@ -251,7 +251,7 @@ rmw_fini_publisher_allocation(rmw_publisher_allocation_t * allocation)
 {
   (void)allocation;
   RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_common_cpp", "rmw_fini_publisher_allocation");
-  return RMW_RET_ERROR;
+  return RMW_RET_UNSUPPORTED;
 }
 
 rmw_ret_t
@@ -264,7 +264,7 @@ rmw_borrow_loaned_message(
   (void)type_support;
   (void)ros_message;
   RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_common_cpp", "rmw_borrow_loaned_message");
-  return RMW_RET_ERROR;
+  return RMW_RET_UNSUPPORTED;
 }
 
 rmw_ret_t
@@ -273,7 +273,7 @@ rmw_return_loaned_message_from_publisher(const rmw_publisher_t * publisher, void
   (void)publisher;
   (void)loaned_message;
   RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_common_cpp", "rmw_return_loaned_message_from_publisher");
-  return RMW_RET_ERROR;
+  return RMW_RET_UNSUPPORTED;
 }
 
 rmw_ret_t
@@ -282,7 +282,7 @@ rmw_publisher_count_matched_subscriptions(const rmw_publisher_t * publisher, siz
   RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_common_cpp", "rmw_publisher_count_matched_subscriptions");
   RMW_CHECK_ARGUMENT_FOR_NULL(publisher, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(count, RMW_RET_INVALID_ARGUMENT);
-  return RMW_RET_ERROR;
+  return RMW_RET_UNSUPPORTED;
 }
 
 rmw_ret_t
@@ -325,5 +325,5 @@ rmw_publisher_assert_liveliness(const rmw_publisher_t * publisher)
 {
   (void)publisher;
   RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_common_cpp", "rmw_publisher_assert_liveliness");
-  return RMW_RET_ERROR;
+  return RMW_RET_UNSUPPORTED;
 }

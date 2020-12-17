@@ -28,7 +28,7 @@ rmw_get_node_names(
   (void)node_names;
   (void)node_namespaces;
   RCUTILS_LOG_INFO_NAMED("rmw_zenoh_common_cpp", "rmw_get_node_names");
-  return RMW_RET_ERROR;
+  return RMW_RET_UNSUPPORTED;
 }
 
 rmw_ret_t
@@ -43,7 +43,7 @@ rmw_get_node_names_with_enclaves(
   (void)node_namespaces;
   (void)enclaves;
   RCUTILS_LOG_INFO_NAMED("rmw_zenoh_common_cpp", "rmw_get_node_names_with_enclaves");
-  return RMW_RET_ERROR;
+  return RMW_RET_UNSUPPORTED;
 }
 
 rmw_ret_t
@@ -53,7 +53,7 @@ rmw_count_publishers(const rmw_node_t * node, const char * topic_name, size_t * 
   (void)topic_name;
   (void)count;
   RCUTILS_LOG_INFO_NAMED("rmw_zenoh_common_cpp", "rmw_count_publishers");
-  return RMW_RET_ERROR;
+  return RMW_RET_UNSUPPORTED;
 }
 
 rmw_ret_t
@@ -63,5 +63,5 @@ rmw_count_subscribers(const rmw_node_t * node, const char * topic_name, size_t *
   (void)topic_name;
   (void)count;
   RCUTILS_LOG_INFO_NAMED("rmw_zenoh_common_cpp", "rmw_count_subscribers");
-  return RMW_RET_ERROR;
+  return RMW_RET_UNSUPPORTED;
 }

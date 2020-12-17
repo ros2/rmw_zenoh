@@ -31,5 +31,5 @@ rmw_get_topic_names_and_types(
   (void)no_demangle;
   (void)topic_names_and_types;
   RCUTILS_LOG_INFO_NAMED("rmw_zenoh_common_cpp", "rmw_get_topic_names_and_types");
-  return RMW_RET_ERROR;
+  return RMW_RET_UNSUPPORTED;
 }

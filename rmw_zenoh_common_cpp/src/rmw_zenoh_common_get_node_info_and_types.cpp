@@ -35,7 +35,7 @@ rmw_get_publisher_names_and_types_by_node(
   (void)no_demangle;
   (void)topic_names_and_types;
   RCUTILS_LOG_INFO_NAMED("rmw_zenoh_common_cpp", "rmw_get_publisher_names_and_types_by_node");
-  return RMW_RET_ERROR;
+  return RMW_RET_UNSUPPORTED;
 }
 
 rmw_ret_t
@@ -54,7 +54,7 @@ rmw_get_subscriber_names_and_types_by_node(
   (void)no_demangle;
   (void)topics_names_and_types;
   RCUTILS_LOG_INFO_NAMED("rmw_zenoh_common_cpp", "rmw_get_subscriber_names_and_types_by_node");
-  return RMW_RET_ERROR;
+  return RMW_RET_UNSUPPORTED;
 }
 
 rmw_ret_t
@@ -71,7 +71,7 @@ rmw_get_service_names_and_types_by_node(
   (void)node_namespace;
   (void)service_names_and_types;
   RCUTILS_LOG_INFO_NAMED("rmw_zenoh_common_cpp", "rmw_get_service_names_and_types_by_node");
-  return RMW_RET_ERROR;
+  return RMW_RET_UNSUPPORTED;
 }
 
 rmw_ret_t
@@ -88,5 +88,5 @@ rmw_get_client_names_and_types_by_node(
   (void)node_namespace;
   (void)client_names_and_types;
   RCUTILS_LOG_INFO_NAMED("rmw_zenoh_common_cpp", "rmw_get_client_names_and_types_by_node");
-  return RMW_RET_ERROR;
+  return RMW_RET_UNSUPPORTED;
 }

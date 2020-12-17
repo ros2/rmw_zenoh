@@ -21,5 +21,5 @@ rmw_set_log_severity(rmw_log_severity_t severity)
 {
   (void)severity;
   RCUTILS_LOG_INFO_NAMED("rmw_zenoh_common_cpp", "rmw_set_log_severity");
-  return RMW_RET_ERROR;
+  return RMW_RET_UNSUPPORTED;
 }
