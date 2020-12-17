@@ -25,8 +25,6 @@
 
 #include "impl/wait_impl.hpp"
 
-extern "C"
-{
 /// CREATE WAIT SET ============================================================
 // Create and return a wait set to wait to store conditions that the middleware will block on
 rmw_wait_set_t *
@@ -233,4 +231,3 @@ rmw_wait(
     return RMW_RET_OK;
   }
 }
-}  // extern "C"

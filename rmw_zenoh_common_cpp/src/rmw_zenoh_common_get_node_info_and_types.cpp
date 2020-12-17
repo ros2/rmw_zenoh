@@ -19,11 +19,6 @@
 #include "rmw/names_and_types.h"
 #include "rmw/topic_endpoint_info_array.h"
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
 rmw_ret_t
 rmw_get_publisher_names_and_types_by_node(
   const rmw_node_t * node,
@@ -95,7 +90,3 @@ rmw_get_client_names_and_types_by_node(
   RCUTILS_LOG_INFO_NAMED("rmw_zenoh_common_cpp", "rmw_get_client_names_and_types_by_node");
   return RMW_RET_ERROR;
 }
-
-#ifdef __cplusplus
-}  // extern "C"
-#endif

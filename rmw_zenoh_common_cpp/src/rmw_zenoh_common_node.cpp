@@ -27,8 +27,6 @@
 #include "rmw_zenoh_common_cpp/rmw_context_impl.hpp"
 #include "rmw_zenoh_common_cpp/rmw_node_impl.hpp"
 
-extern "C"
-{
 #include "rmw_zenoh_common_cpp/rmw_zenoh_common.h"
 
 /// CREATE NODE ================================================================
@@ -229,4 +227,3 @@ rmw_node_get_graph_guard_condition(const rmw_node_t * node)
   RMW_CHECK_ARGUMENT_FOR_NULL(node->data, nullptr);
   return static_cast<rmw_node_impl_t *>(node->data)->graph_guard_condition_;
 }
-}  // extern "C"

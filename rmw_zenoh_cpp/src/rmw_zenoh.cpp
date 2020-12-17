@@ -30,10 +30,7 @@
 
 #include "rmw_zenoh_cpp/identifier.hpp"
 
-extern "C"
-{
 #include "rmw_zenoh_common_cpp/rmw_zenoh_common.h"
-
 #include "rmw_zenoh_common_cpp/zenoh-net-interface.h"
 
 zn_properties_t * configure_connection_mode(rmw_context_t * context)
@@ -205,4 +202,3 @@ rmw_init_options_fini(rmw_init_options_t * init_options)
 {
   return rmw_zenoh_common_init_options_fini(init_options, eclipse_zenoh_identifier);
 }
-}  // extern "C"

@@ -33,8 +33,6 @@
 #include "impl/type_support_common.hpp"
 #include "impl/debug_helpers.hpp"
 
-extern "C"
-{
 #include "rmw_zenoh_common_cpp/zenoh-net-interface.h"
 
 /// CREATE SUBSCRIPTION ========================================================
@@ -670,4 +668,3 @@ rmw_zenoh_common_return_loaned_message_from_subscription(
   RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_common_cpp", "rmw_return_loaned_message_from_subscription");
   return RMW_RET_ERROR;
 }
-}  // extern "C"

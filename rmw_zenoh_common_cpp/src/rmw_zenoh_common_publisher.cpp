@@ -29,8 +29,6 @@
 #include "impl/type_support_common.hpp"
 #include "impl/debug_helpers.hpp"
 
-extern "C"
-{
 #include "rmw_zenoh_common_cpp/zenoh-net-interface.h"
 
 /// CREATE PUBLISHER ===========================================================
@@ -328,4 +326,3 @@ rmw_publisher_assert_liveliness(const rmw_publisher_t * publisher)
   RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_common_cpp", "rmw_publisher_assert_liveliness");
   return RMW_RET_ERROR;
 }
-}  // extern "C"

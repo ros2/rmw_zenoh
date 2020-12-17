@@ -25,8 +25,6 @@
 #include "impl/type_support_common.hpp"
 #include "impl/pubsub_impl.hpp"
 
-extern "C"
-{
 #include "rmw_zenoh_common_cpp/zenoh-net-interface.h"
 
 /// PUBLISH ROS MESSAGE ========================================================
@@ -130,4 +128,3 @@ rmw_publish_loaned_message(
   RCUTILS_LOG_INFO_NAMED("rmw_zenoh_common_cpp", "rmw_publish_loaned_message");
   return RMW_RET_ERROR;
 }
-}  // extern "C"

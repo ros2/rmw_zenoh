@@ -44,6 +44,7 @@ register_rmw_implementation(
 )
 
 add_library(rmw_zenoh_cpp
+  src/identifier.cpp
   src/rmw_zenoh.cpp
 )
 target_include_directories(rmw_zenoh_cpp PRIVATE include)

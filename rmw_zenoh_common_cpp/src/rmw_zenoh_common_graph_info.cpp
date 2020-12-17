@@ -18,8 +18,6 @@
 #include "rmw/names_and_types.h"
 #include "rmw/topic_endpoint_info_array.h"
 
-extern "C"
-{
 rmw_ret_t
 rmw_get_node_names(
   const rmw_node_t * node,
@@ -67,4 +65,3 @@ rmw_count_subscribers(const rmw_node_t * node, const char * topic_name, size_t *
   RCUTILS_LOG_INFO_NAMED("rmw_zenoh_common_cpp", "rmw_count_subscribers");
   return RMW_RET_ERROR;
 }
-}  // extern "C"

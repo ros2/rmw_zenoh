@@ -30,8 +30,6 @@
 #include "impl/service_impl.hpp"
 #include "impl/client_impl.hpp"
 
-extern "C"
-{
 /// CREATE SERVICE SERVER ======================================================
 // Create and return an rmw service server
 rmw_service_t *
@@ -610,4 +608,3 @@ rmw_zenoh_common_send_response(
     return RMW_RET_ERROR;
   }
 }
-}  // extern "C"

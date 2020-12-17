@@ -44,6 +44,7 @@ register_rmw_implementation(
 )
 
 add_library(rmw_zenoh_pico_cpp
+  src/identifier.cpp
   src/rmw_zenoh_pico.cpp
 )
 target_include_directories(rmw_zenoh_pico_cpp PRIVATE include)

@@ -19,8 +19,6 @@
 #include "rmw/names_and_types.h"
 #include "rmw/topic_endpoint_info_array.h"
 
-extern "C"
-{
 rmw_ret_t
 rmw_get_publishers_info_by_topic(
   const rmw_node_t * node,
@@ -54,4 +52,3 @@ rmw_get_subscriptions_info_by_topic(
   RCUTILS_LOG_INFO_NAMED("rmw_zenoh_common_cpp", "rmw_get_subscriptions_info_by_topic");
   return RMW_RET_ERROR;
 }
-}  // extern "C"
