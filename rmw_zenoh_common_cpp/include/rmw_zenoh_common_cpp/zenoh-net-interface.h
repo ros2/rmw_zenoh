@@ -15,6 +15,11 @@
 #ifndef RMW_ZENOH_COMMON_CPP__ZENOH_NET_INTERFACE_H_
 #define RMW_ZENOH_COMMON_CPP__ZENOH_NET_INTERFACE_H_
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -764,5 +769,9 @@ int znp_start_lease_task(zn_session_t * z);
  *     ``0`` in case of success, ``-1`` in case of failure.
  */
 int znp_stop_lease_task(zn_session_t * z);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // RMW_ZENOH_COMMON_CPP__ZENOH_NET_INTERFACE_H_

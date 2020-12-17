@@ -12,14 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "rcutils/logging_macros.h"
-#include "rmw/error_handling.h"
-#include "rmw/rmw.h"
+#include "rmw_zenoh_common_cpp/identifier.hpp"
 
-rmw_ret_t
-rmw_set_log_severity(rmw_log_severity_t severity)
-{
-  (void)severity;
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_common_cpp", "rmw_set_log_severity");
-  return RMW_RET_UNSUPPORTED;
-}
+const char * const eclipse_zenoh_identifier = "rmw_zenoh_cpp";

@@ -25,8 +25,6 @@
 #include "impl/type_support_common.hpp"
 #include "impl/pubsub_impl.hpp"
 
-extern "C"
-{
 #include "rmw_zenoh_common_cpp/zenoh-net-interface.h"
 
 /// PUBLISH ROS MESSAGE ========================================================
@@ -115,7 +113,7 @@ rmw_publish_serialized_message(
   (void)serialized_message;
   (void)allocation;
   RCUTILS_LOG_INFO_NAMED("rmw_zenoh_common_cpp", "rmw_publish_serialized_message");
-  return RMW_RET_ERROR;
+  return RMW_RET_UNSUPPORTED;
 }
 
 rmw_ret_t
@@ -128,6 +126,5 @@ rmw_publish_loaned_message(
   (void)ros_message;
   (void)allocation;
   RCUTILS_LOG_INFO_NAMED("rmw_zenoh_common_cpp", "rmw_publish_loaned_message");
-  return RMW_RET_ERROR;
+  return RMW_RET_UNSUPPORTED;
 }
-}  // extern "C"

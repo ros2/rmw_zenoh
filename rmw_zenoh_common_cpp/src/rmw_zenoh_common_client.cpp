@@ -30,8 +30,6 @@
 #include "impl/type_support_common.hpp"
 #include "impl/client_impl.hpp"
 
-extern "C"
-{
 /// CHECK IF SERVER IS AVAILABLE ===============================================
 // Check if a service server is available for the given service client
 rmw_ret_t
@@ -676,4 +674,3 @@ rmw_zenoh_common_take_response(
 
   return RMW_RET_OK;
 }
-}  // extern "C"

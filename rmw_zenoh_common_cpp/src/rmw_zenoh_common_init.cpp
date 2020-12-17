@@ -28,8 +28,6 @@
 #include "rmw_zenoh_common_cpp/rmw_context_impl.hpp"
 #include "rmw_zenoh_common_cpp/rmw_init_options_impl.hpp"
 
-extern "C"
-{
 #include "rmw_zenoh_common_cpp/rmw_zenoh_common.h"
 #include "rmw_zenoh_common_cpp/zenoh-net-interface.h"
 
@@ -162,4 +160,3 @@ rmw_zenoh_common_context_fini(rmw_context_t * context, const char * const eclips
 
   return RMW_RET_OK;
 }
-}  // extern "C"

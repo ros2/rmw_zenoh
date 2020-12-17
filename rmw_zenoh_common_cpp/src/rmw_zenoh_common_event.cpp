@@ -21,8 +21,6 @@
 #include "rmw/rmw.h"
 #include "rmw/event.h"
 
-extern "C"
-{
 // STUB
 rmw_ret_t
 rmw_take_event(const rmw_event_t * event_handle, void * event_info, bool * taken)
@@ -126,4 +124,3 @@ rmw_zenoh_common_subscription_event_init(
 
   return RMW_RET_OK;
 }
-}  // extern "C"

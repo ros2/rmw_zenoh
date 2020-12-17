@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef RMW_ZENOH_PICO_CPP__IDENTIFIER_HPP_
-#define RMW_ZENOH_PICO_CPP__IDENTIFIER_HPP_
+#include "rmw_zenoh_common_cpp/identifier.hpp"
 
-extern const char * const eclipse_zenoh_identifier = "rmw_zenoh_pico_cpp";
-
-#endif  // RMW_ZENOH_PICO_CPP__IDENTIFIER_HPP_
+const char * const eclipse_zenoh_identifier = "rmw_zenoh_pico_cpp";

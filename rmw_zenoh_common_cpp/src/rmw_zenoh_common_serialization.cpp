@@ -16,8 +16,6 @@
 #include "rmw/error_handling.h"
 #include "rmw/rmw.h"
 
-extern "C"
-{
 rmw_ret_t
 rmw_get_serialized_message_size(
   const rosidl_message_type_support_t * type_support,
@@ -28,7 +26,7 @@ rmw_get_serialized_message_size(
   (void)message_bounds;
   (void)size;
   RCUTILS_LOG_INFO_NAMED("rmw_zenoh_common_cpp", "rmw_get_serialized_message_size");
-  return RMW_RET_ERROR;
+  return RMW_RET_UNSUPPORTED;
 }
 
 rmw_ret_t
@@ -41,7 +39,7 @@ rmw_serialize(
   (void)type_support;
   (void)serialized_message;
   RCUTILS_LOG_INFO_NAMED("rmw_zenoh_common_cpp", "rmw_serialize");
-  return RMW_RET_ERROR;
+  return RMW_RET_UNSUPPORTED;
 }
 
 rmw_ret_t
@@ -54,6 +52,5 @@ rmw_deserialize(
   (void)type_support;
   (void)ros_message;
   RCUTILS_LOG_INFO_NAMED("rmw_zenoh_common_cpp", "rmw_deserialize");
-  return RMW_RET_ERROR;
+  return RMW_RET_UNSUPPORTED;
 }
-}  // extern "C"

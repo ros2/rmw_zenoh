@@ -8,6 +8,12 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--no-undefined")
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-undefined,error")
+endif()
+
 find_package(ament_cmake_ros REQUIRED)
 
 find_package(rcutils REQUIRED)
@@ -38,6 +44,7 @@ register_rmw_implementation(
 )
 
 add_library(rmw_zenoh_cpp
+  src/identifier.cpp
   src/rmw_zenoh.cpp
 )
 target_include_directories(rmw_zenoh_cpp PRIVATE include)
@@ -76,23 +83,25 @@ if(BUILD_TESTING)
   ament_target_dependencies(test_create_destroy_node rcutils rmw_zenoh_common_cpp)
   target_link_libraries(test_create_destroy_node rmw_zenoh_cpp)
 
-  # Not yet implemented
-  #ament_add_gtest(test_serialize_deserialize test/test_serialize_deserialize.cpp)
-  #ament_target_dependencies(test_serialize_deserialize
-    #rcutils
-    #test_msgs
-    #)
-  #target_link_libraries(test_serialize_deserialize rmw_zenoh_cpp)
+  # NOTE(esteve): for now we only build the tests, but can't run them because of the
+  # typesupport build order issue
+  ament_add_gtest_executable(test_serialize_deserialize test/test_serialize_deserialize.cpp)
+  ament_target_dependencies(test_serialize_deserialize
+    rcutils
+    test_msgs
+    rmw_zenoh_common_cpp
+  )
+  target_link_libraries(test_serialize_deserialize rmw_zenoh_cpp)
 
-  # Broken by the type support build order problem
-  #ament_add_gtest(test_publisher test/test_publisher.cpp)
-  #ament_target_dependencies(test_publisher osrf_testing_tools_cpp rcutils test_msgs)
-  #target_link_libraries(test_publisher rmw_zenoh_cpp)
+  ament_add_gtest_executable(test_publisher test/test_publisher.cpp)
+  ament_target_dependencies(
+    test_publisher osrf_testing_tools_cpp rcutils test_msgs rmw_zenoh_common_cpp)
+  target_link_libraries(test_publisher rmw_zenoh_cpp)
 
-  # Broken by the type support build order problem
-  #ament_add_gtest(test_subscription test/test_subscription.cpp)
-  #ament_target_dependencies(test_subscription osrf_testing_tools_cpp rcutils test_msgs)
-  #target_link_libraries(test_subscription rmw_zenoh_cpp)
+  ament_add_gtest_executable(test_subscription test/test_subscription.cpp)
+  ament_target_dependencies(
+    test_subscription osrf_testing_tools_cpp rcutils test_msgs rmw_zenoh_common_cpp)
+  target_link_libraries(test_subscription rmw_zenoh_cpp)
 endif()
 
 ament_package(

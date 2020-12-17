@@ -22,8 +22,6 @@
 
 #include "impl/pubsub_impl.hpp"
 
-extern "C"
-{
 /// GET PUBLISHER GID ==========================================================
 // rmw_gid_t Doc: http://docs.ros2.org/latest/api/rmw/structrmw__gid__t.html
 rmw_ret_t
@@ -56,6 +54,5 @@ rmw_compare_gids_equal(const rmw_gid_t * gid1, const rmw_gid_t * gid2, bool * re
   (void)gid2;
   (void)result;
   RCUTILS_LOG_INFO_NAMED("rmw_zenoh_common_cpp", "rmw_compare_gids_equal");
-  return RMW_RET_ERROR;
+  return RMW_RET_UNSUPPORTED;
 }
-}  // extern "C"

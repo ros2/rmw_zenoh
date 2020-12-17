@@ -23,6 +23,7 @@
 #include "rcutils/get_env.h"
 #include "rcutils/strdup.h"
 
+#include "rmw_zenoh_common_cpp/rmw_zenoh_common.h"
 #include "rmw_zenoh_common_cpp/rmw_init_options_impl.hpp"
 
 // Helper case-insensitive string comparison function
@@ -36,8 +37,6 @@ int strcicmp(char const * a, char const * b)
   }
 }
 
-extern "C"
-{
 /// INIT OPTIONS ===============================================================
 // Initialize given init_options with the default values
 // and implementation specific values.
@@ -253,4 +252,3 @@ rmw_zenoh_common_init_options_fini(
   // return ret;
   return RMW_RET_OK;
 }
-}  // extern "C"
