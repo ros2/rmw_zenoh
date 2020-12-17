@@ -63,6 +63,15 @@ rmw_zenoh_common_init_options_fini(
   rmw_init_options_t * init_options,
   const char * const eclipse_zenoh_identifier);
 
+rmw_subscription_t *
+rmw_zenoh_common_create_subscription(
+  const rmw_node_t * node,
+  const rosidl_message_type_support_t * type_supports,
+  const char * topic_name,
+  const rmw_qos_profile_t * qos_profile,
+  const rmw_subscription_options_t * subscription_options,
+  const char * const eclipse_zenoh_identifier);
+
 #ifdef __cplusplus
 }
 #endif

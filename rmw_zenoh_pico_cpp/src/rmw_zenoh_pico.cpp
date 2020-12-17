@@ -208,3 +208,22 @@ rmw_init_options_fini(rmw_init_options_t * init_options)
 {
   return rmw_zenoh_common_init_options_fini(init_options, eclipse_zenoh_identifier);
 }
+
+/// CREATE SUBSCRIPTION ========================================================
+// Create and return an rmw subscriber
+rmw_subscription_t *
+rmw_create_subscription(
+  const rmw_node_t * node,
+  const rosidl_message_type_support_t * type_supports,
+  const char * topic_name,
+  const rmw_qos_profile_t * qos_profile,
+  const rmw_subscription_options_t * subscription_options)
+{
+  return rmw_zenoh_common_create_subscription(
+    node,
+    type_supports,
+    topic_name,
+    qos_profile,
+    subscription_options,
+    eclipse_zenoh_identifier);
+}
