@@ -82,6 +82,26 @@ bool TypeSupport::serializeROSmessage(
   return true;
 }
 
+bool TypeSupport::serializeROSmessage(
+  const void * ros_message,
+  ucdrBuffer * writer,
+  const void * impl) const
+{
+  assert(ros_message);
+  assert(impl);
+
+  // If type is not empty, serialize message
+  if (has_data_) {
+    auto callbacks = static_cast<const message_type_support_callbacks_t *>(impl);
+    // return false;
+    return callbacks->cdr_serialize(ros_message, writer);
+  }
+
+  // Otherwise, add a dummy byte
+  ucdr_serialize_uint8_t(writer, 0);
+  return true;
+}
+
 bool TypeSupport::deserializeROSmessage(
   eprosima::fastcdr::Cdr & deser,
   void * ros_message,

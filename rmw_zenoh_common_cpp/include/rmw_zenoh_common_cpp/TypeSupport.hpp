@@ -19,10 +19,7 @@
 #ifndef RMW_ZENOH_COMMON_CPP__TYPESUPPORT_HPP_
 #define RMW_ZENOH_COMMON_CPP__TYPESUPPORT_HPP_
 
-// #include <fastrtps/TopicDataType.h>
-
-#include <fastcdr/FastBuffer.h>
-#include <fastcdr/Cdr.h>
+#include <ucdr/microcdr.h>
 #include <cassert>
 #include <string>
 
@@ -44,6 +41,11 @@ public:
   bool deserializeROSmessage(
     eprosima::fastcdr::Cdr & deser,
     void * ros_message,
+    const void * impl) const;
+
+  bool serializeROSmessage(
+    const void * ros_message,
+    ucdrBuffer * writer,
     const void * impl) const;
 
 protected:

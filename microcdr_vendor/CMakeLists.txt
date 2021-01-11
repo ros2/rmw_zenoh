@@ -5,7 +5,8 @@ project(microcdr_vendor)
 find_package(ament_cmake REQUIRED)
 
 macro(build_microcdr)
-  set(microcdr_REV "v1.2.0")
+  set(microcdr_version "1.2.0")
+  set(microcdr_REV "v${microcdr_version}")
   set(extra_cmake_args)
 
   get_property(multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
@@ -27,7 +28,7 @@ macro(build_microcdr)
   # The external project will install to the build folder, but we'll install that on make install.
   install(
     DIRECTORY
-      ${CMAKE_CURRENT_BINARY_DIR}/microcdr_install/
+      ${CMAKE_CURRENT_BINARY_DIR}/microcdr_install/microcdr-${microcdr_version}/
     DESTINATION
       ${CMAKE_INSTALL_PREFIX}
   )

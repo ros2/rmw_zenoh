@@ -16,6 +16,7 @@
 
   <buildtool_export_depend>ament_cmake</buildtool_export_depend>
 
+  <depend>microcdr_vendor</depend>
   <depend>rcutils</depend>
   <depend>rmw</depend>
   <depend>rosidl_typesupport_zenoh_c</depend>

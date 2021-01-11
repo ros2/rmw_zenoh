@@ -16,8 +16,8 @@
 
   <buildtool_export_depend>ament_cmake</buildtool_export_depend>
 
+  <depend>microcdr_vendor</depend>
   <depend>zenoh_vendor</depend>
-
   <depend>rmw_zenoh_common_cpp</depend>
 
   <test_depend>ament_lint_auto</test_depend>

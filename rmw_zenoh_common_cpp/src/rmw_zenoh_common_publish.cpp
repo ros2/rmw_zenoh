@@ -65,36 +65,33 @@ rmw_zenoh_common_publish(
     ->type_support_->getEstimatedSerializedSize(ros_message));
 
   // Init serialized message byte array
-  char * msg_bytes = static_cast<char *>(allocator->allocate(max_data_length, allocator->state));
+  uint8_t * msg_buffer = static_cast<uint8_t *>(allocator->allocate(max_data_length, allocator->state));
 
   // Object that manages the raw buffer
-  eprosima::fastcdr::FastBuffer fastbuffer(msg_bytes, max_data_length);
+  ucdrBuffer writer;
+  ucdr_init_buffer(&writer, msg_buffer, max_data_length);
 
   // Object that serializes the data
-  eprosima::fastcdr::Cdr ser(
-    fastbuffer,
-    eprosima::fastcdr::Cdr::DEFAULT_ENDIAN,
-    eprosima::fastcdr::Cdr::DDS_CDR);
   if (!publisher_data->type_support_->serializeROSmessage(
       ros_message,
-      ser,
+      &writer,
       publisher_data->type_support_impl_))
   {
     RMW_SET_ERROR_MSG("could not serialize ROS message");
-    allocator->deallocate(msg_bytes, allocator->state);
+    allocator->deallocate(msg_buffer, allocator->state);
     return RMW_RET_ERROR;
   }
 
-  size_t data_length = ser.getSerializedDataLength();
+  size_t data_length = ucdr_buffer_length(&writer);
 
   // PUBLISH ON ZENOH MIDDLEWARE LAYER =========================================
   size_t wrid_ret = zn_write(
     publisher_data->zn_session_,
     zn_rid(publisher_data->zn_topic_id_),
-    msg_bytes,
+    reinterpret_cast<char *>(msg_buffer),
     data_length);
 
-  allocator->deallocate(msg_bytes, allocator->state);
+  allocator->deallocate(msg_buffer, allocator->state);
 
   if (wrid_ret == 0) {
     return RMW_RET_OK;

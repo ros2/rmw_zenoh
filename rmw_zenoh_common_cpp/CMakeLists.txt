@@ -16,6 +16,9 @@ find_package(rmw REQUIRED)
 find_package(fastrtps_cmake_module REQUIRED)
 find_package(fastcdr REQUIRED CONFIG)
 
+find_package(microcdr_vendor REQUIRED)
+find_package(microcdr REQUIRED)
+
 find_package(rosidl_generator_c REQUIRED)
 find_package(rosidl_typesupport_zenoh_c REQUIRED)
 find_package(rosidl_typesupport_zenoh_cpp REQUIRED)
@@ -58,8 +61,10 @@ ament_target_dependencies(rmw_zenoh_common_cpp
   rosidl_typesupport_zenoh_c
   rosidl_typesupport_zenoh_cpp
   rosidl_generator_c
+  microcdr_vendor
 )
 target_link_libraries(rmw_zenoh_common_cpp fastcdr)
+target_link_libraries(rmw_zenoh_common_cpp microcdr::microcdr)
 
 # Causes the visibility macros to use dllexport rather than dllimport,
 # which is appropriate when building the dll but not consuming it.
