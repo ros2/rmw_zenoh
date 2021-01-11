@@ -93,8 +93,7 @@ bool TypeSupport::serializeROSmessage(
   // If type is not empty, serialize message
   if (has_data_) {
     auto callbacks = static_cast<const message_type_support_callbacks_t *>(impl);
-    // return false;
-    return callbacks->cdr_serialize(ros_message, writer);
+    return callbacks->cdr_serialize_ucdr(ros_message, writer);
   }
 
   // Otherwise, add a dummy byte
