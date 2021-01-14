@@ -25,11 +25,14 @@
 
 #include "impl/wait_impl.hpp"
 
+#include "rmw_zenoh_common_cpp/rmw_zenoh_common.h"
+
 /// CREATE WAIT SET ============================================================
 // Create and return a wait set to wait to store conditions that the middleware will block on
 rmw_wait_set_t *
 rmw_zenoh_common_create_wait_set(
-  rmw_context_t * context, size_t max_conditions,
+  rmw_context_t * context,
+  size_t max_conditions,
   const char * const eclipse_zenoh_identifier)
 {
   (void)max_conditions;

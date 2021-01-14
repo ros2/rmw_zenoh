@@ -324,7 +324,8 @@ rmw_zenoh_common_create_service(
 // Destroy and deallocate an RMW service server
 rmw_ret_t
 rmw_zenoh_common_destroy_service(
-  rmw_node_t * node, rmw_service_t * service,
+  rmw_node_t * node,
+  rmw_service_t * service,
   const char * const eclipse_zenoh_identifier)
 {
   RCUTILS_LOG_DEBUG_NAMED(

@@ -22,11 +22,14 @@
 
 #include "impl/pubsub_impl.hpp"
 
+#include "rmw_zenoh_common_cpp/rmw_zenoh_common.h"
+
 /// GET PUBLISHER GID ==========================================================
 // rmw_gid_t Doc: http://docs.ros2.org/latest/api/rmw/structrmw__gid__t.html
 rmw_ret_t
 rmw_zenoh_common_get_gid_for_publisher(
-  const rmw_publisher_t * publisher, rmw_gid_t * gid,
+  const rmw_publisher_t * publisher,
+  rmw_gid_t * gid,
   const char * const eclipse_zenoh_identifier)
 {
   RMW_CHECK_ARGUMENT_FOR_NULL(publisher, RMW_RET_INVALID_ARGUMENT);

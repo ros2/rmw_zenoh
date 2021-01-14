@@ -416,3 +416,153 @@ rmw_create_service(
     qos_profile,
     eclipse_zenoh_identifier);
 }
+
+rmw_ret_t
+rmw_service_server_is_available(
+  const rmw_node_t * node,
+  const rmw_client_t * client,
+  bool * result)
+{
+  return rmw_zenoh_common_service_server_is_available(
+    node,
+    client,
+    result,
+    eclipse_zenoh_identifier);
+}
+
+rmw_ret_t
+rmw_get_gid_for_publisher(
+  const rmw_publisher_t * publisher,
+  rmw_gid_t * gid)
+{
+  return rmw_zenoh_common_get_gid_for_publisher(
+    publisher,
+    gid,
+    eclipse_zenoh_identifier);
+}
+
+rmw_ret_t
+rmw_destroy_wait_set(
+  rmw_wait_set_t * wait_set)
+{
+  return rmw_zenoh_common_destroy_wait_set(
+    wait_set,
+    eclipse_zenoh_identifier);
+}
+
+rmw_wait_set_t *
+rmw_create_wait_set(
+  rmw_context_t * context,
+  size_t max_conditions)
+{
+  return rmw_zenoh_common_create_wait_set(
+    context,
+    max_conditions,
+    eclipse_zenoh_identifier);
+}
+
+rmw_ret_t
+rmw_trigger_guard_condition(
+  const rmw_guard_condition_t * guard_condition_handle)
+{
+  return rmw_zenoh_common_trigger_guard_condition(
+    guard_condition_handle,
+    eclipse_zenoh_identifier);
+}
+
+rmw_guard_condition_t *
+rmw_create_guard_condition(
+  rmw_context_t * context)
+{
+  return rmw_zenoh_common_create_guard_condition(
+    context,
+    eclipse_zenoh_identifier);
+}
+
+rmw_ret_t
+rmw_send_response(
+  const rmw_service_t * service,
+  rmw_request_id_t * request_header,
+  void * ros_response)
+{
+  return rmw_zenoh_common_send_response(
+    service,
+    request_header,
+    ros_response,
+    eclipse_zenoh_identifier);
+}
+
+rmw_ret_t
+rmw_take_request(
+  const rmw_service_t * service,
+  rmw_service_info_t * request_header,
+  void * ros_request,
+  bool * taken)
+{
+  return rmw_zenoh_common_take_request(
+    service,
+    request_header,
+    ros_request,
+    taken,
+    eclipse_zenoh_identifier);
+}
+
+rmw_ret_t
+rmw_destroy_service(
+  rmw_node_t * node,
+  rmw_service_t * service)
+{
+  return rmw_zenoh_common_destroy_service(
+    node,
+    service,
+    eclipse_zenoh_identifier);
+}
+
+rmw_ret_t
+rmw_take_response(
+  const rmw_client_t * client,
+  rmw_service_info_t * request_header,
+  void * ros_response,
+  bool * taken)
+{
+  return rmw_zenoh_common_take_response(
+    client,
+    request_header,
+    ros_response,
+    taken,
+    eclipse_zenoh_identifier);
+}
+
+rmw_ret_t
+rmw_send_request(
+  const rmw_client_t * client,
+  const void * ros_request,
+  int64_t * sequence_id)
+{
+  return rmw_zenoh_common_send_request(
+    client,
+    ros_request,
+    sequence_id,
+    eclipse_zenoh_identifier);
+}
+
+rmw_ret_t
+rmw_destroy_client(
+  rmw_node_t * node,
+  rmw_client_t * client)
+{
+  return rmw_zenoh_common_destroy_client(
+    node,
+    client,
+    eclipse_zenoh_identifier);
+}
+
+rmw_ret_t
+rmw_return_loaned_message_from_subscription(
+  const rmw_subscription_t * subscription,
+  void * loaned_message)
+{
+  return rmw_zenoh_common_return_loaned_message_from_subscription(
+    subscription,
+    loaned_message);
+}
