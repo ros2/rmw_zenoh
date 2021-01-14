@@ -399,7 +399,7 @@ rmw_create_client(
     type_supports,
     service_name,
     qos_profile,
-    eclipse_zenoh_identifier)
+    eclipse_zenoh_identifier);
 }
 
 rmw_service_t *
