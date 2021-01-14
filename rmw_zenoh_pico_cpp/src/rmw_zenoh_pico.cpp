@@ -22,6 +22,7 @@
 #include "rmw/error_handling.h"
 #include "rmw/rmw.h"
 #include "rmw/init.h"
+#include "rmw/event.h"
 
 #include "rcutils/logging_macros.h"
 
@@ -303,5 +304,18 @@ rmw_publisher_get_actual_qos(
   return rmw_zenoh_common_publisher_get_actual_qos(
     publisher,
     qos_profile,
+    eclipse_zenoh_identifier);
+}
+
+rmw_ret_t
+rmw_publisher_event_init(
+  rmw_event_t * event,
+  const rmw_publisher_t * publisher,
+  rmw_event_type_t event_type)
+{
+  return rmw_zenoh_common_publisher_event_init(
+    event,
+    publisher,
+    event_type,
     eclipse_zenoh_identifier);
 }

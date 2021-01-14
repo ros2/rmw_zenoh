@@ -299,3 +299,120 @@ rmw_publisher_get_actual_qos(
     qos_profile,
     eclipse_zenoh_identifier);
 }
+
+rmw_ret_t
+rmw_publisher_event_init(
+  rmw_event_t * event,
+  const rmw_publisher_t * publisher,
+  rmw_event_type_t event_type)
+{
+  return rmw_zenoh_common_publisher_event_init(
+    event,
+    publisher,
+    event_type,
+    eclipse_zenoh_identifier);
+}
+
+rmw_ret_t
+rmw_publish(
+  const rmw_publisher_t * publisher,
+  const void * ros_message,
+  rmw_publisher_allocation_t * allocation)
+{
+  return rmw_zenoh_common_publish(
+    publisher,
+    ros_message,
+    allocation,
+    eclipse_zenoh_identifier);
+}
+
+rmw_ret_t
+rmw_take(
+  const rmw_subscription_t * subscription,
+  void * ros_message,
+  bool * taken,
+  rmw_subscription_allocation_t * allocation)
+{
+  return rmw_zenoh_common_take(
+    subscription,
+    ros_message,
+    taken,
+    allocation,
+    eclipse_zenoh_identifier);
+}
+
+rmw_ret_t
+rmw_subscription_event_init(
+  rmw_event_t * event,
+  const rmw_subscription_t * subscription,
+  rmw_event_type_t event_type)
+{
+  return rmw_zenoh_common_subscription_event_init(
+    event,
+    subscription,
+    event_type,
+    eclipse_zenoh_identifier);
+}
+
+rmw_ret_t
+rmw_take_with_info(
+  const rmw_subscription_t * subscription,
+  void * ros_message,
+  bool * taken,
+  rmw_message_info_t * message_info,
+  rmw_subscription_allocation_t * allocation)
+{
+  return rmw_zenoh_common_take_with_info(
+    subscription,
+    ros_message,
+    taken,
+    message_info,
+    allocation,
+    eclipse_zenoh_identifier);
+}
+
+rmw_ret_t
+rmw_take_loaned_message_with_info(
+  const rmw_subscription_t * subscription,
+  void ** loaned_message,
+  bool * taken,
+  rmw_message_info_t * message_info,
+  rmw_subscription_allocation_t * allocation)
+{
+  return rmw_zenoh_common_take_loaned_message_with_info(
+    subscription,
+    loaned_message,
+    taken,
+    message_info,
+    allocation);
+}
+
+rmw_client_t *
+rmw_create_client(
+  const rmw_node_t * node,
+  const rosidl_service_type_support_t * type_supports,
+  const char * service_name,
+  const rmw_qos_profile_t * qos_profile)
+{
+  return rmw_zenoh_common_create_client(
+    node,
+    type_supports,
+    service_name,
+    qos_profile,
+    eclipse_zenoh_identifier)
+}
+
+rmw_service_t *
+rmw_create_service(
+  const rmw_node_t * node,
+  const rosidl_service_type_support_t * type_supports,
+  const char * service_name,
+  const rmw_qos_profile_t * qos_profile)
+{
+  return rmw_zenoh_common_create_service(
+    node,
+    type_supports,
+    service_name,
+    qos_profile,
+    eclipse_zenoh_identifier);
+}

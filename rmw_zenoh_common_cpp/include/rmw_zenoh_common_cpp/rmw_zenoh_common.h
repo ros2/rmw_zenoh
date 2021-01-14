@@ -20,6 +20,8 @@ extern "C"
 {
 #endif
 
+#include "rmw/event.h"
+
 rmw_ret_t
 rmw_zenoh_common_init_pre(
   const rmw_init_options_t * options, rmw_context_t * context,
@@ -113,6 +115,60 @@ rmw_ret_t
 rmw_zenoh_common_publisher_get_actual_qos(
   const rmw_publisher_t * publisher,
   rmw_qos_profile_t * qos_profile,
+  const char * const eclipse_zenoh_identifier);
+
+rmw_ret_t
+rmw_zenoh_common_publisher_event_init(
+  rmw_event_t * event,
+  const rmw_publisher_t * publisher,
+  rmw_event_type_t event_type,
+  const char * const eclipse_zenoh_identifier);
+
+rmw_ret_t
+rmw_zenoh_common_publish(
+  const rmw_publisher_t * publisher,
+  const void * ros_message,
+  rmw_publisher_allocation_t * allocation,
+  const char * const eclipse_zenoh_identifier);
+
+rmw_ret_t
+rmw_zenoh_common_take(
+  const rmw_subscription_t * subscription,
+  void * ros_message,
+  bool * taken,
+  rmw_subscription_allocation_t * allocation,
+  const char * const eclipse_zenoh_identifier);
+
+rmw_ret_t
+rmw_zenoh_common_subscription_event_init(
+  rmw_event_t * event,
+  const rmw_subscription_t * subscription,
+  rmw_event_type_t event_type,
+  const char * const eclipse_zenoh_identifier);
+
+rmw_ret_t
+rmw_zenoh_common_take_with_info(
+  const rmw_subscription_t * subscription,
+  void * ros_message,
+  bool * taken,
+  rmw_message_info_t * message_info,
+  rmw_subscription_allocation_t * allocation,
+  const char * const eclipse_zenoh_identifier);
+
+rmw_ret_t
+rmw_zenoh_common_take_loaned_message_with_info(
+  const rmw_subscription_t * subscription,
+  void ** loaned_message,
+  bool * taken,
+  rmw_message_info_t * message_info,
+  rmw_subscription_allocation_t * allocation);
+
+rmw_client_t *
+rmw_zenoh_common_create_client(
+  const rmw_node_t * node,
+  const rosidl_service_type_support_t * type_supports,
+  const char * service_name,
+  const rmw_qos_profile_t * qos_profile,
   const char * const eclipse_zenoh_identifier);
 
 #ifdef __cplusplus
