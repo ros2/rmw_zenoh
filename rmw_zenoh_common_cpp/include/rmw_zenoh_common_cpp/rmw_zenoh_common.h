@@ -171,6 +171,14 @@ rmw_zenoh_common_create_client(
   const rmw_qos_profile_t * qos_profile,
   const char * const eclipse_zenoh_identifier);
 
+rmw_service_t *
+rmw_zenoh_common_create_service(
+  const rmw_node_t * node,
+  const rosidl_service_type_support_t * type_supports,
+  const char * service_name,
+  const rmw_qos_profile_t * qos_profile,
+  const char * const eclipse_zenoh_identifier);
+
 #ifdef __cplusplus
 }
 #endif
