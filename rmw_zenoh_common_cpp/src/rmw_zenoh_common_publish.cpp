@@ -65,20 +65,25 @@ rmw_zenoh_common_publish(
     ->type_support_->getEstimatedSerializedSize(ros_message));
 
   // Init serialized message byte array
-  uint8_t * msg_buffer = static_cast<uint8_t *>(allocator->allocate(max_data_length, allocator->state));
+  uint8_t * message_buffer = static_cast<uint8_t *>(allocator->allocate(max_data_length, allocator->state));
+  if (!message_buffer) {
+    RMW_SET_ERROR_MSG("failed allocate message bytes");
+    allocator->deallocate(message_buffer, allocator->state);
+    return RMW_RET_ERROR;
+  }
 
   // Object that manages the raw buffer
   ucdrBuffer writer;
-  ucdr_init_buffer(&writer, msg_buffer, max_data_length);
+  ucdr_init_buffer(&writer, message_buffer, max_data_length);
 
   // Object that serializes the data
-  if (!publisher_data->type_support_->serializeROSmessage(
+  if (!publisher_data->type_support_->serializeROSmessageUCDR(
       ros_message,
       &writer,
       publisher_data->type_support_impl_))
   {
     RMW_SET_ERROR_MSG("could not serialize ROS message");
-    allocator->deallocate(msg_buffer, allocator->state);
+    allocator->deallocate(message_buffer, allocator->state);
     return RMW_RET_ERROR;
   }
 
@@ -88,10 +93,10 @@ rmw_zenoh_common_publish(
   size_t wrid_ret = zn_write(
     publisher_data->zn_session_,
     zn_rid(publisher_data->zn_topic_id_),
-    reinterpret_cast<char *>(msg_buffer),
+    reinterpret_cast<char *>(message_buffer),
     data_length);
 
-  allocator->deallocate(msg_buffer, allocator->state);
+  allocator->deallocate(message_buffer, allocator->state);
 
   if (wrid_ret == 0) {
     return RMW_RET_OK;

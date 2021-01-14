@@ -43,7 +43,7 @@ public:
     void * ros_message,
     const void * impl) const;
 
-  bool serializeROSmessage(
+  bool serializeROSmessageUCDR(
     const void * ros_message,
     ucdrBuffer * writer,
     const void * impl) const;

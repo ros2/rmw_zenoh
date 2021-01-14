@@ -526,34 +526,29 @@ rmw_zenoh_common_send_request(
   max_data_length += sizeof(std::int64_t);  // Internal type of the atomic sequence ID
 
   // Init serialized message byte array
-  char * request_bytes = static_cast<char *>(
+  uint8_t * request_buffer = static_cast<uint8_t *>(
     allocator->allocate(max_data_length, allocator->state));
-  if (!request_bytes) {
+  if (!request_buffer) {
     RMW_SET_ERROR_MSG("failed allocate request message bytes");
-    allocator->deallocate(request_bytes, allocator->state);
+    allocator->deallocate(request_buffer, allocator->state);
     return RMW_RET_ERROR;
   }
 
   // Object that manages the raw buffer
-  eprosima::fastcdr::FastBuffer fastbuffer(request_bytes, max_data_length);
+  ucdrBuffer writer;
+  ucdr_init_buffer(&writer, request_buffer, max_data_length);
 
-  // Object that serializes the data.
-  eprosima::fastcdr::Cdr ser(
-    fastbuffer,
-    eprosima::fastcdr::Cdr::DEFAULT_ENDIAN,
-    eprosima::fastcdr::Cdr::DDS_CDR);
-
-  if (!client_data->request_type_support_->serializeROSmessage(
+  if (!client_data->request_type_support_->serializeROSmessageUCDR(
       ros_request,
-      ser,
+      &writer,
       client_data->request_type_support_impl_))
   {
     RMW_SET_ERROR_MSG("failed serialize ROS request message");
-    allocator->deallocate(request_bytes, allocator->state);
+    allocator->deallocate(request_buffer, allocator->state);
     return RMW_RET_ERROR;
   }
 
-  size_t data_length = ser.getSerializedDataLength();
+  size_t data_length = ucdr_buffer_length(&writer);
 
   // ADD METADATA ==============================================================
   //
@@ -563,7 +558,7 @@ rmw_zenoh_common_send_request(
 
   size_t meta_length = sizeof(std::int64_t);  // Internal type of the atomic sequence ID
   memcpy(
-    request_bytes + data_length,
+    request_buffer + data_length,
     reinterpret_cast<char *>(sequence_id),
     meta_length);
 
@@ -571,10 +566,10 @@ rmw_zenoh_common_send_request(
   size_t wrid_ret = zn_write(
     client_data->zn_session_,
     zn_rid(client_data->zn_request_topic_id_),
-    request_bytes,
+    reinterpret_cast<char *>(request_buffer),
     data_length + meta_length);
 
-  allocator->deallocate(request_bytes, allocator->state);
+  allocator->deallocate(request_buffer, allocator->state);
 
   if (wrid_ret == 0) {
     return RMW_RET_OK;

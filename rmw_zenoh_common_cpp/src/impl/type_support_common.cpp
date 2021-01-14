@@ -82,7 +82,7 @@ bool TypeSupport::serializeROSmessage(
   return true;
 }
 
-bool TypeSupport::serializeROSmessage(
+bool TypeSupport::serializeROSmessageUCDR(
   const void * ros_message,
   ucdrBuffer * writer,
   const void * impl) const
