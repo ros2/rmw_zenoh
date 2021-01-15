@@ -25,6 +25,7 @@
 #include "impl/type_support_common.hpp"
 #include "impl/pubsub_impl.hpp"
 
+#include "rmw_zenoh_common_cpp/rmw_zenoh_common.h"
 #include "rmw_zenoh_common_cpp/zenoh-net-interface.h"
 
 /// PUBLISH ROS MESSAGE ========================================================

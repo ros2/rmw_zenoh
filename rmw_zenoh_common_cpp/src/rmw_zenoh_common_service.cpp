@@ -25,6 +25,7 @@
 #include "rmw/rmw.h"
 
 #include "rmw_zenoh_common_cpp/rmw_context_impl.hpp"
+#include "rmw_zenoh_common_cpp/rmw_zenoh_common.h"
 
 #include "impl/type_support_common.hpp"
 #include "impl/service_impl.hpp"
@@ -323,7 +324,8 @@ rmw_zenoh_common_create_service(
 // Destroy and deallocate an RMW service server
 rmw_ret_t
 rmw_zenoh_common_destroy_service(
-  rmw_node_t * node, rmw_service_t * service,
+  rmw_node_t * node,
+  rmw_service_t * service,
   const char * const eclipse_zenoh_identifier)
 {
   RCUTILS_LOG_DEBUG_NAMED(

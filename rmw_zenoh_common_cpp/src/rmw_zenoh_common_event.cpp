@@ -21,6 +21,8 @@
 #include "rmw/rmw.h"
 #include "rmw/event.h"
 
+#include "rmw_zenoh_common_cpp/rmw_zenoh_common.h"
+
 // STUB
 rmw_ret_t
 rmw_take_event(const rmw_event_t * event_handle, void * event_info, bool * taken)

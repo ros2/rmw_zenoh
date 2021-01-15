@@ -299,3 +299,270 @@ rmw_publisher_get_actual_qos(
     qos_profile,
     eclipse_zenoh_identifier);
 }
+
+rmw_ret_t
+rmw_publisher_event_init(
+  rmw_event_t * event,
+  const rmw_publisher_t * publisher,
+  rmw_event_type_t event_type)
+{
+  return rmw_zenoh_common_publisher_event_init(
+    event,
+    publisher,
+    event_type,
+    eclipse_zenoh_identifier);
+}
+
+rmw_ret_t
+rmw_publish(
+  const rmw_publisher_t * publisher,
+  const void * ros_message,
+  rmw_publisher_allocation_t * allocation)
+{
+  return rmw_zenoh_common_publish(
+    publisher,
+    ros_message,
+    allocation,
+    eclipse_zenoh_identifier);
+}
+
+rmw_ret_t
+rmw_take(
+  const rmw_subscription_t * subscription,
+  void * ros_message,
+  bool * taken,
+  rmw_subscription_allocation_t * allocation)
+{
+  return rmw_zenoh_common_take(
+    subscription,
+    ros_message,
+    taken,
+    allocation,
+    eclipse_zenoh_identifier);
+}
+
+rmw_ret_t
+rmw_subscription_event_init(
+  rmw_event_t * event,
+  const rmw_subscription_t * subscription,
+  rmw_event_type_t event_type)
+{
+  return rmw_zenoh_common_subscription_event_init(
+    event,
+    subscription,
+    event_type,
+    eclipse_zenoh_identifier);
+}
+
+rmw_ret_t
+rmw_take_with_info(
+  const rmw_subscription_t * subscription,
+  void * ros_message,
+  bool * taken,
+  rmw_message_info_t * message_info,
+  rmw_subscription_allocation_t * allocation)
+{
+  return rmw_zenoh_common_take_with_info(
+    subscription,
+    ros_message,
+    taken,
+    message_info,
+    allocation,
+    eclipse_zenoh_identifier);
+}
+
+rmw_ret_t
+rmw_take_loaned_message_with_info(
+  const rmw_subscription_t * subscription,
+  void ** loaned_message,
+  bool * taken,
+  rmw_message_info_t * message_info,
+  rmw_subscription_allocation_t * allocation)
+{
+  return rmw_zenoh_common_take_loaned_message_with_info(
+    subscription,
+    loaned_message,
+    taken,
+    message_info,
+    allocation);
+}
+
+rmw_client_t *
+rmw_create_client(
+  const rmw_node_t * node,
+  const rosidl_service_type_support_t * type_supports,
+  const char * service_name,
+  const rmw_qos_profile_t * qos_profile)
+{
+  return rmw_zenoh_common_create_client(
+    node,
+    type_supports,
+    service_name,
+    qos_profile,
+    eclipse_zenoh_identifier);
+}
+
+rmw_service_t *
+rmw_create_service(
+  const rmw_node_t * node,
+  const rosidl_service_type_support_t * type_supports,
+  const char * service_name,
+  const rmw_qos_profile_t * qos_profile)
+{
+  return rmw_zenoh_common_create_service(
+    node,
+    type_supports,
+    service_name,
+    qos_profile,
+    eclipse_zenoh_identifier);
+}
+
+rmw_ret_t
+rmw_service_server_is_available(
+  const rmw_node_t * node,
+  const rmw_client_t * client,
+  bool * result)
+{
+  return rmw_zenoh_common_service_server_is_available(
+    node,
+    client,
+    result,
+    eclipse_zenoh_identifier);
+}
+
+rmw_ret_t
+rmw_get_gid_for_publisher(
+  const rmw_publisher_t * publisher,
+  rmw_gid_t * gid)
+{
+  return rmw_zenoh_common_get_gid_for_publisher(
+    publisher,
+    gid,
+    eclipse_zenoh_identifier);
+}
+
+rmw_ret_t
+rmw_destroy_wait_set(
+  rmw_wait_set_t * wait_set)
+{
+  return rmw_zenoh_common_destroy_wait_set(
+    wait_set,
+    eclipse_zenoh_identifier);
+}
+
+rmw_wait_set_t *
+rmw_create_wait_set(
+  rmw_context_t * context,
+  size_t max_conditions)
+{
+  return rmw_zenoh_common_create_wait_set(
+    context,
+    max_conditions,
+    eclipse_zenoh_identifier);
+}
+
+rmw_ret_t
+rmw_trigger_guard_condition(
+  const rmw_guard_condition_t * guard_condition_handle)
+{
+  return rmw_zenoh_common_trigger_guard_condition(
+    guard_condition_handle,
+    eclipse_zenoh_identifier);
+}
+
+rmw_guard_condition_t *
+rmw_create_guard_condition(
+  rmw_context_t * context)
+{
+  return rmw_zenoh_common_create_guard_condition(
+    context,
+    eclipse_zenoh_identifier);
+}
+
+rmw_ret_t
+rmw_send_response(
+  const rmw_service_t * service,
+  rmw_request_id_t * request_header,
+  void * ros_response)
+{
+  return rmw_zenoh_common_send_response(
+    service,
+    request_header,
+    ros_response,
+    eclipse_zenoh_identifier);
+}
+
+rmw_ret_t
+rmw_take_request(
+  const rmw_service_t * service,
+  rmw_service_info_t * request_header,
+  void * ros_request,
+  bool * taken)
+{
+  return rmw_zenoh_common_take_request(
+    service,
+    request_header,
+    ros_request,
+    taken,
+    eclipse_zenoh_identifier);
+}
+
+rmw_ret_t
+rmw_destroy_service(
+  rmw_node_t * node,
+  rmw_service_t * service)
+{
+  return rmw_zenoh_common_destroy_service(
+    node,
+    service,
+    eclipse_zenoh_identifier);
+}
+
+rmw_ret_t
+rmw_take_response(
+  const rmw_client_t * client,
+  rmw_service_info_t * request_header,
+  void * ros_response,
+  bool * taken)
+{
+  return rmw_zenoh_common_take_response(
+    client,
+    request_header,
+    ros_response,
+    taken,
+    eclipse_zenoh_identifier);
+}
+
+rmw_ret_t
+rmw_send_request(
+  const rmw_client_t * client,
+  const void * ros_request,
+  int64_t * sequence_id)
+{
+  return rmw_zenoh_common_send_request(
+    client,
+    ros_request,
+    sequence_id,
+    eclipse_zenoh_identifier);
+}
+
+rmw_ret_t
+rmw_destroy_client(
+  rmw_node_t * node,
+  rmw_client_t * client)
+{
+  return rmw_zenoh_common_destroy_client(
+    node,
+    client,
+    eclipse_zenoh_identifier);
+}
+
+rmw_ret_t
+rmw_return_loaned_message_from_subscription(
+  const rmw_subscription_t * subscription,
+  void * loaned_message)
+{
+  return rmw_zenoh_common_return_loaned_message_from_subscription(
+    subscription,
+    loaned_message);
+}

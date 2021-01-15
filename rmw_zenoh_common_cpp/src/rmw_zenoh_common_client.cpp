@@ -26,6 +26,7 @@
 #include "rmw/rmw.h"
 
 #include "rmw_zenoh_common_cpp/rmw_context_impl.hpp"
+#include "rmw_zenoh_common_cpp/rmw_zenoh_common.h"
 
 #include "impl/type_support_common.hpp"
 #include "impl/client_impl.hpp"
@@ -394,7 +395,8 @@ rmw_zenoh_common_create_client(
 // Destroy and deallocate an RMW service client
 rmw_ret_t
 rmw_zenoh_common_destroy_client(
-  rmw_node_t * node, rmw_client_t * client,
+  rmw_node_t * node,
+  rmw_client_t * client,
   const char * const eclipse_zenoh_identifier)
 {
   RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_common_cpp", "[rmw_destroy_client] %s", client->service_name);
@@ -483,8 +485,10 @@ rmw_zenoh_common_destroy_client(
 // sequence_id is an out parameter
 rmw_ret_t
 rmw_zenoh_common_send_request(
-  const rmw_client_t * client, const void * ros_request,
-  int64_t * sequence_id, const char * const eclipse_zenoh_identifier)
+  const rmw_client_t * client,
+  const void * ros_request,
+  int64_t * sequence_id,
+  const char * const eclipse_zenoh_identifier)
 {
   RCUTILS_LOG_DEBUG_NAMED(
     "rmw_zenoh_common_cpp",
