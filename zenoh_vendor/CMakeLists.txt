@@ -17,7 +17,7 @@ else()
   set(ZENOH_OBJECTS_DIR "release")
 endif()
 
-set(ZENOH_C_TAG "0.5.0-b5")
+set(ZENOH_C_TAG "0.5.0-beta.8")
 
 include(ExternalProject)
 ExternalProject_Add(zenoh-c-${ZENOH_C_TAG}
