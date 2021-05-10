@@ -5,7 +5,7 @@ project(microcdr_vendor)
 find_package(ament_cmake REQUIRED)
 
 macro(build_microcdr)
-  set(microcdr_version "1.2.0")
+  set(microcdr_version "1.2.2")
   set(microcdr_REV "v${microcdr_version}")
   set(extra_cmake_args)
 
