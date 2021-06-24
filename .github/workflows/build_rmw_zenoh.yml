@@ -35,13 +35,13 @@ jobs:
           ${PWD}/../zenoh_pico_vendor/ \
           src/
 
-    - name: Setup rust nightly
+    - name: Setup rust stable
       shell: bash
       run: |
         curl https://sh.rustup.rs -sSf > rustup.sh
         chmod +x rustup.sh
         ./rustup.sh \
-          --default-toolchain nightly \
+          --default-toolchain stable \
           --profile minimal \
           -y
         source ${HOME}/.cargo/env
