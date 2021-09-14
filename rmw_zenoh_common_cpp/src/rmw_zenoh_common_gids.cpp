@@ -53,9 +53,21 @@ rmw_zenoh_common_get_gid_for_publisher(
 rmw_ret_t
 rmw_compare_gids_equal(const rmw_gid_t * gid1, const rmw_gid_t * gid2, bool * result)
 {
-  (void)gid1;
-  (void)gid2;
-  (void)result;
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_common_cpp", "rmw_compare_gids_equal");
-  return RMW_RET_UNSUPPORTED;
+  RMW_CHECK_ARGUMENT_FOR_NULL(gid1, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    gid1,
+    gid1->implementation_identifier,
+    rmw_get_implementation_identifier(),
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_ARGUMENT_FOR_NULL(gid2, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    gid2,
+    gid2->implementation_identifier,
+    rmw_get_implementation_identifier(),
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_ARGUMENT_FOR_NULL(result, RMW_RET_INVALID_ARGUMENT);
+  /* alignment is potentially lost because of the translation to an array of bytes, so use
+     memcmp instead of a simple integer comparison */
+  *result = memcmp(gid1->data, gid2->data, sizeof(gid1->data)) == 0;
+  return RMW_RET_OK;
 }
