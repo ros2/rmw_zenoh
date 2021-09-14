@@ -15,6 +15,8 @@
 #ifndef RMW_ZENOH_COMMON_CPP__RMW_ZENOH_COMMON_H_
 #define RMW_ZENOH_COMMON_CPP__RMW_ZENOH_COMMON_H_
 
+#define ZN_TOPIC_PREFIX "/rt"
+
 #ifdef __cplusplus
 extern "C"
 {
