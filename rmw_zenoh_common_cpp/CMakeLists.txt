@@ -22,6 +22,10 @@ find_package(rosidl_typesupport_zenoh_cpp REQUIRED)
 
 include_directories(include)
 
+if(DEFINED ZENOH_DDS_COMPAT)
+  add_definitions(-DZENOH_DDS_COMPAT=${ZENOH_DDS_COMPAT})
+endif()
+
 add_library(rmw_zenoh_common_cpp
   src/rmw_zenoh_common_event.cpp
   src/rmw_zenoh_common_get_node_info_and_types.cpp
