@@ -201,7 +201,11 @@ rmw_zenoh_common_create_subscription(
 
     // We initialise subscribers ONCE (otherwise we'll get duplicate messages)
     // The topic name will be the same for any duplicate subscribers, so it is ok
-    std::string zn_topic_name = std::string(ZN_TOPIC_PREFIX) + subscription->topic_name;
+    #ifdef ZENOH_DDS_COMPAT
+      std::string zn_topic_name = std::string(ZN_TOPIC_PREFIX) + subscription->topic_name;
+    #else
+      const std::string &zn_topic_name = subscription->topic_name;
+    #endif
     subscription_data->zn_subscriber_ = zn_declare_subscriber(
       subscription_data->zn_session_,
       zn_rname(zn_topic_name.c_str()),
