@@ -17,12 +17,14 @@
 
 #include "zenoh.h"
 
-namespace rmw_zenoh_cpp{
-namespace detail {
+namespace rmw_zenoh_cpp
+{
+namespace detail
+{
 
 struct rmw_init_options_impl_t
 {
-  z_owned_config_t* config;
+  z_owned_config_t * config;
 };
 
 } // namespace detail
