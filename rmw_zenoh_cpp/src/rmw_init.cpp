@@ -83,10 +83,15 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   // config is unavailable.
   z_owned_config_t config;
   const char * zenoh_config_path;
-  if (nullptr != rcutils_get_env("ZENOH_CONFIG_PATH", &zenoh_config_path)) {
-    // No config path set.
+  if (NULL != rcutils_get_env("ZENOH_CONFIG_PATH", &zenoh_config_path)) {
+      RMW_SET_ERROR_MSG("Error in reading ZENOH_CONFIG_PATH envar");
+      return RMW_RET_INVALID_ARGUMENT;
+  }
+  if (zenoh_config_path[0] == '\0'){
+      // No config path set.
     config = z_config_default();
-  } else {
+  }
+  else {
     config = zc_config_from_file(zenoh_config_path);
     if (!z_config_check(&config)) {
       RMW_SET_ERROR_MSG("Error in zenoh config path");

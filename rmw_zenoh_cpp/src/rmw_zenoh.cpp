@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "detail/identifier.hpp"
+#include "detail/rmw_context_impl.hpp"
 #include "detail/serialization_format.hpp"
 
 #include "rmw/rmw.h"
