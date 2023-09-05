@@ -16,11 +16,9 @@
 #include "detail/rmw_init_options_impl.hpp"
 
 
-#include "rcutils/env.h"
 #include "rcutils/strdup.h"
 #include "rcutils/types.h"
 
-#include "rmw/init.h"
 #include "rmw/impl/cpp/macros.hpp"
 #include "rmw/init_options.h"
 
@@ -50,40 +48,6 @@ rmw_init_options_init(rmw_init_options_t * init_options, rcutils_allocator_t all
   init_options->localhost_only = RMW_LOCALHOST_ONLY_DEFAULT;
   init_options->discovery_options = rmw_get_zero_initialized_discovery_options();
   return rmw_discovery_options_init(&(init_options->discovery_options), 0, &allocator);
-
-  // Initialize impl.
-  init_options->impl = static_cast<rmw_init_options_impl_s *>(
-    allocator.allocate(sizeof(rmw_init_options_impl_s), allocator.state));
-  if (!init_options->impl) {
-    RMW_SET_ERROR_MSG("failed to allocate init_options impl");
-    allocator.deallocate(init_options->enclave, allocator.state);
-    return RMW_RET_BAD_ALLOC;
-  }
-
-  // Initialize the zenoh config. We use the default config if a path to the
-  // config is unavailable.
-  z_owned_config_t config;
-  const char * zenoh_config_path;
-  if (nullptr != rcutils_get_env("ZENOH_CONFIG_PATH", &zenoh_config_path)) {
-    // No config path set.
-    config = z_config_default();
-  } else {
-    config = zc_config_from_file(zenoh_config_path);
-    if (!z_config_check(&config)) {
-      RMW_SET_ERROR_MSG("Error in zenoh config path");
-      return RMW_RET_INVALID_ARGUMENT;
-    }
-  }
-
-  // Initialize the zenoh session.
-  init_options->impl->config = z_config_loan(&config);
-  init_options->impl->session = z_open(z_move(config));
-  if (!z_session_check(&init_options->impl->session)) {
-    RMW_SET_ERROR_MSG("Error setting up zenoh session");
-    return RMW_RET_INVALID_ARGUMENT;
-  }
-
-  return RMW_RET_OK;
 }
 
 //==============================================================================
@@ -91,7 +55,42 @@ rmw_init_options_init(rmw_init_options_t * init_options, rcutils_allocator_t all
 rmw_ret_t
 rmw_init_options_copy(const rmw_init_options_t * src, rmw_init_options_t * dst)
 {
-  return RMW_RET_UNSUPPORTED;
+  RMW_CHECK_ARGUMENT_FOR_NULL(src, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(dst, RMW_RET_INVALID_ARGUMENT);
+  if (NULL == src->implementation_identifier) {
+    RMW_SET_ERROR_MSG("expected initialized dst");
+    return RMW_RET_INVALID_ARGUMENT;
+  }
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    src,
+    src->implementation_identifier,
+    rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  if (NULL != dst->implementation_identifier) {
+    RMW_SET_ERROR_MSG("expected zero-initialized dst");
+    return RMW_RET_INVALID_ARGUMENT;
+  }
+  rcutils_allocator_t allocator = src->allocator;
+  RCUTILS_CHECK_ALLOCATOR(&allocator, return RMW_RET_INVALID_ARGUMENT);
+  rmw_init_options_t tmp = *src;
+  tmp.enclave = rcutils_strdup(tmp.enclave, allocator);
+  if (NULL != src->enclave && NULL == tmp.enclave) {
+    return RMW_RET_BAD_ALLOC;
+  }
+  tmp.security_options = rmw_get_zero_initialized_security_options();
+  rmw_ret_t ret =
+    rmw_security_options_copy(&src->security_options, &allocator, &tmp.security_options);
+  if (RMW_RET_OK != ret) {
+    allocator.deallocate(tmp.enclave, allocator.state);
+    return ret;
+  }
+  tmp.discovery_options = rmw_get_zero_initialized_discovery_options();
+  ret = rmw_discovery_options_copy(
+    &src->discovery_options,
+    &allocator,
+    &tmp.discovery_options);
+  *dst = tmp;
+  return RMW_RET_OK;
 }
 
 //==============================================================================
@@ -117,15 +116,6 @@ rmw_init_options_fini(rmw_init_options_t * init_options)
   if (ret != RMW_RET_OK) {
     return ret;
   }
-
-  // Close the zenoh session and deallocate the impl.
-  rmw_init_options_impl_s * impl = static_cast<rmw_init_options_impl_s *>(init_options->impl);
-  if (nullptr == impl) {
-    RMW_SET_ERROR_MSG("invalid impl in init_options");
-    return RMW_RET_INVALID_ARGUMENT;
-  }
-  z_close(z_move(impl->session));
-  allocator->deallocate(init_options->impl, allocator->state);
 
   ret = rmw_discovery_options_fini(&init_options->discovery_options);
   *init_options = rmw_get_zero_initialized_init_options();

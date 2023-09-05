@@ -1,3 +1,4 @@
+
 // Copyright 2023 Open Source Robotics Foundation, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,16 +13,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef SRC__DETAIL__RMW_INIT_OPTIONS_IMPL_HPP
-#define SRC__DETAIL__RMW_INIT_OPTIONS_IMPL_HPP
+#ifndef SRC__DETAIL__RMW_CONTEXT_IMPL_HPP
+#define SRC__DETAIL__RMW_CONTEXT_IMPL_HPP
 
 #include "zenoh.h"
 
-// TODO(YV): Consider using this again.
-struct rmw_init_options_impl_s
+struct rmw_context_impl_s
 {
-  // An owned config.
-  z_owned_config_t config;
+  // An owned session.
+  z_owned_session_t session;
+
+  /// Shutdown flag.
+  bool is_shutdown;
 };
 
-#endif  // SRC__DETAIL__RMW_INIT_OPTIONS_IMPL_HPP
+#endif  // SRC__DETAIL__RMW_CONTEXT_IMPL_HPP
