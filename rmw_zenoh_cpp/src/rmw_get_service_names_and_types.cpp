@@ -15,6 +15,8 @@
 
 #include "rmw/get_service_names_and_types.h"
 
+extern "C"
+{
 ///==============================================================================
 /// Return all service names and types in the ROS graph.
 rmw_ret_t
@@ -25,3 +27,5 @@ rmw_get_service_names_and_types(
 {
   return RMW_RET_UNSUPPORTED;
 }
+
+} // extern "C"

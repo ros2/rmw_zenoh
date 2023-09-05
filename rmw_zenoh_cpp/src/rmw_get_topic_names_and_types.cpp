@@ -15,6 +15,8 @@
 
 #include "rmw/get_topic_names_and_types.h"
 
+extern "C"
+{
 ///==============================================================================
 /// Return all topic names and types in the ROS graph.
 rmw_ret_t
@@ -26,3 +28,5 @@ rmw_get_topic_names_and_types(
 {
   return RMW_RET_UNSUPPORTED;
 }
+
+} // extern "C"

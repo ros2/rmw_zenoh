@@ -15,6 +15,8 @@
 
 #include "rmw/get_topic_endpoint_info.h"
 
+extern "C"
+{
 ///==============================================================================
 /// Retrieve endpoint information for each known publisher of a given topic.
 rmw_ret_t
@@ -40,3 +42,5 @@ rmw_get_subscriptions_info_by_topic(
 {
   return RMW_RET_UNSUPPORTED;
 }
+
+} // extern "C"

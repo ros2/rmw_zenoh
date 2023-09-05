@@ -16,6 +16,8 @@
 
 #include "rmw/rmw.h"
 
+extern "C"
+{
 //==============================================================================
 /// Return a zero initialized init options structure.
 // rmw_init_options_t
@@ -47,3 +49,5 @@ rmw_init_options_fini(rmw_init_options_t * init_options)
 {
   return RMW_RET_UNSUPPORTED;
 }
+
+} // extern "C"

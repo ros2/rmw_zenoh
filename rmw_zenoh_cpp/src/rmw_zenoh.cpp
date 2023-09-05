@@ -17,7 +17,8 @@
 
 #include "rmw/rmw.h"
 
-
+extern "C"
+{
 //==============================================================================
 /// Get the name of the rmw implementation being used
 const char *
@@ -740,3 +741,5 @@ rmw_event_set_callback(
 {
   return RMW_RET_UNSUPPORTED;
 }
+
+} // extern "C"

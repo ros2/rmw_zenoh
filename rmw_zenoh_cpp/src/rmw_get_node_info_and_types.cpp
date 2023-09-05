@@ -15,6 +15,8 @@
 
 #include "rmw/get_node_info_and_types.h"
 
+extern "C"
+{
 ///==============================================================================
 // Return all topic names and types for which a given remote node has subscriptions.
 rmw_ret_t
@@ -68,3 +70,5 @@ rmw_get_client_names_and_types_by_node(
 {
   return RMW_RET_UNSUPPORTED;
 }
+
+} // extern "C"
