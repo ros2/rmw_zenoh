@@ -14,6 +14,7 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 
+find_package(fastcdr CONFIG REQUIRED)
 find_package(rcpputils REQUIRED)
 find_package(rcutils REQUIRED)
 find_package(rmw REQUIRED)
@@ -21,12 +22,14 @@ find_package(zenoh_c_vendor REQUIRED)
 find_package(zenohc REQUIRED)
 
 
-add_library(rmw_zenoh_cpp
+add_library(rmw_zenoh_cpp SHARED
   src/rmw_init_options.cpp
+  src/rmw_zenoh.cpp
 )
 
 target_link_libraries(rmw_zenoh_cpp
   PRIVATE
+    rmw::rmw
     zenohc::lib
 )
 

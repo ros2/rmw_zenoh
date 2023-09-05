@@ -13,3 +13,37 @@
 // limitations under the License.
 
 #include "detail/rmw_init_options_impl.hpp"
+
+#include "rmw/rmw.h"
+
+//==============================================================================
+/// Return a zero initialized init options structure.
+// rmw_init_options_t
+// rmw_get_zero_initialized_init_options(void)
+// {
+//   return RMW_RET_UNSUPPORTED;
+// }
+
+//==============================================================================
+/// Initialize given init options with the default values and implementation specific values.
+rmw_ret_t
+rmw_init_options_init(rmw_init_options_t * init_options, rcutils_allocator_t allocator)
+{
+  return RMW_RET_UNSUPPORTED;
+}
+
+//==============================================================================
+/// Copy the given source init options to the destination init options.
+rmw_ret_t
+rmw_init_options_copy(const rmw_init_options_t * src, rmw_init_options_t * dst)
+{
+  return RMW_RET_UNSUPPORTED;
+}
+
+//==============================================================================
+/// Finalize the given init options.
+rmw_ret_t
+rmw_init_options_fini(rmw_init_options_t * init_options)
+{
+  return RMW_RET_UNSUPPORTED;
+}

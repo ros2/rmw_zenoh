@@ -12,20 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef SRC__DETAIL__RMW_INIT_OPTIONS_IMPL_HPP
-#define SRC__DETAIL__RMW_INIT_OPTIONS_IMPL_HPP
+#ifndef SRC__DETAIL__SERIALIZATION_FORMAT_HPP
+#define SRC__DETAIL__SERIALIZATION_FORMAT_HPP
 
-#include "zenoh.h"
+extern const char * const rmw_zenoh_serialization_format = "cdr";
 
-namespace rmw_zenoh_cpp{
-namespace detail {
-
-struct rmw_init_options_impl_t
-{
-  z_owned_config_t* config;
-};
-
-} // namespace detail
-} // namespace rmw_zenoh_cpp
-
-#endif  // SRC__DETAIL__RMW_INIT_OPTIONS_IMPL_HPP
+#endif  // SRC__DETAIL__SERIALIZATION_FORMAT_HPP
