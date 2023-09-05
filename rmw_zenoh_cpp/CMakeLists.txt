@@ -33,6 +33,7 @@ add_library(rmw_zenoh_cpp SHARED
 
 target_link_libraries(rmw_zenoh_cpp
   PRIVATE
+    rcutils::rcutils
     rmw::rmw
     zenohc::lib
 )

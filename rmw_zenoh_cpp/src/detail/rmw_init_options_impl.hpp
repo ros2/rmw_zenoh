@@ -17,17 +17,13 @@
 
 #include "zenoh.h"
 
-namespace rmw_zenoh_cpp
+struct rmw_init_options_impl_s
 {
-namespace detail
-{
+  // A loaned config.
+  z_config_t config;
 
-struct rmw_init_options_impl_t
-{
-  z_owned_config_t * config;
+  // And owned session.
+  z_owned_session_t session;
 };
-
-} // namespace detail
-} // namespace rmw_zenoh_cpp
 
 #endif  // SRC__DETAIL__RMW_INIT_OPTIONS_IMPL_HPP

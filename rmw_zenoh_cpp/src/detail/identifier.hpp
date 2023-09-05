@@ -15,6 +15,6 @@
 #ifndef SRC__DETAIL__IDENTIFIER_HPP
 #define SRC__DETAIL__IDENTIFIER_HPP
 
-extern const char * const rmw_zenoh_identifier = "rmw_zenoh_cpp";
+extern inline const char * const rmw_zenoh_identifier = "rmw_zenoh_cpp";
 
 #endif  // SRC__DETAIL__IDENTIFIER_HPP

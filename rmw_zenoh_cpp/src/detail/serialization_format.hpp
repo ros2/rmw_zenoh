@@ -15,6 +15,6 @@
 #ifndef SRC__DETAIL__SERIALIZATION_FORMAT_HPP
 #define SRC__DETAIL__SERIALIZATION_FORMAT_HPP
 
-extern const char * const rmw_zenoh_serialization_format = "cdr";
+extern inline const char * const rmw_zenoh_serialization_format = "cdr";
 
 #endif  // SRC__DETAIL__SERIALIZATION_FORMAT_HPP
