@@ -1,0 +1,55 @@
+cmake_minimum_required(VERSION 3.8)
+project(rmw_zenoh_cpp)
+
+# Default to C++17
+if(NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 17)
+  set(CMAKE_CXX_STANDARD_REQUIRED ON)
+endif()
+
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-Wall -Wextra -Wpedantic)
+endif()
+
+# find dependencies
+find_package(ament_cmake REQUIRED)
+
+find_package(rcpputils REQUIRED)
+find_package(rcutils REQUIRED)
+find_package(rmw REQUIRED)
+find_package(zenoh_c_vendor REQUIRED)
+find_package(zenohc REQUIRED)
+
+
+add_library(rmw_zenoh_cpp
+  src/rmw_init_options.cpp
+)
+
+target_link_libraries(rmw_zenoh_cpp
+  PRIVATE
+    zenohc::lib
+)
+
+configure_rmw_library(rmw_zenoh_cpp)
+
+target_compile_definitions(rmw_zenoh_cpp
+  PRIVATE
+    RMW_VERSION_MAJOR=${rmw_VERSION_MAJOR}
+    RMW_VERSION_MINOR=${rmw_VERSION_MINOR}
+    RMW_VERSION_PATCH=${rmw_VERSION_PATCH}
+)
+
+ament_export_targets(export_rmw_zenoh_cpp)
+
+register_rmw_implementation("c:rosidl_typesupport_introspection_c"
+                            "cpp:rosidl_typesupport_introspection_cpp")
+
+install(
+  TARGETS rmw_zenoh_cpp
+  EXPORT export_rmw_zenoh_cpp
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
+)
+
+ament_package()
