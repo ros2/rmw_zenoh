@@ -11,6 +11,9 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+# TODO(yadunund): Remove this  eventually.
+add_compile_options(-Wno-unused-parameter)
+
 # find dependencies
 find_package(ament_cmake REQUIRED)
 

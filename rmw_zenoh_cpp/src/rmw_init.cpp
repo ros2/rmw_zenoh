@@ -84,14 +84,13 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   z_owned_config_t config;
   const char * zenoh_config_path;
   if (NULL != rcutils_get_env("ZENOH_CONFIG_PATH", &zenoh_config_path)) {
-      RMW_SET_ERROR_MSG("Error in reading ZENOH_CONFIG_PATH envar");
-      return RMW_RET_INVALID_ARGUMENT;
+    RMW_SET_ERROR_MSG("Error in reading ZENOH_CONFIG_PATH envar");
+    return RMW_RET_INVALID_ARGUMENT;
   }
-  if (zenoh_config_path[0] == '\0'){
-      // No config path set.
+  if (zenoh_config_path[0] == '\0') {
+    // No config path set.
     config = z_config_default();
-  }
-  else {
+  } else {
     config = zc_config_from_file(zenoh_config_path);
     if (!z_config_check(&config)) {
       RMW_SET_ERROR_MSG("Error in zenoh config path");
@@ -127,8 +126,7 @@ rmw_shutdown(rmw_context_t * context)
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   // Close the zenoh session
-  if (z_close(z_move(context->impl->session)) < 0)
-  {
+  if (z_close(z_move(context->impl->session)) < 0) {
     RMW_SET_ERROR_MSG("Error while closing zenoh session");
     return RMW_RET_ERROR;
   }

@@ -16,7 +16,19 @@
 #include "detail/rmw_context_impl.hpp"
 #include "detail/serialization_format.hpp"
 
+#include "rcpputils/scope_exit.hpp"
+
+#include "rcutils/env.h"
+#include "rcutils/strdup.h"
+#include "rcutils/types.h"
+
+#include "rmw/allocators.h"
+#include "rmw/error_handling.h"
+#include "rmw/impl/cpp/macros.hpp"
+#include "rmw/ret_types.h"
 #include "rmw/rmw.h"
+#include "rmw/validate_namespace.h"
+#include "rmw/validate_node_name.h"
 
 extern "C"
 {
@@ -44,7 +56,71 @@ rmw_create_node(
   const char * name,
   const char * namespace_)
 {
-  return nullptr;
+  RMW_CHECK_ARGUMENT_FOR_NULL(context, nullptr);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    context,
+    context->implementation_identifier,
+    rmw_zenoh_identifier,
+    return nullptr);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    context->impl,
+    "expected initialized context",
+    return nullptr);
+  if (context->impl->is_shutdown) {
+    RCUTILS_SET_ERROR_MSG("context has been shutdown");
+    return nullptr;
+  }
+  int validation_result = RMW_NODE_NAME_VALID;
+  rmw_ret_t ret = rmw_validate_node_name(name, &validation_result, nullptr);
+  if (RMW_RET_OK != ret) {
+    return nullptr;
+  }
+  if (RMW_NODE_NAME_VALID != validation_result) {
+    const char * reason = rmw_node_name_validation_result_string(validation_result);
+    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("invalid node name: %s", reason);
+    return nullptr;
+  }
+  validation_result = RMW_NAMESPACE_VALID;
+  ret = rmw_validate_namespace(namespace_, &validation_result, nullptr);
+  if (RMW_RET_OK != ret) {
+    return nullptr;
+  }
+  if (RMW_NAMESPACE_VALID != validation_result) {
+    const char * reason = rmw_node_name_validation_result_string(validation_result);
+    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("invalid node namespace: %s", reason);
+    return nullptr;
+  }
+
+  rmw_node_t * node = rmw_node_allocate();
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    node,
+    "unable to allocate memory for rmw_node_t",
+    return nullptr);
+  auto cleanup_node = rcpputils::make_scope_exit(
+    [node]() {
+      rmw_free(const_cast<char *>(node->name));
+      rmw_free(const_cast<char *>(node->namespace_));
+      rmw_node_free(node);
+    });
+
+  node->name = static_cast<const char *>(rmw_allocate(sizeof(char) * strlen(name) + 1));
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->name, nullptr);
+  memcpy(const_cast<char *>(node->name), name, strlen(name) + 1);
+
+  node->namespace_ =
+    static_cast<const char *>(rmw_allocate(sizeof(char) * strlen(namespace_) + 1));
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->namespace_, nullptr);
+  memcpy(const_cast<char *>(node->namespace_), namespace_, strlen(namespace_) + 1);
+
+  // TODO(yadunund): Register with storage system here and throw error if
+  // zenohd is not running.
+  // Put metadata into node->data.
+
+  cleanup_node.cancel();
+  node->implementation_identifier = rmw_zenoh_identifier;
+  node->context = context;
+  return node;
+
 }
 
 //==============================================================================
