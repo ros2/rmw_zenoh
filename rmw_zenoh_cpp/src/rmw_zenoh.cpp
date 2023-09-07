@@ -14,6 +14,7 @@
 
 #include "detail/identifier.hpp"
 #include "detail/rmw_context_impl.hpp"
+#include "detail/rmw_data_types.hpp"
 #include "detail/serialization_format.hpp"
 
 #include "rcpputils/scope_exit.hpp"
@@ -169,6 +170,10 @@ rmw_init_publisher_allocation(
   const rosidl_runtime_c__Sequence__bound * message_bounds,
   rmw_publisher_allocation_t * allocation)
 {
+  static_cast<void>(type_support);
+  static_cast<void>(message_bounds);
+  static_cast<void>(allocation);
+  RMW_SET_ERROR_MSG("rmw_init_publisher_allocation: unimplemented");
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -178,6 +183,8 @@ rmw_ret_t
 rmw_fini_publisher_allocation(
   rmw_publisher_allocation_t * allocation)
 {
+  static_cast<void>(allocation);
+  RMW_SET_ERROR_MSG("rmw_fini_publisher_allocation: unimplemented");
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -191,7 +198,106 @@ rmw_create_publisher(
   const rmw_qos_profile_t * qos_profile,
   const rmw_publisher_options_t * publisher_options)
 {
-  return nullptr;
+  RMW_CHECK_ARGUMENT_FOR_NULL(node, nullptr);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    node,
+    node->implementation_identifier,
+    rmw_zenoh_identifier,
+    return nullptr);
+  RMW_CHECK_ARGUMENT_FOR_NULL(type_support, nullptr);
+  RMW_CHECK_ARGUMENT_FOR_NULL(topic_name, nullptr);
+  if (0 == strlen(topic_name)) {
+    RMW_SET_ERROR_MSG("topic_name argument is an empty string");
+    return nullptr;
+  }
+  RMW_CHECK_ARGUMENT_FOR_NULL(qos_profile, nullptr);
+  if (!qos_profile->avoid_ros_namespace_conventions) {
+    int validation_result = RMW_TOPIC_VALID;
+    rmw_ret_t ret = rmw_validate_full_topic_name(topic_name, &validation_result, nullptr);
+    if (RMW_RET_OK != ret) {
+      return nullptr;
+    }
+    if (RMW_TOPIC_VALID != validation_result) {
+      const char * reason = rmw_full_topic_name_validation_result_string(validation_result);
+      RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("invalid topic name: %s", reason);
+      return nullptr;
+    }
+  }
+  // Adapt any 'best available' QoS options
+  // rmw_qos_profile_t adapted_qos_profile = *qos_profile;
+  // rmw_ret_t ret = rmw_dds_common::qos_profile_get_best_available_for_topic_publisher(
+  //   node, topic_name, &adapted_qos_profile, rmw_get_subscriptions_info_by_topic);
+  // if (RMW_RET_OK != ret) {
+  //   return nullptr;
+  // }
+  RMW_CHECK_ARGUMENT_FOR_NULL(publisher_options, nullptr);
+  if (publisher_options->require_unique_network_flow_endpoints ==
+    RMW_UNIQUE_NETWORK_FLOW_ENDPOINTS_STRICTLY_REQUIRED)
+  {
+    RMW_SET_ERROR_MSG(
+      "Strict requirement on unique network flow endpoints for publishers not supported");
+    return nullptr;
+  }
+
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    node->context,
+    "expected initialized context",
+    return nullptr);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    node->context->impl,
+    "expected initialized context impl",
+    return nullptr);
+
+  rmw_context_impl_s * context_impl = static_cast<rmw_context_impl_s *>(
+    node->context->impl);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    context_impl,
+    "unable to get rmw_context_impl_s",
+    return nullptr);
+  if (!z_check(context_impl->session)) {
+    RMW_SET_ERROR_MSG("zenoh session is invalid");
+    return nullptr;
+  }
+
+  // Create the publisher.
+  rmw_publisher_t * rmw_publisher = rmw_publisher_allocate();
+  RMW_CHECK_ARGUMENT_FOR_NULL(rmw_publisher, nullptr);
+  // Get typed pointer to implementation specific publisher data struct
+  auto publisher_data = static_cast<rmw_publisher_data_t *>(rmw_publisher->data);
+  if (publisher_data == nullptr) {
+    RMW_SET_ERROR_MSG("unable to cast publisher data into rmw_publisher_data_t");
+    return nullptr;
+  }
+  // TODO(yadunund): Parse adapted_qos_profile and publisher_options to generate
+  // a z_publisher_put_options struct instead of passing NULL to this function.
+  publisher_data->pub = z_declare_publisher(
+    z_loan(context_impl->session),
+    z_keyexpr(topic_name),
+    NULL
+  );
+  if (!z_check(publisher_data->pub)) {
+    RMW_SET_ERROR_MSG("unable to create publisher");
+    return nullptr;
+  }
+
+  auto cleanup_rmw_publisher = rcpputils::make_scope_exit(
+    [rmw_publisher]() {
+      auto publisher_data = static_cast<rmw_publisher_data_t *>(rmw_publisher->data);
+      z_undeclare_publisher(z_move(publisher_data->pub));
+      rmw_free(const_cast<char *>(rmw_publisher->topic_name));
+      rmw_publisher_free(rmw_publisher);
+    });
+
+  rmw_publisher->implementation_identifier = rmw_zenoh_identifier;
+  rmw_publisher->topic_name = reinterpret_cast<char *>(rmw_allocate(strlen(topic_name) + 1));
+  RMW_CHECK_ARGUMENT_FOR_NULL(rmw_publisher->topic_name, nullptr);
+  memcpy(const_cast<char *>(rmw_publisher->topic_name), topic_name, strlen(topic_name) + 1);
+  rmw_publisher->options = *publisher_options;
+  // TODO(yadunund): Update this.
+  rmw_publisher->can_loan_messages = false;
+
+  cleanup_rmw_publisher.cancel();
+  return rmw_publisher;
 }
 
 //==============================================================================
@@ -199,7 +305,30 @@ rmw_create_publisher(
 rmw_ret_t
 rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
 {
-  return RMW_RET_UNSUPPORTED;
+  RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(publisher, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    node,
+    node->implementation_identifier,
+    rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    publisher,
+    publisher->implementation_identifier,
+    rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+
+  rmw_ret_t ret = RMW_RET_OK;
+  auto publisher_data = static_cast<rmw_publisher_data_t *>(publisher->data);
+  if (publisher_data != nullptr) {
+    if (!z_undeclare_publisher(z_move(publisher_data->pub))) {
+      RMW_SET_ERROR_MSG("failed to undeclare pub");
+      ret = RMW_RET_ERROR;
+    }
+  }
+  rmw_free(const_cast<char *>(publisher->topic_name));
+  rmw_publisher_free(publisher);
+  return ret;
 }
 
 //==============================================================================
@@ -210,6 +339,9 @@ rmw_borrow_loaned_message(
   const rosidl_message_type_support_t * type_support,
   void ** ros_message)
 {
+  static_cast<void>(publisher);
+  static_cast<void>(type_support);
+  static_cast<void>(ros_message);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -220,6 +352,8 @@ rmw_return_loaned_message_from_publisher(
   const rmw_publisher_t * publisher,
   void * loaned_message)
 {
+  static_cast<void>(publisher);
+  static_cast<void>(loaned_message);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -231,7 +365,31 @@ rmw_publish(
   const void * ros_message,
   rmw_publisher_allocation_t * allocation)
 {
+  static_cast<void>(allocation);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    publisher, "publisher handle is null",
+    return RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    publisher, publisher->implementation_identifier, rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    ros_message, "ros message handle is null",
+    return RMW_RET_INVALID_ARGUMENT);
+
+  auto publisher_data = static_cast<rmw_publisher_data_t *>(publisher->data);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    publisher_data, "publisher_data is null",
+    return RMW_RET_INVALID_ARGUMENT);
+
+  // Returns 0 if success.
+  // int8_t ret = z_publisher_put(
+  //   z_loan(publisher_data->pub),
+  //   const uint8_t *payload,
+  //   uintptr_t len,
+  //   NULL)
+
   return RMW_RET_UNSUPPORTED;
+
 }
 
 //==============================================================================
@@ -354,7 +512,7 @@ rmw_create_subscription(
   const rmw_node_t * node,
   const rosidl_message_type_support_t * type_support,
   const char * topic_name,
-  const rmw_qos_profile_t * qos_policies,
+  const rmw_qos_profile_t * qos_profile,
   const rmw_subscription_options_t * subscription_options)
 {
   return nullptr;
@@ -515,7 +673,7 @@ rmw_create_client(
   const rmw_node_t * node,
   const rosidl_service_type_support_t * type_support,
   const char * service_name,
-  const rmw_qos_profile_t * qos_policies)
+  const rmw_qos_profile_t * qos_profile)
 {
   return nullptr;
 }
