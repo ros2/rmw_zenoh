@@ -17,6 +17,8 @@
 
 #include "rmw/rmw.h"
 
+#include "rmw_fastrtps_cpp/TypeSupport.hpp"
+
 #include "zenoh.h"
 
 /// Structs for various type erased data fields.
@@ -25,6 +27,11 @@ struct rmw_publisher_data_t
 {
   // An owned publisher.
   z_owned_publisher_t pub;
+
+  // Type support fields
+  const void * type_support_impl;
+  const char * typesupport_identifier;
+  rmw_fastrtps_cpp::TypeSupport * type_support;
 };
 
 #endif  // SRC__DETAIL__RMW_DATA_TYPES_HPP
