@@ -1,3 +1,4 @@
+// Copyright 2016-2018 Proyectos y Sistemas de Mantenimiento SL (eProsima).
 // Copyright 2023 Open Source Robotics Foundation, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,26 +13,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef SRC__DETAIL__RMW_DATA_TYPES_HPP
-#define SRC__DETAIL__RMW_DATA_TYPES_HPP
+// This file is originally from:
+// https://github.com/ros2/rmw_fastrtps/blob/b13e134cea2852aba210299bef6f4df172d9a0e3/rmw_fastrtps_cpp/include/rmw_fastrtps_cpp/TypeSupport.hpp
 
-#include "rmw/rmw.h"
+#ifndef SRC__DETAIL__MESSAGETYPESUPPORT_HPP
+#define SRC__DETAIL__MESSAGETYPESUPPORT_HPP
 
+#include "rosidl_typesupport_zenoh_cpp/message_type_support.h"
 #include "TypeSupport.hpp"
 
-#include "zenoh.h"
-
-/// Structs for various type erased data fields.
 ///==============================================================================
-struct rmw_publisher_data_t
+class MessageTypeSupport : public TypeSupport
 {
-  // An owned publisher.
-  z_owned_publisher_t pub;
-
-  // Type support fields
-  const void * type_support_impl;
-  const char * typesupport_identifier;
-  TypeSupport * type_support;
+public:
+  explicit MessageTypeSupport(const message_type_support_callbacks_t * members);
 };
 
-#endif  // SRC__DETAIL__RMW_DATA_TYPES_HPP
+#endif  // SRC__DETAIL__MESSAGETYPESUPPORT_HPP

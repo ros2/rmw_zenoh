@@ -14,8 +14,8 @@
   <depend>fastcdr</depend>
   <depend>rcpputils</depend>
   <depend>rcutils</depend>
-  <depend>rosidl_typesupport_fastrtps_c</depend>
-  <depend>rosidl_typesupport_fastrtps_cpp</depend>
+  <depend>rosidl_typesupport_zenoh_c</depend>
+  <depend>rosidl_typesupport_zenoh_cpp</depend>
   <depend>rmw</depend>
   <depend>rmw_fastrtps_cpp</depend>
 
