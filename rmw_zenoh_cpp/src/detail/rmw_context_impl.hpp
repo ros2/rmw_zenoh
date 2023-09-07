@@ -15,6 +15,8 @@
 #ifndef SRC__DETAIL__RMW_CONTEXT_IMPL_HPP
 #define SRC__DETAIL__RMW_CONTEXT_IMPL_HPP
 
+#include "rmw/rmw.h"
+
 #include "zenoh.h"
 
 struct rmw_context_impl_s
@@ -24,6 +26,10 @@ struct rmw_context_impl_s
 
   /// Shutdown flag.
   bool is_shutdown;
+
+  // Equivalent to rmw_dds_common::Context's guard condition
+  /// Guard condition that should be triggered when the graph changes.
+  rmw_guard_condition_t * graph_guard_condition;
 };
 
 #endif  // SRC__DETAIL__RMW_CONTEXT_IMPL_HPP

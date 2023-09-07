@@ -77,6 +77,7 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
     return ret;
   }
 
+  // Initialize context's implementation
   context->impl->is_shutdown = false;
 
   // Initialize the zenoh config. We use the default config if a path to the

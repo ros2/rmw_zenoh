@@ -128,7 +128,22 @@ rmw_create_node(
 rmw_ret_t
 rmw_destroy_node(rmw_node_t * node)
 {
-  return RMW_RET_UNSUPPORTED;
+  rmw_ret_t result_ret = RMW_RET_OK;
+  RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    node,
+    node->implementation_identifier,
+    rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+
+  // TODO(Yadunund): Unregister with storage system.
+
+  // rmw_context_t * context = node->context;
+  rmw_free(const_cast<char *>(node->name));
+  rmw_free(const_cast<char *>(node->namespace_));
+  rmw_node_free(const_cast<rmw_node_t *>(node));
+  // delete node_impl;
+  return result_ret;
 }
 
 //==============================================================================
@@ -136,7 +151,14 @@ rmw_destroy_node(rmw_node_t * node)
 const rmw_guard_condition_t *
 rmw_node_get_graph_guard_condition(const rmw_node_t * node)
 {
-  return nullptr;
+  RMW_CHECK_ARGUMENT_FOR_NULL(node, nullptr);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    node,
+    node->implementation_identifier,
+    rmw_zenoh_identifier,
+    return nullptr);
+  // TODO(Yadunund): Also check if node->data is valud.
+  return node->context->impl->graph_guard_condition;
 }
 
 //==============================================================================
