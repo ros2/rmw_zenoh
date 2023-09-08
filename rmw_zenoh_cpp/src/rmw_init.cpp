@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "detail/guard_condition.hpp"
 #include "detail/identifier.hpp"
 #include "detail/rmw_context_impl.hpp"
 
@@ -103,6 +104,22 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   if (!z_session_check(&context->impl->session)) {
     RMW_SET_ERROR_MSG("Error setting up zenoh session");
     return RMW_RET_INVALID_ARGUMENT;
+  }
+
+  // Initialize the guard condition.
+  // context->impl->graph_guard_condition = static_cast<rmw_guard_condition_t *>(
+  //   option->allocator.allocate(sizeof(rmw_guard_condition_t), options->allocator.state));
+
+  context->impl->graph_guard_condition = rmw_guard_condition_allocate();
+  context->impl->graph_guard_condition->implementation_identifier = rmw_zenoh_identifier;
+  context->impl->graph_guard_condition->data = new GuardCondition();
+
+
+  if (!context->impl->graph_guard_condition) {
+    if (context->impl->graph_guard_condition->data) {
+      delete static_cast<GuardCondition *>(context->impl->graph_guard_condition->data);
+    }
+    rmw_guard_condition_free(context->impl->graph_guard_condition);
   }
 
   cleanup_impl.cancel();

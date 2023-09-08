@@ -33,6 +33,7 @@ find_package(zenohc REQUIRED)
 
 add_library(rmw_zenoh_cpp SHARED
   src/detail/identifier.cpp
+  src/detail/guard_condition.cpp
   src/detail/type_support_common.cpp
   src/rmw_event.cpp
   src/rmw_get_network_flow_endpoints.cpp
