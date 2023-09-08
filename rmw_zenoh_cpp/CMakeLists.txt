@@ -31,6 +31,7 @@ find_package(zenohc REQUIRED)
 
 
 add_library(rmw_zenoh_cpp SHARED
+  src/detail/identifier.cpp
   src/detail/type_support_common.cpp
   src/rmw_get_node_info_and_types.cpp
   src/rmw_get_service_names_and_types.cpp

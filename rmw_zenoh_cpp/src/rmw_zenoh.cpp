@@ -16,6 +16,10 @@
 #include "detail/rmw_context_impl.hpp"
 #include "detail/rmw_data_types.hpp"
 #include "detail/serialization_format.hpp"
+#include "detail/type_support_common.hpp"
+
+#include <fastcdr/FastBuffer.h>
+#include <fastcdr/Cdr.h>
 
 #include "rcpputils/scope_exit.hpp"
 
@@ -24,7 +28,9 @@
 #include "rcutils/types.h"
 
 #include "rmw/allocators.h"
+#include "rmw/dynamic_message_type_support.h"
 #include "rmw/error_handling.h"
+#include "rmw/features.h"
 #include "rmw/impl/cpp/macros.hpp"
 #include "rmw/ret_types.h"
 #include "rmw/rmw.h"
@@ -47,6 +53,23 @@ const char *
 rmw_get_serialization_format(void)
 {
   return rmw_zenoh_serialization_format;
+}
+
+//==============================================================================
+bool rmw_feature_supported(rmw_feature_t feature)
+{
+  switch (feature) {
+    case RMW_FEATURE_MESSAGE_INFO_PUBLICATION_SEQUENCE_NUMBER:
+      return false;
+    case RMW_FEATURE_MESSAGE_INFO_RECEPTION_SEQUENCE_NUMBER:
+      return false;
+    case RMW_MIDDLEWARE_SUPPORTS_TYPE_DISCOVERY:
+      return true;
+    case RMW_MIDDLEWARE_CAN_TAKE_DYNAMIC_MESSAGE:
+      return false;
+    default:
+      return false;
+  }
 }
 
 //==============================================================================
@@ -193,7 +216,7 @@ rmw_fini_publisher_allocation(
 rmw_publisher_t *
 rmw_create_publisher(
   const rmw_node_t * node,
-  const rosidl_message_type_support_t * type_support,
+  const rosidl_message_type_support_t * type_supports,
   const char * topic_name,
   const rmw_qos_profile_t * qos_profile,
   const rmw_publisher_options_t * publisher_options)
@@ -204,7 +227,7 @@ rmw_create_publisher(
     node->implementation_identifier,
     rmw_zenoh_identifier,
     return nullptr);
-  RMW_CHECK_ARGUMENT_FOR_NULL(type_support, nullptr);
+  RMW_CHECK_ARGUMENT_FOR_NULL(type_supports, nullptr);
   RMW_CHECK_ARGUMENT_FOR_NULL(topic_name, nullptr);
   if (0 == strlen(topic_name)) {
     RMW_SET_ERROR_MSG("topic_name argument is an empty string");
@@ -239,6 +262,26 @@ rmw_create_publisher(
     return nullptr;
   }
 
+  // Get the RMW type support.
+  const rosidl_message_type_support_t * type_support = get_message_typesupport_handle(
+    type_supports, RMW_ZENOH_CPP_TYPESUPPORT_C);
+  if (!type_support) {
+    rcutils_error_string_t prev_error_string = rcutils_get_error_string();
+    rcutils_reset_error();
+    type_support = get_message_typesupport_handle(type_supports, RMW_ZENOH_CPP_TYPESUPPORT_CPP);
+    if (!type_support) {
+      rcutils_error_string_t error_string = rcutils_get_error_string();
+      rcutils_reset_error();
+      RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
+        "Type support not from this implementation. Got:\n"
+        "    %s\n"
+        "    %s\n"
+        "while fetching it",
+        prev_error_string.str, error_string.str);
+      return nullptr;
+    }
+  }
+
   RMW_CHECK_FOR_NULL_WITH_MSG(
     node->context,
     "expected initialized context",
@@ -247,7 +290,6 @@ rmw_create_publisher(
     node->context->impl,
     "expected initialized context impl",
     return nullptr);
-
   rmw_context_impl_s * context_impl = static_cast<rmw_context_impl_s *>(
     node->context->impl);
   RMW_CHECK_FOR_NULL_WITH_MSG(
@@ -279,6 +321,18 @@ rmw_create_publisher(
     RMW_SET_ERROR_MSG("unable to create publisher");
     return nullptr;
   }
+  publisher_data->typesupport_identifier = type_support->typesupport_identifier;
+  publisher_data->type_support_impl = type_support->data;
+  auto callbacks = static_cast<const message_type_support_callbacks_t *>(type_support->data);
+  rcutils_allocator_t * allocator = &node->context->options.allocator;
+  publisher_data->type_support = static_cast<MessageTypeSupport *>(
+    allocator->allocate(sizeof(MessageTypeSupport), allocator->state));
+  new(publisher_data->type_support) MessageTypeSupport(callbacks);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    publisher_data->type_support,
+    "Failed to allocate MessageTypeSupport",
+    return nullptr);
+  publisher_data->context = node->context;
 
   auto cleanup_rmw_publisher = rcpputils::make_scope_exit(
     [rmw_publisher]() {
@@ -332,6 +386,39 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
 }
 
 //==============================================================================
+rmw_ret_t
+rmw_take_dynamic_message(
+  const rmw_subscription_t * subscription,
+  rosidl_dynamic_typesupport_dynamic_data_t * dynamic_message,
+  bool * taken,
+  rmw_subscription_allocation_t * allocation)
+{
+  return RMW_RET_UNSUPPORTED;
+}
+
+//==============================================================================
+rmw_ret_t
+rmw_take_dynamic_message_with_info(
+  const rmw_subscription_t * subscription,
+  rosidl_dynamic_typesupport_dynamic_data_t * dynamic_message,
+  bool * taken,
+  rmw_message_info_t * message_info,
+  rmw_subscription_allocation_t * allocation)
+{
+  return RMW_RET_UNSUPPORTED;
+}
+
+//==============================================================================
+rmw_ret_t
+rmw_serialization_support_init(
+  const char * serialization_lib_name,
+  rcutils_allocator_t * allocator,
+  rosidl_dynamic_typesupport_serialization_support_t * serialization_support)
+{
+  return RMW_RET_UNSUPPORTED;
+}
+
+//==============================================================================
 /// Borrow a loaned ROS message.
 rmw_ret_t
 rmw_borrow_loaned_message(
@@ -381,15 +468,53 @@ rmw_publish(
     publisher_data, "publisher_data is null",
     return RMW_RET_INVALID_ARGUMENT);
 
+  // Assign allocator.
+  rcutils_allocator_t * allocator =
+    &(static_cast<rmw_publisher_data_t *>(publisher->data)->context->options.allocator);
+
+  // Serialize data.
+  size_t max_data_length = (static_cast<rmw_publisher_data_t *>(publisher->data)
+    ->type_support->getEstimatedSerializedSize(ros_message));
+
+  // Init serialized message byte array
+  char * msg_bytes = static_cast<char *>(allocator->allocate(max_data_length, allocator->state));
+
+  // Object that manages the raw buffer
+  eprosima::fastcdr::FastBuffer fastbuffer(msg_bytes, max_data_length);
+
+  // Object that serializes the data
+  eprosima::fastcdr::Cdr ser(
+    fastbuffer,
+    eprosima::fastcdr::Cdr::DEFAULT_ENDIAN,
+    eprosima::fastcdr::Cdr::DDS_CDR);
+  if (!publisher_data->type_support->serializeROSmessage(
+      ros_message,
+      ser,
+      publisher_data->type_support_impl))
+  {
+    RMW_SET_ERROR_MSG("could not serialize ROS message");
+    allocator->deallocate(msg_bytes, allocator->state);
+    return RMW_RET_ERROR;
+  }
+
+  const size_t data_length = ser.getSerializedDataLength();
+
   // Returns 0 if success.
-  // int8_t ret = z_publisher_put(
-  //   z_loan(publisher_data->pub),
-  //   const uint8_t *payload,
-  //   uintptr_t len,
-  //   NULL)
+  int8_t ret = z_publisher_put(
+    z_loan(publisher_data->pub),
+    (const uint8_t *)msg_bytes,
+    data_length,
+    NULL);
 
-  return RMW_RET_UNSUPPORTED;
+  allocator->deallocate(msg_bytes, allocator->state);
 
+  if (ret)
+  {
+    RMW_SET_ERROR_MSG("unable to publish message");
+    return RMW_RET_ERROR;
+  }
+
+  return RMW_RET_OK;
 }
 
 //==============================================================================
@@ -400,6 +525,9 @@ rmw_publish_loaned_message(
   void * ros_message,
   rmw_publisher_allocation_t * allocation)
 {
+  static_cast<void>(publisher);
+  static_cast<void>(ros_message);
+  static_cast<void>(allocation);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -410,6 +538,8 @@ rmw_publisher_count_matched_subscriptions(
   const rmw_publisher_t * publisher,
   size_t * subscription_count)
 {
+  static_cast<void>(publisher);
+  static_cast<void>(subscription_count);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -420,6 +550,8 @@ rmw_publisher_get_actual_qos(
   const rmw_publisher_t * publisher,
   rmw_qos_profile_t * qos)
 {
+  static_cast<void>(publisher);
+  static_cast<void>(qos);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -431,7 +563,45 @@ rmw_publish_serialized_message(
   const rmw_serialized_message_t * serialized_message,
   rmw_publisher_allocation_t * allocation)
 {
-  return RMW_RET_UNSUPPORTED;
+  static_cast<void>(allocation);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    publisher, "publisher handle is null",
+    return RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    publisher, publisher->implementation_identifier, rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    serialized_message, "serialized message handle is null",
+    return RMW_RET_INVALID_ARGUMENT);
+
+  auto publisher_data = static_cast<rmw_publisher_data_t *>(publisher->data);
+  RCUTILS_CHECK_FOR_NULL_WITH_MSG(publisher_data, "publisher data pointer is null", return RMW_RET_ERROR);
+
+  eprosima::fastcdr::FastBuffer buffer(
+    reinterpret_cast<char *>(serialized_message->buffer), serialized_message->buffer_length);
+  eprosima::fastcdr::Cdr ser(
+    buffer, eprosima::fastcdr::Cdr::DEFAULT_ENDIAN, eprosima::fastcdr::Cdr::DDS_CDR);
+  if (!ser.jump(serialized_message->buffer_length)) {
+    RMW_SET_ERROR_MSG("cannot correctly set serialized buffer");
+    return RMW_RET_ERROR;
+  }
+
+  const size_t data_length = ser.getSerializedDataLength();
+
+  // Returns 0 if success.
+  int8_t ret = z_publisher_put(
+    z_loan(publisher_data->pub),
+    serialized_message->buffer,
+    data_length,
+    NULL);
+
+  if (ret)
+  {
+    RMW_SET_ERROR_MSG("unable to publish message");
+    return RMW_RET_ERROR;
+  }
+
+  return RMW_RET_OK;
 }
 
 //==============================================================================

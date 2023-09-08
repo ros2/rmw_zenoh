@@ -32,6 +32,9 @@ struct rmw_publisher_data_t
   const void * type_support_impl;
   const char * typesupport_identifier;
   TypeSupport * type_support;
+
+  // Context for memory allocation for messages.
+  rmw_context_t * context;
 };
 
 #endif  // SRC__DETAIL__RMW_DATA_TYPES_HPP
