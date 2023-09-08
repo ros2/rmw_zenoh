@@ -24,6 +24,7 @@ find_package(rcutils REQUIRED)
 find_package(rosidl_typesupport_zenoh_c REQUIRED)
 find_package(rosidl_typesupport_zenoh_cpp REQUIRED)
 find_package(rmw REQUIRED)
+find_package(rmw_dds_common REQUIRED)
 find_package(rmw_fastrtps_cpp REQUIRED)
 find_package(zenoh_c_vendor REQUIRED)
 find_package(zenohc REQUIRED)
@@ -33,12 +34,15 @@ find_package(zenohc REQUIRED)
 add_library(rmw_zenoh_cpp SHARED
   src/detail/identifier.cpp
   src/detail/type_support_common.cpp
+  src/rmw_event.cpp
+  src/rmw_get_network_flow_endpoints.cpp
   src/rmw_get_node_info_and_types.cpp
   src/rmw_get_service_names_and_types.cpp
   src/rmw_get_topic_endpoint_info.cpp
   src/rmw_get_topic_names_and_types.cpp
   src/rmw_init_options.cpp
   src/rmw_init.cpp
+  src/rmw_qos.cpp
   src/rmw_zenoh.cpp
 )
 
@@ -50,6 +54,7 @@ target_link_libraries(rmw_zenoh_cpp
     rosidl_typesupport_zenoh_c::rosidl_typesupport_zenoh_c
     rosidl_typesupport_zenoh_cpp::rosidl_typesupport_zenoh_cpp
     rmw::rmw
+    ${rmw_dds_common_TARGETS}
     zenohc::lib
 )
 

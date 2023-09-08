@@ -17,6 +17,7 @@
   <depend>rosidl_typesupport_zenoh_c</depend>
   <depend>rosidl_typesupport_zenoh_cpp</depend>
   <depend>rmw</depend>
+  <depend>rmw_dds_common</depend>
   <depend>rmw_fastrtps_cpp</depend>
 
   <export>
