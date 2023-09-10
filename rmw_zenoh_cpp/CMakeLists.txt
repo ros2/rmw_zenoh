@@ -21,11 +21,11 @@ find_package(fastcdr CONFIG REQUIRED)
 find_package(fastrtps_cmake_module REQUIRED)
 find_package(rcpputils REQUIRED)
 find_package(rcutils REQUIRED)
-find_package(rosidl_typesupport_zenoh_c REQUIRED)
-find_package(rosidl_typesupport_zenoh_cpp REQUIRED)
+find_package(rosidl_typesupport_fastrtps_c REQUIRED)
+find_package(rosidl_typesupport_fastrtps_cpp REQUIRED)
 find_package(rmw REQUIRED)
 find_package(rmw_dds_common REQUIRED)
-find_package(rmw_fastrtps_cpp REQUIRED)
+find_package(rmw_fastrtps_shared_cpp REQUIRED)
 find_package(zenoh_c_vendor REQUIRED)
 find_package(zenohc REQUIRED)
 
@@ -52,10 +52,12 @@ target_link_libraries(rmw_zenoh_cpp
     fastcdr
     rcpputils::rcpputils
     rcutils::rcutils
-    rosidl_typesupport_zenoh_c::rosidl_typesupport_zenoh_c
-    rosidl_typesupport_zenoh_cpp::rosidl_typesupport_zenoh_cpp
+    rosidl_typesupport_fastrtps_c::rosidl_typesupport_fastrtps_c
+    rosidl_typesupport_fastrtps_cpp::rosidl_typesupport_fastrtps_cpp
     rmw::rmw
     ${rmw_dds_common_TARGETS}
+    ${rmw_fastrtps_shared_cpp_TARGETS}
+    ${rmw_fastrtps_shared_cpp_LIBRARIES}
     zenohc::lib
 )
 
@@ -71,9 +73,9 @@ target_compile_definitions(rmw_zenoh_cpp
 ament_export_targets(export_rmw_zenoh_cpp)
 
 register_rmw_implementation(
-  "c:rosidl_typesupport_c:rosidl_typesupport_zenoh_c"
-  "cpp:rosidl_typesupport_cpp:rosidl_typesupport_zenoh_cpp"
-)
+  "c:rosidl_typesupport_c:rosidl_typesupport_fastrtps_c:rosidl_typesupport_introspection_c"
+  "cpp:rosidl_typesupport_cpp:rosidl_typesupport_fastrtps_cpp:rosidl_typesupport_introspection_cpp")
+
 
 install(
   TARGETS rmw_zenoh_cpp

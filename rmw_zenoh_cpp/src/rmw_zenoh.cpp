@@ -264,11 +264,11 @@ rmw_create_publisher(
 
   // Get the RMW type support.
   const rosidl_message_type_support_t * type_support = get_message_typesupport_handle(
-    type_supports, RMW_ZENOH_CPP_TYPESUPPORT_C);
+    type_supports, RMW_FASTRTPS_CPP_TYPESUPPORT_C);
   if (!type_support) {
     rcutils_error_string_t prev_error_string = rcutils_get_error_string();
     rcutils_reset_error();
-    type_support = get_message_typesupport_handle(type_supports, RMW_ZENOH_CPP_TYPESUPPORT_CPP);
+    type_support = get_message_typesupport_handle(type_supports, RMW_FASTRTPS_CPP_TYPESUPPORT_CPP);
     if (!type_support) {
       rcutils_error_string_t error_string = rcutils_get_error_string();
       rcutils_reset_error();
@@ -305,11 +305,23 @@ rmw_create_publisher(
   rmw_publisher_t * rmw_publisher = rmw_publisher_allocate();
   RMW_CHECK_ARGUMENT_FOR_NULL(rmw_publisher, nullptr);
   // Get typed pointer to implementation specific publisher data struct
-  auto publisher_data = static_cast<rmw_publisher_data_t *>(rmw_publisher->data);
+  // auto publisher_data = static_cast<rmw_publisher_data_t *>(rmw_publisher->data);
+  // if (publisher_data == nullptr) {
+  //   RMW_SET_ERROR_MSG("unable to cast publisher data into rmw_publisher_data_t");
+  //   return nullptr;
+  // }
+  rcutils_allocator_t * allocator = &node->context->options.allocator;
+  auto publisher_data = static_cast<rmw_publisher_data_t *>(
+    allocator->allocate(sizeof(rmw_publisher_data_t), allocator->state));
   if (publisher_data == nullptr) {
-    RMW_SET_ERROR_MSG("unable to cast publisher data into rmw_publisher_data_t");
+    RMW_SET_ERROR_MSG("failed to allocate publisher data");
+    allocator->deallocate(publisher_data, allocator->state);
+    allocator->deallocate(rmw_publisher, allocator->state);
     return nullptr;
   }
+
+  // TODO(yadunund): Zenoh key cannot contain leading or trailing '/' so we strip them.
+
   // TODO(yadunund): Parse adapted_qos_profile and publisher_options to generate
   // a z_publisher_put_options struct instead of passing NULL to this function.
   publisher_data->pub = z_declare_publisher(
@@ -324,7 +336,6 @@ rmw_create_publisher(
   publisher_data->typesupport_identifier = type_support->typesupport_identifier;
   publisher_data->type_support_impl = type_support->data;
   auto callbacks = static_cast<const message_type_support_callbacks_t *>(type_support->data);
-  rcutils_allocator_t * allocator = &node->context->options.allocator;
   publisher_data->type_support = static_cast<MessageTypeSupport *>(
     allocator->allocate(sizeof(MessageTypeSupport), allocator->state));
   new(publisher_data->type_support) MessageTypeSupport(callbacks);
@@ -473,8 +484,9 @@ rmw_publish(
     &(static_cast<rmw_publisher_data_t *>(publisher->data)->context->options.allocator);
 
   // Serialize data.
-  size_t max_data_length = (static_cast<rmw_publisher_data_t *>(publisher->data)
-    ->type_support->getEstimatedSerializedSize(ros_message));
+  size_t max_data_length = publisher_data->type_support->getEstimatedSerializedSize(
+    ros_message,
+    publisher_data->type_support_impl);
 
   // Init serialized message byte array
   char * msg_bytes = static_cast<char *>(allocator->allocate(max_data_length, allocator->state));
@@ -508,8 +520,7 @@ rmw_publish(
 
   allocator->deallocate(msg_bytes, allocator->state);
 
-  if (ret)
-  {
+  if (ret) {
     RMW_SET_ERROR_MSG("unable to publish message");
     return RMW_RET_ERROR;
   }
@@ -575,7 +586,9 @@ rmw_publish_serialized_message(
     return RMW_RET_INVALID_ARGUMENT);
 
   auto publisher_data = static_cast<rmw_publisher_data_t *>(publisher->data);
-  RCUTILS_CHECK_FOR_NULL_WITH_MSG(publisher_data, "publisher data pointer is null", return RMW_RET_ERROR);
+  RCUTILS_CHECK_FOR_NULL_WITH_MSG(
+    publisher_data, "publisher data pointer is null",
+    return RMW_RET_ERROR);
 
   eprosima::fastcdr::FastBuffer buffer(
     reinterpret_cast<char *>(serialized_message->buffer), serialized_message->buffer_length);
@@ -595,8 +608,7 @@ rmw_publish_serialized_message(
     data_length,
     NULL);
 
-  if (ret)
-  {
+  if (ret) {
     RMW_SET_ERROR_MSG("unable to publish message");
     return RMW_RET_ERROR;
   }

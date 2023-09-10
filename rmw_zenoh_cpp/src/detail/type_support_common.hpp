@@ -28,12 +28,42 @@
 #include "MessageTypeSupport.hpp"
 #include "ServiceTypeSupport.hpp"
 
-#include "rosidl_typesupport_zenoh_c/identifier.h"
-#include "rosidl_typesupport_zenoh_cpp/identifier.hpp"
-#include "rosidl_typesupport_zenoh_cpp/message_type_support.h"
-#include "rosidl_typesupport_zenoh_cpp/service_type_support.h"
+#include "identifier.hpp"
 
-#define RMW_ZENOH_CPP_TYPESUPPORT_C rosidl_typesupport_zenoh_c__identifier
-#define RMW_ZENOH_CPP_TYPESUPPORT_CPP rosidl_typesupport_zenoh_cpp::typesupport_identifier
+#include "rosidl_typesupport_fastrtps_c/identifier.h"
+#include "rosidl_typesupport_fastrtps_cpp/identifier.hpp"
+#include "rosidl_typesupport_fastrtps_cpp/message_type_support.h"
+#include "rosidl_typesupport_fastrtps_cpp/service_type_support.h"
+#define RMW_FASTRTPS_CPP_TYPESUPPORT_C rosidl_typesupport_fastrtps_c__identifier
+#define RMW_FASTRTPS_CPP_TYPESUPPORT_CPP rosidl_typesupport_fastrtps_cpp::typesupport_identifier
+
+#define RMW_ZENOH_CPP_TYPESUPPORT_C rosidl_typesupport_fastrtps_c__identifier
+#define RMW_ZENOH_CPP_TYPESUPPORT_CPP rosidl_typesupport_fastrtps_cpp::typesupport_identifier
+
+inline std::string
+_create_type_name(
+  std::string message_namespace,
+  std::string message_name)
+{
+  std::ostringstream ss;
+  if (!message_namespace.empty()) {
+    ss << message_namespace << "::";
+  }
+  ss << "dds_::" << message_name << "_";
+  return ss.str();
+}
+
+inline std::string
+_create_type_name(
+  const message_type_support_callbacks_t * members)
+{
+  if (!members) {
+    RMW_SET_ERROR_MSG("members handle is null");
+    return "";
+  }
+  std::string message_namespace(members->message_namespace_);
+  std::string message_name(members->message_name_);
+  return _create_type_name(message_namespace, message_name);
+}
 
 #endif  // SRC__DETAIL__TYPE_SUPPORT_COMMON_HPP

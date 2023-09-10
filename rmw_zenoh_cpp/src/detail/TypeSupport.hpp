@@ -26,35 +26,31 @@
 #include <cassert>
 #include <string>
 
-#include "rosidl_typesupport_zenoh_cpp/message_type_support.h"
+#include "rosidl_typesupport_fastrtps_cpp/message_type_support.h"
+
+#include "rmw_fastrtps_shared_cpp/TypeSupport.hpp"
+
 
 ///==============================================================================
-class TypeSupport
+class TypeSupport : public rmw_fastrtps_shared_cpp::TypeSupport
 {
 public:
-  size_t getEstimatedSerializedSize(const void * ros_message);
+  size_t getEstimatedSerializedSize(const void * ros_message, const void * impl) const override;
 
   bool serializeROSmessage(
-    const void * ros_message,
-    eprosima::fastcdr::Cdr & ser,
-    const void * impl) const;
+    const void * ros_message, eprosima::fastcdr::Cdr & ser, const void * impl) const override;
 
   bool deserializeROSmessage(
-    eprosima::fastcdr::Cdr & deser,
-    void * ros_message,
-    const void * impl) const;
+    eprosima::fastcdr::Cdr & deser, void * ros_message, const void * impl) const override;
 
-protected:
   TypeSupport();
 
+protected:
   void set_members(const message_type_support_callbacks_t * members);
 
 private:
   const message_type_support_callbacks_t * members_;
   bool has_data_;
-  bool max_size_bound_;
-
-  size_t type_size_;
 };
 
 #endif  // SRC__DETAIL__TYPESUPPORT_HPP

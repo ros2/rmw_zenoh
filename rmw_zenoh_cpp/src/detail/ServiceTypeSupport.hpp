@@ -19,8 +19,8 @@
 #ifndef SRC__DETAIL__SERVICETYPESUPPORT_HPP
 #define SRC__DETAIL__SERVICETYPESUPPORT_HPP
 
-#include "rosidl_typesupport_zenoh_cpp/message_type_support.h"
-#include "rosidl_typesupport_zenoh_cpp/service_type_support.h"
+#include "rosidl_typesupport_fastrtps_cpp/message_type_support.h"
+#include "rosidl_typesupport_fastrtps_cpp/service_type_support.h"
 #include "TypeSupport.hpp"
 
 ///==============================================================================

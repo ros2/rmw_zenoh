@@ -24,7 +24,9 @@
 ///==============================================================================
 TypeSupport::TypeSupport()
 {
+  m_isGetKeyDefined = false;
   max_size_bound_ = false;
+  is_plain_ = false;
 }
 
 ///==============================================================================
@@ -32,12 +34,19 @@ void TypeSupport::set_members(const message_type_support_callbacks_t * members)
 {
   members_ = members;
 
-  // Fully bound by default
-  max_size_bound_ = true;
-  auto data_size = static_cast<uint32_t>(members->max_serialized_size(max_size_bound_));
+#ifdef ROSIDL_TYPESUPPORT_FASTRTPS_HAS_PLAIN_TYPES
+  char bounds_info;
+  auto data_size = static_cast<uint32_t>(members->max_serialized_size(bounds_info));
+  max_size_bound_ = 0 != (bounds_info & ROSIDL_TYPESUPPORT_FASTRTPS_BOUNDED_TYPE);
+  is_plain_ = bounds_info == ROSIDL_TYPESUPPORT_FASTRTPS_PLAIN_TYPE;
+#else
+  is_plain_ = true;
+  auto data_size = static_cast<uint32_t>(members->max_serialized_size(is_plain_));
+  max_size_bound_ = is_plain_;
+#endif
 
-  // A fully bound message of size 0 is an empty message
-  if (max_size_bound_ && (data_size == 0) ) {
+  // A plain message of size 0 is an empty message
+  if (is_plain_ && (data_size == 0) ) {
     has_data_ = false;
     ++data_size;  // Dummy byte
   } else {
@@ -45,20 +54,25 @@ void TypeSupport::set_members(const message_type_support_callbacks_t * members)
   }
 
   // Total size is encapsulation size + data size
-  type_size_ = 4 + data_size;
+  m_typeSize = 4 + data_size;
+  // Account for RTPS submessage alignment
+  m_typeSize = (m_typeSize + 3) & ~3;
 }
 
 ///==============================================================================
-size_t TypeSupport::getEstimatedSerializedSize(const void * ros_message)
+size_t TypeSupport::getEstimatedSerializedSize(const void * ros_message, const void * impl) const
 {
-  if (max_size_bound_) {
-    return type_size_;
+  if (is_plain_) {
+    return m_typeSize;
   }
 
   assert(ros_message);
+  assert(impl);
+
+  auto callbacks = static_cast<const message_type_support_callbacks_t *>(impl);
 
   // Encapsulation size + message size
-  return 4 + members_->get_serialized_size(ros_message);
+  return 4 + callbacks->get_serialized_size(ros_message);
 }
 
 ///==============================================================================
@@ -93,19 +107,26 @@ bool TypeSupport::deserializeROSmessage(
   assert(ros_message);
   assert(impl);
 
-  // Deserialize encapsulation.
-  deser.read_encapsulation();
+  try {
+    // Deserialize encapsulation.
+    deser.read_encapsulation();
 
-  // If type is not empty, deserialize message
-  if (has_data_) {
-    auto callbacks = static_cast<const message_type_support_callbacks_t *>(impl);
-    return callbacks->cdr_deserialize(deser, ros_message);
+    // If type is not empty, deserialize message
+    if (has_data_) {
+      auto callbacks = static_cast<const message_type_support_callbacks_t *>(impl);
+      return callbacks->cdr_deserialize(deser, ros_message);
+    }
+
+    // Otherwise, consume dummy byte
+    uint8_t dump = 0;
+    deser >> dump;
+    (void)dump;
+  } catch (const eprosima::fastcdr::exception::Exception &) {
+    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
+      "Fast CDR exception deserializing message of type %s.",
+      getName());
+    return false;
   }
-
-  // Otherwise, consume dummy byte
-  uint8_t dump = 0;
-  deser >> dump;
-  (void)dump;
 
   return true;
 }
@@ -114,6 +135,9 @@ bool TypeSupport::deserializeROSmessage(
 MessageTypeSupport::MessageTypeSupport(const message_type_support_callbacks_t * members)
 {
   assert(members);
+
+  std::string name = _create_type_name(members);
+  this->setName(name.c_str());
 
   set_members(members);
 }
@@ -130,6 +154,8 @@ RequestTypeSupport::RequestTypeSupport(const service_type_support_callbacks_t * 
 
   auto msg = static_cast<const message_type_support_callbacks_t *>(
     members->request_members_->data);
+  std::string name = _create_type_name(msg);  // + "Request_";
+  this->setName(name.c_str());
 
   set_members(msg);
 }
@@ -141,6 +167,8 @@ ResponseTypeSupport::ResponseTypeSupport(const service_type_support_callbacks_t 
 
   auto msg = static_cast<const message_type_support_callbacks_t *>(
     members->response_members_->data);
+  std::string name = _create_type_name(msg);  // + "Response_";
+  this->setName(name.c_str());
 
   set_members(msg);
 }

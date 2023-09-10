@@ -19,7 +19,7 @@
 #ifndef SRC__DETAIL__MESSAGETYPESUPPORT_HPP
 #define SRC__DETAIL__MESSAGETYPESUPPORT_HPP
 
-#include "rosidl_typesupport_zenoh_cpp/message_type_support.h"
+#include "rosidl_typesupport_fastrtps_cpp/message_type_support.h"
 #include "TypeSupport.hpp"
 
 ///==============================================================================
