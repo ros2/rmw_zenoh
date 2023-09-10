@@ -15,6 +15,9 @@
 #ifndef SRC__DETAIL__RMW_DATA_TYPES_HPP
 #define SRC__DETAIL__RMW_DATA_TYPES_HPP
 
+#include <condition_variable>
+#include <mutex>
+
 #include "rmw/rmw.h"
 
 #include "TypeSupport.hpp"
@@ -35,6 +38,13 @@ struct rmw_publisher_data_t
 
   // Context for memory allocation for messages.
   rmw_context_t * context;
+};
+
+///==============================================================================
+struct rmw_wait_set_data_t
+{
+  std::condition_variable condition;
+  std::mutex condition_mutex;
 };
 
 #endif  // SRC__DETAIL__RMW_DATA_TYPES_HPP
