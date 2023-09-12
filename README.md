@@ -3,7 +3,7 @@
 A ROS 2 RMW implementation based on Zenoh that is written using the zenoh-c bindings.
 
 ## Requirements
-- [ROS 2](https://docs.ros.org): Rolling/Iron/Humble
+- [ROS 2](https://docs.ros.org): Rolling/Iron
 
 
 ## Setup

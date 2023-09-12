@@ -919,11 +919,51 @@ rmw_client_response_subscription_get_actual_qos(
 rmw_service_t *
 rmw_create_service(
   const rmw_node_t * node,
-  const rosidl_service_type_support_t * type_support,
+  const rosidl_service_type_support_t * type_supports,
   const char * service_name,
-  const rmw_qos_profile_t * qos_profile)
+  const rmw_qos_profile_t * qos_profiles)
 {
-  return nullptr;
+  // Interim implementation to suppress type_description service that spins up
+  // with a node by default.
+  RMW_CHECK_ARGUMENT_FOR_NULL(node, nullptr);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    node,
+    node->implementation_identifier,
+    rmw_zenoh_identifier,
+    return nullptr);
+  RMW_CHECK_ARGUMENT_FOR_NULL(type_supports, nullptr);
+  RMW_CHECK_ARGUMENT_FOR_NULL(service_name, nullptr);
+  if (0 == strlen(service_name)) {
+    RMW_SET_ERROR_MSG("service_name argument is an empty string");
+    return nullptr;
+  }
+  RMW_CHECK_ARGUMENT_FOR_NULL(qos_profiles, nullptr);
+  if (!qos_profiles->avoid_ros_namespace_conventions) {
+    int validation_result = RMW_TOPIC_VALID;
+    rmw_ret_t ret = rmw_validate_full_topic_name(service_name, &validation_result, nullptr);
+    if (RMW_RET_OK != ret) {
+      return nullptr;
+    }
+    if (RMW_TOPIC_VALID != validation_result) {
+      const char * reason = rmw_full_topic_name_validation_result_string(validation_result);
+      RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("service_name argument is invalid: %s", reason);
+      return nullptr;
+    }
+  }
+  // rmw_qos_profile_t adapted_qos_policies =
+  //   rmw_dds_common::qos_profile_update_best_available_for_services(*qos_policies);
+  // if (!is_valid_qos(adapted_qos_policies)) {
+  //   RMW_SET_ERROR_MSG("create_service() called with invalid QoS");
+  //   return nullptr;
+  // }
+
+  rmw_service_t * service = rmw_service_allocate();
+  if (!service) {
+    RMW_SET_ERROR_MSG("failed to allocate rmw_service_t");
+    return nullptr;
+  }
+
+  return service;
 }
 
 //==============================================================================
@@ -931,7 +971,13 @@ rmw_create_service(
 rmw_ret_t
 rmw_destroy_service(rmw_node_t * node, rmw_service_t * service)
 {
-  return RMW_RET_UNSUPPORTED;
+  // Interim implementation to suppress type_description service that spins up
+  // with a node by default.
+  if (node == nullptr || service == nullptr) {
+    return RMW_RET_ERROR;
+  }
+  rmw_service_free(service);
+  return RMW_RET_OK;
 }
 
 //==============================================================================
@@ -964,7 +1010,8 @@ rmw_service_request_subscription_get_actual_qos(
   const rmw_service_t * service,
   rmw_qos_profile_t * qos)
 {
-  return RMW_RET_UNSUPPORTED;
+  //TODO(yadunund): Fix.
+  return RMW_RET_OK;
 }
 
 //==============================================================================
@@ -974,7 +1021,8 @@ rmw_service_response_publisher_get_actual_qos(
   const rmw_service_t * service,
   rmw_qos_profile_t * qos)
 {
-  return RMW_RET_UNSUPPORTED;
+  //TODO(yadunund): Fix.
+  return RMW_RET_OK;
 }
 
 //==============================================================================
