@@ -17,56 +17,56 @@
 
 ///==============================================================================
 GuardCondition::GuardCondition()
-: hasTriggered_(false),
-  conditionMutex_(nullptr),
-  conditionVariable_(nullptr) {}
+: has_triggered_(false),
+  condition_mutex_(nullptr),
+  condition_variable_(nullptr) {}
 
 ///==============================================================================
 void GuardCondition::trigger()
 {
-  std::lock_guard<std::mutex> lock(internalMutex_);
+  std::lock_guard<std::mutex> lock(internal_mutex_);
 
-  if (conditionMutex_ != nullptr) {
-    std::unique_lock<std::mutex> clock(*conditionMutex_);
+  if (condition_mutex_ != nullptr) {
+    std::unique_lock<std::mutex> clock(*condition_mutex_);
     // the change to hasTriggered_ needs to be mutually exclusive with
     // rmw_wait() which checks hasTriggered() and decides if wait() needs to
     // be called
-    hasTriggered_ = true;
+    has_triggered_ = true;
     clock.unlock();
-    conditionVariable_->notify_one();
+    condition_variable_->notify_one();
   } else {
-    hasTriggered_ = true;
+    has_triggered_ = true;
   }
 }
 
 ///==============================================================================
-void GuardCondition::attachCondition(
-  std::mutex * conditionMutex,
-  std::condition_variable * conditionVariable)
+void GuardCondition::attach_condition(
+  std::mutex * condition_mutex,
+  std::condition_variable * condition_variable)
 {
-  std::lock_guard<std::mutex> lock(internalMutex_);
-  conditionMutex_ = conditionMutex;
-  conditionVariable_ = conditionVariable;
+  std::lock_guard<std::mutex> lock(internal_mutex_);
+  condition_mutex_ = condition_mutex;
+  condition_variable_ = condition_variable;
 }
 
 ///==============================================================================
-void GuardCondition::detachCondition()
+void GuardCondition::detach_condition()
 {
-  std::lock_guard<std::mutex> lock(internalMutex_);
-  conditionMutex_ = nullptr;
-  conditionVariable_ = nullptr;
+  std::lock_guard<std::mutex> lock(internal_mutex_);
+  condition_mutex_ = nullptr;
+  condition_variable_ = nullptr;
 }
 
 ///==============================================================================
-bool GuardCondition::hasTriggered()
+bool GuardCondition::has_triggered() const
 {
-  return hasTriggered_;
+  return has_triggered_;
 }
 
 ///==============================================================================
-bool GuardCondition::getHasTriggered()
+bool GuardCondition::get_has_triggered()
 {
-  bool ret = hasTriggered_;
-  hasTriggered_ = false;
+  bool ret = has_triggered_;
+  has_triggered_ = false;
   return ret;
 }

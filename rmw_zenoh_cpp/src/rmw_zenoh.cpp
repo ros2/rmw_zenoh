@@ -181,7 +181,7 @@ rmw_node_get_graph_guard_condition(const rmw_node_t * node)
     node->implementation_identifier,
     rmw_zenoh_identifier,
     return nullptr);
-  // TODO(Yadunund): Also check if node->data is valud.
+  // TODO(Yadunund): Also check if node->data is valid.
   return node->context->impl->graph_guard_condition;
 }
 
@@ -229,7 +229,7 @@ rmw_create_publisher(
     return nullptr);
   RMW_CHECK_ARGUMENT_FOR_NULL(type_supports, nullptr);
   RMW_CHECK_ARGUMENT_FOR_NULL(topic_name, nullptr);
-  if (0 == strlen(topic_name)) {
+  if (topic_name[0] == '\0') {
     RMW_SET_ERROR_MSG("topic_name argument is an empty string");
     return nullptr;
   }
@@ -310,15 +310,15 @@ rmw_create_publisher(
   //   RMW_SET_ERROR_MSG("unable to cast publisher data into rmw_publisher_data_t");
   //   return nullptr;
   // }
+  auto free_rmw_publisher = rcpputils::make_scope_exit([rmw_publisher](){rmw_publisher_free(rmw_publisher);});
   rcutils_allocator_t * allocator = &node->context->options.allocator;
   auto publisher_data = static_cast<rmw_publisher_data_t *>(
     allocator->allocate(sizeof(rmw_publisher_data_t), allocator->state));
   if (publisher_data == nullptr) {
     RMW_SET_ERROR_MSG("failed to allocate publisher data");
-    allocator->deallocate(publisher_data, allocator->state);
-    allocator->deallocate(rmw_publisher, allocator->state);
     return nullptr;
   }
+  auto free_publisher_data = rcpputils::make_scope_exit([publisher_data, allocator](){allocator->deallocate(publisher_data, allocator->state);});
 
   // TODO(yadunund): Zenoh key cannot contain leading or trailing '/' so we strip them.
   // TODO(yadunund): Parse adapted_qos_profile and publisher_options to generate
@@ -332,35 +332,33 @@ rmw_create_publisher(
     RMW_SET_ERROR_MSG("unable to create publisher");
     return nullptr;
   }
+  auto undeclare_z_publisher = rcpputils::make_scope_exit([publisher_data](){z_undeclare_publisher(z_move(publisher_data->pub));});
+
   publisher_data->typesupport_identifier = type_support->typesupport_identifier;
   publisher_data->type_support_impl = type_support->data;
   auto callbacks = static_cast<const message_type_support_callbacks_t *>(type_support->data);
   publisher_data->type_support = static_cast<MessageTypeSupport *>(
     allocator->allocate(sizeof(MessageTypeSupport), allocator->state));
-  new(publisher_data->type_support) MessageTypeSupport(callbacks);
   RMW_CHECK_FOR_NULL_WITH_MSG(
     publisher_data->type_support,
     "Failed to allocate MessageTypeSupport",
     return nullptr);
+  auto free_type_support = rcpputils::make_scope_exit([publisher_data, allocator](){allocator->deallocate(publisher_data->type_support, allocator->state);});
+
+  new(publisher_data->type_support) MessageTypeSupport(callbacks);
   publisher_data->context = node->context;
   rmw_publisher->data = publisher_data;
-  auto cleanup_rmw_publisher = rcpputils::make_scope_exit(
-    [rmw_publisher]() {
-      auto publisher_data = static_cast<rmw_publisher_data_t *>(rmw_publisher->data);
-      z_undeclare_publisher(z_move(publisher_data->pub));
-      rmw_free(const_cast<char *>(rmw_publisher->topic_name));
-      rmw_publisher_free(rmw_publisher);
-    });
-
   rmw_publisher->implementation_identifier = rmw_zenoh_identifier;
-  rmw_publisher->topic_name = reinterpret_cast<char *>(rmw_allocate(strlen(topic_name) + 1));
-  RMW_CHECK_ARGUMENT_FOR_NULL(rmw_publisher->topic_name, nullptr);
-  memcpy(const_cast<char *>(rmw_publisher->topic_name), topic_name, strlen(topic_name) + 1);
   rmw_publisher->options = *publisher_options;
   // TODO(yadunund): Update this.
   rmw_publisher->can_loan_messages = false;
+  rmw_publisher->topic_name = rcutils_strdup(topic_name, *allocator);
+  RMW_CHECK_ARGUMENT_FOR_NULL(rmw_publisher->topic_name, nullptr);
 
-  cleanup_rmw_publisher.cancel();
+  free_type_support.cancel();
+  undeclare_z_publisher.cancel();
+  free_publisher_data.cancel();
+  free_rmw_publisher.cancel();
   return rmw_publisher;
 }
 
@@ -383,14 +381,19 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   rmw_ret_t ret = RMW_RET_OK;
+
+  rmw_free(const_cast<char *>(publisher->topic_name));
+
   auto publisher_data = static_cast<rmw_publisher_data_t *>(publisher->data);
   if (publisher_data != nullptr) {
+    rcutils_allocator_t * allocator = &node->context->options.allocator;
+    allocator->deallocate(publisher_data->type_support, allocator->state);
     if (z_undeclare_publisher(z_move(publisher_data->pub))) {
       RMW_SET_ERROR_MSG("failed to undeclare pub");
       ret = RMW_RET_ERROR;
     }
+    allocator->deallocate(publisher_data, allocator->state);
   }
-  rmw_free(const_cast<char *>(publisher->topic_name));
   rmw_publisher_free(publisher);
   return ret;
 }

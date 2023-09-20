@@ -16,36 +16,33 @@
 #ifndef SRC__DETAIL__GUARDCONDITION_HPP
 #define SRC__DETAIL__GUARDCONDITION_HPP
 
-#include <array>
 #include <atomic>
-#include <cassert>
 #include <condition_variable>
 #include <mutex>
-#include <utility>
 
 ///==============================================================================
-class GuardCondition
+class GuardCondition final
 {
 public:
   GuardCondition();
 
   void trigger();
 
-  void attachCondition(
-    std::mutex * conditionMutex,
-    std::condition_variable * conditionVariable);
+  void attach_condition(
+    std::mutex * condition_mutex,
+    std::condition_variable * condition_variable);
 
-  void detachCondition();
+  void detach_condition();
 
-  bool hasTriggered();
+  bool has_triggered() const;
 
-  bool getHasTriggered();
+  bool get_has_triggered();
 
 private:
-  std::mutex internalMutex_;
-  std::atomic_bool hasTriggered_;
-  std::mutex * conditionMutex_;
-  std::condition_variable * conditionVariable_;
+  std::mutex internal_mutex_;
+  std::atomic_bool has_triggered_;
+  std::mutex * condition_mutex_;
+  std::condition_variable * condition_variable_;
 };
 
 #endif  // SRC__DETAIL__GUARDCONDITION_HPP

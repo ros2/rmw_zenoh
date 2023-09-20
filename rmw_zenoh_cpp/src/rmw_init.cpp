@@ -77,6 +77,7 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   if ((ret = rmw_init_options_copy(options, &context->options)) != RMW_RET_OK) {
     return ret;
   }
+  auto free_options = rcpputils::make_scope_exit([context]() {rmw_ret_t ret = rmw_init_options_fini(&context->options); (void)ret;});
 
   // Initialize context's implementation
   context->impl->is_shutdown = false;
@@ -107,21 +108,21 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   }
 
   // Initialize the guard condition.
-  // context->impl->graph_guard_condition = static_cast<rmw_guard_condition_t *>(
-  //   option->allocator.allocate(sizeof(rmw_guard_condition_t), options->allocator.state));
-
   context->impl->graph_guard_condition = rmw_guard_condition_allocate();
-  context->impl->graph_guard_condition->implementation_identifier = rmw_zenoh_identifier;
-  context->impl->graph_guard_condition->data = new GuardCondition();
-
-
   if (!context->impl->graph_guard_condition) {
-    if (context->impl->graph_guard_condition->data) {
-      delete static_cast<GuardCondition *>(context->impl->graph_guard_condition->data);
-    }
-    rmw_guard_condition_free(context->impl->graph_guard_condition);
+    RMW_SET_ERROR_MSG("Error allocating memory for guard condition");
+    return RMW_RET_BAD_ALLOC;
+  }
+  auto cleanup_guard_condition = rcpputils::make_scope_exit([context]() {rmw_guard_condition_free(context->impl->graph_guard_condition);});
+  context->impl->graph_guard_condition->implementation_identifier = rmw_zenoh_identifier;
+  context->impl->graph_guard_condition->data = new (std::nothrow) GuardCondition();
+  if (!context->impl->graph_guard_condition->data) {
+    RMW_SET_ERROR_MSG("Error allocating memory for guard condition data");
+    return RMW_RET_BAD_ALLOC;
   }
 
+  cleanup_guard_condition.cancel();
+  free_options.cancel();
   cleanup_impl.cancel();
   restore_context.cancel();
   return RMW_RET_OK;
@@ -171,6 +172,11 @@ rmw_context_fini(rmw_context_t * context)
     RCUTILS_SET_ERROR_MSG("context has not been shutdown");
     return RMW_RET_INVALID_ARGUMENT;
   }
+
+  delete static_cast<GuardCondition *>(context->impl->graph_guard_condition->data);
+
+  rmw_guard_condition_free(context->impl->graph_guard_condition);
+
   rmw_ret_t ret = rmw_init_options_fini(&context->options);
   delete context->impl;
   *context = rmw_get_zero_initialized_context();
