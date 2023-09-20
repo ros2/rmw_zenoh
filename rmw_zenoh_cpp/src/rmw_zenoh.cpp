@@ -14,7 +14,6 @@
 
 #include "detail/guard_condition.hpp"
 #include "detail/identifier.hpp"
-#include "detail/rmw_context_impl.hpp"
 #include "detail/rmw_data_types.hpp"
 #include "detail/serialization_format.hpp"
 #include "detail/type_support_common.hpp"
@@ -125,6 +124,7 @@ rmw_create_node(
     [node]() {
       rmw_free(const_cast<char *>(node->name));
       rmw_free(const_cast<char *>(node->namespace_));
+      rmw_free(static_cast<rmw_node_data_t *>(node->data));
       rmw_node_free(node);
     });
 
@@ -140,6 +140,12 @@ rmw_create_node(
   // TODO(yadunund): Register with storage system here and throw error if
   // zenohd is not running.
   // Put metadata into node->data.
+  auto node_data = static_cast<rmw_node_data_t *>(rmw_allocate(sizeof(rmw_node_data_t)));
+  if (node_data == nullptr) {
+    RMW_SET_ERROR_MSG("failed to allocate node data");
+    return nullptr;
+  }
+  node->data = node_data;
 
   cleanup_node.cancel();
   node->implementation_identifier = rmw_zenoh_identifier;
@@ -165,6 +171,7 @@ rmw_destroy_node(rmw_node_t * node)
   // rmw_context_t * context = node->context;
   rmw_free(const_cast<char *>(node->name));
   rmw_free(const_cast<char *>(node->namespace_));
+  rmw_free(static_cast<rmw_node_data_t *>(node->data));
   rmw_node_free(const_cast<rmw_node_t *>(node));
   // delete node_impl;
   return result_ret;
@@ -335,7 +342,7 @@ rmw_create_publisher(
     NULL
   );
   if (!z_check(publisher_data->pub)) {
-    RMW_SET_ERROR_MSG("unable to create publisher");
+    RMW_SET_ERROR_MSG("unable to create zenoh publisher");
     return nullptr;
   }
   auto undeclare_z_publisher = rcpputils::make_scope_exit(
@@ -527,12 +534,17 @@ rmw_publish(
 
   const size_t data_length = ser.getSerializedDataLength();
 
+  // The encoding is simply forwarded and is useful when key expressions in the
+  // session use different encoding formats. In our case, all key expressions
+  // will be encoded with CDR so it does not really matter.
+  z_publisher_put_options_t options = z_publisher_put_options_default();
+  options.encoding = z_encoding(Z_ENCODING_PREFIX_EMPTY, NULL);
   // Returns 0 if success.
   int8_t ret = z_publisher_put(
     z_loan(publisher_data->pub),
     (const uint8_t *)msg_bytes,
     data_length,
-    NULL);
+    &options);
 
   allocator->deallocate(msg_bytes, allocator->state);
 
@@ -619,12 +631,17 @@ rmw_publish_serialized_message(
 
   const size_t data_length = ser.getSerializedDataLength();
 
+  // The encoding is simply forwarded and is useful when key expressions in the
+  // session use different encoding formats. In our case, all key expressions
+  // will be encoded with CDR so it does not really matter.
+  z_publisher_put_options_t options = z_publisher_put_options_default();
+  options.encoding = z_encoding(Z_ENCODING_PREFIX_EMPTY, NULL);
   // Returns 0 if success.
   int8_t ret = z_publisher_put(
     z_loan(publisher_data->pub),
     serialized_message->buffer,
     data_length,
-    NULL);
+    &options);
 
   if (ret) {
     RMW_SET_ERROR_MSG("unable to publish message");
@@ -693,6 +710,10 @@ rmw_init_subscription_allocation(
   const rosidl_runtime_c__Sequence__bound * message_bounds,
   rmw_subscription_allocation_t * allocation)
 {
+  // Unused in current implementation.
+  (void) type_support;
+  (void) message_bounds;
+  (void) allocation;
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -702,6 +723,7 @@ rmw_ret_t
 rmw_fini_subscription_allocation(
   rmw_subscription_allocation_t * allocation)
 {
+  (void) allocation;
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -710,12 +732,167 @@ rmw_fini_subscription_allocation(
 rmw_subscription_t *
 rmw_create_subscription(
   const rmw_node_t * node,
-  const rosidl_message_type_support_t * type_support,
+  const rosidl_message_type_support_t * type_supports,
   const char * topic_name,
   const rmw_qos_profile_t * qos_profile,
   const rmw_subscription_options_t * subscription_options)
 {
-  return nullptr;
+  RMW_CHECK_ARGUMENT_FOR_NULL(node, nullptr);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    node,
+    node->implementation_identifier,
+    rmw_zenoh_identifier,
+    return nullptr);
+  RMW_CHECK_ARGUMENT_FOR_NULL(type_supports, nullptr);
+  RMW_CHECK_ARGUMENT_FOR_NULL(topic_name, nullptr);
+  if (0 == strlen(topic_name)) {
+    RMW_SET_ERROR_MSG("create_subscription() called with an empty topic_name argument");
+    return nullptr;
+  }
+  RMW_CHECK_ARGUMENT_FOR_NULL(qos_profile, nullptr);
+  // Adapt any 'best available' QoS options
+  // rmw_qos_profile_t adapted_qos_profile = *qos_profile;
+  // rmw_ret_t ret = rmw_dds_common::qos_profile_get_best_available_for_topic_subscription(
+  //   node, topic_name, &adapted_qos_profile, rmw_get_publishers_info_by_topic);
+  // if (RMW_RET_OK != ret) {
+  //   return nullptr;
+  // }
+  RMW_CHECK_ARGUMENT_FOR_NULL(subscription_options, nullptr);
+
+  // Check RMW QoS
+  // if (!is_valid_qos(*qos_profile)) {
+  //   RMW_SET_ERROR_MSG("create_subscription() called with invalid QoS");
+  //   return nullptr;
+  // }
+
+  const rosidl_message_type_support_t * type_support = get_message_typesupport_handle(
+    type_supports, RMW_FASTRTPS_CPP_TYPESUPPORT_C);
+  if (!type_support) {
+    rcutils_error_string_t prev_error_string = rcutils_get_error_string();
+    rcutils_reset_error();
+    type_support = get_message_typesupport_handle(
+      type_supports, RMW_FASTRTPS_CPP_TYPESUPPORT_CPP);
+    if (!type_support) {
+      rcutils_error_string_t error_string = rcutils_get_error_string();
+      rcutils_reset_error();
+      RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
+        "Type support not from this implementation. Got:\n"
+        "    %s\n"
+        "    %s\n"
+        "while fetching it",
+        prev_error_string.str, error_string.str);
+      return nullptr;
+    }
+  }
+  auto node_data = static_cast<rmw_node_data_t *>(node->data);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    node_data, "unable to create subscription as node_data is invalid.",
+    return nullptr);
+  // TODO(yadunund): Check if a duplicate entry for the same topic name + topic type
+  // is present in node_data->subscriptions and if so return error;
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    node->context,
+    "expected initialized context",
+    return nullptr);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    node->context->impl,
+    "expected initialized context impl",
+    return nullptr);
+  rmw_context_impl_s * context_impl = static_cast<rmw_context_impl_s *>(
+    node->context->impl);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    context_impl,
+    "unable to get rmw_context_impl_s",
+    return nullptr);
+  if (!z_check(context_impl->session)) {
+    RMW_SET_ERROR_MSG("zenoh session is invalid");
+    return nullptr;
+  }
+
+  // Create the rmw_subscription.
+  rmw_subscription_t * rmw_subscription = rmw_subscription_allocate();
+  if (!rmw_subscription) {
+    RMW_SET_ERROR_MSG("create_subscription() failed to allocate subscription");
+    return nullptr;
+  }
+  auto free_rmw_subscription = rcpputils::make_scope_exit(
+    [rmw_subscription]() {
+      rmw_subscription_free(rmw_subscription);
+    });
+  rcutils_allocator_t * allocator = &node->context->options.allocator;
+  auto * sub_data =
+    static_cast<rmw_subscription_data_t *>(allocator->allocate(
+      sizeof(rmw_subscription_data_t),
+      allocator->state));
+  if (sub_data == nullptr) {
+    RMW_SET_ERROR_MSG("failed to allocate sub_data");
+    return nullptr;
+  }
+  auto free_sub_data = rcpputils::make_scope_exit(
+    [sub_data, allocator]() {
+      allocator->deallocate(sub_data, allocator->state);
+    });
+
+  // Set the reliability of the subscription options based on qos_profile.
+  // The default options will be initialized with Best Effort reliability.
+  auto sub_options = z_subscriber_options_default();
+  sub_data->reliable = false;
+  if (qos_profile->reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE) {
+    sub_options.reliability = Z_RELIABILITY_RELIABLE;
+    sub_data->reliable = true;
+  }
+
+  z_owned_closure_sample_t callback = z_closure(sub_data_handler, nullptr, sub_data);
+  sub_data->sub = z_declare_subscriber(
+    z_loan(context_impl->session),
+    z_keyexpr(&topic_name[1]),
+    z_move(callback),
+    &sub_options
+  );
+  if (!z_check(sub_data->sub)) {
+    RMW_SET_ERROR_MSG("unable to create zenoh subscription");
+    return nullptr;
+  }
+  auto undeclare_z_sub = rcpputils::make_scope_exit(
+    [sub_data]() {
+      z_undeclare_subscriber(z_move(sub_data->sub));
+    });
+
+  sub_data->type_support_impl = type_support->data;
+  sub_data->typesupport_identifier = type_support->typesupport_identifier;
+  auto callbacks = static_cast<const message_type_support_callbacks_t *>(type_support->data);
+  // std::string type_name = _create_type_name(callbacks);
+  sub_data->type_support = static_cast<MessageTypeSupport *>(
+    rmw_allocate(sizeof(MessageTypeSupport)));
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    sub_data->type_support,
+    "Failed to allocate MessageTypeSupport",
+    return nullptr);
+  auto free_type_support = rcpputils::make_scope_exit(
+    [sub_data, allocator]() {
+      allocator->deallocate(sub_data->type_support, allocator->state);
+    });
+
+  sub_data->queue_depth = qos_profile->depth;
+  new(sub_data->type_support) MessageTypeSupport(callbacks);
+  rmw_subscription->implementation_identifier = rmw_zenoh_identifier;
+  rmw_subscription->data = sub_data;
+  rmw_subscription->topic_name = rcutils_strdup(topic_name, *allocator);
+  RMW_CHECK_ARGUMENT_FOR_NULL(rmw_subscription->topic_name, nullptr);
+  auto free_topic_name = rcpputils::make_scope_exit(
+    [rmw_subscription, allocator]() {
+      allocator->deallocate(const_cast<char *>(rmw_subscription->topic_name), allocator->state);
+    });
+  rmw_subscription->options = *subscription_options;
+  rmw_subscription->can_loan_messages = false;
+  rmw_subscription->is_cft_enabled = false;
+
+  free_topic_name.cancel();
+  free_type_support.cancel();
+  undeclare_z_sub.cancel();
+  free_sub_data.cancel();
+  free_rmw_subscription.cancel();
+  return rmw_subscription;
 }
 
 //==============================================================================
@@ -723,7 +900,35 @@ rmw_create_subscription(
 rmw_ret_t
 rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
 {
-  return RMW_RET_UNSUPPORTED;
+  RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(subscription, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    node,
+    node->implementation_identifier,
+    rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    subscription,
+    subscription->implementation_identifier,
+    rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+
+  rmw_ret_t ret = RMW_RET_OK;
+
+  rmw_free(const_cast<char *>(subscription->topic_name));
+
+  auto sub_data = static_cast<rmw_subscription_data_t *>(subscription->data);
+  if (sub_data != nullptr) {
+    rcutils_allocator_t * allocator = &node->context->options.allocator;
+    allocator->deallocate(sub_data->type_support, allocator->state);
+    if (z_undeclare_subscriber(z_move(sub_data->sub))) {
+      RMW_SET_ERROR_MSG("failed to undeclare sub");
+      ret = RMW_RET_ERROR;
+    }
+    allocator->deallocate(sub_data, allocator->state);
+  }
+  rmw_subscription_free(subscription);
+  return ret;
 }
 
 //==============================================================================
@@ -743,7 +948,20 @@ rmw_subscription_get_actual_qos(
   const rmw_subscription_t * subscription,
   rmw_qos_profile_t * qos)
 {
-  return RMW_RET_UNSUPPORTED;
+  RMW_CHECK_ARGUMENT_FOR_NULL(subscription, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    subscription,
+    subscription->implementation_identifier,
+    rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_ARGUMENT_FOR_NULL(qos, RMW_RET_INVALID_ARGUMENT);
+
+  auto sub_data = static_cast<rmw_subscription_data_t *>(subscription->data);
+  RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
+
+  qos->reliability = sub_data->reliable ? RMW_QOS_POLICY_RELIABILITY_RELIABLE :
+    RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT;
+  return RMW_RET_OK;
 }
 
 //==============================================================================
@@ -789,7 +1007,63 @@ rmw_take_with_info(
   rmw_message_info_t * message_info,
   rmw_subscription_allocation_t * allocation)
 {
-  return RMW_RET_UNSUPPORTED;
+
+  RMW_CHECK_ARGUMENT_FOR_NULL(subscription, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(subscription->topic_name, RMW_RET_ERROR);
+  RMW_CHECK_ARGUMENT_FOR_NULL(subscription->data, RMW_RET_ERROR);
+  RMW_CHECK_ARGUMENT_FOR_NULL(ros_message, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(taken, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(message_info, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    subscription handle,
+    subscription->implementation_identifier, rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+
+  (void) allocation;
+  *taken = false;
+
+  auto * sub_data = static_cast<rmw_subscription_data_t *>(subscription->data);
+
+  // RETRIEVE SERIALIZED MESSAGE ===============================================
+  std::unique_lock<std::mutex> lock(sub_data->message_queue_mutex);
+
+  if (sub_data->message_queue.empty()) {
+    // This tells rcl that the check for a new message was done, but no messages have come in yet.
+    return RMW_RET_OK;
+  }
+
+  // NOTE(CH3): Potential place to handle "QoS" (e.g. could pop from back so it is LIFO)
+  auto msg_bytes_ptr = sub_data->message_queue.back();
+  sub_data->message_queue.pop_back();
+  sub_data->message_queue_mutex.unlock();
+
+  unsigned char * cdr_buffer = static_cast<unsigned char *>(rmw_allocate(
+      msg_bytes_ptr->size()));
+  memcpy(cdr_buffer, &msg_bytes_ptr->front(), msg_bytes_ptr->size());
+
+  // Object that manages the raw buffer
+  eprosima::fastcdr::FastBuffer fastbuffer(
+    reinterpret_cast<char *>(cdr_buffer),
+    msg_bytes_ptr->size());
+
+  // Object that serializes the data
+  eprosima::fastcdr::Cdr deser(
+    fastbuffer,
+    eprosima::fastcdr::Cdr::DEFAULT_ENDIAN,
+    eprosima::fastcdr::Cdr::DDS_CDR);
+  if (!sub_data->type_support->deserializeROSmessage(
+      deser,
+      ros_message,
+      sub_data->type_support_impl))
+  {
+    RMW_SET_ERROR_MSG("could not deserialize ROS message");
+    return RMW_RET_ERROR;
+  }
+
+  *taken = true;
+  rmw_free(cdr_buffer);
+
+  return RMW_RET_OK;
 }
 
 //==============================================================================
@@ -965,9 +1239,9 @@ rmw_create_service(
       return nullptr;
     }
   }
-  // rmw_qos_profile_t adapted_qos_policies =
-  //   rmw_dds_common::qos_profile_update_best_available_for_services(*qos_policies);
-  // if (!is_valid_qos(adapted_qos_policies)) {
+  // rmw_qos_profile_t adapted_qos_profile =
+  //   rmw_dds_common::qos_profile_update_best_available_for_services(*qos_profile);
+  // if (!is_valid_qos(adapted_qos_profile)) {
   //   RMW_SET_ERROR_MSG("create_service() called with invalid QoS");
   //   return nullptr;
   // }
@@ -1176,8 +1450,88 @@ bool check_wait_conditions(
   const rmw_events_t * events,
   bool finalize)
 {
-  // TODO(yadunund): Fixme.
-  return true;
+  // NOTE(CH3): On the finalize parameter
+  // This check function is used as a predicate to wait on a condition variable. But rcl expects
+  // rmw to set any passed in pointers to NULL if the condition is not ready.
+  //
+  // The finalize parameter is used to make sure that this setting to NULL only happens ONCE per
+  // rmw_wait call. Otherwise on repeat calls to check the predicate, things will break since
+  // it'll try to compare or dereference a nullptr.
+
+  bool stop_wait = false;
+
+  // SUBSCRIPTIONS =============================================================
+  if (subscriptions) {
+    size_t subscriptions_ready = 0;
+
+    for (size_t i = 0; i < subscriptions->subscriber_count; ++i) {
+      auto subscription_data = static_cast<rmw_subscription_data_t *>(
+        subscriptions->subscribers[i]);
+      if (subscription_data && subscription_data->message_queue.empty()) {
+        if (finalize) {
+          // Setting to nullptr lets rcl know that this subscription is not ready
+          subscriptions->subscribers[i] = nullptr;
+        }
+      } else {
+        subscriptions_ready++;
+        stop_wait = true;
+      }
+    }
+
+    if (finalize && subscriptions_ready > 0) {
+      RCUTILS_LOG_DEBUG_NAMED(
+        "rmw_zenoh_cpp", "[rmw_wait] SUBSCRIPTIONS READY: %ld",
+        subscriptions_ready);
+    }
+  }
+
+  // SERVICES ==================================================================
+  // TODO(yadunund)
+  for (size_t i = 0; i < services->service_count; ++i) {
+    services->services[i] = nullptr;
+  }
+
+  // CLIENTS ===================================================================
+  // TODO(yadunund)
+  for (size_t i = 0; i < clients->client_count; ++i) {
+    clients->clients[i] = nullptr;
+  }
+
+  // Guard conditions
+  // for (size_t i = 0; i < guard_conditions->guard_condition_count; ++i) {
+  //   guard_conditions->guard_conditions[i] = nullptr;
+  // }
+  if (guard_conditions) {
+    size_t guard_conditions_ready = 0;
+
+    for (size_t i = 0; i < guard_conditions->guard_condition_count; ++i) {
+      auto guard_condition = static_cast<GuardCondition *>(
+        guard_conditions->guard_conditions[i]);
+      if (guard_condition && guard_condition->has_triggered()) {
+        if (finalize) {
+          // Setting to nullptr lets rcl know that this guard_condition is not ready
+          guard_conditions->guard_conditions[i] = nullptr;
+        }
+      } else {
+        guard_conditions_ready++;
+        stop_wait = true;
+      }
+    }
+
+    if (finalize && guard_conditions_ready > 0) {
+      RCUTILS_LOG_DEBUG_NAMED(
+        "rmw_zenoh_common_cpp", "[rmw_wait] GUARD CONDITIONS READY: %ld",
+        guard_conditions_ready);
+    }
+  }
+
+  // Events
+  // TODO(yadunund)
+  for (size_t i = 0; i < events->event_count; ++i) {
+    events->events[i] = nullptr;
+  }
+
+  return stop_wait;
 }
 
 } // namespace anonymous
