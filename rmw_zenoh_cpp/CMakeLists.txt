@@ -29,8 +29,6 @@ find_package(rmw_fastrtps_shared_cpp REQUIRED)
 find_package(zenoh_c_vendor REQUIRED)
 find_package(zenohc REQUIRED)
 
-
-
 add_library(rmw_zenoh_cpp SHARED
   src/detail/identifier.cpp
   src/detail/guard_condition.cpp
@@ -55,9 +53,8 @@ target_link_libraries(rmw_zenoh_cpp
     rosidl_typesupport_fastrtps_c::rosidl_typesupport_fastrtps_c
     rosidl_typesupport_fastrtps_cpp::rosidl_typesupport_fastrtps_cpp
     rmw::rmw
-    ${rmw_dds_common_TARGETS}
-    ${rmw_fastrtps_shared_cpp_TARGETS}
-    ${rmw_fastrtps_shared_cpp_LIBRARIES}
+    rmw_dds_common::rmw_dds_common_library
+    rmw_fastrtps_shared_cpp::rmw_fastrtps_shared_cpp
     zenohc::lib
 )
 
