@@ -1,5 +1,8 @@
 # rmw_alternative
 
+![](https://github.com/yadunund/rmw_alternative/workflows/build/badge.svg)
+![](https://github.com/yadunund/rmw_alternative/workflows/style/badge.svg)
+
 A ROS 2 RMW implementation based on Zenoh that is written using the zenoh-c bindings.
 
 ## Requirements
