@@ -310,7 +310,10 @@ rmw_create_publisher(
   //   RMW_SET_ERROR_MSG("unable to cast publisher data into rmw_publisher_data_t");
   //   return nullptr;
   // }
-  auto free_rmw_publisher = rcpputils::make_scope_exit([rmw_publisher](){rmw_publisher_free(rmw_publisher);});
+  auto free_rmw_publisher = rcpputils::make_scope_exit(
+    [rmw_publisher]() {
+      rmw_publisher_free(rmw_publisher);
+    });
   rcutils_allocator_t * allocator = &node->context->options.allocator;
   auto publisher_data = static_cast<rmw_publisher_data_t *>(
     allocator->allocate(sizeof(rmw_publisher_data_t), allocator->state));
@@ -318,7 +321,10 @@ rmw_create_publisher(
     RMW_SET_ERROR_MSG("failed to allocate publisher data");
     return nullptr;
   }
-  auto free_publisher_data = rcpputils::make_scope_exit([publisher_data, allocator](){allocator->deallocate(publisher_data, allocator->state);});
+  auto free_publisher_data = rcpputils::make_scope_exit(
+    [publisher_data, allocator]() {
+      allocator->deallocate(publisher_data, allocator->state);
+    });
 
   // TODO(yadunund): Zenoh key cannot contain leading or trailing '/' so we strip them.
   // TODO(yadunund): Parse adapted_qos_profile and publisher_options to generate
@@ -332,7 +338,10 @@ rmw_create_publisher(
     RMW_SET_ERROR_MSG("unable to create publisher");
     return nullptr;
   }
-  auto undeclare_z_publisher = rcpputils::make_scope_exit([publisher_data](){z_undeclare_publisher(z_move(publisher_data->pub));});
+  auto undeclare_z_publisher = rcpputils::make_scope_exit(
+    [publisher_data]() {
+      z_undeclare_publisher(z_move(publisher_data->pub));
+    });
 
   publisher_data->typesupport_identifier = type_support->typesupport_identifier;
   publisher_data->type_support_impl = type_support->data;
@@ -343,7 +352,10 @@ rmw_create_publisher(
     publisher_data->type_support,
     "Failed to allocate MessageTypeSupport",
     return nullptr);
-  auto free_type_support = rcpputils::make_scope_exit([publisher_data, allocator](){allocator->deallocate(publisher_data->type_support, allocator->state);});
+  auto free_type_support = rcpputils::make_scope_exit(
+    [publisher_data, allocator]() {
+      allocator->deallocate(publisher_data->type_support, allocator->state);
+    });
 
   new(publisher_data->type_support) MessageTypeSupport(callbacks);
   publisher_data->context = node->context;

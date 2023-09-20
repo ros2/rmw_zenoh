@@ -77,7 +77,10 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   if ((ret = rmw_init_options_copy(options, &context->options)) != RMW_RET_OK) {
     return ret;
   }
-  auto free_options = rcpputils::make_scope_exit([context]() {rmw_ret_t ret = rmw_init_options_fini(&context->options); (void)ret;});
+  auto free_options = rcpputils::make_scope_exit(
+    [context]() {
+      rmw_ret_t ret = rmw_init_options_fini(&context->options); (void)ret;
+    });
 
   // Initialize context's implementation
   context->impl->is_shutdown = false;
@@ -113,7 +116,10 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
     RMW_SET_ERROR_MSG("Error allocating memory for guard condition");
     return RMW_RET_BAD_ALLOC;
   }
-  auto cleanup_guard_condition = rcpputils::make_scope_exit([context]() {rmw_guard_condition_free(context->impl->graph_guard_condition);});
+  auto cleanup_guard_condition = rcpputils::make_scope_exit(
+    [context]() {
+      rmw_guard_condition_free(context->impl->graph_guard_condition);
+    });
   context->impl->graph_guard_condition->implementation_identifier = rmw_zenoh_identifier;
   context->impl->graph_guard_condition->data = new (std::nothrow) GuardCondition();
   if (!context->impl->graph_guard_condition->data) {
