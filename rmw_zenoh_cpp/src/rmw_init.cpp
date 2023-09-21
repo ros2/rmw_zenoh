@@ -14,6 +14,8 @@
 
 #include <zenoh.h>
 
+#include <new>
+
 #include "detail/guard_condition.hpp"
 #include "detail/identifier.hpp"
 #include "detail/rmw_data_types.hpp"
@@ -64,16 +66,23 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   context->actual_domain_id =
     RMW_DEFAULT_DOMAIN_ID != options->domain_id ? options->domain_id : 0u;
 
+  const rcutils_allocator_t * allocator = &options->allocator;
+
+  // TODO(clalancette): We should use the allocator and placement new here,
+  // but that caused crashes for reasons I don't understand.
   context->impl = new (std::nothrow) rmw_context_impl_t();
-  if (nullptr == context->impl) {
-    RMW_SET_ERROR_MSG("failed to allocate context impl");
-    return RMW_RET_BAD_ALLOC;
-  }
-  auto cleanup_impl = rcpputils::make_scope_exit(
-    [context]() {delete context->impl;});
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    context->impl,
+    "failed to allocate context impl",
+    return RMW_RET_BAD_ALLOC);
+  auto free_impl = rcpputils::make_scope_exit(
+    [context]() {
+      delete context->impl;
+    });
 
   rmw_ret_t ret;
   if ((ret = rmw_init_options_copy(options, &context->options)) != RMW_RET_OK) {
+    // error already set
     return ret;
   }
   auto free_options = rcpputils::make_scope_exit(
@@ -114,31 +123,44 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
     });
 
   // Initialize the guard condition.
-  context->impl->graph_guard_condition = rmw_guard_condition_allocate();
-  if (!context->impl->graph_guard_condition) {
-    RMW_SET_ERROR_MSG("Error allocating memory for guard condition");
-    return RMW_RET_BAD_ALLOC;
-  }
+  context->impl->graph_guard_condition =
+    static_cast<rmw_guard_condition_t *>(allocator->zero_allocate(
+      1, sizeof(rmw_guard_condition_t), allocator->state));
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    context->impl->graph_guard_condition,
+    "failed to allocate graph guard condition",
+    return RMW_RET_BAD_ALLOC);
   auto cleanup_guard_condition = rcpputils::make_scope_exit(
     [context]() {
       rmw_guard_condition_free(context->impl->graph_guard_condition);
     });
+
   context->impl->graph_guard_condition->implementation_identifier = rmw_zenoh_identifier;
-  context->impl->graph_guard_condition->data = new (std::nothrow) GuardCondition();
-  if (!context->impl->graph_guard_condition->data) {
-    RMW_SET_ERROR_MSG("Error allocating memory for guard condition data");
-    return RMW_RET_BAD_ALLOC;
-  }
+
+  context->impl->graph_guard_condition->data =
+    allocator->zero_allocate(1, sizeof(GuardCondition), allocator->state);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    context->impl->graph_guard_condition->data,
+    "failed to allocate graph guard condition data",
+    return RMW_RET_BAD_ALLOC);
   auto free_guard_condition_data = rcpputils::make_scope_exit(
-    [context]() {
-      delete static_cast<GuardCondition *>(context->impl->graph_guard_condition->data);
+    [context, allocator]() {
+      allocator->deallocate(context->impl->graph_guard_condition->data, allocator->state);
     });
 
+  new(context->impl->graph_guard_condition->data) GuardCondition;
+  auto destruct_guard_condition = rcpputils::make_scope_exit(
+    [context]() {
+      auto gc_data = static_cast<GuardCondition *>(context->impl->graph_guard_condition->data);
+      RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(gc_data->~GuardCondition(), GuardCondition);
+    });
+
+  destruct_guard_condition.cancel();
   free_guard_condition_data.cancel();
   cleanup_guard_condition.cancel();
   close_session.cancel();
   free_options.cancel();
-  cleanup_impl.cancel();
+  free_impl.cancel();
   restore_context.cancel();
 
   return RMW_RET_OK;
@@ -189,17 +211,23 @@ rmw_context_fini(rmw_context_t * context)
     return RMW_RET_INVALID_ARGUMENT;
   }
 
-  delete static_cast<GuardCondition *>(context->impl->graph_guard_condition->data);
+  const rcutils_allocator_t * allocator = &context->options.allocator;
 
-  rmw_guard_condition_free(context->impl->graph_guard_condition);
+  static_cast<GuardCondition *>(context->impl->graph_guard_condition->data)->~GuardCondition();
+  allocator->deallocate(context->impl->graph_guard_condition->data, allocator->state);
+
+  allocator->deallocate(context->impl->graph_guard_condition, allocator->state);
 
   if (!context->impl->is_shutdown) {
     z_close(z_move(context->impl->session));
   }
 
   rmw_ret_t ret = rmw_init_options_fini(&context->options);
+
   delete context->impl;
+
   *context = rmw_get_zero_initialized_context();
+
   return ret;
 }
 }  // extern "C"

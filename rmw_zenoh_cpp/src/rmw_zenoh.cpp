@@ -15,6 +15,8 @@
 #include <fastcdr/FastBuffer.h>
 #include <fastcdr/Cdr.h>
 
+#include <new>
+
 #include "detail/guard_condition.hpp"
 #include "detail/identifier.hpp"
 #include "detail/rmw_data_types.hpp"
@@ -115,41 +117,60 @@ rmw_create_node(
     return nullptr;
   }
 
-  rmw_node_t * node = rmw_node_allocate();
+  rcutils_allocator_t * allocator = &context->options.allocator;
+
+  rmw_node_t * node =
+    static_cast<rmw_node_t *>(allocator->zero_allocate(1, sizeof(rmw_node_t), allocator->state));
   RMW_CHECK_FOR_NULL_WITH_MSG(
     node,
     "unable to allocate memory for rmw_node_t",
     return nullptr);
   auto cleanup_node = rcpputils::make_scope_exit(
-    [node]() {
-      rmw_free(const_cast<char *>(node->name));
-      rmw_free(const_cast<char *>(node->namespace_));
-      rmw_free(static_cast<rmw_node_data_t *>(node->data));
-      rmw_node_free(node);
+    [node, allocator]() {
+      allocator->deallocate(node, allocator->state);
     });
 
-  node->name = static_cast<const char *>(rmw_allocate(sizeof(char) * strlen(name) + 1));
-  RMW_CHECK_ARGUMENT_FOR_NULL(node->name, nullptr);
-  memcpy(const_cast<char *>(node->name), name, strlen(name) + 1);
+  node->name = rcutils_strdup(name, *allocator);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    node->name,
+    "unable to allocate memory for node name",
+    return nullptr);
+  auto free_name = rcpputils::make_scope_exit(
+    [node, allocator]() {
+      allocator->deallocate(const_cast<char *>(node->name), allocator->state);
+    });
 
-  node->namespace_ =
-    static_cast<const char *>(rmw_allocate(sizeof(char) * strlen(namespace_) + 1));
-  RMW_CHECK_ARGUMENT_FOR_NULL(node->namespace_, nullptr);
-  memcpy(const_cast<char *>(node->namespace_), namespace_, strlen(namespace_) + 1);
+  node->namespace_ = rcutils_strdup(namespace_, *allocator);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    node->namespace_,
+    "unable to allocate memory for node namespace",
+    return nullptr);
+  auto free_namespace = rcpputils::make_scope_exit(
+    [node, allocator]() {
+      allocator->deallocate(const_cast<char *>(node->namespace_), allocator->state);
+    });
 
   // TODO(yadunund): Register with storage system here and throw error if
   // zenohd is not running.
   // Put metadata into node->data.
-  auto node_data = static_cast<rmw_node_data_t *>(rmw_allocate(sizeof(rmw_node_data_t)));
-  if (node_data == nullptr) {
-    RMW_SET_ERROR_MSG("failed to allocate node data");
-    return nullptr;
-  }
-  node->data = node_data;
+  node->data = allocator->zero_allocate(1, sizeof(rmw_node_data_t), allocator->state);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    node->data,
+    "unable to allocate memory for node data",
+    return nullptr);
+  auto free_node_data = rcpputils::make_scope_exit(
+    [node, allocator]() {
+      allocator->deallocate(node->data, allocator->state);
+    });
 
-  cleanup_node.cancel();
   node->implementation_identifier = rmw_zenoh_identifier;
   node->context = context;
+
+  free_node_data.cancel();
+  free_namespace.cancel();
+  free_name.cancel();
+  cleanup_node.cancel();
+
   return node;
 }
 
@@ -158,7 +179,6 @@ rmw_create_node(
 rmw_ret_t
 rmw_destroy_node(rmw_node_t * node)
 {
-  rmw_ret_t result_ret = RMW_RET_OK;
   RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node,
@@ -168,13 +188,14 @@ rmw_destroy_node(rmw_node_t * node)
 
   // TODO(Yadunund): Unregister with storage system.
 
-  // rmw_context_t * context = node->context;
-  rmw_free(const_cast<char *>(node->name));
-  rmw_free(const_cast<char *>(node->namespace_));
-  rmw_free(static_cast<rmw_node_data_t *>(node->data));
-  rmw_node_free(const_cast<rmw_node_t *>(node));
-  // delete node_impl;
-  return result_ret;
+  rcutils_allocator_t * allocator = &node->context->options.allocator;
+
+  allocator->deallocate(const_cast<char *>(node->name), allocator->state);
+  allocator->deallocate(const_cast<char *>(node->namespace_), allocator->state);
+  allocator->deallocate(node->data, allocator->state);
+  allocator->deallocate(node, allocator->state);
+
+  return RMW_RET_OK;
 }
 
 //==============================================================================
@@ -336,9 +357,16 @@ rmw_create_publisher(
     return nullptr;
   }
 
+  rcutils_allocator_t * allocator = &node->context->options.allocator;
+
   // Create the publisher.
-  rmw_publisher_t * rmw_publisher = rmw_publisher_allocate();
-  RMW_CHECK_ARGUMENT_FOR_NULL(rmw_publisher, nullptr);
+  auto rmw_publisher =
+    static_cast<rmw_publisher_t *>(allocator->zero_allocate(
+      1, sizeof(rmw_publisher_t), allocator->state));
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    rmw_publisher,
+    "failed to allocate memory for the publisher",
+    return nullptr);
   // Get typed pointer to implementation specific publisher data struct
   // auto publisher_data = static_cast<rmw_publisher_data_t *>(rmw_publisher->data);
   // if (publisher_data == nullptr) {
@@ -346,16 +374,16 @@ rmw_create_publisher(
   //   return nullptr;
   // }
   auto free_rmw_publisher = rcpputils::make_scope_exit(
-    [rmw_publisher]() {
-      rmw_publisher_free(rmw_publisher);
+    [rmw_publisher, allocator]() {
+      allocator->deallocate(rmw_publisher, allocator->state);
     });
-  rcutils_allocator_t * allocator = &node->context->options.allocator;
+
   auto publisher_data = static_cast<rmw_publisher_data_t *>(
     allocator->allocate(sizeof(rmw_publisher_data_t), allocator->state));
-  if (publisher_data == nullptr) {
-    RMW_SET_ERROR_MSG("failed to allocate publisher data");
-    return nullptr;
-  }
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    publisher_data,
+    "failed to allocate memory for publisher data",
+    return nullptr);
   auto free_publisher_data = rcpputils::make_scope_exit(
     [publisher_data, allocator]() {
       allocator->deallocate(publisher_data, allocator->state);
@@ -364,7 +392,10 @@ rmw_create_publisher(
   // TODO(yadunund): Parse adapted_qos_profile and publisher_options to generate
   // a z_publisher_put_options struct instead of passing NULL to this function.
   char * zenoh_key_name = ros_topic_name_to_zenoh_key(topic_name, allocator);
-  // TODO(clalancette): Check for NULL
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    zenoh_key_name,
+    "failed to allocate memory for zenoh key name",
+    return nullptr);
   // TODO(clalancette): What happens if the key name is a valid but empty string?
   publisher_data->pub = z_declare_publisher(
     z_loan(context_impl->session),
@@ -396,6 +427,13 @@ rmw_create_publisher(
     });
 
   new(publisher_data->type_support) MessageTypeSupport(callbacks);
+  auto destruct_msg_type_support = rcpputils::make_scope_exit(
+    [publisher_data]() {
+      RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(
+        static_cast<MessageTypeSupport *>(publisher_data->type_support)->~MessageTypeSupport(),
+        MessageTypeSupport);
+    });
+
   publisher_data->context = node->context;
   rmw_publisher->data = publisher_data;
   rmw_publisher->implementation_identifier = rmw_zenoh_identifier;
@@ -405,10 +443,12 @@ rmw_create_publisher(
   rmw_publisher->topic_name = rcutils_strdup(topic_name, *allocator);
   RMW_CHECK_ARGUMENT_FOR_NULL(rmw_publisher->topic_name, nullptr);
 
+  destruct_msg_type_support.cancel();
   free_type_support.cancel();
   undeclare_z_publisher.cancel();
   free_publisher_data.cancel();
   free_rmw_publisher.cancel();
+
   return rmw_publisher;
 }
 
@@ -432,11 +472,12 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
 
   rmw_ret_t ret = RMW_RET_OK;
 
-  rmw_free(const_cast<char *>(publisher->topic_name));
+  rcutils_allocator_t * allocator = &node->context->options.allocator;
+
+  allocator->deallocate(const_cast<char *>(publisher->topic_name), allocator->state);
 
   auto publisher_data = static_cast<rmw_publisher_data_t *>(publisher->data);
   if (publisher_data != nullptr) {
-    rcutils_allocator_t * allocator = &node->context->options.allocator;
     allocator->deallocate(publisher_data->type_support, allocator->state);
     if (z_undeclare_publisher(z_move(publisher_data->pub))) {
       RMW_SET_ERROR_MSG("failed to undeclare pub");
@@ -444,7 +485,8 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
     }
     allocator->deallocate(publisher_data, allocator->state);
   }
-  rmw_publisher_free(publisher);
+  allocator->deallocate(publisher, allocator->state);
+
   return ret;
 }
 
@@ -531,11 +573,7 @@ rmw_publish(
     publisher_data, "publisher_data is null",
     return RMW_RET_INVALID_ARGUMENT);
 
-  // Assign allocator.
-  // TODO(yadunund): Instead of storing the context in the publisher data to
-  // retrieve the allocator, use rmw_allocate().
-  rcutils_allocator_t * allocator =
-    &(static_cast<rmw_publisher_data_t *>(publisher->data)->context->options.allocator);
+  rcutils_allocator_t * allocator = &(publisher_data->context->options.allocator);
 
   // Serialize data.
   size_t max_data_length = publisher_data->type_support->getEstimatedSerializedSize(
@@ -544,6 +582,12 @@ rmw_publish(
 
   // Init serialized message byte array
   char * msg_bytes = static_cast<char *>(allocator->allocate(max_data_length, allocator->state));
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    msg_bytes, "bytes for message is null", return RMW_RET_BAD_ALLOC);
+  auto free_msg_bytes = rcpputils::make_scope_exit(
+    [msg_bytes, allocator]() {
+      allocator->deallocate(msg_bytes, allocator->state);
+    });
 
   // Object that manages the raw buffer
   eprosima::fastcdr::FastBuffer fastbuffer(msg_bytes, max_data_length);
@@ -559,7 +603,6 @@ rmw_publish(
       publisher_data->type_support_impl))
   {
     RMW_SET_ERROR_MSG("could not serialize ROS message");
-    allocator->deallocate(msg_bytes, allocator->state);
     return RMW_RET_ERROR;
   }
 
@@ -576,8 +619,6 @@ rmw_publish(
     (const uint8_t *)msg_bytes,
     data_length,
     &options);
-
-  allocator->deallocate(msg_bytes, allocator->state);
 
   if (ret) {
     RMW_SET_ERROR_MSG("unable to publish message");
@@ -1349,10 +1390,45 @@ rmw_service_response_publisher_get_actual_qos(
 rmw_guard_condition_t *
 rmw_create_guard_condition(rmw_context_t * context)
 {
-  rmw_guard_condition_t * guard_condition_handle = rmw_guard_condition_allocate();
-  guard_condition_handle->implementation_identifier = rmw_zenoh_identifier;
-  guard_condition_handle->data = new GuardCondition();
-  return guard_condition_handle;
+  rcutils_allocator_t * allocator = &context->options.allocator;
+
+  auto guard_condition =
+    static_cast<rmw_guard_condition_t *>(allocator->zero_allocate(
+      1, sizeof(rmw_guard_condition_t), allocator->state));
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    guard_condition,
+    "unable to allocate memory for guard_condition",
+    return nullptr);
+  auto free_guard_condition = rcpputils::make_scope_exit(
+    [guard_condition, allocator]() {
+      allocator->deallocate(guard_condition, allocator->state);
+    });
+
+  guard_condition->implementation_identifier = rmw_zenoh_identifier;
+  guard_condition->context = context;
+
+  guard_condition->data = allocator->zero_allocate(1, sizeof(GuardCondition), allocator->state);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    guard_condition->data,
+    "unable to allocate memory for guard condition data",
+    return nullptr);
+  auto free_guard_condition_data = rcpputils::make_scope_exit(
+    [guard_condition, allocator]() {
+      allocator->deallocate(guard_condition->data, allocator->state);
+    });
+
+  new(guard_condition->data) GuardCondition;
+  auto destruct_guard_condition = rcpputils::make_scope_exit(
+    [guard_condition]() {
+      RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(
+        static_cast<GuardCondition *>(guard_condition->data)->~GuardCondition(), GuardCondition);
+    });
+
+  destruct_guard_condition.cancel();
+  free_guard_condition_data.cancel();
+  free_guard_condition.cancel();
+
+  return guard_condition;
 }
 
 /// Finalize a given guard condition handle, reclaim the resources, and deallocate the handle.
@@ -1361,10 +1437,15 @@ rmw_destroy_guard_condition(rmw_guard_condition_t * guard_condition)
 {
   RMW_CHECK_ARGUMENT_FOR_NULL(guard_condition, RMW_RET_INVALID_ARGUMENT);
 
+  rcutils_allocator_t * allocator = &guard_condition->context->options.allocator;
+
   if (guard_condition->data) {
-    delete static_cast<GuardCondition *>(guard_condition->data);
+    static_cast<GuardCondition *>(guard_condition->data)->~GuardCondition();
+    allocator->deallocate(guard_condition->data, allocator->state);
   }
-  rmw_guard_condition_free(guard_condition);
+
+  allocator->deallocate(guard_condition, allocator->state);
+
   return RMW_RET_OK;
 }
 
@@ -1380,6 +1461,7 @@ rmw_trigger_guard_condition(const rmw_guard_condition_t * guard_condition)
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   static_cast<GuardCondition *>(guard_condition->data)->trigger();
+
   return RMW_RET_OK;
 }
 
@@ -1397,35 +1479,38 @@ rmw_create_wait_set(rmw_context_t * context, size_t max_conditions)
     return nullptr);
 
   rmw_wait_set_t * wait_set = rmw_wait_set_allocate();
-
-  auto cleanup_wait_set = rcpputils::make_scope_exit(
-    [wait_set]() {
-      if (wait_set) {
-        if (wait_set->data) {
-          RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(
-            static_cast<rmw_wait_set_data_t *>(wait_set->data)->~rmw_wait_set_data_t(),
-            wait_set->data);
-          rmw_free(wait_set->data);
-        }
-        rmw_wait_set_free(wait_set);
-      }
-    });
-
-  // From here onward, error results in unrolling in the goto fail block.
   if (!wait_set) {
     RMW_SET_ERROR_MSG("failed to allocate wait set");
     return nullptr;
   }
-  wait_set->implementation_identifier = rmw_zenoh_identifier;
-  wait_set->data = rmw_allocate(sizeof(rmw_wait_set_data_t));
+  auto cleanup_wait_set = rcpputils::make_scope_exit(
+    [wait_set]() {
+      rmw_wait_set_free(wait_set);
+    });
 
-  // Invoke placement new
-  new(wait_set->data) rmw_wait_set_data_t;
+  wait_set->implementation_identifier = rmw_zenoh_identifier;
+
+  wait_set->data = rmw_allocate(sizeof(rmw_wait_set_data_t));
   if (!wait_set->data) {
     RMW_SET_ERROR_MSG("failed to construct wait set info struct");
     return nullptr;
   }
+  auto free_wait_set_data = rcpputils::make_scope_exit(
+    [wait_set]() {
+      rmw_free(wait_set->data);
+    });
 
+  // Invoke placement new
+  new(wait_set->data) rmw_wait_set_data_t;
+  auto destruct_rmw_wait_set_data = rcpputils::make_scope_exit(
+    [wait_set]() {
+      RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(
+        static_cast<rmw_wait_set_data_t *>(wait_set->data)->~rmw_wait_set_data_t(),
+        rmw_wait_set_data);
+    });
+
+  destruct_rmw_wait_set_data.cancel();
+  free_wait_set_data.cancel();
   cleanup_wait_set.cancel();
   return wait_set;
 }
@@ -1443,30 +1528,14 @@ rmw_destroy_wait_set(rmw_wait_set_t * wait_set)
     rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
-  rmw_ret_t result = RMW_RET_OK;
   auto wait_set_data = static_cast<rmw_wait_set_data_t *>(wait_set->data);
 
-  if (!wait_set_data) {
-    RMW_SET_ERROR_MSG("wait set info is null");
-    return RMW_RET_ERROR;
-  }
-  std::mutex * conditionMutex = &wait_set_data->condition_mutex;
-  if (!conditionMutex) {
-    RMW_SET_ERROR_MSG("wait set mutex is null");
-    return RMW_RET_ERROR;
-  }
-
-  if (wait_set->data) {
-    if (wait_set_data) {
-      RMW_TRY_DESTRUCTOR(
-        wait_set_data->~rmw_wait_set_data_t(),
-        wait_set_data, result = RMW_RET_ERROR);
-    }
-    rmw_free(wait_set->data);
-  }
+  wait_set_data->~rmw_wait_set_data_t();
+  rmw_free(wait_set->data);
 
   rmw_wait_set_free(wait_set);
-  return result;
+
+  return RMW_RET_OK;
 }
 
 //==============================================================================
