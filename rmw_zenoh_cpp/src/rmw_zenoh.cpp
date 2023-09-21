@@ -218,6 +218,34 @@ rmw_fini_publisher_allocation(
   return RMW_RET_UNSUPPORTED;
 }
 
+// A function to take ros topic names and convert them to valid Zenoh keys.
+// In particular, Zenoh keys cannot start or end with a /, so this function
+// will strip them out.
+// Performance note: at present, this function allocates a new string and copies
+// the old string into it.  If this becomes a performance problem, we could consider
+// modifying the topic_name in place.  But this means we need to be much more
+// careful about who owns the string.
+static char * ros_topic_name_to_zenoh_key(
+  const char * const topic_name, rcutils_allocator_t * allocator)
+{
+  size_t start_offset = 0;
+  size_t topic_name_len = strlen(topic_name);
+  size_t end_offset = topic_name_len;
+
+  if (topic_name_len > 0) {
+    if (topic_name[0] == '/') {
+      // Strip the leading '/'
+      start_offset = 1;
+    }
+    if (topic_name[end_offset - 1] == '/') {
+      // Strip the trailing '/'
+      end_offset -= 1;
+    }
+  }
+
+  return rcutils_strndup(&topic_name[start_offset], end_offset - start_offset, *allocator);
+}
+
 //==============================================================================
 /// Create a publisher and return a handle to that publisher.
 rmw_publisher_t *
@@ -333,14 +361,17 @@ rmw_create_publisher(
       allocator->deallocate(publisher_data, allocator->state);
     });
 
-  // TODO(yadunund): Zenoh key cannot contain leading or trailing '/' so we strip them.
   // TODO(yadunund): Parse adapted_qos_profile and publisher_options to generate
   // a z_publisher_put_options struct instead of passing NULL to this function.
+  char * zenoh_key_name = ros_topic_name_to_zenoh_key(topic_name, allocator);
+  // TODO(clalancette): Check for NULL
+  // TODO(clalancette): What happens if the key name is a valid but empty string?
   publisher_data->pub = z_declare_publisher(
     z_loan(context_impl->session),
     z_keyexpr(&topic_name[1]),
     NULL
   );
+  allocator->deallocate(zenoh_key_name, allocator->state);
   if (!z_check(publisher_data->pub)) {
     RMW_SET_ERROR_MSG("unable to create zenoh publisher");
     return nullptr;

@@ -109,7 +109,7 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
     return RMW_RET_INVALID_ARGUMENT;
   }
   auto close_session = rcpputils::make_scope_exit(
-    [context](){
+    [context]() {
       z_close(z_move(context->impl->session));
     });
 
