@@ -28,6 +28,12 @@ rmw_get_subscriber_names_and_types_by_node(
   bool no_demangle,
   rmw_names_and_types_t * topic_names_and_types)
 {
+  static_cast<void>(node);
+  static_cast<void>(allocator);
+  static_cast<void>(node_name);
+  static_cast<void>(node_namespace);
+  static_cast<void>(no_demangle);
+  static_cast<void>(topic_names_and_types);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -42,6 +48,12 @@ rmw_get_publisher_names_and_types_by_node(
   bool no_demangle,
   rmw_names_and_types_t * topic_names_and_types)
 {
+  static_cast<void>(node);
+  static_cast<void>(allocator);
+  static_cast<void>(node_name);
+  static_cast<void>(node_namespace);
+  static_cast<void>(no_demangle);
+  static_cast<void>(topic_names_and_types);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -55,6 +67,11 @@ rmw_get_service_names_and_types_by_node(
   const char * node_namespace,
   rmw_names_and_types_t * service_names_and_types)
 {
+  static_cast<void>(node);
+  static_cast<void>(allocator);
+  static_cast<void>(node_name);
+  static_cast<void>(node_namespace);
+  static_cast<void>(service_names_and_types);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -68,6 +85,11 @@ rmw_get_client_names_and_types_by_node(
   const char * node_namespace,
   rmw_names_and_types_t * service_names_and_types)
 {
+  static_cast<void>(node);
+  static_cast<void>(allocator);
+  static_cast<void>(node_name);
+  static_cast<void>(node_namespace);
+  static_cast<void>(service_names_and_types);
   return RMW_RET_UNSUPPORTED;
 }
 }  // extern "C"

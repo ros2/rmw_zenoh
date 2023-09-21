@@ -27,6 +27,11 @@ rmw_get_publishers_info_by_topic(
   bool no_mangle,
   rmw_topic_endpoint_info_array_t * publishers_info)
 {
+  static_cast<void>(node);
+  static_cast<void>(allocator);
+  static_cast<void>(topic_name);
+  static_cast<void>(no_mangle);
+  static_cast<void>(publishers_info);
   return RMW_RET_OK;
 }
 
@@ -40,6 +45,11 @@ rmw_get_subscriptions_info_by_topic(
   bool no_mangle,
   rmw_topic_endpoint_info_array_t * subscriptions_info)
 {
+  static_cast<void>(node);
+  static_cast<void>(allocator);
+  static_cast<void>(topic_name);
+  static_cast<void>(no_mangle);
+  static_cast<void>(subscriptions_info);
   return RMW_RET_OK;
 }
 }  // extern "C"

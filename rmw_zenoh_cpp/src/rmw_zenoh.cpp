@@ -498,6 +498,10 @@ rmw_take_dynamic_message(
   bool * taken,
   rmw_subscription_allocation_t * allocation)
 {
+  static_cast<void>(subscription);
+  static_cast<void>(dynamic_message);
+  static_cast<void>(taken);
+  static_cast<void>(allocation);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -510,6 +514,11 @@ rmw_take_dynamic_message_with_info(
   rmw_message_info_t * message_info,
   rmw_subscription_allocation_t * allocation)
 {
+  static_cast<void>(subscription);
+  static_cast<void>(dynamic_message);
+  static_cast<void>(taken);
+  static_cast<void>(message_info);
+  static_cast<void>(allocation);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -520,6 +529,9 @@ rmw_serialization_support_init(
   rcutils_allocator_t * allocator,
   rosidl_dynamic_typesupport_serialization_support_t * serialization_support)
 {
+  static_cast<void>(serialization_lib_name);
+  static_cast<void>(allocator);
+  static_cast<void>(serialization_support);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -731,6 +743,9 @@ rmw_get_serialized_message_size(
   const rosidl_runtime_c__Sequence__bound * message_bounds,
   size_t * size)
 {
+  static_cast<void>(type_support);
+  static_cast<void>(message_bounds);
+  static_cast<void>(size);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -739,6 +754,7 @@ rmw_get_serialized_message_size(
 rmw_ret_t
 rmw_publisher_assert_liveliness(const rmw_publisher_t * publisher)
 {
+  static_cast<void>(publisher);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -749,6 +765,8 @@ rmw_publisher_wait_for_all_acked(
   const rmw_publisher_t * publisher,
   rmw_time_t wait_timeout)
 {
+  static_cast<void>(publisher);
+  static_cast<void>(wait_timeout);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -760,6 +778,9 @@ rmw_serialize(
   const rosidl_message_type_support_t * type_support,
   rmw_serialized_message_t * serialized_message)
 {
+  static_cast<void>(ros_message);
+  static_cast<void>(type_support);
+  static_cast<void>(serialized_message);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -771,6 +792,9 @@ rmw_deserialize(
   const rosidl_message_type_support_t * type_support,
   void * ros_message)
 {
+  static_cast<void>(serialized_message);
+  static_cast<void>(type_support);
+  static_cast<void>(ros_message);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -783,9 +807,9 @@ rmw_init_subscription_allocation(
   rmw_subscription_allocation_t * allocation)
 {
   // Unused in current implementation.
-  (void) type_support;
-  (void) message_bounds;
-  (void) allocation;
+  static_cast<void>(type_support);
+  static_cast<void>(message_bounds);
+  static_cast<void>(allocation);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -795,7 +819,7 @@ rmw_ret_t
 rmw_fini_subscription_allocation(
   rmw_subscription_allocation_t * allocation)
 {
-  (void) allocation;
+  static_cast<void>(allocation);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -1010,6 +1034,8 @@ rmw_subscription_count_matched_publishers(
   const rmw_subscription_t * subscription,
   size_t * publisher_count)
 {
+  static_cast<void>(subscription);
+  static_cast<void>(publisher_count);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -1043,6 +1069,8 @@ rmw_subscription_set_content_filter(
   rmw_subscription_t * subscription,
   const rmw_subscription_content_filter_options_t * options)
 {
+  static_cast<void>(subscription);
+  static_cast<void>(options);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -1054,6 +1082,9 @@ rmw_subscription_get_content_filter(
   rcutils_allocator_t * allocator,
   rmw_subscription_content_filter_options_t * options)
 {
+  static_cast<void>(subscription);
+  static_cast<void>(allocator);
+  static_cast<void>(options);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -1066,6 +1097,10 @@ rmw_take(
   bool * taken,
   rmw_subscription_allocation_t * allocation)
 {
+  static_cast<void>(subscription);
+  static_cast<void>(ros_message);
+  static_cast<void>(taken);
+  static_cast<void>(allocation);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -1090,7 +1125,7 @@ rmw_take_with_info(
     subscription->implementation_identifier, rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
-  (void) allocation;
+  static_cast<void>(allocation);
   *taken = false;
 
   auto * sub_data = static_cast<rmw_subscription_data_t *>(subscription->data);
@@ -1148,6 +1183,12 @@ rmw_take_sequence(
   size_t * taken,
   rmw_subscription_allocation_t * allocation)
 {
+  static_cast<void>(subscription);
+  static_cast<void>(count);
+  static_cast<void>(message_sequence);
+  static_cast<void>(message_info_sequence);
+  static_cast<void>(taken);
+  static_cast<void>(allocation);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -1160,6 +1201,10 @@ rmw_take_serialized_message(
   bool * taken,
   rmw_subscription_allocation_t * allocation)
 {
+  static_cast<void>(subscription);
+  static_cast<void>(serialized_message);
+  static_cast<void>(taken);
+  static_cast<void>(allocation);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -1173,6 +1218,11 @@ rmw_take_serialized_message_with_info(
   rmw_message_info_t * message_info,
   rmw_subscription_allocation_t * allocation)
 {
+  static_cast<void>(subscription);
+  static_cast<void>(serialized_message);
+  static_cast<void>(taken);
+  static_cast<void>(message_info);
+  static_cast<void>(allocation);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -1185,6 +1235,10 @@ rmw_take_loaned_message(
   bool * taken,
   rmw_subscription_allocation_t * allocation)
 {
+  static_cast<void>(subscription);
+  static_cast<void>(loaned_message);
+  static_cast<void>(taken);
+  static_cast<void>(allocation);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -1198,6 +1252,11 @@ rmw_take_loaned_message_with_info(
   rmw_message_info_t * message_info,
   rmw_subscription_allocation_t * allocation)
 {
+  static_cast<void>(subscription);
+  static_cast<void>(loaned_message);
+  static_cast<void>(taken);
+  static_cast<void>(message_info);
+  static_cast<void>(allocation);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -1208,6 +1267,8 @@ rmw_return_loaned_message_from_subscription(
   const rmw_subscription_t * subscription,
   void * loaned_message)
 {
+  static_cast<void>(subscription);
+  static_cast<void>(loaned_message);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -1220,6 +1281,10 @@ rmw_create_client(
   const char * service_name,
   const rmw_qos_profile_t * qos_profile)
 {
+  static_cast<void>(node);
+  static_cast<void>(type_support);
+  static_cast<void>(service_name);
+  static_cast<void>(qos_profile);
   return nullptr;
 }
 
@@ -1228,6 +1293,8 @@ rmw_create_client(
 rmw_ret_t
 rmw_destroy_client(rmw_node_t * node, rmw_client_t * client)
 {
+  static_cast<void>(node);
+  static_cast<void>(client);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -1239,6 +1306,9 @@ rmw_send_request(
   const void * ros_request,
   int64_t * sequence_id)
 {
+  static_cast<void>(client);
+  static_cast<void>(ros_request);
+  static_cast<void>(sequence_id);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -1251,6 +1321,10 @@ rmw_take_response(
   void * ros_response,
   bool * taken)
 {
+  static_cast<void>(client);
+  static_cast<void>(request_header);
+  static_cast<void>(ros_response);
+  static_cast<void>(taken);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -1261,6 +1335,8 @@ rmw_client_request_publisher_get_actual_qos(
   const rmw_client_t * client,
   rmw_qos_profile_t * qos)
 {
+  static_cast<void>(client);
+  static_cast<void>(qos);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -1271,6 +1347,8 @@ rmw_client_response_subscription_get_actual_qos(
   const rmw_client_t * client,
   rmw_qos_profile_t * qos)
 {
+  static_cast<void>(client);
+  static_cast<void>(qos);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -1349,6 +1427,10 @@ rmw_take_request(
   void * ros_request,
   bool * taken)
 {
+  static_cast<void>(service);
+  static_cast<void>(request_header);
+  static_cast<void>(ros_request);
+  static_cast<void>(taken);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -1360,6 +1442,9 @@ rmw_send_response(
   rmw_request_id_t * request_header,
   void * ros_response)
 {
+  static_cast<void>(service);
+  static_cast<void>(request_header);
+  static_cast<void>(ros_response);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -1371,6 +1456,8 @@ rmw_service_request_subscription_get_actual_qos(
   rmw_qos_profile_t * qos)
 {
   // TODO(yadunund): Fix.
+  static_cast<void>(service);
+  static_cast<void>(qos);
   return RMW_RET_OK;
 }
 
@@ -1382,6 +1469,8 @@ rmw_service_response_publisher_get_actual_qos(
   rmw_qos_profile_t * qos)
 {
   // TODO(yadunund): Fix.
+  static_cast<void>(service);
+  static_cast<void>(qos);
   return RMW_RET_OK;
 }
 
@@ -1470,7 +1559,8 @@ rmw_trigger_guard_condition(const rmw_guard_condition_t * guard_condition)
 rmw_wait_set_t *
 rmw_create_wait_set(rmw_context_t * context, size_t max_conditions)
 {
-  (void) max_conditions;
+  static_cast<void>(max_conditions);
+
   RCUTILS_CHECK_ARGUMENT_FOR_NULL(context, NULL);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     context,
@@ -1749,6 +1839,9 @@ rmw_get_node_names(
   rcutils_string_array_t * node_names,
   rcutils_string_array_t * node_namespaces)
 {
+  static_cast<void>(node);
+  static_cast<void>(node_names);
+  static_cast<void>(node_namespaces);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -1761,6 +1854,10 @@ rmw_get_node_names_with_enclaves(
   rcutils_string_array_t * node_namespaces,
   rcutils_string_array_t * enclaves)
 {
+  static_cast<void>(node);
+  static_cast<void>(node_names);
+  static_cast<void>(node_namespaces);
+  static_cast<void>(enclaves);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -1772,6 +1869,9 @@ rmw_count_publishers(
   const char * topic_name,
   size_t * count)
 {
+  static_cast<void>(node);
+  static_cast<void>(topic_name);
+  static_cast<void>(count);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -1783,6 +1883,9 @@ rmw_count_subscribers(
   const char * topic_name,
   size_t * count)
 {
+  static_cast<void>(node);
+  static_cast<void>(topic_name);
+  static_cast<void>(count);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -1794,6 +1897,9 @@ rmw_count_clients(
   const char * service_name,
   size_t * count)
 {
+  static_cast<void>(node);
+  static_cast<void>(service_name);
+  static_cast<void>(count);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -1805,6 +1911,9 @@ rmw_count_services(
   const char * service_name,
   size_t * count)
 {
+  static_cast<void>(node);
+  static_cast<void>(service_name);
+  static_cast<void>(count);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -1813,6 +1922,8 @@ rmw_count_services(
 rmw_ret_t
 rmw_get_gid_for_publisher(const rmw_publisher_t * publisher, rmw_gid_t * gid)
 {
+  static_cast<void>(publisher);
+  static_cast<void>(gid);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -1821,6 +1932,8 @@ rmw_get_gid_for_publisher(const rmw_publisher_t * publisher, rmw_gid_t * gid)
 rmw_ret_t
 rmw_get_gid_for_client(const rmw_client_t * client, rmw_gid_t * gid)
 {
+  static_cast<void>(client);
+  static_cast<void>(gid);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -1829,6 +1942,9 @@ rmw_get_gid_for_client(const rmw_client_t * client, rmw_gid_t * gid)
 rmw_ret_t
 rmw_compare_gids_equal(const rmw_gid_t * gid1, const rmw_gid_t * gid2, bool * result)
 {
+  static_cast<void>(gid1);
+  static_cast<void>(gid2);
+  static_cast<void>(result);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -1840,6 +1956,9 @@ rmw_service_server_is_available(
   const rmw_client_t * client,
   bool * is_available)
 {
+  static_cast<void>(node);
+  static_cast<void>(client);
+  static_cast<void>(is_available);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -1848,6 +1967,7 @@ rmw_service_server_is_available(
 rmw_ret_t
 rmw_set_log_severity(rmw_log_severity_t severity)
 {
+  static_cast<void>(severity);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -1859,6 +1979,9 @@ rmw_subscription_set_on_new_message_callback(
   rmw_event_callback_t callback,
   const void * user_data)
 {
+  static_cast<void>(subscription);
+  static_cast<void>(callback);
+  static_cast<void>(user_data);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -1870,6 +1993,9 @@ rmw_service_set_on_new_request_callback(
   rmw_event_callback_t callback,
   const void * user_data)
 {
+  static_cast<void>(service);
+  static_cast<void>(callback);
+  static_cast<void>(user_data);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -1881,6 +2007,9 @@ rmw_client_set_on_new_response_callback(
   rmw_event_callback_t callback,
   const void * user_data)
 {
+  static_cast<void>(client);
+  static_cast<void>(callback);
+  static_cast<void>(user_data);
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -1892,6 +2021,9 @@ rmw_event_set_callback(
   rmw_event_callback_t callback,
   const void * user_data)
 {
+  static_cast<void>(event);
+  static_cast<void>(callback);
+  static_cast<void>(user_data);
   return RMW_RET_UNSUPPORTED;
 }
 }  // extern "C"

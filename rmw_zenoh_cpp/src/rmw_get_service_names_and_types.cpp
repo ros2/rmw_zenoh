@@ -25,6 +25,9 @@ rmw_get_service_names_and_types(
   rcutils_allocator_t * allocator,
   rmw_names_and_types_t * service_names_and_types)
 {
+  static_cast<void>(node);
+  static_cast<void>(allocator);
+  static_cast<void>(service_names_and_types);
   return RMW_RET_UNSUPPORTED;
 }
 }  // extern "C"

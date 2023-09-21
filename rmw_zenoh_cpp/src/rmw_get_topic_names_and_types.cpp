@@ -26,6 +26,10 @@ rmw_get_topic_names_and_types(
   bool no_demangle,
   rmw_names_and_types_t * topic_names_and_types)
 {
+  static_cast<void>(node);
+  static_cast<void>(allocator);
+  static_cast<void>(no_demangle);
+  static_cast<void>(topic_names_and_types);
   return RMW_RET_UNSUPPORTED;
 }
 }  // extern "C"
