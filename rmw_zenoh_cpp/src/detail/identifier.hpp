@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef SRC__DETAIL__IDENTIFIER_HPP
-#define SRC__DETAIL__IDENTIFIER_HPP
+#ifndef DETAIL__IDENTIFIER_HPP_
+#define DETAIL__IDENTIFIER_HPP_
 
 extern const char * const rmw_zenoh_identifier;
 
-#endif  // SRC__DETAIL__IDENTIFIER_HPP
+#endif  // DETAIL__IDENTIFIER_HPP_

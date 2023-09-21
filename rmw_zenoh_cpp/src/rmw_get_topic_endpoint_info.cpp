@@ -42,5 +42,4 @@ rmw_get_subscriptions_info_by_topic(
 {
   return RMW_RET_OK;
 }
-
-} // extern "C"
+}  // extern "C"

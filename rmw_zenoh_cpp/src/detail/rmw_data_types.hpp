@@ -12,18 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef SRC__DETAIL__RMW_DATA_TYPES_HPP
-#define SRC__DETAIL__RMW_DATA_TYPES_HPP
+#ifndef DETAIL__RMW_DATA_TYPES_HPP_
+#define DETAIL__RMW_DATA_TYPES_HPP_
+
+#include <zenoh.h>
 
 #include <condition_variable>
+#include <deque>
+#include <memory>
 #include <mutex>
+#include <string>
 #include <unordered_set>
+#include <vector>
 
 #include "rmw/rmw.h"
 
 #include "TypeSupport.hpp"
-
-#include "zenoh.h"
 
 /// Structs for various type erased data fields.
 
@@ -93,4 +97,4 @@ struct rmw_subscription_data_t
   bool reliable;
 };
 
-#endif  // SRC__DETAIL__RMW_DATA_TYPES_HPP
+#endif  // DETAIL__RMW_DATA_TYPES_HPP_

@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <fastcdr/FastBuffer.h>
+#include <fastcdr/Cdr.h>
+
 #include "detail/guard_condition.hpp"
 #include "detail/identifier.hpp"
 #include "detail/rmw_data_types.hpp"
 #include "detail/serialization_format.hpp"
 #include "detail/type_support_common.hpp"
-
-#include <fastcdr/FastBuffer.h>
-#include <fastcdr/Cdr.h>
 
 #include "rcpputils/scope_exit.hpp"
 
@@ -1007,7 +1007,6 @@ rmw_take_with_info(
   rmw_message_info_t * message_info,
   rmw_subscription_allocation_t * allocation)
 {
-
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription->topic_name, RMW_RET_ERROR);
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription->data, RMW_RET_ERROR);
@@ -1299,7 +1298,7 @@ rmw_service_request_subscription_get_actual_qos(
   const rmw_service_t * service,
   rmw_qos_profile_t * qos)
 {
-  //TODO(yadunund): Fix.
+  // TODO(yadunund): Fix.
   return RMW_RET_OK;
 }
 
@@ -1310,7 +1309,7 @@ rmw_service_response_publisher_get_actual_qos(
   const rmw_service_t * service,
   rmw_qos_profile_t * qos)
 {
-  //TODO(yadunund): Fix.
+  // TODO(yadunund): Fix.
   return RMW_RET_OK;
 }
 
@@ -1534,7 +1533,8 @@ bool check_wait_conditions(
   return stop_wait;
 }
 
-} // namespace anonymous
+}  // namespace
+
 //==============================================================================
 /// Waits on sets of different entities and returns when one is ready.
 rmw_ret_t
@@ -1794,5 +1794,4 @@ rmw_event_set_callback(
 {
   return RMW_RET_UNSUPPORTED;
 }
-
-} // extern "C"
+}  // extern "C"

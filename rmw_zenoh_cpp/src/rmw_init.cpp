@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <zenoh.h>
+
 #include "detail/guard_condition.hpp"
 #include "detail/identifier.hpp"
 #include "detail/rmw_data_types.hpp"
-
 
 #include "rcutils/env.h"
 #include "rcutils/strdup.h"
@@ -26,8 +27,6 @@
 #include "rmw/init_options.h"
 
 #include "rcpputils/scope_exit.hpp"
-
-#include "zenoh.h"
 
 extern "C"
 {
@@ -188,4 +187,4 @@ rmw_context_fini(rmw_context_t * context)
   *context = rmw_get_zero_initialized_context();
   return ret;
 }
-} // extern "C"
+}  // extern "C"

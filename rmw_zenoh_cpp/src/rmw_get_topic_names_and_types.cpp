@@ -28,5 +28,4 @@ rmw_get_topic_names_and_types(
 {
   return RMW_RET_UNSUPPORTED;
 }
-
-} // extern "C"
+}  // extern "C"

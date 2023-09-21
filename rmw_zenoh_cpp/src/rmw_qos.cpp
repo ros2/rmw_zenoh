@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 #include "rmw_dds_common/qos.hpp"
 #include "rmw/types.h"
 #include "rmw/qos_profiles.h"
@@ -30,5 +29,4 @@ rmw_qos_profile_check_compatible(
   return rmw_dds_common::qos_profile_check_compatible(
     publisher_profile, subscription_profile, compatibility, reason, reason_size);
 }
-
 }  // extern "C"

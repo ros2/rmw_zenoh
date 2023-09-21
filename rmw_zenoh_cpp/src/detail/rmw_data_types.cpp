@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+#include <utility>
+#include <vector>
+
 #include "rmw_data_types.hpp"
 
 std::mutex sub_callback_mutex;
@@ -25,7 +29,7 @@ void sub_data_handler(
   // TODO(yadunund): Remove after debugging.
   printf(
     ">> [Subscriber] Received ('%s': size: '%i', payload: '%s')\n", z_loan(keystr),
-    (int)sample->payload.len, sample->payload.start);
+    static_cast<int>(sample->payload.len), sample->payload.start);
 
   auto sub_data = static_cast<rmw_subscription_data_t *>(data);
   if (sub_data == nullptr) {

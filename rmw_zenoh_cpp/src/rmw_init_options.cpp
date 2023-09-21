@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <zenoh.h>
+
 #include "detail/identifier.hpp"
 #include "detail/rmw_init_options_impl.hpp"
 
@@ -21,8 +23,6 @@
 
 #include "rmw/impl/cpp/macros.hpp"
 #include "rmw/init_options.h"
-
-#include "zenoh.h"
 
 extern "C"
 {
@@ -122,5 +122,4 @@ rmw_init_options_fini(rmw_init_options_t * init_options)
 
   return ret;
 }
-
-} // extern "C"
+}  // extern "C"

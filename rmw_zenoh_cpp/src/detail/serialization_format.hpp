@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef SRC__DETAIL__SERIALIZATION_FORMAT_HPP
-#define SRC__DETAIL__SERIALIZATION_FORMAT_HPP
+#ifndef DETAIL__SERIALIZATION_FORMAT_HPP_
+#define DETAIL__SERIALIZATION_FORMAT_HPP_
 
 extern inline const char * const rmw_zenoh_serialization_format = "cdr";
 
-#endif  // SRC__DETAIL__SERIALIZATION_FORMAT_HPP
+#endif  // DETAIL__SERIALIZATION_FORMAT_HPP_

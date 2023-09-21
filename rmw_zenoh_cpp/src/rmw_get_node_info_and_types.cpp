@@ -70,5 +70,4 @@ rmw_get_client_names_and_types_by_node(
 {
   return RMW_RET_UNSUPPORTED;
 }
-
-} // extern "C"
+}  // extern "C"

@@ -16,8 +16,8 @@
 // This file is originally from:
 // https://github.com/ros2/rmw_fastrtps/blob/469624e3d483290d6f88fe4b89ee5feaa7694e61/rmw_fastrtps_cpp/src/type_support_common.hpp
 
-#ifndef SRC__DETAIL__TYPE_SUPPORT_COMMON_HPP
-#define SRC__DETAIL__TYPE_SUPPORT_COMMON_HPP
+#ifndef DETAIL__TYPE_SUPPORT_COMMON_HPP_
+#define DETAIL__TYPE_SUPPORT_COMMON_HPP_
 
 #include <sstream>
 #include <string>
@@ -66,4 +66,4 @@ _create_type_name(
   return _create_type_name(message_namespace, message_name);
 }
 
-#endif  // SRC__DETAIL__TYPE_SUPPORT_COMMON_HPP
+#endif  // DETAIL__TYPE_SUPPORT_COMMON_HPP_

@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef SRC__DETAIL__RMW_INIT_OPTIONS_IMPL_HPP
-#define SRC__DETAIL__RMW_INIT_OPTIONS_IMPL_HPP
+#ifndef DETAIL__RMW_INIT_OPTIONS_IMPL_HPP_
+#define DETAIL__RMW_INIT_OPTIONS_IMPL_HPP_
 
-#include "zenoh.h"
+#include <zenoh.h>
 
 // TODO(YV): Consider using this again.
 struct rmw_init_options_impl_s
@@ -24,4 +24,4 @@ struct rmw_init_options_impl_s
   z_owned_config_t config;
 };
 
-#endif  // SRC__DETAIL__RMW_INIT_OPTIONS_IMPL_HPP
+#endif  // DETAIL__RMW_INIT_OPTIONS_IMPL_HPP_

@@ -13,8 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef SRC__DETAIL__GUARDCONDITION_HPP
-#define SRC__DETAIL__GUARDCONDITION_HPP
+#ifndef DETAIL__GUARD_CONDITION_HPP_
+#define DETAIL__GUARD_CONDITION_HPP_
 
 #include <atomic>
 #include <condition_variable>
@@ -45,4 +45,4 @@ private:
   std::condition_variable * condition_variable_;
 };
 
-#endif  // SRC__DETAIL__GUARDCONDITION_HPP
+#endif  // DETAIL__GUARD_CONDITION_HPP_

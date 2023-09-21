@@ -16,8 +16,8 @@
 // This file is originally from:
 // https://github.com/ros2/rmw_fastrtps/blob/b13e134cea2852aba210299bef6f4df172d9a0e3/rmw_fastrtps_cpp/include/rmw_fastrtps_cpp/TypeSupport.hpp
 
-#ifndef SRC__DETAIL__MESSAGETYPESUPPORT_HPP
-#define SRC__DETAIL__MESSAGETYPESUPPORT_HPP
+#ifndef DETAIL__MESSAGETYPESUPPORT_HPP_
+#define DETAIL__MESSAGETYPESUPPORT_HPP_
 
 #include "rosidl_typesupport_fastrtps_cpp/message_type_support.h"
 #include "TypeSupport.hpp"
@@ -29,4 +29,4 @@ public:
   explicit MessageTypeSupport(const message_type_support_callbacks_t * members);
 };
 
-#endif  // SRC__DETAIL__MESSAGETYPESUPPORT_HPP
+#endif  // DETAIL__MESSAGETYPESUPPORT_HPP_

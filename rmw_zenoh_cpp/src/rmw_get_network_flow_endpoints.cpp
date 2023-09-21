@@ -43,5 +43,4 @@ rmw_subscription_get_network_flow_endpoints(
   (void) network_flow_endpoint_array;
   return RMW_RET_UNSUPPORTED;
 }
-
-} // extern "C"
+}  // extern "C"

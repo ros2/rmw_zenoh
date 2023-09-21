@@ -66,5 +66,4 @@ rmw_event_fini(rmw_event_t * event)
   (void) event;
   return RMW_RET_UNSUPPORTED;
 }
-
-} // extern "C"
+}  // extern "C"

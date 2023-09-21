@@ -16,8 +16,8 @@
 // This file is originally from:
 // https://github.com/ros2/rmw_fastrtps/blob/b13e134cea2852aba210299bef6f4df172d9a0e3/rmw_fastrtps_cpp/include/rmw_fastrtps_cpp/TypeSupport.hpp
 
-#ifndef SRC__DETAIL__TYPESUPPORT_HPP
-#define SRC__DETAIL__TYPESUPPORT_HPP
+#ifndef DETAIL__TYPESUPPORT_HPP_
+#define DETAIL__TYPESUPPORT_HPP_
 
 // #include <fastrtps/TopicDataType.h>
 
@@ -53,4 +53,4 @@ private:
   bool has_data_;
 };
 
-#endif  // SRC__DETAIL__TYPESUPPORT_HPP
+#endif  // DETAIL__TYPESUPPORT_HPP_
