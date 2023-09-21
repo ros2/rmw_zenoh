@@ -108,6 +108,10 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
     RMW_SET_ERROR_MSG("Error setting up zenoh session");
     return RMW_RET_INVALID_ARGUMENT;
   }
+  auto close_session = rcpputils::make_scope_exit(
+    [context](){
+      z_close(z_move(context->impl->session));
+    });
 
   // Initialize the guard condition.
   context->impl->graph_guard_condition = rmw_guard_condition_allocate();
@@ -125,11 +129,18 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
     RMW_SET_ERROR_MSG("Error allocating memory for guard condition data");
     return RMW_RET_BAD_ALLOC;
   }
+  auto free_guard_condition_data = rcpputils::make_scope_exit(
+    [context]() {
+      delete static_cast<GuardCondition *>(context->impl->graph_guard_condition->data);
+    });
 
+  free_guard_condition_data.cancel();
   cleanup_guard_condition.cancel();
+  close_session.cancel();
   free_options.cancel();
   cleanup_impl.cancel();
   restore_context.cancel();
+
   return RMW_RET_OK;
 }
 
@@ -181,6 +192,10 @@ rmw_context_fini(rmw_context_t * context)
   delete static_cast<GuardCondition *>(context->impl->graph_guard_condition->data);
 
   rmw_guard_condition_free(context->impl->graph_guard_condition);
+
+  if (!context->impl->is_shutdown) {
+    z_close(z_move(context->impl->session));
+  }
 
   rmw_ret_t ret = rmw_init_options_fini(&context->options);
   delete context->impl;
