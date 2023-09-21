@@ -399,7 +399,7 @@ rmw_create_publisher(
   // TODO(clalancette): What happens if the key name is a valid but empty string?
   publisher_data->pub = z_declare_publisher(
     z_loan(context_impl->session),
-    z_keyexpr(&topic_name[1]),
+    z_keyexpr(zenoh_key_name),
     NULL
   );
   allocator->deallocate(zenoh_key_name, allocator->state);
