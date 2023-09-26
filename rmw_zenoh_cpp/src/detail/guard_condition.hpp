@@ -26,22 +26,21 @@ class GuardCondition final
 public:
   GuardCondition();
 
+  // Sets has_triggered_ to true and calls notify_one() on condition_variable_ if set.
   void trigger();
 
-  void attach_condition(
-    std::mutex * condition_mutex,
-    std::condition_variable * condition_variable);
+  void attach_condition(std::condition_variable * condition_variable);
 
   void detach_condition();
 
   bool has_triggered() const;
 
-  bool get_has_triggered();
+  // Resets has_triggered_ to false.
+  void reset_trigger();
 
 private:
-  std::mutex internal_mutex_;
+  mutable std::mutex internal_mutex_;
   std::atomic_bool has_triggered_;
-  std::mutex * condition_mutex_;
   std::condition_variable * condition_variable_;
 };
 

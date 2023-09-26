@@ -15,6 +15,8 @@
 #include <fastcdr/FastBuffer.h>
 #include <fastcdr/Cdr.h>
 
+#include <chrono>
+#include <mutex>
 #include <new>
 
 #include "detail/guard_condition.hpp"
@@ -96,6 +98,7 @@ rmw_create_node(
     RCUTILS_SET_ERROR_MSG("context has been shutdown");
     return nullptr;
   }
+
   int validation_result = RMW_NODE_NAME_VALID;
   rmw_ret_t ret = rmw_validate_node_name(name, &validation_result, nullptr);
   if (RMW_RET_OK != ret) {
@@ -106,6 +109,7 @@ rmw_create_node(
     RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("invalid node name: %s", reason);
     return nullptr;
   }
+
   validation_result = RMW_NAMESPACE_VALID;
   ret = rmw_validate_namespace(namespace_, &validation_result, nullptr);
   if (RMW_RET_OK != ret) {
@@ -125,7 +129,7 @@ rmw_create_node(
     node,
     "unable to allocate memory for rmw_node_t",
     return nullptr);
-  auto cleanup_node = rcpputils::make_scope_exit(
+  auto free_node = rcpputils::make_scope_exit(
     [node, allocator]() {
       allocator->deallocate(node, allocator->state);
     });
@@ -169,7 +173,7 @@ rmw_create_node(
   free_node_data.cancel();
   free_namespace.cancel();
   free_name.cancel();
-  cleanup_node.cancel();
+  free_node.cancel();
 
   return node;
 }
@@ -190,9 +194,9 @@ rmw_destroy_node(rmw_node_t * node)
 
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
-  allocator->deallocate(const_cast<char *>(node->name), allocator->state);
-  allocator->deallocate(const_cast<char *>(node->namespace_), allocator->state);
   allocator->deallocate(node->data, allocator->state);
+  allocator->deallocate(const_cast<char *>(node->namespace_), allocator->state);
+  allocator->deallocate(const_cast<char *>(node->name), allocator->state);
   allocator->deallocate(node, allocator->state);
 
   return RMW_RET_OK;
@@ -209,7 +213,10 @@ rmw_node_get_graph_guard_condition(const rmw_node_t * node)
     node->implementation_identifier,
     rmw_zenoh_identifier,
     return nullptr);
-  // TODO(Yadunund): Also check if node->data is valid.
+
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->context, nullptr);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, nullptr);
+
   return node->context->impl->graph_guard_condition;
 }
 
@@ -267,6 +274,31 @@ static char * ros_topic_name_to_zenoh_key(
   return rcutils_strndup(&topic_name[start_offset], end_offset - start_offset, *allocator);
 }
 
+static const rosidl_message_type_support_t * find_type_support(
+  const rosidl_message_type_support_t * type_supports)
+{
+  const rosidl_message_type_support_t * type_support = get_message_typesupport_handle(
+    type_supports, RMW_FASTRTPS_CPP_TYPESUPPORT_C);
+  if (!type_support) {
+    rcutils_error_string_t prev_error_string = rcutils_get_error_string();
+    rcutils_reset_error();
+    type_support = get_message_typesupport_handle(type_supports, RMW_FASTRTPS_CPP_TYPESUPPORT_CPP);
+    if (!type_support) {
+      rcutils_error_string_t error_string = rcutils_get_error_string();
+      rcutils_reset_error();
+      RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
+        "Type support not from this implementation. Got:\n"
+        "    %s\n"
+        "    %s\n"
+        "while fetching it",
+        prev_error_string.str, error_string.str);
+      return nullptr;
+    }
+  }
+
+  return type_support;
+}
+
 //==============================================================================
 /// Create a publisher and return a handle to that publisher.
 rmw_publisher_t *
@@ -319,23 +351,10 @@ rmw_create_publisher(
   }
 
   // Get the RMW type support.
-  const rosidl_message_type_support_t * type_support = get_message_typesupport_handle(
-    type_supports, RMW_FASTRTPS_CPP_TYPESUPPORT_C);
-  if (!type_support) {
-    rcutils_error_string_t prev_error_string = rcutils_get_error_string();
-    rcutils_reset_error();
-    type_support = get_message_typesupport_handle(type_supports, RMW_FASTRTPS_CPP_TYPESUPPORT_CPP);
-    if (!type_support) {
-      rcutils_error_string_t error_string = rcutils_get_error_string();
-      rcutils_reset_error();
-      RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
-        "Type support not from this implementation. Got:\n"
-        "    %s\n"
-        "    %s\n"
-        "while fetching it",
-        prev_error_string.str, error_string.str);
-      return nullptr;
-    }
+  const rosidl_message_type_support_t * type_support = find_type_support(type_supports);
+  if (type_support == nullptr) {
+    // error was already set by find_type_support
+    return nullptr;
   }
 
   RMW_CHECK_FOR_NULL_WITH_MSG(
@@ -367,12 +386,6 @@ rmw_create_publisher(
     rmw_publisher,
     "failed to allocate memory for the publisher",
     return nullptr);
-  // Get typed pointer to implementation specific publisher data struct
-  // auto publisher_data = static_cast<rmw_publisher_data_t *>(rmw_publisher->data);
-  // if (publisher_data == nullptr) {
-  //   RMW_SET_ERROR_MSG("unable to cast publisher data into rmw_publisher_data_t");
-  //   return nullptr;
-  // }
   auto free_rmw_publisher = rcpputils::make_scope_exit(
     [rmw_publisher, allocator]() {
       allocator->deallocate(rmw_publisher, allocator->state);
@@ -426,11 +439,15 @@ rmw_create_publisher(
       allocator->deallocate(publisher_data->type_support, allocator->state);
     });
 
-  new(publisher_data->type_support) MessageTypeSupport(callbacks);
+  RMW_TRY_PLACEMENT_NEW(
+    publisher_data->type_support,
+    publisher_data->type_support,
+    return nullptr,
+    MessageTypeSupport, callbacks);
   auto destruct_msg_type_support = rcpputils::make_scope_exit(
     [publisher_data]() {
       RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(
-        static_cast<MessageTypeSupport *>(publisher_data->type_support)->~MessageTypeSupport(),
+        publisher_data->type_support->~MessageTypeSupport(),
         MessageTypeSupport);
     });
 
@@ -440,9 +457,18 @@ rmw_create_publisher(
   rmw_publisher->options = *publisher_options;
   // TODO(yadunund): Update this.
   rmw_publisher->can_loan_messages = false;
-  rmw_publisher->topic_name = rcutils_strdup(topic_name, *allocator);
-  RMW_CHECK_ARGUMENT_FOR_NULL(rmw_publisher->topic_name, nullptr);
 
+  rmw_publisher->topic_name = rcutils_strdup(topic_name, *allocator);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    rmw_publisher->topic_name,
+    "Failed to allocate topic name",
+    return nullptr);
+  auto free_topic_name = rcpputils::make_scope_exit(
+    [rmw_publisher, allocator]() {
+      allocator->deallocate(const_cast<char *>(rmw_publisher->topic_name), allocator->state);
+    });
+
+  free_topic_name.cancel();
   destruct_msg_type_support.cancel();
   free_type_support.cancel();
   undeclare_z_publisher.cancel();
@@ -478,6 +504,7 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
 
   auto publisher_data = static_cast<rmw_publisher_data_t *>(publisher->data);
   if (publisher_data != nullptr) {
+    RMW_TRY_DESTRUCTOR(publisher_data->type_support->~MessageTypeSupport(), MessageTypeSupport, );
     allocator->deallocate(publisher_data->type_support, allocator->state);
     if (z_undeclare_publisher(z_move(publisher_data->pub))) {
       RMW_SET_ERROR_MSG("failed to undeclare pub");
@@ -664,6 +691,7 @@ rmw_publisher_count_matched_subscriptions(
   static_cast<void>(publisher);
   static_cast<void>(subscription_count);
   // TODO(yadunund): Fixme.
+  *subscription_count = 0;
   return RMW_RET_OK;
 }
 
@@ -841,8 +869,8 @@ rmw_create_subscription(
     return nullptr);
   RMW_CHECK_ARGUMENT_FOR_NULL(type_supports, nullptr);
   RMW_CHECK_ARGUMENT_FOR_NULL(topic_name, nullptr);
-  if (0 == strlen(topic_name)) {
-    RMW_SET_ERROR_MSG("create_subscription() called with an empty topic_name argument");
+  if (topic_name[0] == '\0') {
+    RMW_SET_ERROR_MSG("topic_name argument is an empty string");
     return nullptr;
   }
   RMW_CHECK_ARGUMENT_FOR_NULL(qos_profile, nullptr);
@@ -861,25 +889,12 @@ rmw_create_subscription(
   //   return nullptr;
   // }
 
-  const rosidl_message_type_support_t * type_support = get_message_typesupport_handle(
-    type_supports, RMW_FASTRTPS_CPP_TYPESUPPORT_C);
-  if (!type_support) {
-    rcutils_error_string_t prev_error_string = rcutils_get_error_string();
-    rcutils_reset_error();
-    type_support = get_message_typesupport_handle(
-      type_supports, RMW_FASTRTPS_CPP_TYPESUPPORT_CPP);
-    if (!type_support) {
-      rcutils_error_string_t error_string = rcutils_get_error_string();
-      rcutils_reset_error();
-      RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
-        "Type support not from this implementation. Got:\n"
-        "    %s\n"
-        "    %s\n"
-        "while fetching it",
-        prev_error_string.str, error_string.str);
-      return nullptr;
-    }
+  const rosidl_message_type_support_t * type_support = find_type_support(type_supports);
+  if (type_support == nullptr) {
+    // error was already set by find_type_support
+    return nullptr;
   }
+
   auto node_data = static_cast<rmw_node_data_t *>(node->data);
   RMW_CHECK_FOR_NULL_WITH_MSG(
     node_data, "unable to create subscription as node_data is invalid.",
@@ -905,28 +920,38 @@ rmw_create_subscription(
     return nullptr;
   }
 
-  // Create the rmw_subscription.
-  rmw_subscription_t * rmw_subscription = rmw_subscription_allocate();
-  if (!rmw_subscription) {
-    RMW_SET_ERROR_MSG("create_subscription() failed to allocate subscription");
-    return nullptr;
-  }
-  auto free_rmw_subscription = rcpputils::make_scope_exit(
-    [rmw_subscription]() {
-      rmw_subscription_free(rmw_subscription);
-    });
   rcutils_allocator_t * allocator = &node->context->options.allocator;
-  auto * sub_data =
-    static_cast<rmw_subscription_data_t *>(allocator->allocate(
-      sizeof(rmw_subscription_data_t),
-      allocator->state));
-  if (sub_data == nullptr) {
-    RMW_SET_ERROR_MSG("failed to allocate sub_data");
-    return nullptr;
-  }
+
+  // Create the rmw_subscription.
+  rmw_subscription_t * rmw_subscription =
+    static_cast<rmw_subscription_t *>(allocator->zero_allocate(
+      1, sizeof(rmw_subscription_t), allocator->state));
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    rmw_subscription,
+    "failed to allocate memory for the subscription",
+    return nullptr);
+  auto free_rmw_subscription = rcpputils::make_scope_exit(
+    [rmw_subscription, allocator]() {
+      allocator->deallocate(rmw_subscription, allocator->state);
+    });
+
+  auto sub_data = static_cast<rmw_subscription_data_t *>(
+    allocator->allocate(sizeof(rmw_subscription_data_t), allocator->state));
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    sub_data,
+    "failed to allocate memory for subscription data",
+    return nullptr);
   auto free_sub_data = rcpputils::make_scope_exit(
     [sub_data, allocator]() {
       allocator->deallocate(sub_data, allocator->state);
+    });
+
+  RMW_TRY_PLACEMENT_NEW(sub_data, sub_data, return nullptr, rmw_subscription_data_t);
+  auto destruct_sub_data = rcpputils::make_scope_exit(
+    [sub_data]() {
+      RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(
+        sub_data->~rmw_subscription_data_t(),
+        rmw_subscription_data_t);
     });
 
   // Set the reliability of the subscription options based on qos_profile.
@@ -938,28 +963,11 @@ rmw_create_subscription(
     sub_data->reliable = true;
   }
 
-  z_owned_closure_sample_t callback = z_closure(sub_data_handler, nullptr, sub_data);
-  sub_data->sub = z_declare_subscriber(
-    z_loan(context_impl->session),
-    z_keyexpr(&topic_name[1]),
-    z_move(callback),
-    &sub_options
-  );
-  if (!z_check(sub_data->sub)) {
-    RMW_SET_ERROR_MSG("unable to create zenoh subscription");
-    return nullptr;
-  }
-  auto undeclare_z_sub = rcpputils::make_scope_exit(
-    [sub_data]() {
-      z_undeclare_subscriber(z_move(sub_data->sub));
-    });
-
-  sub_data->type_support_impl = type_support->data;
   sub_data->typesupport_identifier = type_support->typesupport_identifier;
+  sub_data->type_support_impl = type_support->data;
   auto callbacks = static_cast<const message_type_support_callbacks_t *>(type_support->data);
-  // std::string type_name = _create_type_name(callbacks);
   sub_data->type_support = static_cast<MessageTypeSupport *>(
-    rmw_allocate(sizeof(MessageTypeSupport)));
+    allocator->allocate(sizeof(MessageTypeSupport), allocator->state));
   RMW_CHECK_FOR_NULL_WITH_MSG(
     sub_data->type_support,
     "Failed to allocate MessageTypeSupport",
@@ -969,25 +977,72 @@ rmw_create_subscription(
       allocator->deallocate(sub_data->type_support, allocator->state);
     });
 
+  RMW_TRY_PLACEMENT_NEW(
+    sub_data->type_support,
+    sub_data->type_support,
+    return nullptr,
+    MessageTypeSupport, callbacks);
+  auto destruct_msg_type_support = rcpputils::make_scope_exit(
+    [sub_data]() {
+      RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(
+        sub_data->type_support->~MessageTypeSupport(),
+        MessageTypeSupport);
+    });
+
   sub_data->queue_depth = qos_profile->depth;
-  new(sub_data->type_support) MessageTypeSupport(callbacks);
+  sub_data->context = node->context;
+
   rmw_subscription->implementation_identifier = rmw_zenoh_identifier;
   rmw_subscription->data = sub_data;
+
   rmw_subscription->topic_name = rcutils_strdup(topic_name, *allocator);
-  RMW_CHECK_ARGUMENT_FOR_NULL(rmw_subscription->topic_name, nullptr);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    rmw_subscription->topic_name,
+    "Failed to allocate topic name",
+    return nullptr);
   auto free_topic_name = rcpputils::make_scope_exit(
     [rmw_subscription, allocator]() {
       allocator->deallocate(const_cast<char *>(rmw_subscription->topic_name), allocator->state);
     });
+
   rmw_subscription->options = *subscription_options;
   rmw_subscription->can_loan_messages = false;
   rmw_subscription->is_cft_enabled = false;
 
-  free_topic_name.cancel();
-  free_type_support.cancel();
+  // Everything above succeeded and is setup properly.  Now declare a subscriber
+  // with Zenoh; after this, callbacks may come in at any time.
+
+  z_owned_closure_sample_t callback = z_closure(sub_data_handler, nullptr, sub_data);
+  char * zenoh_key_name = ros_topic_name_to_zenoh_key(topic_name, allocator);
+  // TODO(clalancette): What happens if the key name is a valid but empty string?
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    zenoh_key_name,
+    "failed to allocate memory for zenoh key name",
+    return nullptr);
+  sub_data->sub = z_declare_subscriber(
+    z_loan(context_impl->session),
+    z_keyexpr(zenoh_key_name),
+    z_move(callback),
+    &sub_options
+  );
+  allocator->deallocate(zenoh_key_name, allocator->state);
+  if (!z_check(sub_data->sub)) {
+    RMW_SET_ERROR_MSG("unable to create zenoh subscription");
+    return nullptr;
+  }
+  auto undeclare_z_sub = rcpputils::make_scope_exit(
+    [sub_data]() {
+      z_undeclare_subscriber(z_move(sub_data->sub));
+    });
+
   undeclare_z_sub.cancel();
+  free_topic_name.cancel();
+  destruct_msg_type_support.cancel();
+  free_type_support.cancel();
+  destruct_sub_data.cancel();
   free_sub_data.cancel();
   free_rmw_subscription.cancel();
+
   return rmw_subscription;
 }
 
@@ -1011,19 +1066,25 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
 
   rmw_ret_t ret = RMW_RET_OK;
 
-  rmw_free(const_cast<char *>(subscription->topic_name));
+  rcutils_allocator_t * allocator = &node->context->options.allocator;
+
+  allocator->deallocate(const_cast<char *>(subscription->topic_name), allocator->state);
 
   auto sub_data = static_cast<rmw_subscription_data_t *>(subscription->data);
   if (sub_data != nullptr) {
-    rcutils_allocator_t * allocator = &node->context->options.allocator;
+    RMW_TRY_DESTRUCTOR(sub_data->type_support->~MessageTypeSupport(), MessageTypeSupport, );
     allocator->deallocate(sub_data->type_support, allocator->state);
+
     if (z_undeclare_subscriber(z_move(sub_data->sub))) {
       RMW_SET_ERROR_MSG("failed to undeclare sub");
       ret = RMW_RET_ERROR;
     }
+
+    RMW_TRY_DESTRUCTOR(sub_data->~rmw_subscription_data_t(), rmw_subscription_data_t, );
     allocator->deallocate(sub_data, allocator->state);
   }
-  rmw_subscription_free(subscription);
+  allocator->deallocate(subscription, allocator->state);
+
   return ret;
 }
 
@@ -1035,7 +1096,10 @@ rmw_subscription_count_matched_publishers(
   size_t * publisher_count)
 {
   static_cast<void>(subscription);
-  static_cast<void>(publisher_count);
+
+  // TODO(clalancette): implement
+  *publisher_count = 0;
+
   return RMW_RET_UNSUPPORTED;
 }
 
@@ -1088,26 +1152,7 @@ rmw_subscription_get_content_filter(
   return RMW_RET_UNSUPPORTED;
 }
 
-//==============================================================================
-/// Take an incoming ROS message.
-rmw_ret_t
-rmw_take(
-  const rmw_subscription_t * subscription,
-  void * ros_message,
-  bool * taken,
-  rmw_subscription_allocation_t * allocation)
-{
-  static_cast<void>(subscription);
-  static_cast<void>(ros_message);
-  static_cast<void>(taken);
-  static_cast<void>(allocation);
-  return RMW_RET_UNSUPPORTED;
-}
-
-//==============================================================================
-/// Take an incoming ROS message with its metadata.
-rmw_ret_t
-rmw_take_with_info(
+static rmw_ret_t __rmw_take(
   const rmw_subscription_t * subscription,
   void * ros_message,
   bool * taken,
@@ -1126,31 +1171,31 @@ rmw_take_with_info(
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   static_cast<void>(allocation);
+
   *taken = false;
 
-  auto * sub_data = static_cast<rmw_subscription_data_t *>(subscription->data);
+  auto sub_data = static_cast<rmw_subscription_data_t *>(subscription->data);
 
   // RETRIEVE SERIALIZED MESSAGE ===============================================
-  std::unique_lock<std::mutex> lock(sub_data->message_queue_mutex);
 
-  if (sub_data->message_queue.empty()) {
-    // This tells rcl that the check for a new message was done, but no messages have come in yet.
-    return RMW_RET_OK;
+  std::pair<size_t, uint8_t *> msg_bytes;
+  {
+    std::unique_lock<std::mutex> lock(sub_data->message_queue_mutex);
+
+    if (sub_data->message_queue.empty()) {
+      // This tells rcl that the check for a new message was done, but no messages have come in yet.
+      return RMW_RET_OK;
+    }
+
+    // NOTE(CH3): Potential place to handle "QoS" (e.g. could pop from back so it is LIFO)
+    msg_bytes = sub_data->message_queue.back();
+    sub_data->message_queue.pop_back();
   }
-
-  // NOTE(CH3): Potential place to handle "QoS" (e.g. could pop from back so it is LIFO)
-  auto msg_bytes_ptr = sub_data->message_queue.back();
-  sub_data->message_queue.pop_back();
-  sub_data->message_queue_mutex.unlock();
-
-  unsigned char * cdr_buffer = static_cast<unsigned char *>(rmw_allocate(
-      msg_bytes_ptr->size()));
-  memcpy(cdr_buffer, &msg_bytes_ptr->front(), msg_bytes_ptr->size());
 
   // Object that manages the raw buffer
   eprosima::fastcdr::FastBuffer fastbuffer(
-    reinterpret_cast<char *>(cdr_buffer),
-    msg_bytes_ptr->size());
+    reinterpret_cast<char *>(msg_bytes.second),
+    msg_bytes.first);
 
   // Object that serializes the data
   eprosima::fastcdr::Cdr deser(
@@ -1166,10 +1211,47 @@ rmw_take_with_info(
     return RMW_RET_ERROR;
   }
 
+  rcutils_allocator_t * allocator = &sub_data->context->options.allocator;
   *taken = true;
-  rmw_free(cdr_buffer);
+  allocator->deallocate(msg_bytes.second, allocator->state);
+
+  // TODO(clalancette): fill in message_info here
+  message_info->source_timestamp = 0;
+  message_info->received_timestamp = 0;
+  message_info->publication_sequence_number = 0;
+  message_info->reception_sequence_number = 0;
+  message_info->publisher_gid.implementation_identifier = rmw_zenoh_identifier;
+  memset(message_info->publisher_gid.data, 0, RMW_GID_STORAGE_SIZE);
+  message_info->from_intra_process = false;
 
   return RMW_RET_OK;
+}
+
+//==============================================================================
+/// Take an incoming ROS message.
+rmw_ret_t
+rmw_take(
+  const rmw_subscription_t * subscription,
+  void * ros_message,
+  bool * taken,
+  rmw_subscription_allocation_t * allocation)
+{
+  rmw_message_info_t dummy_msg_info;
+
+  return __rmw_take(subscription, ros_message, taken, &dummy_msg_info, allocation);
+}
+
+//==============================================================================
+/// Take an incoming ROS message with its metadata.
+rmw_ret_t
+rmw_take_with_info(
+  const rmw_subscription_t * subscription,
+  void * ros_message,
+  bool * taken,
+  rmw_message_info_t * message_info,
+  rmw_subscription_allocation_t * allocation)
+{
+  return __rmw_take(subscription, ros_message, taken, message_info, allocation);
 }
 
 //==============================================================================
@@ -1568,26 +1650,29 @@ rmw_create_wait_set(rmw_context_t * context, size_t max_conditions)
     rmw_zenoh_identifier,
     return nullptr);
 
-  rmw_wait_set_t * wait_set = rmw_wait_set_allocate();
-  if (!wait_set) {
-    RMW_SET_ERROR_MSG("failed to allocate wait set");
-    return nullptr;
-  }
+  rcutils_allocator_t * allocator = &context->options.allocator;
+
+  auto wait_set = static_cast<rmw_wait_set_t *>(
+    allocator->zero_allocate(1, sizeof(rmw_wait_set_t), allocator->state));
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    wait_set,
+    "failed to allocate wait set",
+    return nullptr);
   auto cleanup_wait_set = rcpputils::make_scope_exit(
-    [wait_set]() {
-      rmw_wait_set_free(wait_set);
+    [wait_set, allocator]() {
+      allocator->deallocate(wait_set, allocator->state);
     });
 
   wait_set->implementation_identifier = rmw_zenoh_identifier;
 
-  wait_set->data = rmw_allocate(sizeof(rmw_wait_set_data_t));
-  if (!wait_set->data) {
-    RMW_SET_ERROR_MSG("failed to construct wait set info struct");
-    return nullptr;
-  }
+  wait_set->data = allocator->zero_allocate(1, sizeof(rmw_wait_set_data_t), allocator->state);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    wait_set->data,
+    "failed to allocate wait set data",
+    return nullptr);
   auto free_wait_set_data = rcpputils::make_scope_exit(
-    [wait_set]() {
-      rmw_free(wait_set->data);
+    [wait_set, allocator]() {
+      allocator->deallocate(wait_set->data, allocator->state);
     });
 
   // Invoke placement new
@@ -1599,9 +1684,12 @@ rmw_create_wait_set(rmw_context_t * context, size_t max_conditions)
         rmw_wait_set_data);
     });
 
+  static_cast<rmw_wait_set_data_t *>(wait_set->data)->context = context;
+
   destruct_rmw_wait_set_data.cancel();
   free_wait_set_data.cancel();
   cleanup_wait_set.cancel();
+
   return wait_set;
 }
 
@@ -1620,110 +1708,15 @@ rmw_destroy_wait_set(rmw_wait_set_t * wait_set)
 
   auto wait_set_data = static_cast<rmw_wait_set_data_t *>(wait_set->data);
 
-  wait_set_data->~rmw_wait_set_data_t();
-  rmw_free(wait_set->data);
+  rcutils_allocator_t * allocator = &wait_set_data->context->options.allocator;
 
-  rmw_wait_set_free(wait_set);
+  wait_set_data->~rmw_wait_set_data_t();
+  allocator->deallocate(wait_set_data, allocator->state);
+
+  allocator->deallocate(wait_set, allocator->state);
 
   return RMW_RET_OK;
 }
-
-//==============================================================================
-namespace
-{
-bool check_wait_conditions(
-  const rmw_subscriptions_t * subscriptions,
-  const rmw_guard_conditions_t * guard_conditions,
-  const rmw_services_t * services,
-  const rmw_clients_t * clients,
-  const rmw_events_t * events,
-  bool finalize)
-{
-  // NOTE(CH3): On the finalize parameter
-  // This check function is used as a predicate to wait on a condition variable. But rcl expects
-  // rmw to set any passed in pointers to NULL if the condition is not ready.
-  //
-  // The finalize parameter is used to make sure that this setting to NULL only happens ONCE per
-  // rmw_wait call. Otherwise on repeat calls to check the predicate, things will break since
-  // it'll try to compare or dereference a nullptr.
-
-  bool stop_wait = false;
-
-  // SUBSCRIPTIONS =============================================================
-  if (subscriptions) {
-    size_t subscriptions_ready = 0;
-
-    for (size_t i = 0; i < subscriptions->subscriber_count; ++i) {
-      auto subscription_data = static_cast<rmw_subscription_data_t *>(
-        subscriptions->subscribers[i]);
-      if (subscription_data && subscription_data->message_queue.empty()) {
-        if (finalize) {
-          // Setting to nullptr lets rcl know that this subscription is not ready
-          subscriptions->subscribers[i] = nullptr;
-        }
-      } else {
-        subscriptions_ready++;
-        stop_wait = true;
-      }
-    }
-
-    if (finalize && subscriptions_ready > 0) {
-      RCUTILS_LOG_DEBUG_NAMED(
-        "rmw_zenoh_cpp", "[rmw_wait] SUBSCRIPTIONS READY: %ld",
-        subscriptions_ready);
-    }
-  }
-
-  // SERVICES ==================================================================
-  // TODO(yadunund)
-  for (size_t i = 0; i < services->service_count; ++i) {
-    services->services[i] = nullptr;
-  }
-
-  // CLIENTS ===================================================================
-  // TODO(yadunund)
-  for (size_t i = 0; i < clients->client_count; ++i) {
-    clients->clients[i] = nullptr;
-  }
-
-  // Guard conditions
-  // for (size_t i = 0; i < guard_conditions->guard_condition_count; ++i) {
-  //   guard_conditions->guard_conditions[i] = nullptr;
-  // }
-  if (guard_conditions) {
-    size_t guard_conditions_ready = 0;
-
-    for (size_t i = 0; i < guard_conditions->guard_condition_count; ++i) {
-      auto guard_condition = static_cast<GuardCondition *>(
-        guard_conditions->guard_conditions[i]);
-      if (guard_condition && guard_condition->has_triggered()) {
-        if (finalize) {
-          // Setting to nullptr lets rcl know that this guard_condition is not ready
-          guard_conditions->guard_conditions[i] = nullptr;
-        }
-      } else {
-        guard_conditions_ready++;
-        stop_wait = true;
-      }
-    }
-
-    if (finalize && guard_conditions_ready > 0) {
-      RCUTILS_LOG_DEBUG_NAMED(
-        "rmw_zenoh_common_cpp", "[rmw_wait] GUARD CONDITIONS READY: %ld",
-        guard_conditions_ready);
-    }
-  }
-
-  // Events
-  // TODO(yadunund)
-  for (size_t i = 0; i < events->event_count; ++i) {
-    events->events[i] = nullptr;
-  }
-
-  return stop_wait;
-}
-
-}  // namespace
 
 //==============================================================================
 /// Waits on sets of different entities and returns when one is ready.
@@ -1743,7 +1736,8 @@ rmw_wait(
     wait_set->implementation_identifier, rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
-  RCUTILS_LOG_DEBUG_NAMED(
+  // TODO(yadunund): Switch to debug log level.
+  RCUTILS_LOG_WARN_NAMED(
     "rmw_zenoh_cpp",
     "[rmw_wait] %ld subscriptions, %ld services, %ld clients, %ld events, %ld guard conditions",
     subscriptions->subscriber_count,
@@ -1752,83 +1746,91 @@ rmw_wait(
     events->event_count,
     guard_conditions->guard_condition_count);
 
+  // TODO(yadunund): Switch to debug log level.
   if (wait_timeout) {
-    RCUTILS_LOG_DEBUG_NAMED(
+    RCUTILS_LOG_WARN_NAMED(
       "rmw_zenoh_common_cpp", "[rmw_wait] TIMEOUT: %ld s %ld ns",
       wait_timeout->sec,
       wait_timeout->nsec);
   }
 
-  auto wait_set_info = static_cast<rmw_wait_set_data_t *>(wait_set->data);
-  if (!wait_set_info) {
-    RMW_SET_ERROR_MSG("Waitset info struct is null");
-    return RMW_RET_ERROR;
-  }
+  auto wait_set_data = static_cast<rmw_wait_set_data_t *>(wait_set->data);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    wait_set_data,
+    "waitset data struct is null",
+    return RMW_RET_ERROR);
 
-  std::mutex * condition_mutex = &wait_set_info->condition_mutex;
-  if (!condition_mutex) {
-    RMW_SET_ERROR_MSG("Mutex for wait set was null");
-    return RMW_RET_ERROR;
-  }
-
-  std::condition_variable * condition_variable = &wait_set_info->condition;
-  if (!condition_variable) {
-    RMW_SET_ERROR_MSG("Condition variable for wait set was null");
-    return RMW_RET_ERROR;
-  }
-
-  std::unique_lock<std::mutex> lock(*condition_mutex);
-
-  bool ready = check_wait_conditions(
-    subscriptions,
-    guard_conditions,
-    services,
-    clients,
-    events,
-    false);
-  auto predicate = [subscriptions, guard_conditions, services, clients, events]() {
-      return check_wait_conditions(
-        subscriptions,
-        guard_conditions,
-        services,
-        clients,
-        events,
-        false);
-    };
-
-  bool timed_out = false;
-
-  if (!ready) {
-    if (!wait_timeout) {
-      // TODO(CH3): Remove this magic number once stable. This is to slow things down so things are
-      // visible with all the printouts flying everywhere.
-      condition_variable->wait_for(lock, std::chrono::milliseconds(500), predicate);
-    } else if (wait_timeout->sec > 0 || wait_timeout->nsec > 0) {
-      auto wait_time = std::chrono::duration_cast<std::chrono::nanoseconds>(
-        std::chrono::seconds(wait_timeout->sec));
-      wait_time += std::chrono::nanoseconds(wait_timeout->nsec);
-
-      timed_out = !condition_variable->wait_for(lock, wait_time, predicate);
-    } else {
-      timed_out = true;
+  if (guard_conditions) {
+    // Go through each of the guard conditions, and attach the wait set condition variable to them.
+    // That way they can wake it up if they are triggered while we are waiting.
+    for (size_t i = 0; i < guard_conditions->guard_condition_count; ++i) {
+      // This is hard to track down, but each of the (void *) pointers in
+      // guard_conditions->guard_conditions points to the data field of the related
+      // rmw_guard_condition_t.  So we can directly cast it to GuardCondition.
+      GuardCondition * gc = static_cast<GuardCondition *>(guard_conditions->guard_conditions[i]);
+      if (gc != nullptr) {
+        gc->attach_condition(&wait_set_data->condition_variable);
+      }
     }
   }
 
-  // The finalize parameter passed in here enables debug and setting of non-ready conditions
-  // to NULL (as expected by rcl)
-  //
-  // (In other words, it ensures that this happens once per rmw_wait call)
-  //
-  // Debug logs and NULL assignments do not happen in the predicate above, and only on this call
-  check_wait_conditions(subscriptions, guard_conditions, services, clients, events, true);
-  lock.unlock();
-
-  if (timed_out) {
-    RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_common_cpp", "[rmw_wait] TIMED OUT");
-    return RMW_RET_TIMEOUT;
-  } else {
-    return RMW_RET_OK;
+  if (subscriptions) {
+    // Go through each of the subscriptions and attach the wait set condition variable to them.
+    // That way they can wake it up if they are triggered while we are waiting.
+    for (size_t i = 0; i < subscriptions->subscriber_count; ++i) {
+      auto sub_data = static_cast<rmw_subscription_data_t *>(subscriptions->subscribers[i]);
+      if (sub_data != nullptr) {
+        sub_data->condition = &wait_set_data->condition_variable;
+      }
+    }
   }
+
+  std::unique_lock<std::mutex> lock(wait_set_data->condition_mutex);
+
+  // According to the RMW documentation, if wait_timeout is NULL that means
+  // "wait forever", if it specified by 0 it means "never wait", and if it is anything else wait
+  // for that amount of time.
+  if (wait_timeout == nullptr) {
+    wait_set_data->condition_variable.wait(lock);
+  } else {
+    if (wait_timeout->sec != 0 || wait_timeout->nsec != 0) {
+      wait_set_data->condition_variable.wait_for(
+        lock, std::chrono::nanoseconds(wait_timeout->nsec + RCUTILS_S_TO_NS(wait_timeout->sec)));
+    }
+  }
+
+  if (guard_conditions) {
+    // Now detach the condition variable and mutex from each of the guard conditions
+    for (size_t i = 0; i < guard_conditions->guard_condition_count; ++i) {
+      GuardCondition * gc = static_cast<GuardCondition *>(guard_conditions->guard_conditions[i]);
+      if (gc != nullptr) {
+        gc->detach_condition();
+        // According to the documentation for rmw_wait in rmw.h, entries in the
+        // array that have *not* been triggered should be set to NULL
+        if (!gc->has_triggered()) {
+          guard_conditions->guard_conditions[i] = nullptr;
+        }
+      }
+    }
+  }
+
+  if (subscriptions) {
+    // Now detach the condition variable and mutex from each of the subscriptions
+    for (size_t i = 0; i < subscriptions->subscriber_count; ++i) {
+      auto sub_data = static_cast<rmw_subscription_data_t *>(subscriptions->subscribers[i]);
+      if (sub_data != nullptr) {
+        sub_data->condition = nullptr;
+        // According to the documentation for rmw_wait in rmw.h, entries in the
+        // array that have *not* been triggered should be set to NULL
+        if (sub_data->message_queue.empty()) {
+          // Setting to nullptr lets rcl know that this subscription is not ready
+          subscriptions->subscribers[i] = nullptr;
+        }
+      }
+    }
+  }
+
+  return RMW_RET_OK;
 }
 
 //==============================================================================
@@ -1924,7 +1926,8 @@ rmw_get_gid_for_publisher(const rmw_publisher_t * publisher, rmw_gid_t * gid)
 {
   static_cast<void>(publisher);
   static_cast<void>(gid);
-  return RMW_RET_UNSUPPORTED;
+  // TODO(clalancette): Implement me
+  return RMW_RET_OK;
 }
 
 //==============================================================================

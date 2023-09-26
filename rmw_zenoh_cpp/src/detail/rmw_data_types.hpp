@@ -23,11 +23,13 @@
 #include <mutex>
 #include <string>
 #include <unordered_set>
-#include <vector>
+#include <utility>
+
+#include "rcutils/allocator.h"
 
 #include "rmw/rmw.h"
 
-#include "TypeSupport.hpp"
+#include "MessageTypeSupport.hpp"
 
 /// Structs for various type erased data fields.
 
@@ -64,7 +66,7 @@ struct rmw_publisher_data_t
   // Type support fields
   const void * type_support_impl;
   const char * typesupport_identifier;
-  TypeSupport * type_support;
+  MessageTypeSupport * type_support;
 
   // Context for memory allocation for messages.
   rmw_context_t * context;
@@ -73,8 +75,10 @@ struct rmw_publisher_data_t
 ///==============================================================================
 struct rmw_wait_set_data_t
 {
-  std::condition_variable condition;
+  std::condition_variable condition_variable;
   std::mutex condition_mutex;
+
+  rmw_context_t * context;
 };
 
 ///==============================================================================
@@ -88,13 +92,17 @@ struct rmw_subscription_data_t
 
   const void * type_support_impl;
   const char * typesupport_identifier;
-  TypeSupport * type_support;
+  MessageTypeSupport * type_support;
+  rmw_context_t * context;
 
-  std::deque<std::shared_ptr<std::vector<unsigned char>>> message_queue;
+  std::deque<std::pair<size_t, uint8_t *>> message_queue;
   std::mutex message_queue_mutex;
 
   size_t queue_depth;
   bool reliable;
+
+  std::mutex internal_mutex;
+  std::condition_variable * condition{nullptr};
 };
 
 #endif  // DETAIL__RMW_DATA_TYPES_HPP_
