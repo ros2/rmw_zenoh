@@ -32,10 +32,27 @@
 
 extern "C"
 {
-
 // Megabytes of SHM to reserve.
 // TODO(clalancette): Make this configurable, or get it from the configuration
 #define SHM_BUFFER_SIZE_MB 10
+
+static void graph_sub_data_handler(
+  const z_sample_t * sample,
+  void * data)
+{
+  (void)data;
+  z_owned_str_t keystr = z_keyexpr_to_string(sample->keyexpr);
+
+  // TODO(clalancette): Use the allocator here
+  char * payload_data = static_cast<char *>(malloc(sample->payload.len + 1));
+
+  memcpy(payload_data, sample->payload.start, sample->payload.len);
+  payload_data[sample->payload.len] = '\0';
+
+  free(payload_data);
+
+  z_drop(z_move(keystr));
+}
 
 //==============================================================================
 /// Initialize the middleware with the given options, and yielding an context.
@@ -137,7 +154,7 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   context->impl->session = z_open(z_move(config));
   if (!z_session_check(&context->impl->session)) {
     RMW_SET_ERROR_MSG("Error setting up zenoh session");
-    return RMW_RET_INVALID_ARGUMENT;
+    return RMW_RET_ERROR;
   }
   auto close_session = rcpputils::make_scope_exit(
     [context]() {
@@ -208,13 +225,46 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
       RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(gc_data->~GuardCondition(), GuardCondition);
     });
 
+  auto sub_options = z_subscriber_options_default();
+  sub_options.reliability = Z_RELIABILITY_RELIABLE;
+  z_owned_closure_sample_t callback = z_closure(graph_sub_data_handler, nullptr, context->impl);
+  context->impl->graph_subscriber = z_declare_subscriber(
+    z_loan(context->impl->session),
+    z_keyexpr("ros/graph/**"),
+    z_move(callback),
+    &sub_options);
+  auto undeclare_z_sub = rcpputils::make_scope_exit(
+    [context]() {
+      z_undeclare_subscriber(z_move(context->impl->graph_subscriber));
+    });
+  if (!z_check(context->impl->graph_subscriber)) {
+    RMW_SET_ERROR_MSG("unable to create zenoh subscription");
+    return RMW_RET_ERROR;
+  }
+
+  context->impl->graph_publisher = z_declare_publisher(
+    z_loan(context->impl->session),
+    z_keyexpr("ros/graph/hello"),
+    NULL);
+  auto undeclare_z_publisher = rcpputils::make_scope_exit(
+    [context]() {
+      z_undeclare_publisher(z_move(context->impl->graph_publisher));
+    });
+  if (!z_check(context->impl->graph_subscriber)) {
+    RMW_SET_ERROR_MSG("unable to create zenoh subscription");
+    return RMW_RET_ERROR;
+  }
+
+  undeclare_z_publisher.cancel();
+  undeclare_z_sub.cancel();
   close_session.cancel();
   destruct_guard_condition_data.cancel();
   impl_destructor.cancel();
   free_guard_condition_data.cancel();
   free_guard_condition.cancel();
-  free_impl.cancel();
   free_options.cancel();
+  impl_destructor.cancel();
+  free_impl.cancel();
   free_shm_manager.cancel();
   restore_context.cancel();
 
@@ -236,6 +286,9 @@ rmw_shutdown(rmw_context_t * context)
     context->implementation_identifier,
     rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+
+  z_undeclare_publisher(z_move(context->impl->graph_publisher));
+  z_undeclare_subscriber(z_move(context->impl->graph_subscriber));
 
   // Close the zenoh session
   if (z_close(z_move(context->impl->session)) < 0) {

@@ -136,11 +136,17 @@ rmw_create_node(
       allocator->deallocate(node, allocator->state);
     });
 
-  node->name = rcutils_strdup(name, *allocator);
+  size_t name_len = strlen(name);
+  // We specifically don't use rcutils_strdup() here because we want to avoid iterating over the
+  // name again looking for the \0 (we already did that above).
+  char * new_string = static_cast<char *>(allocator->allocate(name_len + 1, allocator->state));
   RMW_CHECK_FOR_NULL_WITH_MSG(
-    node->name,
+    new_string,
     "unable to allocate memory for node name",
     return nullptr);
+  memcpy(new_string, name, name_len);
+  new_string[name_len] = '\0';
+  node->name = new_string;
   auto free_name = rcpputils::make_scope_exit(
     [node, allocator]() {
       allocator->deallocate(const_cast<char *>(node->name), allocator->state);
@@ -172,6 +178,15 @@ rmw_create_node(
   node->implementation_identifier = rmw_zenoh_identifier;
   node->context = context;
 
+  // Publish to the graph that a new node is in town
+  z_publisher_put_options_t pub_options = z_publisher_put_options_default();
+  pub_options.encoding = z_encoding(Z_ENCODING_PREFIX_EMPTY, NULL);
+  z_publisher_put(
+    z_loan(context->impl->graph_publisher),
+    reinterpret_cast<const uint8_t *>(node->name),
+    name_len,
+    &pub_options);
+
   free_node_data.cancel();
   free_namespace.cancel();
   free_name.cancel();
@@ -192,7 +207,14 @@ rmw_destroy_node(rmw_node_t * node)
     rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
-  // TODO(Yadunund): Unregister with storage system.
+  // Publish to the graph that a node has ridden off into the sunset
+  z_publisher_put_options_t pub_options = z_publisher_put_options_default();
+  pub_options.encoding = z_encoding(Z_ENCODING_PREFIX_EMPTY, NULL);
+  z_publisher_put(
+    z_loan(node->context->impl->graph_publisher),
+    reinterpret_cast<const uint8_t *>(node->name),
+    strlen(node->name),
+    &pub_options);
 
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
@@ -404,29 +426,6 @@ rmw_create_publisher(
       allocator->deallocate(publisher_data, allocator->state);
     });
 
-  // TODO(yadunund): Parse adapted_qos_profile and publisher_options to generate
-  // a z_publisher_put_options struct instead of passing NULL to this function.
-  char * zenoh_key_name = ros_topic_name_to_zenoh_key(topic_name, allocator);
-  RMW_CHECK_FOR_NULL_WITH_MSG(
-    zenoh_key_name,
-    "failed to allocate memory for zenoh key name",
-    return nullptr);
-  // TODO(clalancette): What happens if the key name is a valid but empty string?
-  publisher_data->pub = z_declare_publisher(
-    z_loan(context_impl->session),
-    z_keyexpr(zenoh_key_name),
-    NULL
-  );
-  allocator->deallocate(zenoh_key_name, allocator->state);
-  if (!z_check(publisher_data->pub)) {
-    RMW_SET_ERROR_MSG("unable to create zenoh publisher");
-    return nullptr;
-  }
-  auto undeclare_z_publisher = rcpputils::make_scope_exit(
-    [publisher_data]() {
-      z_undeclare_publisher(z_move(publisher_data->pub));
-    });
-
   publisher_data->typesupport_identifier = type_support->typesupport_identifier;
   publisher_data->type_support_impl = type_support->data;
   auto callbacks = static_cast<const message_type_support_callbacks_t *>(type_support->data);
@@ -460,20 +459,67 @@ rmw_create_publisher(
   // TODO(yadunund): Update this.
   rmw_publisher->can_loan_messages = false;
 
-  rmw_publisher->topic_name = rcutils_strdup(topic_name, *allocator);
+  size_t topic_len = strlen(topic_name);
+  // We specifically don't use rcutils_strdup() here because we want to avoid iterating over the
+  // name again looking for the \0 (we already did that above).
+  char * new_string = static_cast<char *>(allocator->allocate(topic_len + 1, allocator->state));
   RMW_CHECK_FOR_NULL_WITH_MSG(
-    rmw_publisher->topic_name,
+    new_string,
     "Failed to allocate topic name",
     return nullptr);
+  memcpy(new_string, topic_name, topic_len);
+  new_string[topic_len] = '\0';
+  rmw_publisher->topic_name = new_string;
   auto free_topic_name = rcpputils::make_scope_exit(
     [rmw_publisher, allocator]() {
       allocator->deallocate(const_cast<char *>(rmw_publisher->topic_name), allocator->state);
     });
 
+  // TODO(yadunund): Parse adapted_qos_profile and publisher_options to generate
+  // a z_publisher_put_options struct instead of passing NULL to this function.
+  char * zenoh_key_name = ros_topic_name_to_zenoh_key(topic_name, allocator);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    zenoh_key_name,
+    "failed to allocate memory for zenoh key name",
+    return nullptr);
+  // TODO(clalancette): What happens if the key name is a valid but empty string?
+  publisher_data->pub = z_declare_publisher(
+    z_loan(context_impl->session),
+    z_keyexpr(zenoh_key_name),
+    NULL
+  );
+  allocator->deallocate(zenoh_key_name, allocator->state);
+  if (!z_check(publisher_data->pub)) {
+    RMW_SET_ERROR_MSG("unable to create zenoh publisher");
+    return nullptr;
+  }
+  auto undeclare_z_publisher = rcpputils::make_scope_exit(
+    [publisher_data]() {
+      z_undeclare_publisher(z_move(publisher_data->pub));
+    });
+
+  // Publish to the graph that a new publisher is in town
+  z_publisher_put_options_t pub_options = z_publisher_put_options_default();
+  pub_options.encoding = z_encoding(Z_ENCODING_PREFIX_EMPTY, NULL);
+  z_publisher_put(
+    z_loan(node->context->impl->graph_publisher),
+    reinterpret_cast<const uint8_t *>(rmw_publisher->topic_name),
+    topic_len,
+    &pub_options);
+
+  publisher_data->graph_cache_handle = node->context->impl->graph_cache.add_publisher(
+    rmw_publisher->topic_name, node->name, node->namespace_,
+    publisher_data->type_support->get_name(), allocator);
+  auto remove_from_graph_cache = rcpputils::make_scope_exit(
+    [node, publisher_data]() {
+      node->context->impl->graph_cache.remove_publisher(publisher_data->graph_cache_handle);
+    });
+
+  remove_from_graph_cache.cancel();
+  undeclare_z_publisher.cancel();
   free_topic_name.cancel();
   destruct_msg_type_support.cancel();
   free_type_support.cancel();
-  undeclare_z_publisher.cancel();
   free_publisher_data.cancel();
   free_rmw_publisher.cancel();
 
@@ -500,12 +546,23 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
 
   rmw_ret_t ret = RMW_RET_OK;
 
+  // Publish to the graph that a publisher has ridden off into the sunset
+  z_publisher_put_options_t pub_options = z_publisher_put_options_default();
+  pub_options.encoding = z_encoding(Z_ENCODING_PREFIX_EMPTY, NULL);
+  z_publisher_put(
+    z_loan(node->context->impl->graph_publisher),
+    reinterpret_cast<const uint8_t *>(publisher->topic_name),
+    strlen(publisher->topic_name),
+    &pub_options);
+
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
   allocator->deallocate(const_cast<char *>(publisher->topic_name), allocator->state);
 
   auto publisher_data = static_cast<rmw_publisher_data_t *>(publisher->data);
   if (publisher_data != nullptr) {
+    node->context->impl->graph_cache.remove_publisher(publisher_data->graph_cache_handle);
+
     RMW_TRY_DESTRUCTOR(publisher_data->type_support->~MessageTypeSupport(), MessageTypeSupport, );
     allocator->deallocate(publisher_data->type_support, allocator->state);
     if (z_undeclare_publisher(z_move(publisher_data->pub))) {
@@ -690,7 +747,7 @@ rmw_publish(
     // Returns 0 if success.
     ret = z_publisher_put(
       z_loan(publisher_data->pub),
-      (const uint8_t *)msg_bytes,
+      reinterpret_cast<const uint8_t *>(msg_bytes),
       data_length,
       &options);
   }
@@ -1062,11 +1119,17 @@ rmw_create_subscription(
   rmw_subscription->implementation_identifier = rmw_zenoh_identifier;
   rmw_subscription->data = sub_data;
 
-  rmw_subscription->topic_name = rcutils_strdup(topic_name, *allocator);
+  size_t topic_len = strlen(topic_name);
+  // We specifically don't use rcutils_strdup() here because we want to avoid iterating over the
+  // name again looking for the \0 (we already did that above).
+  char * new_string = static_cast<char *>(allocator->allocate(topic_len + 1, allocator->state));
   RMW_CHECK_FOR_NULL_WITH_MSG(
-    rmw_subscription->topic_name,
+    new_string,
     "Failed to allocate topic name",
     return nullptr);
+  memcpy(new_string, topic_name, topic_len);
+  new_string[topic_len] = '\0';
+  rmw_subscription->topic_name = new_string;
   auto free_topic_name = rcpputils::make_scope_exit(
     [rmw_subscription, allocator]() {
       allocator->deallocate(const_cast<char *>(rmw_subscription->topic_name), allocator->state);
@@ -1102,6 +1165,24 @@ rmw_create_subscription(
       z_undeclare_subscriber(z_move(sub_data->sub));
     });
 
+  // Publish to the graph that a new subscription is in town
+  z_publisher_put_options_t pub_options = z_publisher_put_options_default();
+  pub_options.encoding = z_encoding(Z_ENCODING_PREFIX_EMPTY, NULL);
+  z_publisher_put(
+    z_loan(node->context->impl->graph_publisher),
+    reinterpret_cast<const uint8_t *>(rmw_subscription->topic_name),
+    topic_len,
+    &pub_options);
+
+  sub_data->graph_cache_handle = node->context->impl->graph_cache.add_subscription(
+    rmw_subscription->topic_name, node->name, node->namespace_,
+    sub_data->type_support->get_name(), allocator);
+  auto remove_from_graph_cache = rcpputils::make_scope_exit(
+    [node, sub_data]() {
+      node->context->impl->graph_cache.remove_subscription(sub_data->graph_cache_handle);
+    });
+
+  remove_from_graph_cache.cancel();
   undeclare_z_sub.cancel();
   free_topic_name.cancel();
   destruct_msg_type_support.cancel();
@@ -1133,12 +1214,23 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
 
   rmw_ret_t ret = RMW_RET_OK;
 
+  // Publish to the graph that a subscription has ridden off into the sunset
+  z_publisher_put_options_t pub_options = z_publisher_put_options_default();
+  pub_options.encoding = z_encoding(Z_ENCODING_PREFIX_EMPTY, NULL);
+  z_publisher_put(
+    z_loan(node->context->impl->graph_publisher),
+    reinterpret_cast<const uint8_t *>(subscription->topic_name),
+    strlen(subscription->topic_name),
+    &pub_options);
+
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
   allocator->deallocate(const_cast<char *>(subscription->topic_name), allocator->state);
 
   auto sub_data = static_cast<rmw_subscription_data_t *>(subscription->data);
   if (sub_data != nullptr) {
+    node->context->impl->graph_cache.remove_subscription(sub_data->graph_cache_handle);
+
     RMW_TRY_DESTRUCTOR(sub_data->type_support->~MessageTypeSupport(), MessageTypeSupport, );
     allocator->deallocate(sub_data->type_support, allocator->state);
 

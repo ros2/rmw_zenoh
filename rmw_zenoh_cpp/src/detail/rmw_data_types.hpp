@@ -29,6 +29,7 @@
 
 #include "rmw/rmw.h"
 
+#include "graph_cache.hpp"
 #include "message_type_support.hpp"
 
 /// Structs for various type erased data fields.
@@ -42,12 +43,18 @@ struct rmw_context_impl_s
   // The SHM manager.
   zc_owned_shm_manager_t shm_manager;
 
+  z_owned_publisher_t graph_publisher;
+
+  z_owned_subscriber_t graph_subscriber;
+
   /// Shutdown flag.
   bool is_shutdown;
 
   // Equivalent to rmw_dds_common::Context's guard condition
   /// Guard condition that should be triggered when the graph changes.
   rmw_guard_condition_t * graph_guard_condition;
+
+  GraphCache graph_cache;
 };
 
 ///==============================================================================
@@ -73,6 +80,8 @@ struct rmw_publisher_data_t
 
   // Context for memory allocation for messages.
   rmw_context_t * context;
+
+  uint64_t graph_cache_handle;
 };
 
 ///==============================================================================
@@ -119,6 +128,8 @@ struct rmw_subscription_data_t
 
   std::mutex internal_mutex;
   std::condition_variable * condition{nullptr};
+
+  uint64_t graph_cache_handle;
 };
 
 #endif  // DETAIL__RMW_DATA_TYPES_HPP_
