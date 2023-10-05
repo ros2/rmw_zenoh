@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "rmw_dds_common/qos.hpp"
+#include "rmw/error_handling.h"
 #include "rmw/types.h"
 #include "rmw/qos_profiles.h"
 
@@ -26,7 +26,28 @@ rmw_qos_profile_check_compatible(
   char * reason,
   size_t reason_size)
 {
-  return rmw_dds_common::qos_profile_check_compatible(
-    publisher_profile, subscription_profile, compatibility, reason, reason_size);
+  if (!compatibility) {
+    RMW_SET_ERROR_MSG("compatibility parameter is null");
+    return RMW_RET_INVALID_ARGUMENT;
+  }
+
+  if (!reason && reason_size != 0u) {
+    RMW_SET_ERROR_MSG("reason parameter is null, but reason_size parameter is not zero");
+    return RMW_RET_INVALID_ARGUMENT;
+  }
+
+  // Presume profiles are compatible until proven otherwise
+  *compatibility = RMW_QOS_COMPATIBILITY_OK;
+
+  // Initialize reason buffer
+  if (reason && reason_size != 0u) {
+    reason[0] = '\0';
+  }
+
+  // TODO(clalancette): check compatibility in Zenoh QOS profiles.
+  (void)publisher_profile;
+  (void)subscription_profile;
+
+  return RMW_RET_OK;
 }
 }  // extern "C"

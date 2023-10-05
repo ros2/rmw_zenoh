@@ -21,7 +21,6 @@ find_package(rcutils REQUIRED)
 find_package(rosidl_typesupport_fastrtps_c REQUIRED)
 find_package(rosidl_typesupport_fastrtps_cpp REQUIRED)
 find_package(rmw REQUIRED)
-find_package(rmw_dds_common REQUIRED)
 find_package(rmw_fastrtps_shared_cpp REQUIRED)
 find_package(zenoh_c_vendor REQUIRED)
 find_package(zenohc REQUIRED)
@@ -54,7 +53,6 @@ target_link_libraries(rmw_zenoh_cpp
     rosidl_typesupport_fastrtps_c::rosidl_typesupport_fastrtps_c
     rosidl_typesupport_fastrtps_cpp::rosidl_typesupport_fastrtps_cpp
     rmw::rmw
-    rmw_dds_common::rmw_dds_common_library
     rmw_fastrtps_shared_cpp::rmw_fastrtps_shared_cpp
     zenohc::lib
 )
