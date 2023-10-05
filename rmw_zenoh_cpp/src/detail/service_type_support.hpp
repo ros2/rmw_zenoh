@@ -29,13 +29,13 @@ protected:
   ServiceTypeSupport();
 };
 
-class RequestTypeSupport : public ServiceTypeSupport
+class RequestTypeSupport final : public ServiceTypeSupport
 {
 public:
   explicit RequestTypeSupport(const service_type_support_callbacks_t * members);
 };
 
-class ResponseTypeSupport : public ServiceTypeSupport
+class ResponseTypeSupport final : public ServiceTypeSupport
 {
 public:
   explicit ResponseTypeSupport(const service_type_support_callbacks_t * members);

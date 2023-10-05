@@ -31,12 +31,12 @@ TypeSupport::TypeSupport()
   type_size_ = 0;
 }
 
-void TypeSupport::setName(const char * name)
+void TypeSupport::set_name(const char * name)
 {
   topic_data_type_name_ = std::string(name);
 }
 
-const char * TypeSupport::getName() const
+const char * TypeSupport::get_name() const
 {
   return topic_data_type_name_.c_str();
 }
@@ -70,7 +70,7 @@ void TypeSupport::set_members(const message_type_support_callbacks_t * members)
   type_size_ = (type_size_ + 3) & ~3;
 }
 
-size_t TypeSupport::getEstimatedSerializedSize(const void * ros_message, const void * impl) const
+size_t TypeSupport::get_estimated_serialized_size(const void * ros_message, const void * impl) const
 {
   if (is_plain_) {
     return type_size_;
@@ -85,7 +85,7 @@ size_t TypeSupport::getEstimatedSerializedSize(const void * ros_message, const v
   return 4 + callbacks->get_serialized_size(ros_message);
 }
 
-bool TypeSupport::serializeROSmessage(
+bool TypeSupport::serialize_ros_message(
   const void * ros_message,
   eprosima::fastcdr::Cdr & ser,
   const void * impl) const
@@ -107,7 +107,7 @@ bool TypeSupport::serializeROSmessage(
   return true;
 }
 
-bool TypeSupport::deserializeROSmessage(
+bool TypeSupport::deserialize_ros_message(
   eprosima::fastcdr::Cdr & deser,
   void * ros_message,
   const void * impl) const
@@ -132,7 +132,7 @@ bool TypeSupport::deserializeROSmessage(
   } catch (const eprosima::fastcdr::exception::Exception &) {
     RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
       "Fast CDR exception deserializing message of type %s.",
-      getName());
+      get_name());
     return false;
   }
 

@@ -617,7 +617,7 @@ rmw_publish(
   rcutils_allocator_t * allocator = &(publisher_data->context->options.allocator);
 
   // Serialize data.
-  size_t max_data_length = publisher_data->type_support->getEstimatedSerializedSize(
+  size_t max_data_length = publisher_data->type_support->get_estimated_serialized_size(
     ros_message,
     publisher_data->type_support_impl);
 
@@ -638,7 +638,7 @@ rmw_publish(
     fastbuffer,
     eprosima::fastcdr::Cdr::DEFAULT_ENDIAN,
     eprosima::fastcdr::Cdr::DDS_CDR);
-  if (!publisher_data->type_support->serializeROSmessage(
+  if (!publisher_data->type_support->serialize_ros_message(
       ros_message,
       ser,
       publisher_data->type_support_impl))
@@ -816,7 +816,7 @@ rmw_serialize(
 
   auto callbacks = static_cast<const message_type_support_callbacks_t *>(ts->data);
   auto tss = MessageTypeSupport(callbacks);
-  auto data_length = tss.getEstimatedSerializedSize(ros_message, callbacks);
+  auto data_length = tss.get_estimated_serialized_size(ros_message, callbacks);
   if (serialized_message->buffer_capacity < data_length) {
     if (rmw_serialized_message_resize(serialized_message, data_length) != RMW_RET_OK) {
       RMW_SET_ERROR_MSG("unable to dynamically resize serialized message");
@@ -829,7 +829,7 @@ rmw_serialize(
   eprosima::fastcdr::Cdr ser(
     buffer, eprosima::fastcdr::Cdr::DEFAULT_ENDIAN, eprosima::fastcdr::Cdr::DDS_CDR);
 
-  auto ret = tss.serializeROSmessage(ros_message, ser, callbacks);
+  auto ret = tss.serialize_ros_message(ros_message, ser, callbacks);
   serialized_message->buffer_length = data_length;
   serialized_message->buffer_capacity = data_length;
   return ret == true ? RMW_RET_OK : RMW_RET_ERROR;
@@ -856,7 +856,7 @@ rmw_deserialize(
   eprosima::fastcdr::Cdr deser(buffer, eprosima::fastcdr::Cdr::DEFAULT_ENDIAN,
     eprosima::fastcdr::Cdr::DDS_CDR);
 
-  auto ret = tss.deserializeROSmessage(deser, ros_message, callbacks);
+  auto ret = tss.deserialize_ros_message(deser, ros_message, callbacks);
   return ret == true ? RMW_RET_OK : RMW_RET_ERROR;
 }
 
@@ -1236,7 +1236,7 @@ static rmw_ret_t __rmw_take(
     fastbuffer,
     eprosima::fastcdr::Cdr::DEFAULT_ENDIAN,
     eprosima::fastcdr::Cdr::DDS_CDR);
-  if (!sub_data->type_support->deserializeROSmessage(
+  if (!sub_data->type_support->deserialize_ros_message(
       deser,
       ros_message,
       sub_data->type_support_impl))

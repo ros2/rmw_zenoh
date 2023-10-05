@@ -23,7 +23,7 @@
 #include "type_support.hpp"
 
 ///==============================================================================
-class MessageTypeSupport : public TypeSupport
+class MessageTypeSupport final : public TypeSupport
 {
 public:
   explicit MessageTypeSupport(const message_type_support_callbacks_t * members);

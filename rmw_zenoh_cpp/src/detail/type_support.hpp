@@ -44,16 +44,16 @@ struct SerializedData
 class TypeSupport
 {
 public:
-  void setName(const char * name);
+  void set_name(const char * name);
 
-  const char * getName() const;
+  const char * get_name() const;
 
-  size_t getEstimatedSerializedSize(const void * ros_message, const void * impl) const;
+  size_t get_estimated_serialized_size(const void * ros_message, const void * impl) const;
 
-  bool serializeROSmessage(
+  bool serialize_ros_message(
     const void * ros_message, eprosima::fastcdr::Cdr & ser, const void * impl) const;
 
-  bool deserializeROSmessage(
+  bool deserialize_ros_message(
     eprosima::fastcdr::Cdr & deser, void * ros_message, const void * impl) const;
 
   virtual ~TypeSupport() {}
