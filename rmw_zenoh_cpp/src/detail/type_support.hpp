@@ -19,26 +19,85 @@
 #ifndef DETAIL__TYPE_SUPPORT_HPP_
 #define DETAIL__TYPE_SUPPORT_HPP_
 
-#include <fastcdr/Cdr.h>
+#include <functional>
+
+#include "fastcdr/Cdr.h"
+
+#include "fastdds/dds/topic/TopicDataType.hpp"
 
 #include "rosidl_typesupport_fastrtps_cpp/message_type_support.h"
 
-#include "rmw_fastrtps_shared_cpp/TypeSupport.hpp"
+enum SerializedDataType
+{
+  FASTRTPS_SERIALIZED_DATA_TYPE_CDR_BUFFER,
+  FASTRTPS_SERIALIZED_DATA_TYPE_DYNAMIC_MESSAGE,
+  FASTRTPS_SERIALIZED_DATA_TYPE_ROS_MESSAGE
+};
 
-class TypeSupport : public rmw_fastrtps_shared_cpp::TypeSupport
+// Publishers write method will receive a pointer to this struct
+struct SerializedData
+{
+  SerializedDataType type;  // The type of the next field
+  void * data;
+  const void * impl;  // RMW implementation specific data
+};
+
+class TypeSupport : public eprosima::fastdds::dds::TopicDataType
 {
 public:
-  size_t getEstimatedSerializedSize(const void * ros_message, const void * impl) const override;
+  size_t getEstimatedSerializedSize(const void * ros_message, const void * impl) const;
 
   bool serializeROSmessage(
-    const void * ros_message, eprosima::fastcdr::Cdr & ser, const void * impl) const override;
+    const void * ros_message, eprosima::fastcdr::Cdr & ser, const void * impl) const;
 
   bool deserializeROSmessage(
-    eprosima::fastcdr::Cdr & deser, void * ros_message, const void * impl) const override;
+    eprosima::fastcdr::Cdr & deser, void * ros_message, const void * impl) const;
 
-  TypeSupport();
+  bool getKey(
+    void * data,
+    eprosima::fastrtps::rtps::InstanceHandle_t * ihandle,
+    bool force_md5 = false) override
+  {
+    (void)data;
+    (void)ihandle;
+    (void)force_md5;
+    return false;
+  }
+
+  bool serialize(void * data, eprosima::fastrtps::rtps::SerializedPayload_t * payload) override;
+
+  bool deserialize(eprosima::fastrtps::rtps::SerializedPayload_t * payload, void * data) override;
+
+  std::function<uint32_t()> getSerializedSizeProvider(void * data) override;
+
+  void * createData() override;
+
+  void deleteData(void * data) override;
+
+  inline bool is_bounded() const
+#ifdef TOPIC_DATA_TYPE_API_HAS_IS_BOUNDED
+  override
+#endif
+  {
+    return max_size_bound_;
+  }
+
+  inline bool is_plain() const
+#ifdef TOPIC_DATA_TYPE_API_HAS_IS_PLAIN
+  override
+#endif
+  {
+    return is_plain_;
+  }
+
+  virtual ~TypeSupport() {}
 
 protected:
+  TypeSupport();
+
+  bool max_size_bound_;
+  bool is_plain_;
+
   void set_members(const message_type_support_callbacks_t * members);
 
 private:

@@ -29,6 +29,7 @@
 #include "rcpputils/scope_exit.hpp"
 
 #include "rcutils/env.h"
+#include "rcutils/logging_macros.h"
 #include "rcutils/strdup.h"
 #include "rcutils/types.h"
 
