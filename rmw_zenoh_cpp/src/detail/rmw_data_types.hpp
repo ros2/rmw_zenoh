@@ -29,7 +29,7 @@
 
 #include "rmw/rmw.h"
 
-#include "MessageTypeSupport.hpp"
+#include "message_type_support.hpp"
 
 /// Structs for various type erased data fields.
 

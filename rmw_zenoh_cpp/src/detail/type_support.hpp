@@ -16,17 +16,34 @@
 // This file is originally from:
 // https://github.com/ros2/rmw_fastrtps/blob/b13e134cea2852aba210299bef6f4df172d9a0e3/rmw_fastrtps_cpp/include/rmw_fastrtps_cpp/TypeSupport.hpp
 
-#ifndef DETAIL__MESSAGETYPESUPPORT_HPP_
-#define DETAIL__MESSAGETYPESUPPORT_HPP_
+#ifndef DETAIL__TYPE_SUPPORT_HPP_
+#define DETAIL__TYPE_SUPPORT_HPP_
+
+#include <fastcdr/Cdr.h>
 
 #include "rosidl_typesupport_fastrtps_cpp/message_type_support.h"
-#include "TypeSupport.hpp"
 
-///==============================================================================
-class MessageTypeSupport : public TypeSupport
+#include "rmw_fastrtps_shared_cpp/TypeSupport.hpp"
+
+class TypeSupport : public rmw_fastrtps_shared_cpp::TypeSupport
 {
 public:
-  explicit MessageTypeSupport(const message_type_support_callbacks_t * members);
+  size_t getEstimatedSerializedSize(const void * ros_message, const void * impl) const override;
+
+  bool serializeROSmessage(
+    const void * ros_message, eprosima::fastcdr::Cdr & ser, const void * impl) const override;
+
+  bool deserializeROSmessage(
+    eprosima::fastcdr::Cdr & deser, void * ros_message, const void * impl) const override;
+
+  TypeSupport();
+
+protected:
+  void set_members(const message_type_support_callbacks_t * members);
+
+private:
+  const message_type_support_callbacks_t * members_;
+  bool has_data_;
 };
 
-#endif  // DETAIL__MESSAGETYPESUPPORT_HPP_
+#endif  // DETAIL__TYPE_SUPPORT_HPP_

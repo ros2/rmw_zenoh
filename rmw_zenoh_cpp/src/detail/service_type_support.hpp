@@ -16,12 +16,11 @@
 // This file is originally from:
 // https://github.com/ros2/rmw_fastrtps/blob/b13e134cea2852aba210299bef6f4df172d9a0e3/rmw_fastrtps_cpp/include/rmw_fastrtps_cpp/TypeSupport.hpp
 
-#ifndef DETAIL__SERVICETYPESUPPORT_HPP_
-#define DETAIL__SERVICETYPESUPPORT_HPP_
+#ifndef DETAIL__SERVICE_TYPE_SUPPORT_HPP_
+#define DETAIL__SERVICE_TYPE_SUPPORT_HPP_
 
-#include "rosidl_typesupport_fastrtps_cpp/message_type_support.h"
 #include "rosidl_typesupport_fastrtps_cpp/service_type_support.h"
-#include "TypeSupport.hpp"
+#include "type_support.hpp"
 
 ///==============================================================================
 class ServiceTypeSupport : public TypeSupport
@@ -42,4 +41,4 @@ public:
   explicit ResponseTypeSupport(const service_type_support_callbacks_t * members);
 };
 
-#endif  // DETAIL__SERVICETYPESUPPORT_HPP_
+#endif  // DETAIL__SERVICE_TYPE_SUPPORT_HPP_

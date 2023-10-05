@@ -21,7 +21,7 @@
 
 #include "detail/guard_condition.hpp"
 #include "detail/identifier.hpp"
-#include "detail/MessageTypeSupport.hpp"
+#include "detail/message_type_support.hpp"
 #include "detail/rmw_data_types.hpp"
 #include "detail/serialization_format.hpp"
 #include "detail/type_support_common.hpp"

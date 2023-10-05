@@ -24,9 +24,9 @@
 
 #include "rmw/error_handling.h"
 
-#include "TypeSupport.hpp"
-#include "MessageTypeSupport.hpp"
-#include "ServiceTypeSupport.hpp"
+#include "type_support.hpp"
+#include "message_type_support.hpp"
+#include "service_type_support.hpp"
 
 #include "identifier.hpp"
 
