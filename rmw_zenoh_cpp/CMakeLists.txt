@@ -15,7 +15,6 @@ endif()
 find_package(ament_cmake REQUIRED)
 
 find_package(fastcdr CONFIG REQUIRED)
-find_package(fastrtps_cmake_module REQUIRED)
 find_package(rcpputils REQUIRED)
 find_package(rcutils REQUIRED)
 find_package(rosidl_typesupport_fastrtps_c REQUIRED)
@@ -23,11 +22,6 @@ find_package(rosidl_typesupport_fastrtps_cpp REQUIRED)
 find_package(rmw REQUIRED)
 find_package(zenoh_c_vendor REQUIRED)
 find_package(zenohc REQUIRED)
-
-find_package(fastrtps_cmake_module REQUIRED)
-find_package(fastcdr REQUIRED CONFIG)
-find_package(fastrtps 2.10 REQUIRED CONFIG)
-find_package(FastRTPS 2.10 REQUIRED MODULE)
 
 add_library(rmw_zenoh_cpp SHARED
   src/detail/identifier.cpp
@@ -52,7 +46,6 @@ add_library(rmw_zenoh_cpp SHARED
 target_link_libraries(rmw_zenoh_cpp
   PRIVATE
     fastcdr
-    fastrtps
     rcpputils::rcpputils
     rcutils::rcutils
     rosidl_typesupport_fastrtps_c::rosidl_typesupport_fastrtps_c

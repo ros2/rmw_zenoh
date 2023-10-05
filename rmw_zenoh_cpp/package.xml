@@ -10,11 +10,6 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <build_depend>zenoh_c_vendor</build_depend>
-  <build_depend>fastrtps</build_depend>
-  <build_depend>fastrtps_cmake_module</build_depend>
-
-  <build_export_depend>fastrtps</build_export_depend>
-  <build_export_depend>fastrtps_cmake_module</build_export_depend>
 
   <depend>fastcdr</depend>
   <depend>rcpputils</depend>
@@ -22,7 +17,6 @@
   <depend>rosidl_typesupport_fastrtps_c</depend>
   <depend>rosidl_typesupport_fastrtps_cpp</depend>
   <depend>rmw</depend>
-  <depend>rmw_fastrtps_shared_cpp</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

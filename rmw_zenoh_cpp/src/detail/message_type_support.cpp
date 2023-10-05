@@ -16,6 +16,7 @@
 // Parts of this file are originally from:
 // https://github.com/ros2/rmw_fastrtps/blob/469624e3d483290d6f88fe4b89ee5feaa7694e61/rmw_fastrtps_cpp/src/type_support_common.hpp
 
+#include <cassert>
 #include <string>
 
 #include "rosidl_typesupport_fastrtps_cpp/message_type_support.h"
