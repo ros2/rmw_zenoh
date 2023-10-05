@@ -66,12 +66,14 @@ void sub_data_handler(
         sub_data->queue_depth,
         z_loan(keystr));
 
-      std::pair<size_t, uint8_t *> old = sub_data->message_queue.back();
-      allocator->deallocate(old.second, allocator->state);
+      std::unique_ptr<saved_msg_data> old = std::move(sub_data->message_queue.back());
+      allocator->deallocate(old->data, allocator->state);
       sub_data->message_queue.pop_back();
     }
 
-    sub_data->message_queue.push_front(std::make_pair(sample->payload.len, cdr_buffer));
+    sub_data->message_queue.emplace_front(
+      std::make_unique<saved_msg_data>(
+        sample->payload.len, cdr_buffer, sample->timestamp.time, sample->timestamp.id.id));
 
     // Since we added new data, trigger the guard condition if it is available
     std::lock_guard<std::mutex> internal_lock(sub_data->internal_mutex);

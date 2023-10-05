@@ -1178,7 +1178,7 @@ static rmw_ret_t __rmw_take(
 
   // RETRIEVE SERIALIZED MESSAGE ===============================================
 
-  std::pair<size_t, uint8_t *> msg_bytes;
+  std::unique_ptr<saved_msg_data> msg_data;
   {
     std::unique_lock<std::mutex> lock(sub_data->message_queue_mutex);
 
@@ -1188,14 +1188,14 @@ static rmw_ret_t __rmw_take(
     }
 
     // NOTE(CH3): Potential place to handle "QoS" (e.g. could pop from back so it is LIFO)
-    msg_bytes = sub_data->message_queue.back();
+    msg_data = std::move(sub_data->message_queue.back());
     sub_data->message_queue.pop_back();
   }
 
   // Object that manages the raw buffer
   eprosima::fastcdr::FastBuffer fastbuffer(
-    reinterpret_cast<char *>(msg_bytes.second),
-    msg_bytes.first);
+    reinterpret_cast<char *>(msg_data->data),
+    msg_data->data_length);
 
   // Object that serializes the data
   eprosima::fastcdr::Cdr deser(
@@ -1213,15 +1213,17 @@ static rmw_ret_t __rmw_take(
 
   rcutils_allocator_t * allocator = &sub_data->context->options.allocator;
   *taken = true;
-  allocator->deallocate(msg_bytes.second, allocator->state);
+  allocator->deallocate(msg_data->data, allocator->state);
 
-  // TODO(clalancette): fill in message_info here
+  // TODO(clalancette): fill in source_timestamp
   message_info->source_timestamp = 0;
-  message_info->received_timestamp = 0;
+  message_info->received_timestamp = msg_data->recv_timestamp;
+  // TODO(clalancette): fill in publication_sequence_number
   message_info->publication_sequence_number = 0;
+  // TODO(clalancette): fill in reception_sequence_number
   message_info->reception_sequence_number = 0;
   message_info->publisher_gid.implementation_identifier = rmw_zenoh_identifier;
-  memset(message_info->publisher_gid.data, 0, RMW_GID_STORAGE_SIZE);
+  memcpy(message_info->publisher_gid.data, msg_data->publisher_gid, 16);
   message_info->from_intra_process = false;
 
   return RMW_RET_OK;

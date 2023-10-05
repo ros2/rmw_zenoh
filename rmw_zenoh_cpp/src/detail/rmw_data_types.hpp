@@ -85,6 +85,20 @@ struct rmw_wait_set_data_t
 // z_owned_closure_sample_t
 void sub_data_handler(const z_sample_t * sample, void * sub_data);
 
+struct saved_msg_data
+{
+  explicit saved_msg_data(size_t len, uint8_t * d, uint64_t recv_ts, const uint8_t pub_gid[16])
+  : data_length(len), data(d), recv_timestamp(recv_ts)
+  {
+    memcpy(publisher_gid, pub_gid, 16);
+  }
+
+  size_t data_length;
+  uint8_t * data;
+  uint64_t recv_timestamp;
+  uint8_t publisher_gid[16];
+};
+
 ///==============================================================================
 struct rmw_subscription_data_t
 {
@@ -95,7 +109,7 @@ struct rmw_subscription_data_t
   MessageTypeSupport * type_support;
   rmw_context_t * context;
 
-  std::deque<std::pair<size_t, uint8_t *>> message_queue;
+  std::deque<std::unique_ptr<saved_msg_data>> message_queue;
   std::mutex message_queue_mutex;
 
   size_t queue_depth;
