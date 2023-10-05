@@ -21,6 +21,7 @@
 
 #include "detail/guard_condition.hpp"
 #include "detail/identifier.hpp"
+#include "detail/MessageTypeSupport.hpp"
 #include "detail/rmw_data_types.hpp"
 #include "detail/serialization_format.hpp"
 #include "detail/type_support_common.hpp"
@@ -806,10 +807,31 @@ rmw_serialize(
   const rosidl_message_type_support_t * type_support,
   rmw_serialized_message_t * serialized_message)
 {
-  static_cast<void>(ros_message);
-  static_cast<void>(type_support);
-  static_cast<void>(serialized_message);
-  return RMW_RET_UNSUPPORTED;
+  const rosidl_message_type_support_t * ts = find_type_support(type_support);
+  if (ts == nullptr) {
+    // error was already set by find_type_support
+    return RMW_RET_ERROR;
+  }
+
+  auto callbacks = static_cast<const message_type_support_callbacks_t *>(ts->data);
+  auto tss = MessageTypeSupport(callbacks);
+  auto data_length = tss.getEstimatedSerializedSize(ros_message, callbacks);
+  if (serialized_message->buffer_capacity < data_length) {
+    if (rmw_serialized_message_resize(serialized_message, data_length) != RMW_RET_OK) {
+      RMW_SET_ERROR_MSG("unable to dynamically resize serialized message");
+      return RMW_RET_ERROR;
+    }
+  }
+
+  eprosima::fastcdr::FastBuffer buffer(
+    reinterpret_cast<char *>(serialized_message->buffer), data_length);
+  eprosima::fastcdr::Cdr ser(
+    buffer, eprosima::fastcdr::Cdr::DEFAULT_ENDIAN, eprosima::fastcdr::Cdr::DDS_CDR);
+
+  auto ret = tss.serializeROSmessage(ros_message, ser, callbacks);
+  serialized_message->buffer_length = data_length;
+  serialized_message->buffer_capacity = data_length;
+  return ret == true ? RMW_RET_OK : RMW_RET_ERROR;
 }
 
 //==============================================================================
@@ -820,10 +842,21 @@ rmw_deserialize(
   const rosidl_message_type_support_t * type_support,
   void * ros_message)
 {
-  static_cast<void>(serialized_message);
-  static_cast<void>(type_support);
-  static_cast<void>(ros_message);
-  return RMW_RET_UNSUPPORTED;
+  const rosidl_message_type_support_t * ts = find_type_support(type_support);
+  if (ts == nullptr) {
+    // error was already set by find_type_support
+    return RMW_RET_ERROR;
+  }
+
+  auto callbacks = static_cast<const message_type_support_callbacks_t *>(ts->data);
+  auto tss = MessageTypeSupport(callbacks);
+  eprosima::fastcdr::FastBuffer buffer(
+    reinterpret_cast<char *>(serialized_message->buffer), serialized_message->buffer_length);
+  eprosima::fastcdr::Cdr deser(buffer, eprosima::fastcdr::Cdr::DEFAULT_ENDIAN,
+    eprosima::fastcdr::Cdr::DDS_CDR);
+
+  auto ret = tss.deserializeROSmessage(deser, ros_message, callbacks);
+  return ret == true ? RMW_RET_OK : RMW_RET_ERROR;
 }
 
 //==============================================================================
