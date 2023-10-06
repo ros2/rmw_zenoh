@@ -39,21 +39,6 @@ void sub_data_handler(
     return;
   }
 
-  rcutils_allocator_t * allocator = &sub_data->context->options.allocator;
-
-  uint8_t * cdr_buffer =
-    static_cast<uint8_t *>(allocator->allocate(sample->payload.len, allocator->state));
-  if (cdr_buffer == nullptr) {
-    RCUTILS_LOG_ERROR_NAMED(
-      "rmw_zenoh_cpp",
-      "Failed to allocate memory for cdr_buffer for "
-      "subscription for %s",
-      z_loan(keystr)
-    );
-    return;
-  }
-  memcpy(cdr_buffer, sample->payload.start, sample->payload.len);
-
   {
     std::lock_guard<std::mutex> lock(sub_data->message_queue_mutex);
 
@@ -67,13 +52,14 @@ void sub_data_handler(
         z_loan(keystr));
 
       std::unique_ptr<saved_msg_data> old = std::move(sub_data->message_queue.back());
-      allocator->deallocate(old->data, allocator->state);
+      z_drop(&old->payload);
       sub_data->message_queue.pop_back();
     }
 
     sub_data->message_queue.emplace_front(
       std::make_unique<saved_msg_data>(
-        sample->payload.len, cdr_buffer, sample->timestamp.time, sample->timestamp.id.id));
+        zc_sample_payload_rcinc(sample),
+        sample->timestamp.time, sample->timestamp.id.id));
 
     // Since we added new data, trigger the guard condition if it is available
     std::lock_guard<std::mutex> internal_lock(sub_data->internal_mutex);

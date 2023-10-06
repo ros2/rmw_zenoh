@@ -87,14 +87,13 @@ void sub_data_handler(const z_sample_t * sample, void * sub_data);
 
 struct saved_msg_data
 {
-  explicit saved_msg_data(size_t len, uint8_t * d, uint64_t recv_ts, const uint8_t pub_gid[16])
-  : data_length(len), data(d), recv_timestamp(recv_ts)
+  explicit saved_msg_data(zc_owned_payload_t p, uint64_t recv_ts, const uint8_t pub_gid[16])
+  : payload(p), recv_timestamp(recv_ts)
   {
     memcpy(publisher_gid, pub_gid, 16);
   }
 
-  size_t data_length;
-  uint8_t * data;
+  zc_owned_payload_t payload;
   uint64_t recv_timestamp;
   uint8_t publisher_gid[16];
 };

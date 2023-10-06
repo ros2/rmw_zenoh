@@ -1228,8 +1228,8 @@ static rmw_ret_t __rmw_take(
 
   // Object that manages the raw buffer
   eprosima::fastcdr::FastBuffer fastbuffer(
-    reinterpret_cast<char *>(msg_data->data),
-    msg_data->data_length);
+    reinterpret_cast<char *>(const_cast<uint8_t *>(msg_data->payload.payload.start)),
+    msg_data->payload.payload.len);
 
   // Object that serializes the data
   eprosima::fastcdr::Cdr deser(
@@ -1245,9 +1245,8 @@ static rmw_ret_t __rmw_take(
     return RMW_RET_ERROR;
   }
 
-  rcutils_allocator_t * allocator = &sub_data->context->options.allocator;
   *taken = true;
-  allocator->deallocate(msg_data->data, allocator->state);
+  z_drop(&msg_data->payload);
 
   // TODO(clalancette): fill in source_timestamp
   message_info->source_timestamp = 0;
