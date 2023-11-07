@@ -18,6 +18,7 @@
 #include <chrono>
 #include <mutex>
 #include <new>
+#include <sstream>
 
 #include "detail/guard_condition.hpp"
 #include "detail/identifier.hpp"
@@ -270,15 +271,17 @@ rmw_fini_publisher_allocation(
   return RMW_RET_UNSUPPORTED;
 }
 
+//==============================================================================
 // A function to take ros topic names and convert them to valid Zenoh keys.
 // In particular, Zenoh keys cannot start or end with a /, so this function
 // will strip them out.
+// The Zenoh key is also prefixed with the ros_domain_id.
 // Performance note: at present, this function allocates a new string and copies
-// the old string into it.  If this becomes a performance problem, we could consider
-// modifying the topic_name in place.  But this means we need to be much more
+// the old string into it. If this becomes a performance problem, we could consider
+// modifying the topic_name in place. But this means we need to be much more
 // careful about who owns the string.
-static char * ros_topic_name_to_zenoh_key(
-  const char * const topic_name, rcutils_allocator_t * allocator)
+static z_owned_keyexpr_t ros_topic_name_to_zenoh_key(
+  const char * const topic_name, size_t domain_id, rcutils_allocator_t * allocator)
 {
   size_t start_offset = 0;
   size_t topic_name_len = strlen(topic_name);
@@ -295,9 +298,18 @@ static char * ros_topic_name_to_zenoh_key(
     }
   }
 
-  return rcutils_strndup(&topic_name[start_offset], end_offset - start_offset, *allocator);
+  std::stringstream domain_ss;
+  domain_ss << domain_id;
+  char * stripped_topic_name = rcutils_strndup(
+    &topic_name[start_offset], end_offset - start_offset, *allocator);
+  z_owned_keyexpr_t keyexpr = z_keyexpr_join(
+    z_keyexpr(domain_ss.str().c_str()), z_keyexpr(stripped_topic_name));
+  allocator->deallocate(stripped_topic_name, allocator->state);
+
+  return keyexpr;
 }
 
+//==============================================================================
 static const rosidl_message_type_support_t * find_type_support(
   const rosidl_message_type_support_t * type_supports)
 {
@@ -477,18 +489,22 @@ rmw_create_publisher(
 
   // TODO(yadunund): Parse adapted_qos_profile and publisher_options to generate
   // a z_publisher_put_options struct instead of passing NULL to this function.
-  char * zenoh_key_name = ros_topic_name_to_zenoh_key(topic_name, allocator);
-  RMW_CHECK_FOR_NULL_WITH_MSG(
-    zenoh_key_name,
-    "failed to allocate memory for zenoh key name",
-    return nullptr);
+  z_owned_keyexpr_t keyexpr = ros_topic_name_to_zenoh_key(
+    topic_name, node->context->actual_domain_id, allocator);
+  auto always_free_ros_keyexpr = rcpputils::make_scope_exit(
+    [&keyexpr]() {
+      z_keyexpr_drop(z_move(keyexpr));
+    });
+  if (!z_keyexpr_check(&keyexpr)) {
+    RMW_SET_ERROR_MSG("unable to create zenoh keyexpr.");
+    return nullptr;
+  }
   // TODO(clalancette): What happens if the key name is a valid but empty string?
   publisher_data->pub = z_declare_publisher(
     z_loan(context_impl->session),
-    z_keyexpr(zenoh_key_name),
+    z_loan(keyexpr),
     NULL
   );
-  allocator->deallocate(zenoh_key_name, allocator->state);
   if (!z_check(publisher_data->pub)) {
     RMW_SET_ERROR_MSG("unable to create zenoh publisher");
     return nullptr;
@@ -1143,19 +1159,22 @@ rmw_create_subscription(
   // with Zenoh; after this, callbacks may come in at any time.
 
   z_owned_closure_sample_t callback = z_closure(sub_data_handler, nullptr, sub_data);
-  char * zenoh_key_name = ros_topic_name_to_zenoh_key(topic_name, allocator);
-  // TODO(clalancette): What happens if the key name is a valid but empty string?
-  RMW_CHECK_FOR_NULL_WITH_MSG(
-    zenoh_key_name,
-    "failed to allocate memory for zenoh key name",
-    return nullptr);
+  z_owned_keyexpr_t keyexpr = ros_topic_name_to_zenoh_key(
+    topic_name, node->context->actual_domain_id, allocator);
+  auto always_free_ros_keyexpr = rcpputils::make_scope_exit(
+    [&keyexpr]() {
+      z_keyexpr_drop(z_move(keyexpr));
+    });
+  if (!z_keyexpr_check(&keyexpr)) {
+    RMW_SET_ERROR_MSG("unable to create zenoh keyexpr.");
+    return nullptr;
+  }
   sub_data->sub = z_declare_subscriber(
     z_loan(context_impl->session),
-    z_keyexpr(zenoh_key_name),
+    z_loan(keyexpr),
     z_move(callback),
     &sub_options
   );
-  allocator->deallocate(zenoh_key_name, allocator->state);
   if (!z_check(sub_data->sub)) {
     RMW_SET_ERROR_MSG("unable to create zenoh subscription");
     return nullptr;
