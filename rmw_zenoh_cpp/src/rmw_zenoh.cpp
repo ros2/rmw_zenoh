@@ -621,14 +621,40 @@ rmw_publish(
     ros_message,
     publisher_data->type_support_impl);
 
-  // Init serialized message byte array
-  char * msg_bytes = static_cast<char *>(allocator->allocate(max_data_length, allocator->state));
-  RMW_CHECK_FOR_NULL_WITH_MSG(
-    msg_bytes, "bytes for message is null", return RMW_RET_BAD_ALLOC);
+  // To store serialized message byte array.
+  char * msg_bytes = nullptr;
+  bool from_shm = false;
   auto free_msg_bytes = rcpputils::make_scope_exit(
-    [msg_bytes, allocator]() {
-      allocator->deallocate(msg_bytes, allocator->state);
+    [msg_bytes, allocator, from_shm]() {
+      if (msg_bytes && !from_shm) {
+        allocator->deallocate(msg_bytes, allocator->state);
+      }
     });
+
+  zc_owned_shmbuf_t shmbuf;
+  // Get memory from SHM buffer if available.
+  if (zc_shm_manager_check(&publisher_data->context->impl->shm_manager)) {
+    shmbuf = zc_shm_alloc(
+      &publisher_data->context->impl->shm_manager,
+      max_data_length);
+    if (!z_check(shmbuf)) {
+      zc_shm_gc(&publisher_data->context->impl->shm_manager);
+      shmbuf = zc_shm_alloc(&publisher_data->context->impl->shm_manager, max_data_length);
+      if (!z_check(shmbuf)) {
+        // TODO(Yadunund): Should we revert to regular allocation and not return an error?
+        RMW_SET_ERROR_MSG("Failed to allocate a SHM buffer, even after GCing");
+        return RMW_RET_ERROR;
+      }
+    }
+    msg_bytes = (char *)zc_shmbuf_ptr(&shmbuf);
+    from_shm = true;
+  }
+  // Get memory from the allocator.
+  else {
+    msg_bytes = static_cast<char *>(allocator->allocate(max_data_length, allocator->state));
+    RMW_CHECK_FOR_NULL_WITH_MSG(
+      msg_bytes, "bytes for message is null", return RMW_RET_BAD_ALLOC);
+  }
 
   // Object that manages the raw buffer
   eprosima::fastcdr::FastBuffer fastbuffer(msg_bytes, max_data_length);
@@ -649,18 +675,25 @@ rmw_publish(
 
   const size_t data_length = ser.getSerializedDataLength();
 
+  int ret;
   // The encoding is simply forwarded and is useful when key expressions in the
   // session use different encoding formats. In our case, all key expressions
   // will be encoded with CDR so it does not really matter.
   z_publisher_put_options_t options = z_publisher_put_options_default();
   options.encoding = z_encoding(Z_ENCODING_PREFIX_EMPTY, NULL);
-  // Returns 0 if success.
-  int8_t ret = z_publisher_put(
-    z_loan(publisher_data->pub),
-    (const uint8_t *)msg_bytes,
-    data_length,
-    &options);
 
+  if (from_shm) {
+    zc_shmbuf_set_length(&shmbuf, data_length);
+    zc_owned_payload_t payload = zc_shmbuf_into_payload(z_move(shmbuf));
+    ret = zc_publisher_put_owned(z_loan(publisher_data->pub), z_move(payload), &options);
+  } else {
+    // Returns 0 if success.
+    ret = z_publisher_put(
+      z_loan(publisher_data->pub),
+      (const uint8_t *)msg_bytes,
+      data_length,
+      &options);
+  }
   if (ret) {
     RMW_SET_ERROR_MSG("unable to publish message");
     return RMW_RET_ERROR;
@@ -1209,6 +1242,7 @@ static rmw_ret_t __rmw_take(
   *taken = false;
 
   auto sub_data = static_cast<rmw_subscription_data_t *>(subscription->data);
+  RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
 
   // RETRIEVE SERIALIZED MESSAGE ===============================================
 

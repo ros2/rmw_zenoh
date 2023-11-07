@@ -32,6 +32,11 @@
 
 extern "C"
 {
+
+// Megabytes of SHM to reserve.
+// TODO(clalancette): Make this configurable, or get it from the configuration
+#define SHM_BUFFER_SIZE_MB 10
+
 //==============================================================================
 /// Initialize the middleware with the given options, and yielding an context.
 rmw_ret_t
@@ -121,6 +126,13 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
     }
   }
 
+  // Check if shm is enabled.
+  z_owned_str_t shm_enabled = zc_config_get(z_loan(config), "transport/shared_memory/enabled");
+  auto free_shm_enabled = rcpputils::make_scope_exit(
+    [&shm_enabled]() {
+      z_drop(z_move(shm_enabled));
+    });
+
   // Initialize the zenoh session.
   context->impl->session = z_open(z_move(config));
   if (!z_session_check(&context->impl->session)) {
@@ -130,6 +142,33 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   auto close_session = rcpputils::make_scope_exit(
     [context]() {
       z_close(z_move(context->impl->session));
+    });
+
+  // Initialize the shm manager if shared_memory is enabled in the config.
+  if (shm_enabled._cstr != nullptr &&
+    strcmp(shm_enabled._cstr, "true") == 0)
+  {
+    z_id_t id = z_info_zid(z_loan(context->impl->session));
+    char idstr[sizeof(id.id) * 2 + 1];  // 2 bytes for each byte of the id, plus the trailing \0
+    for (size_t i = 0; i < sizeof(id.id); ++i) {
+      sprintf(idstr + 2 * i, "%02x", id.id[i]);
+    }
+    idstr[32] = 0;
+    // TODO(yadunund): Can we get the size of the shm from the config even though it's not
+    // a standard parameter?
+    context->impl->shm_manager =
+      zc_shm_manager_new(
+      z_loan(context->impl->session),
+      idstr,
+      SHM_BUFFER_SIZE_MB * 1024 * 1024);
+    if (!zc_shm_manager_check(&context->impl->shm_manager)) {
+      RMW_SET_ERROR_MSG("Unable to create shm manager.");
+      return RMW_RET_ERROR;
+    }
+  }
+  auto free_shm_manager = rcpputils::make_scope_exit(
+    [context]() {
+      z_drop(z_move(context->impl->shm_manager));
     });
 
   // Initialize the guard condition.
@@ -169,13 +208,14 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
       RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(gc_data->~GuardCondition(), GuardCondition);
     });
 
+  close_session.cancel();
   destruct_guard_condition_data.cancel();
+  impl_destructor.cancel();
   free_guard_condition_data.cancel();
   free_guard_condition.cancel();
-  close_session.cancel();
-  free_options.cancel();
-  impl_destructor.cancel();
   free_impl.cancel();
+  free_options.cancel();
+  free_shm_manager.cancel();
   restore_context.cancel();
 
   return RMW_RET_OK;
@@ -227,6 +267,8 @@ rmw_context_fini(rmw_context_t * context)
   }
 
   const rcutils_allocator_t * allocator = &context->options.allocator;
+
+  z_drop(z_move(context->impl->shm_manager));
 
   RMW_TRY_DESTRUCTOR(
     static_cast<GuardCondition *>(context->impl->graph_guard_condition->data)->~GuardCondition(),

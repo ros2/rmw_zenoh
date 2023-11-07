@@ -36,6 +36,9 @@ export RMW_IMPLEMENTATION=rmw_zenoh_cpp
 ros2 topic pub "/chatter" std_msgs/msg/String '{data: hello}'
 ```
 
+## Config
+The zenoh session may be configured by setting the `ZENOH_CONFIG_PATH` environment variable to point to the custom zenoh configuration file. The [rmw_zenoh_config.json5](./rmw_zenoh_config.json5) may be used to configure the zenoh session for this middleware. For a complete list of configurable settings, see [documentation](https://github.com/eclipse-zenoh/zenoh/blob/master/DEFAULT_CONFIG.json5).
+
 ## TODO Features
 - [x] Publisher
 - [ ] Subscription

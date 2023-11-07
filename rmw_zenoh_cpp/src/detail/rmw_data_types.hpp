@@ -39,6 +39,9 @@ struct rmw_context_impl_s
   // An owned session.
   z_owned_session_t session;
 
+  // The SHM manager.
+  zc_owned_shm_manager_t shm_manager;
+
   /// Shutdown flag.
   bool is_shutdown;
 
