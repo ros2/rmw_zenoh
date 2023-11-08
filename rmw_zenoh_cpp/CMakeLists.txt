@@ -14,6 +14,7 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 
+find_package(ament_index_cpp REQUIRED)
 find_package(fastcdr CONFIG REQUIRED)
 find_package(rcpputils REQUIRED)
 find_package(rcutils REQUIRED)
@@ -32,6 +33,7 @@ add_library(rmw_zenoh_cpp SHARED
   src/detail/service_type_support.cpp
   src/detail/type_support.cpp
   src/detail/type_support_common.cpp
+  src/detail/zenoh_config.cpp
   src/rmw_event.cpp
   src/rmw_get_network_flow_endpoints.cpp
   src/rmw_get_node_info_and_types.cpp
@@ -46,6 +48,7 @@ add_library(rmw_zenoh_cpp SHARED
 
 target_link_libraries(rmw_zenoh_cpp
   PRIVATE
+    ament_index_cpp::ament_index_cpp
     fastcdr
     rcpputils::rcpputils
     rcutils::rcutils
@@ -81,6 +84,11 @@ install(
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
+)
+
+install(
+  DIRECTORY config
+  DESTINATION share/${PROJECT_NAME}
 )
 
 ament_package()

@@ -19,6 +19,7 @@
 #include "detail/guard_condition.hpp"
 #include "detail/identifier.hpp"
 #include "detail/rmw_data_types.hpp"
+#include "detail/zenoh_config.hpp"
 
 #include "rcutils/env.h"
 #include "rcutils/strdup.h"
@@ -124,23 +125,11 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   // Initialize context's implementation
   context->impl->is_shutdown = false;
 
-  // Initialize the zenoh config. We use the default config if a path to the
-  // config is unavailable.
+  // Initialize the zenoh configuration.
   z_owned_config_t config;
-  const char * zenoh_config_path;
-  if (NULL != rcutils_get_env("ZENOH_CONFIG_PATH", &zenoh_config_path)) {
-    RMW_SET_ERROR_MSG("Error in reading ZENOH_CONFIG_PATH envar");
-    return RMW_RET_INVALID_ARGUMENT;
-  }
-  if (zenoh_config_path[0] == '\0') {
-    // No config path set.
-    config = z_config_default();
-  } else {
-    config = zc_config_from_file(zenoh_config_path);
-    if (!z_config_check(&config)) {
-      RMW_SET_ERROR_MSG("Error in zenoh config path");
-      return RMW_RET_INVALID_ARGUMENT;
-    }
+  if ((ret = get_z_config(&config)) != RMW_RET_OK) {
+    RMW_SET_ERROR_MSG("Error setting up zenoh configuration for the session.");
+    return ret;
   }
 
   // Check if shm is enabled.
