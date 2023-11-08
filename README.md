@@ -5,6 +5,10 @@
 
 A ROS 2 RMW implementation based on Zenoh that is written using the zenoh-c bindings.
 
+## Design
+
+For information about the Design please visit [design](docs/design.md) page.
+
 ## Requirements
 - [ROS 2](https://docs.ros.org): Rolling/Iron
 
