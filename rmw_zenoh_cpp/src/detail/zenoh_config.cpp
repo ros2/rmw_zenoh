@@ -33,7 +33,7 @@ static constexpr const char * kZenohConfigFileEnvVar = "RMW_ZENOH_CONFIG_FILE";
 static constexpr const char * const kDefaultZenohConfigFileName =
   "DEFAULT_RMW_ZENOH_SESSION_CONFIG.json5";
 
-} // namespace
+}  // namespace
 
 rmw_ret_t get_z_config(z_owned_config_t * config)
 {

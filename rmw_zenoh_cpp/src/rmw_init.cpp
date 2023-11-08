@@ -156,10 +156,11 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   {
     z_id_t id = z_info_zid(z_loan(context->impl->session));
     char idstr[sizeof(id.id) * 2 + 1];  // 2 bytes for each byte of the id, plus the trailing \0
+    static constexpr size_t max_size_of_each = 3;  // 2 for each byte, plus the trailing \0
     for (size_t i = 0; i < sizeof(id.id); ++i) {
-      sprintf(idstr + 2 * i, "%02x", id.id[i]);
+      snprintf(idstr + 2 * i, max_size_of_each, "%02x", id.id[i]);
     }
-    idstr[32] = 0;
+    idstr[sizeof(id.id) * 2] = '\0';
     // TODO(yadunund): Can we get the size of the shm from the config even though it's not
     // a standard parameter?
     context->impl->shm_manager =

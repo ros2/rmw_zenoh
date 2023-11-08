@@ -719,11 +719,10 @@ rmw_publish(
         return RMW_RET_ERROR;
       }
     }
-    msg_bytes = (char *)zc_shmbuf_ptr(&shmbuf);
+    msg_bytes = reinterpret_cast<char *>(zc_shmbuf_ptr(&shmbuf));
     from_shm = true;
-  }
-  // Get memory from the allocator.
-  else {
+  } else {
+    // Get memory from the allocator.
     msg_bytes = static_cast<char *>(allocator->allocate(max_data_length, allocator->state));
     RMW_CHECK_FOR_NULL_WITH_MSG(
       msg_bytes, "bytes for message is null", return RMW_RET_BAD_ALLOC);

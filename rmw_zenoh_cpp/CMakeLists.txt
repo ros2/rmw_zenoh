@@ -91,4 +91,16 @@ install(
   DESTINATION share/${PROJECT_NAME}
 )
 
+add_executable(init_rmw_zenoh_router apps/init_rmw_zenoh_router.cpp)
+
+target_link_libraries(init_rmw_zenoh_router
+  PRIVATE
+    ament_index_cpp::ament_index_cpp
+)
+
+install(
+  TARGETS init_rmw_zenoh_router
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 ament_package()
