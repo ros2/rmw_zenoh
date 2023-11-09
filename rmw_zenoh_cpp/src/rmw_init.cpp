@@ -22,6 +22,7 @@
 #include "detail/zenoh_config.hpp"
 
 #include "rcutils/env.h"
+#include "rcutils/logging_macros.h"
 #include "rcutils/strdup.h"
 #include "rcutils/types.h"
 
@@ -43,14 +44,36 @@ static void graph_sub_data_handler(
 {
   (void)data;
   z_owned_str_t keystr = z_keyexpr_to_string(sample->keyexpr);
+  RCUTILS_LOG_WARN_NAMED(
+    "rmw_zenoh_cpp",
+    "[graph_sub_data_handler] Received key '%s'",
+    z_loan(keystr)
+  );
 
-  // TODO(clalancette): Use the allocator here
-  char * payload_data = static_cast<char *>(malloc(sample->payload.len + 1));
+  // Get the context impl from data.
+  rmw_context_impl_s * context_impl = static_cast<rmw_context_impl_s *>(
+    data);
+  if (context_impl == nullptr) {
+    RCUTILS_LOG_WARN_NAMED(
+      "rmw_zenoh_cpp",
+      "[graph_sub_data_handler] Unable to convert data into context_impl"
+    );
+    return;
+  }
 
-  memcpy(payload_data, sample->payload.start, sample->payload.len);
-  payload_data[sample->payload.len] = '\0';
+  // TODO(Yadunund): Avoid this copy.
+  std::string keyexpr_str(keystr._cstr);
 
-  free(payload_data);
+  switch (sample->kind) {
+    case z_sample_kind_t::Z_SAMPLE_KIND_PUT:
+      context_impl->graph_cache.parse_put(keyexpr_str);
+      break;
+    case z_sample_kind_t::Z_SAMPLE_KIND_DELETE:
+      context_impl->graph_cache.parse_del(keyexpr_str);
+      break;
+    default:
+      break;
+  }
 
   z_drop(z_move(keystr));
 }
@@ -215,12 +238,51 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
       RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(gc_data->~GuardCondition(), GuardCondition);
     });
 
+  // Setup liveliness subscriptions for discovery.
+  const std::string liveliness_str = GenerateToken::liveliness(context->actual_domain_id);
+
+  // Query the router to get graph information before this session was started.
+  // TODO(Yadunund): This will not be needed once the zenoh-c liveliness API is available.
+  RCUTILS_LOG_WARN_NAMED(
+    "rmw_zenoh_cpp",
+    "Sending Query '%s' to fetch discovery data from router...",
+    liveliness_str.c_str()
+  );
+  z_owned_reply_channel_t channel = zc_reply_fifo_new(16);
+  z_get_options_t opts = z_get_options_default();
+  z_get(
+    z_loan(context->impl->session), z_keyexpr(liveliness_str.c_str()), "", z_move(channel.send),
+    &opts);      // here, the send is moved and will be dropped by zenoh when adequate
+  z_owned_reply_t reply = z_reply_null();
+  for (z_call(channel.recv, &reply); z_check(reply); z_call(channel.recv, &reply)) {
+    if (z_reply_is_ok(&reply)) {
+      z_sample_t sample = z_reply_ok(&reply);
+      z_owned_str_t keystr = z_keyexpr_to_string(sample.keyexpr);
+      printf(
+        ">> [discovery] Received ('%s': '%.*s')\n", z_loan(keystr),
+        static_cast<int>(sample.payload.len), sample.payload.start);
+      context->impl->graph_cache.parse_put(z_loan(keystr));
+      z_drop(z_move(keystr));
+    } else {
+      printf("[discovery] Received an error\n");
+    }
+  }
+  z_drop(z_move(reply));
+  z_drop(z_move(channel));
+
+  // TODO(Yadunund): Switch this to a liveliness subscriptions once the API is available.
+  RCUTILS_LOG_WARN_NAMED(
+    "rmw_zenoh_cpp",
+    "Setting up liveliness subscription on key: %s",
+    liveliness_str.c_str()
+  );
+
   auto sub_options = z_subscriber_options_default();
   sub_options.reliability = Z_RELIABILITY_RELIABLE;
   z_owned_closure_sample_t callback = z_closure(graph_sub_data_handler, nullptr, context->impl);
   context->impl->graph_subscriber = z_declare_subscriber(
     z_loan(context->impl->session),
-    z_keyexpr("ros/graph/**"),
+    z_keyexpr(liveliness_str.c_str()),
     z_move(callback),
     &sub_options);
   auto undeclare_z_sub = rcpputils::make_scope_exit(
@@ -232,20 +294,6 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
     return RMW_RET_ERROR;
   }
 
-  context->impl->graph_publisher = z_declare_publisher(
-    z_loan(context->impl->session),
-    z_keyexpr("ros/graph/hello"),
-    NULL);
-  auto undeclare_z_publisher = rcpputils::make_scope_exit(
-    [context]() {
-      z_undeclare_publisher(z_move(context->impl->graph_publisher));
-    });
-  if (!z_check(context->impl->graph_subscriber)) {
-    RMW_SET_ERROR_MSG("unable to create zenoh subscription");
-    return RMW_RET_ERROR;
-  }
-
-  undeclare_z_publisher.cancel();
   undeclare_z_sub.cancel();
   close_session.cancel();
   destruct_guard_condition_data.cancel();
@@ -277,14 +325,6 @@ rmw_shutdown(rmw_context_t * context)
     rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
-  z_undeclare_publisher(z_move(context->impl->graph_publisher));
-  z_undeclare_subscriber(z_move(context->impl->graph_subscriber));
-
-  // Close the zenoh session
-  if (z_close(z_move(context->impl->session)) < 0) {
-    RMW_SET_ERROR_MSG("Error while closing zenoh session");
-    return RMW_RET_ERROR;
-  }
   context->impl->is_shutdown = true;
   return RMW_RET_OK;
 }
@@ -307,6 +347,17 @@ rmw_context_fini(rmw_context_t * context)
   if (!context->impl->is_shutdown) {
     RCUTILS_SET_ERROR_MSG("context has not been shutdown");
     return RMW_RET_INVALID_ARGUMENT;
+  }
+
+  // We destroy zenoh artifacts here instead of rmw_shutdown() as
+  // rmw_shutdown() is invoked before rmw_destroy_node() however we still need the session
+  // alive for the latter.
+  // TODO(Yadunund): Check if this is a bug in rmw.
+  z_undeclare_subscriber(z_move(context->impl->graph_subscriber));
+  // Close the zenoh session
+  if (z_close(z_move(context->impl->session)) < 0) {
+    RMW_SET_ERROR_MSG("Error while closing zenoh session");
+    return RMW_RET_ERROR;
   }
 
   const rcutils_allocator_t * allocator = &context->options.allocator;

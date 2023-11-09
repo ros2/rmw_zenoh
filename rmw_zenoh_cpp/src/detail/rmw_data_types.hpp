@@ -43,8 +43,6 @@ struct rmw_context_impl_s
   // The SHM manager.
   zc_owned_shm_manager_t shm_manager;
 
-  z_owned_publisher_t graph_publisher;
-
   z_owned_subscriber_t graph_subscriber;
 
   /// Shutdown flag.

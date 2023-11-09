@@ -15,12 +15,58 @@
 #ifndef DETAIL__GRAPH_CACHE_HPP_
 #define DETAIL__GRAPH_CACHE_HPP_
 
+#include <zenoh.h>
+
 #include <map>
 #include <memory>
 #include <mutex>
+#include <string>
+#include <vector>
 
 #include "rcutils/allocator.h"
+#include "rcutils/types.h"
 
+#include "rmw/rmw.h"
+
+#include "yaml-cpp/yaml.h"
+
+///=============================================================================
+class GenerateToken
+{
+public:
+  static std::string liveliness(size_t domain_id);
+
+  /// Returns a string with key-expression @ros2_lv/domain_id/N/namespace/name
+  static std::string node(
+    size_t domain_id,
+    const std::string & namespace_,
+    const std::string & name);
+
+  static std::string publisher(
+    size_t domain_id,
+    const std::string & node_namespace,
+    const std::string & node_name,
+    const std::string & topic,
+    const std::string & type,
+    const std::string & qos);
+};
+
+///=============================================================================
+/// Helper utilities to put/delete tokens until liveliness is supported in the
+/// zenoh-c bindings.
+class PublishToken
+{
+public:
+  static bool put(
+    z_owned_session_t * session,
+    const std::string & token);
+
+  static bool del(
+    z_owned_session_t * session,
+    const std::string & token);
+};
+
+///=============================================================================
 class PublisherData final
 {
 public:
@@ -38,6 +84,7 @@ private:
   char * type_name_{nullptr};
 };
 
+///=============================================================================
 class SubscriptionData final
 {
 public:
@@ -55,6 +102,7 @@ private:
   char * type_name_{nullptr};
 };
 
+///=============================================================================
 class GraphCache final
 {
 public:
@@ -72,6 +120,17 @@ public:
 
   void remove_subscription(uint64_t subscription_handle);
 
+  // Parse a PUT message over a token's key-expression and update the graph.
+  void parse_put(const std::string & keyexpr);
+  // Parse a DELETE message over a token's key-expression and update the graph.
+  void parse_del(const std::string & keyexpr);
+
+  rmw_ret_t get_node_names(
+    rcutils_string_array_t * node_names,
+    rcutils_string_array_t * node_namespaces,
+    rcutils_string_array_t * enclaves,
+    rcutils_allocator_t * allocator) const;
+
 private:
   std::mutex publishers_mutex_;
   uint64_t publishers_handle_id_{0};
@@ -80,6 +139,29 @@ private:
   std::mutex subscriptions_mutex_;
   uint64_t subscriptions_handle_id_{0};
   std::map<uint64_t, std::unique_ptr<SubscriptionData>> subscriptions_;
+
+  /*
+  node_1:
+    enclave:
+    namespace:
+    publishers: [
+        {
+          topic:
+          type:
+          qos:
+        }
+    ]
+    subscriptions: [
+        {
+          topic:
+          type:
+          qos:
+        }
+    ]
+  node_n:
+  */
+  YAML::Node graph_;
+  mutable std::mutex graph_mutex_;
 };
 
 #endif  // DETAIL__GRAPH_CACHE_HPP_

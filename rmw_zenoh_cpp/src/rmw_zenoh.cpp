@@ -21,6 +21,7 @@
 #include <sstream>
 
 #include "detail/guard_condition.hpp"
+#include "detail/graph_cache.hpp"
 #include "detail/identifier.hpp"
 #include "detail/message_type_support.hpp"
 #include "detail/rmw_data_types.hpp"
@@ -180,19 +181,18 @@ rmw_create_node(
   node->context = context;
 
   // Publish to the graph that a new node is in town
-  z_publisher_put_options_t pub_options = z_publisher_put_options_default();
-  pub_options.encoding = z_encoding(Z_ENCODING_PREFIX_EMPTY, NULL);
-  z_publisher_put(
-    z_loan(context->impl->graph_publisher),
-    reinterpret_cast<const uint8_t *>(node->name),
-    name_len,
-    &pub_options);
+  const bool result = PublishToken::put(
+    &node->context->impl->session,
+    GenerateToken::node(context->actual_domain_id, namespace_, name)
+  );
+  if (!result) {
+    return nullptr;
+  }
 
   free_node_data.cancel();
   free_namespace.cancel();
   free_name.cancel();
   free_node.cancel();
-
   return node;
 }
 
@@ -202,6 +202,8 @@ rmw_ret_t
 rmw_destroy_node(rmw_node_t * node)
 {
   RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->context, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node,
     node->implementation_identifier,
@@ -209,13 +211,13 @@ rmw_destroy_node(rmw_node_t * node)
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   // Publish to the graph that a node has ridden off into the sunset
-  z_publisher_put_options_t pub_options = z_publisher_put_options_default();
-  pub_options.encoding = z_encoding(Z_ENCODING_PREFIX_EMPTY, NULL);
-  z_publisher_put(
-    z_loan(node->context->impl->graph_publisher),
-    reinterpret_cast<const uint8_t *>(node->name),
-    strlen(node->name),
-    &pub_options);
+  const bool result = PublishToken::del(
+    &node->context->impl->session,
+    GenerateToken::node(node->context->actual_domain_id, node->namespace_, node->name)
+  );
+  if (!result) {
+    return RMW_RET_ERROR;
+  }
 
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
@@ -515,13 +517,7 @@ rmw_create_publisher(
     });
 
   // Publish to the graph that a new publisher is in town
-  z_publisher_put_options_t pub_options = z_publisher_put_options_default();
-  pub_options.encoding = z_encoding(Z_ENCODING_PREFIX_EMPTY, NULL);
-  z_publisher_put(
-    z_loan(node->context->impl->graph_publisher),
-    reinterpret_cast<const uint8_t *>(rmw_publisher->topic_name),
-    topic_len,
-    &pub_options);
+  // TODO(Yadunund): Publish liveliness for the new publisher.
 
   publisher_data->graph_cache_handle = node->context->impl->graph_cache.add_publisher(
     rmw_publisher->topic_name, node->name, node->namespace_,
@@ -563,13 +559,7 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
   rmw_ret_t ret = RMW_RET_OK;
 
   // Publish to the graph that a publisher has ridden off into the sunset
-  z_publisher_put_options_t pub_options = z_publisher_put_options_default();
-  pub_options.encoding = z_encoding(Z_ENCODING_PREFIX_EMPTY, NULL);
-  z_publisher_put(
-    z_loan(node->context->impl->graph_publisher),
-    reinterpret_cast<const uint8_t *>(publisher->topic_name),
-    strlen(publisher->topic_name),
-    &pub_options);
+  // TODO(Yadunund): Publish liveliness for the deleted publisher.
 
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
@@ -1184,13 +1174,8 @@ rmw_create_subscription(
     });
 
   // Publish to the graph that a new subscription is in town
-  z_publisher_put_options_t pub_options = z_publisher_put_options_default();
-  pub_options.encoding = z_encoding(Z_ENCODING_PREFIX_EMPTY, NULL);
-  z_publisher_put(
-    z_loan(node->context->impl->graph_publisher),
-    reinterpret_cast<const uint8_t *>(rmw_subscription->topic_name),
-    topic_len,
-    &pub_options);
+  // TODO(Yadunund): Publish liveliness for the new subscription.
+
 
   sub_data->graph_cache_handle = node->context->impl->graph_cache.add_subscription(
     rmw_subscription->topic_name, node->name, node->namespace_,
@@ -1233,13 +1218,7 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
   rmw_ret_t ret = RMW_RET_OK;
 
   // Publish to the graph that a subscription has ridden off into the sunset
-  z_publisher_put_options_t pub_options = z_publisher_put_options_default();
-  pub_options.encoding = z_encoding(Z_ENCODING_PREFIX_EMPTY, NULL);
-  z_publisher_put(
-    z_loan(node->context->impl->graph_publisher),
-    reinterpret_cast<const uint8_t *>(subscription->topic_name),
-    strlen(subscription->topic_name),
-    &pub_options);
+  // TODO(Yadunund): Publish liveliness for the deleted subscription.
 
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
@@ -2020,10 +1999,17 @@ rmw_get_node_names(
   rcutils_string_array_t * node_names,
   rcutils_string_array_t * node_namespaces)
 {
-  static_cast<void>(node);
-  static_cast<void>(node_names);
-  static_cast<void>(node_namespaces);
-  return RMW_RET_UNSUPPORTED;
+  RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->context, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node_names, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node_namespaces, RMW_RET_INVALID_ARGUMENT);
+
+  rcutils_allocator_t * allocator = &node->context->options.allocator;
+  RMW_CHECK_ARGUMENT_FOR_NULL(allocator, RMW_RET_INVALID_ARGUMENT);
+
+  return node->context->impl->graph_cache.get_node_names(
+    node_names, node_namespaces, nullptr, allocator);
 }
 
 //==============================================================================
@@ -2035,11 +2021,18 @@ rmw_get_node_names_with_enclaves(
   rcutils_string_array_t * node_namespaces,
   rcutils_string_array_t * enclaves)
 {
-  static_cast<void>(node);
-  static_cast<void>(node_names);
-  static_cast<void>(node_namespaces);
-  static_cast<void>(enclaves);
-  return RMW_RET_UNSUPPORTED;
+  RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->context, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node_names, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node_namespaces, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(enclaves, RMW_RET_INVALID_ARGUMENT);
+
+  rcutils_allocator_t * allocator = &node->context->options.allocator;
+  RMW_CHECK_ARGUMENT_FOR_NULL(allocator, RMW_RET_INVALID_ARGUMENT);
+
+  return node->context->impl->graph_cache.get_node_names(
+    node_names, node_namespaces, enclaves, allocator);
 }
 
 //==============================================================================
