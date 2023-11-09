@@ -1,0 +1,18 @@
+{
+  /// The node's mode (router, peer or client)
+  mode: "peer",
+
+  /// The default timeout to apply to queries in milliseconds.
+  queries_default_timeout: 10000,
+
+ /// Configure internal transport parameters
+  transport: {
+    qos: {
+      enabled: true,
+    },
+    // Shared memory configuration
+    shared_memory: {
+      enabled: false,
+    },
+  },
+}

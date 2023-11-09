@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>rmw_zenoh_cpp</name>
+  <version>0.0.1</version>
+  <description>A ROS 2 middleware implementation using zenoh-c</description>
+  <maintainer email="yadunund@openrobotics.org">Yadunund</maintainer>
+  <license>Apache License 2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <build_depend>zenoh_c_vendor</build_depend>
+
+  <depend>ament_index_cpp</depend>
+  <depend>fastcdr</depend>
+  <depend>rcpputils</depend>
+  <depend>rcutils</depend>
+  <depend>rosidl_typesupport_fastrtps_c</depend>
+  <depend>rosidl_typesupport_fastrtps_cpp</depend>
+  <depend>rmw</depend>
+  <depend>yaml_cpp_vendor</depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
