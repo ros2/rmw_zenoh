@@ -1,3 +1,6 @@
+**_NOTE:_** This branch is archived for historical purposes, and will not work with modern ROS 2/Zenoh.
+To see the latest development, please see the 'rolling' branch.
+
 # rmw_zenoh
 
 ![](https://github.com/osrf/rmw_zenoh/workflows/CI/badge.svg)
