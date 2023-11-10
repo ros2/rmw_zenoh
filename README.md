@@ -1,7 +1,7 @@
-# rmw_alternative
+# rmw_zenoh
 
-![](https://github.com/yadunund/rmw_alternative/workflows/build/badge.svg)
-![](https://github.com/yadunund/rmw_alternative/workflows/style/badge.svg)
+[![build](https://github.com/ros2/rmw_zenoh/actions/workflows/build.yaml/badge.svg)](https://github.com/ros2/rmw_zenoh/actions/workflows/build.yaml)
+[![style](https://github.com/ros2/rmw_zenoh/actions/workflows/style.yaml/badge.svg)](https://github.com/ros2/rmw_zenoh/actions/workflows/style.yaml)
 
 A ROS 2 RMW implementation based on Zenoh that is written using the zenoh-c bindings.
 
@@ -31,9 +31,9 @@ sudo apt update && sudo apt install zenoh -y
 Build `rmw_zenoh_cpp`
 
 ```bash
-mkdir ~/ws_rmw_alternative/src -p && cd ~/ws_rmw_alternative/src
-git clone git@github.com:yadunund/rmw_alternative
-cd ~/ws_rmw_alternative
+mkdir ~/ws_rmw_zenoh/src -p && cd ~/ws_rmw_zenoh/src
+git clone git@github.com:ros2/rmw_zenoh.git
+cd ~/ws_rmw_zenoh
 source /opt/ros/<DISTRO>/setup.bash # replace <DISTRO> with ROS 2 distro of choice
 colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
 
@@ -43,7 +43,7 @@ colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
 
 Source workspace
 ```bash
-cd ~/ws_rmw_alternative
+cd ~/ws_rmw_zenoh
 source install/setup.bash
 ```
 
