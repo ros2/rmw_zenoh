@@ -65,21 +65,25 @@ rmw_ret_t zenoh_router_check(z_session_t session)
       (*(static_cast<int *>(ctx)))++;
     };
 
-  z_owned_closure_zid_t router_callback = z_closure(callback, nullptr /* drop */, context);
-  z_info_routers_zid(session, z_move(router_callback));
-
   rmw_ret_t ret;
-  if (*(static_cast<int *>(context)) == 0) {
+  z_owned_closure_zid_t router_callback = z_closure(callback, nullptr /* drop */, context);
+  if (z_info_routers_zid(session, z_move(router_callback))) {
     RCUTILS_LOG_ERROR_NAMED(
       "ZenouRouterCheck",
-      "No Zenoh router connected to the session");
+      "Failed to evaluate if Zenoh routers are connected to the session");
     ret = RMW_RET_ERROR;
   } else {
-    RCUTILS_LOG_INFO_NAMED(
-      "ZenouRouterCheck",
-      "There are %d Zenoh routers connected to the session", *(static_cast<int *>(context)));
-
-    ret = RMW_RET_OK;
+    if (*(static_cast<int *>(context)) == 0) {
+      RCUTILS_LOG_ERROR_NAMED(
+        "ZenouRouterCheck",
+        "No Zenoh router connected to the session");
+      ret = RMW_RET_ERROR;
+    } else {
+      RCUTILS_LOG_INFO_NAMED(
+        "ZenouRouterCheck",
+        "There are %d Zenoh routers connected to the session", *(static_cast<int *>(context)));
+      ret = RMW_RET_OK;
+    }
   }
 
   // Not using the drop function from the closure as we want to keep the context for logging.
