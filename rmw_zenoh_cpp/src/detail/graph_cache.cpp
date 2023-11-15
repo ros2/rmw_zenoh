@@ -79,6 +79,7 @@ std::string GenerateToken::publisher(
 {
   std::string token = generate_base_token("MP", domain_id, node_namespace, node_name);
   token += topic + "/" + type + "/" + qos;
+  printf("GenerateToken::Publisher: %s\n", token.c_str());
   return token;
 }
 
@@ -386,6 +387,26 @@ void GraphCache::parse_put(const std::string & keyexpr)
 
   } else if (entity == "MP") {
     // Publisher
+    auto ns_it = graph_.find(node->ns);
+    if (ns_it == graph_.end()) {
+      // Potential edge case where a liveliness update for a node creation was missed.
+      // So we add the node here.
+      std::string ns = node->ns;
+      std::unordered_map<std::string, GraphNodePtr> map = {
+        {node->name, node}
+      };
+      graph_.insert(std::make_pair(std::move(ns), std::move(map)));
+    } else {
+      auto insertion = ns_it->second.insert(std::make_pair(node->name, node));
+      if (!insertion.second && !node->pubs.empty()) {
+        // Node already exists so just append the publisher.
+        insertion.first->second->pubs.push_back(std::move(node->pubs[0]));
+      }
+    }
+    RCUTILS_LOG_WARN_NAMED(
+      "rmw_zenoh_cpp", "Added publisher to node %s in graph.",
+      node->name.c_str());
+    return;
   } else if (entity == "MS") {
     // Subscription
   } else if (entity == "SS") {
@@ -424,6 +445,39 @@ void GraphCache::parse_del(const std::string & keyexpr)
     );
   } else if (entity == "MP") {
     // Publisher
+    if (node->pubs.empty()) {
+      // This should never happen but we make sure _parse_token() has no error.
+      return;
+    }
+    auto ns_it = graph_.find(node->ns);
+    if (ns_it != graph_.end()) {
+      auto node_it = ns_it->second.find(node->name);
+      if (node_it != ns_it->second.end()) {
+        const auto found_node = node_it->second;
+        // Here we iterate throught the list of publishers and remove the one
+        // with matching name, type and qos.
+        // TODO(Yadunund): This can be more optimal than O(n) with some caching.
+        auto erase_it = found_node->pubs.begin();
+        for (; erase_it != found_node->pubs.end(); ++erase_it) {
+          const auto & pub = *erase_it;
+          if (pub.topic == node->pubs.at(0).topic &&
+            pub.type == node->pubs.at(0).type &&
+            pub.qos == node->pubs.at(0).qos)
+          {
+            break;
+          }
+        }
+        if (erase_it != found_node->pubs.end()) {
+          found_node->pubs.erase(erase_it);
+          RCUTILS_LOG_WARN_NAMED(
+            "rmw_zenoh_cpp",
+            "Removed publisher %s from node %s in the graph.",
+            node->pubs.at(0).topic.c_str(),
+            node->name.c_str()
+          );
+        }
+      }
+    }
   } else if (entity == "MS") {
     // Subscription
   } else if (entity == "SS") {
