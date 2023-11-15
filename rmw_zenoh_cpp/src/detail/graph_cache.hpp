@@ -103,6 +103,27 @@ private:
 };
 
 ///=============================================================================
+// TODO(Yadunund): Expand to services and clients.
+struct GraphNode
+{
+
+  struct PubSubData
+  {
+    std::string topic;
+    std::string type;
+    std::string qos;
+  };
+
+  std::string ns;
+  std::string name;
+  // TODO(Yadunund): Should enclave be the parent to the namespace key and not within a Node?
+  std::string enclave;
+  std::vector<PubSubData> pubs;
+  std::vector<PubSubData> subs;
+};
+using GraphNodePtr = std::shared_ptr<GraphNode>;
+
+///=============================================================================
 class GraphCache final
 {
 public:
@@ -141,26 +162,28 @@ private:
   std::map<uint64_t, std::unique_ptr<SubscriptionData>> subscriptions_;
 
   /*
-  node_1:
-    enclave:
-    namespace:
-    publishers: [
-        {
-          topic:
-          type:
-          qos:
-        }
-    ]
-    subscriptions: [
-        {
-          topic:
-          type:
-          qos:
-        }
-    ]
-  node_n:
+  namespace_1:
+    node_1:
+      enclave:
+      publishers: [
+          {
+            topic:
+            type:
+            qos:
+          }
+      ],
+      subscriptions: [
+          {
+            topic:
+            type:
+            qos:
+          }
+      ],
+  namespace_2:
+    node_n:
   */
-  YAML::Node graph_;
+  // Map namespace to a map of <node_name, GraphNodePtr>.
+  std::unordered_map<std::string, std::unordered_map<std::string, GraphNodePtr>> graph_;
   mutable std::mutex graph_mutex_;
 };
 
