@@ -44,8 +44,18 @@ static std::string generate_base_token(
   const std::string & name)
 {
   std::stringstream token_ss;
-  // TODO(Yadunund): Empty namespace will contain /. Fix non-empty namespace.
-  token_ss << "@ros2_lv/" << domain_id << "/" << entity << namespace_ << name;
+  token_ss << "@ros2_lv/" << domain_id << "/" << entity << namespace_;
+  // An empty namespace from rcl will contain "/"" but zenoh does not allow keys with "//".
+  // Hence we add an "_" to denote an empty namespace such that splitting the key
+  // will always result in 5 parts.
+  if (namespace_ == "/") {
+    token_ss << "_/";
+  }
+  else {
+    token_ss << "/";
+  }
+  // Finally append node name.
+  token_ss << name;
   return token_ss.str();
 }
 
@@ -274,25 +284,28 @@ static std::vector<std::string> split_keyexpr(const std::string & keyexpr)
 ///=============================================================================
 void GraphCache::parse_put(const std::string & keyexpr)
 {
-  // TODO(Yadunund): Validate data.
   std::vector<std::string> parts = split_keyexpr(keyexpr);
-  if (parts.size() < 3) {
+  // At minimum, a token will contain 5 parts (@ros2_lv, domain_id, entity, namespace, node_name).
+  if (parts.size() < 5) {
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Received invalid liveliness token");
     return;
   }
+  // TODO(Yadunund): Validate individual parts.
+
   // Get the entity, ie N, MP, MS, SS, SC.
   const std::string & entity = parts[2];
   std::lock_guard<std::mutex> lock(graph_mutex_);
   if (entity == "NN") {
     // Node
     RCUTILS_LOG_WARN_NAMED("rmw_zenoh_cpp", "Adding node %s to the graph.", parts.back().c_str());
-    const bool has_namespace = entity.size() == 5 ? true : false;
+    // Nodes with empty namespaces will contain an "_".
+    const bool has_namespace = parts[3] == "_" ? false : true;
     graph_[parts.back()] = YAML::Node();
     // TODO(Yadunund): Implement enclave support.
     graph_[parts.back()]["enclave"] = "";
-    graph_[parts.back()]["namespace"] = has_namespace ? parts.at(4) : "/";
+    graph_[parts.back()]["namespace"] = has_namespace ? "/" + parts.at(3) : "/";
   } else if (entity == "MP") {
     // Publisher
   } else if (entity == "MS") {
