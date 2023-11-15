@@ -181,11 +181,11 @@ rmw_create_node(
   node->context = context;
 
   // Publish to the graph that a new node is in town
-  const bool result = PublishToken::put(
+  const bool pub_result = PublishToken::put(
     &node->context->impl->session,
     GenerateToken::node(context->actual_domain_id, namespace_, name)
   );
-  if (!result) {
+  if (!pub_result) {
     return nullptr;
   }
 
@@ -211,11 +211,11 @@ rmw_destroy_node(rmw_node_t * node)
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   // Publish to the graph that a node has ridden off into the sunset
-  const bool result = PublishToken::del(
+  const bool del_result = PublishToken::del(
     &node->context->impl->session,
     GenerateToken::node(node->context->actual_domain_id, node->namespace_, node->name)
   );
-  if (!result) {
+  if (!del_result) {
     return RMW_RET_ERROR;
   }
 
@@ -518,6 +518,19 @@ rmw_create_publisher(
 
   // Publish to the graph that a new publisher is in town
   // TODO(Yadunund): Publish liveliness for the new publisher.
+  const bool pub_result = PublishToken::put(
+    &node->context->impl->session,
+    GenerateToken::publisher(
+      node->context->actual_domain_id,
+      node->namespace_,
+      node->name,
+      rmw_publisher->topic_name,
+      publisher_data->type_support->get_name(),
+      "reliable")
+  );
+  if (!pub_result) {
+    return nullptr;
+  }
 
   publisher_data->graph_cache_handle = node->context->impl->graph_cache.add_publisher(
     rmw_publisher->topic_name, node->name, node->namespace_,
@@ -558,15 +571,26 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
 
   rmw_ret_t ret = RMW_RET_OK;
 
-  // Publish to the graph that a publisher has ridden off into the sunset
-  // TODO(Yadunund): Publish liveliness for the deleted publisher.
-
   rcutils_allocator_t * allocator = &node->context->options.allocator;
-
-  allocator->deallocate(const_cast<char *>(publisher->topic_name), allocator->state);
 
   auto publisher_data = static_cast<rmw_publisher_data_t *>(publisher->data);
   if (publisher_data != nullptr) {
+    // Publish to the graph that a publisher has ridden off into the sunset
+    const bool del_result = PublishToken::del(
+      &node->context->impl->session,
+      GenerateToken::publisher(
+        node->context->actual_domain_id,
+        node->namespace_,
+        node->name,
+        publisher->topic_name,
+        publisher_data->type_support->get_name(),
+        "reliable"
+      )
+    );
+    if (!del_result) {
+      // TODO(Yadunund): Should this really return an error?
+      return RMW_RET_ERROR;
+    }
     node->context->impl->graph_cache.remove_publisher(publisher_data->graph_cache_handle);
 
     RMW_TRY_DESTRUCTOR(publisher_data->type_support->~MessageTypeSupport(), MessageTypeSupport, );
@@ -577,6 +601,7 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
     }
     allocator->deallocate(publisher_data, allocator->state);
   }
+  allocator->deallocate(const_cast<char *>(publisher->topic_name), allocator->state);
   allocator->deallocate(publisher, allocator->state);
 
   return ret;
