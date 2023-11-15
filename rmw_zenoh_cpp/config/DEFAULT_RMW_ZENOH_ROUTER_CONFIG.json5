@@ -123,7 +123,7 @@
       /// This option does not make LowLatency transport mandatory, the actual implementation of transport
       /// used will depend on Establish procedure and other party's settings
       ///
-      /// NOTE: Currently, the LowLatency transport doesn't preserve QoS prioritization. 
+      /// NOTE: Currently, the LowLatency transport doesn't preserve QoS prioritization.
       /// NOTE: Due to the note above, 'lowlatency' is incompatible with 'qos' option, so in order to
       ///       enable 'lowlatency' you need to explicitly disable 'qos'.
       lowlatency: false,
@@ -258,4 +258,28 @@
       write: false,
     },
   },
+
+  /// Plugins configurations
+  /// Plugins are only loaded if present in the configuration. When starting
+  /// Once loaded, they may react to changes in the configuration made through the zenoh instance's adminspace.
+  plugins: {
+
+    /// Configure the storage manager plugin
+    storage_manager: {
+      /// Configure the storages supported by the volumes
+      storages: {
+        ros2_lv: {
+          /// Storages always need to know what set of keys they must work with. These sets are defined by a key expression.
+          key_expr: "@ros2_lv/**",
+          /// Storages also need to know which volume will be used to actually store their key-value pairs.
+          /// The "memory" volume is always available, and doesn't require any per-storage options, so requesting "memory" by string is always sufficient.
+          volume: "memory",
+          /// A complete storage advertises itself as containing all the known keys matching the configured key expression.
+          /// If not configured, complete defaults to false.
+          complete: "true",
+        },
+      },
+    },
+  },
+
 }
