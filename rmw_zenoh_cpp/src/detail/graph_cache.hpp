@@ -21,14 +21,15 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "rcutils/allocator.h"
 #include "rcutils/types.h"
 
 #include "rmw/rmw.h"
+#include "rmw/names_and_types.h"
 
-#include "yaml-cpp/yaml.h"
 
 ///=============================================================================
 class GenerateToken
@@ -152,6 +153,11 @@ public:
     rcutils_string_array_t * enclaves,
     rcutils_allocator_t * allocator) const;
 
+  rmw_ret_t get_topic_names_and_types(
+    rcutils_allocator_t * allocator,
+    bool no_demangle,
+    rmw_names_and_types_t * topic_names_and_types);
+
 private:
   std::mutex publishers_mutex_;
   uint64_t publishers_handle_id_{0};
@@ -183,7 +189,12 @@ private:
     node_n:
   */
   // Map namespace to a map of <node_name, GraphNodePtr>.
-  std::unordered_map<std::string, std::unordered_map<std::string, GraphNodePtr>> graph_;
+  std::unordered_map<std::string, std::unordered_map<std::string, GraphNodePtr>> graph_ = {};
+  // Optimize published topic lookups by caching an unordered_map<string, size_t>
+  // where key is topic_name+topic_type and the value the count.
+  // TODO(Yadunund): Use a single map for both published and subscribed topics.
+  // Consider changing value to pair<size_t, size_t> for pub,sub resp.
+  std::unordered_map<std::string, std::size_t> graph_topics_ = {};
   mutable std::mutex graph_mutex_;
 };
 
