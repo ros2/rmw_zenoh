@@ -297,8 +297,7 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
     z_keyexpr(liveliness_str.c_str()),
     z_move(callback),
     &sub_options);
-  // TODO(Yadunund): Uncomment once linker issue is resolved.
-  // z_drop(z_move(sub_options));
+  zc_liveliness_subscriber_options_drop(z_move(sub_options));
   auto undeclare_z_sub = rcpputils::make_scope_exit(
     [context]() {
       z_undeclare_subscriber(z_move(context->impl->graph_subscriber));

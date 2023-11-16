@@ -170,7 +170,6 @@ rmw_create_node(
   // zenohd is not running.
   // Put metadata into node->data.
   node->data = allocator->zero_allocate(1, sizeof(rmw_node_data_t), allocator->state);
-  rmw_node_data_t * node_data = static_cast<rmw_node_data_t *>(node->data);
   RMW_CHECK_FOR_NULL_WITH_MSG(
     node->data,
     "unable to allocate memory for node data",
@@ -183,7 +182,6 @@ rmw_create_node(
   node->implementation_identifier = rmw_zenoh_identifier;
   node->context = context;
 
-
   // Uncomment and rely on #if #endif blocks to enable this feature when building with
   // zenoh-pico since liveliness is only available in zenoh-c.
   // Publish to the graph that a new node is in town
@@ -195,6 +193,7 @@ rmw_create_node(
   //   return nullptr;
   // }
   // Initialize liveliness token for the node to advertise that a new node is in town.
+  rmw_node_data_t * node_data = static_cast<rmw_node_data_t *>(node->data);
   node_data->token = zc_liveliness_declare_token(
     z_loan(node->context->impl->session),
     z_keyexpr(GenerateToken::node(context->actual_domain_id, namespace_, name).c_str()),
@@ -207,13 +206,12 @@ rmw_create_node(
         z_drop(z_move(node_data->token));
       }
     });
-  // TODO(Yadunund): Uncomment this after resolving build error.
-  // if (!z_check(node_data->token)) {
-  //   RCUTILS_LOG_ERROR_NAMED(
-  //     "rmw_zenoh_cpp",
-  //     "Unable to create liveliness token for the node.");
-  //   return nullptr;
-  // }
+  if (!zc_liveliness_token_check(&node_data->token)) {
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to create liveliness token for the node.");
+    return nullptr;
+  }
 
   free_node_data.cancel();
   free_namespace.cancel();
@@ -251,7 +249,7 @@ rmw_destroy_node(rmw_node_t * node)
 
   // Undeclare liveliness token for the node to advertise that the node has ridden off into the sunset.
   rmw_node_data_t * node_data = static_cast<rmw_node_data_t *>(node->data);
-  z_drop(z_move(node_data->token));
+  zc_liveliness_undeclare_token(z_move(node_data->token));
 
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
@@ -585,13 +583,12 @@ rmw_create_publisher(
         z_drop(z_move(publisher_data->token));
       }
     });
-  // TODO(Yadunund): Uncomment this after resolving build error.
-  // if (!z_check(publisher_data->token)) {
-  //   RCUTILS_LOG_ERROR_NAMED(
-  //     "rmw_zenoh_cpp",
-  //     "Unable to create liveliness token for the publisher.");
-  //   return nullptr;
-  // }
+  if (!zc_liveliness_token_check(&publisher_data->token)) {
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to create liveliness token for the publisher.");
+    return nullptr;
+  }
 
   publisher_data->graph_cache_handle = node->context->impl->graph_cache.add_publisher(
     rmw_publisher->topic_name, node->name, node->namespace_,
@@ -655,8 +652,8 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
     //   // TODO(Yadunund): Should this really return an error?
     //   return RMW_RET_ERROR;
     // }
-    // TODO(Yadunund): Fix linker error.
-    z_drop(z_move(publisher_data->token));
+    zc_liveliness_undeclare_token(z_move(publisher_data->token));
+
     node->context->impl->graph_cache.remove_publisher(publisher_data->graph_cache_handle);
 
     RMW_TRY_DESTRUCTOR(publisher_data->type_support->~MessageTypeSupport(), MessageTypeSupport, );
