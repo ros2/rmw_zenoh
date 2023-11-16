@@ -224,7 +224,7 @@ std::optional<std::pair<std::string, GraphNode>> _parse_token(const std::string 
         "Received invalid liveliness token");
       return std::nullopt;
     }
-    GraphNode::PubSubData data;
+    GraphNode::TopicData data;
     data.topic = "/" + std::move(parts[5]);
     data.type = std::move(parts[6]);
     data.qos = std::move(parts[7]);
@@ -241,6 +241,14 @@ std::optional<std::pair<std::string, GraphNode>> _parse_token(const std::string 
   return std::make_pair(std::move(entity), std::move(node));
 }
 } // namespace anonymous
+
+///=============================================================================
+GraphCache::TopicStats::TopicStats(std::size_t pub_count, std::size_t sub_count)
+: pub_count_(pub_count),
+  sub_count_(sub_count)
+{
+  // Do nothing.
+}
 
 ///=============================================================================
 void GraphCache::parse_put(const std::string & keyexpr)
@@ -298,10 +306,12 @@ void GraphCache::parse_put(const std::string & keyexpr)
     // Bookkeeping
     // TODO(Yadunund): Be more systematic about generating the key.
     std::string topic_key = node->pubs.at(0).topic + "?" + node->pubs.at(0).type;
-    auto insertion = graph_topics_.insert(std::make_pair(std::move(topic_key), 1));
+    auto insertion = graph_topics_.insert(std::make_pair(std::move(topic_key), nullptr));
     if (!insertion.second) {
       // Such a topic already exists so we just increment its count.
-      ++insertion.first->second;
+      ++insertion.first->second->pub_count_;
+    } else {
+      insertion.first->second = std::make_unique<TopicStats>(1, 0);
     }
     RCUTILS_LOG_WARN_NAMED(
       "rmw_zenoh_cpp", "Added publisher %s to node /%s in graph.",
@@ -375,12 +385,12 @@ void GraphCache::parse_del(const std::string & keyexpr)
           std::string topic_key = node->pubs.at(0).topic + "?" + node->pubs.at(0).type;
           auto topic_it = graph_topics_.find(topic_key);
           if (topic_it != graph_topics_.end()) {
-            if (topic_it->second == 1) {
+            if (topic_it->second->pub_count_ == 1 && topic_it->second->sub_count_ == 0) {
               // The last publisher was removed so we can delete this entry.
               graph_topics_.erase(topic_key);
             } else {
               // Else we just decrement the count.
-              --topic_it->second;
+              --topic_it->second->pub_count_;
             }
           }
           RCUTILS_LOG_WARN_NAMED(

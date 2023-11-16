@@ -72,7 +72,7 @@ public:
 struct GraphNode
 {
 
-  struct PubSubData
+  struct TopicData
   {
     std::string topic;
     std::string type;
@@ -83,8 +83,8 @@ struct GraphNode
   std::string name;
   // TODO(Yadunund): Should enclave be the parent to the namespace key and not within a Node?
   std::string enclave;
-  std::vector<PubSubData> pubs;
-  std::vector<PubSubData> subs;
+  std::vector<TopicData> pubs;
+  std::vector<TopicData> subs;
 };
 using GraphNodePtr = std::shared_ptr<GraphNode>;
 
@@ -132,11 +132,19 @@ private:
   */
   // Map namespace to a map of <node_name, GraphNodePtr>.
   std::unordered_map<std::string, std::unordered_map<std::string, GraphNodePtr>> graph_ = {};
-  // Optimize published topic lookups by caching an unordered_map<string, size_t>
-  // where key is topic_name+topic_type and the value the count.
-  // TODO(Yadunund): Use a single map for both published and subscribed topics.
-  // Consider changing value to pair<size_t, size_t> for pub,sub resp.
-  std::unordered_map<std::string, std::size_t> graph_topics_ = {};
+
+  // Optimize topic lookups mapping "topic_name?topic_type" keys to their pub/sub counts.
+  struct TopicStats
+  {
+    std::size_t pub_count_;
+    std::size_t sub_count_;
+
+    // Constructor which initialized counters to 0.
+    TopicStats(std::size_t pub_count, std::size_t sub_count);
+  };
+  using TopicStatsPtr = std::unique_ptr<TopicStats>;
+  std::unordered_map<std::string, TopicStatsPtr> graph_topics_ = {};
+
   mutable std::mutex graph_mutex_;
 };
 
