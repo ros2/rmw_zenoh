@@ -20,6 +20,8 @@
 #include <new>
 #include <sstream>
 
+#include <zenoh.h>
+
 #include "detail/guard_condition.hpp"
 #include "detail/graph_cache.hpp"
 #include "detail/identifier.hpp"
@@ -168,6 +170,7 @@ rmw_create_node(
   // zenohd is not running.
   // Put metadata into node->data.
   node->data = allocator->zero_allocate(1, sizeof(rmw_node_data_t), allocator->state);
+  rmw_node_data_t * node_data = static_cast<rmw_node_data_t *>(node->data);
   RMW_CHECK_FOR_NULL_WITH_MSG(
     node->data,
     "unable to allocate memory for node data",
@@ -180,19 +183,43 @@ rmw_create_node(
   node->implementation_identifier = rmw_zenoh_identifier;
   node->context = context;
 
+
+  // Uncomment and rely on #if #endif blocks to enable this feature when building with
+  // zenoh-pico since liveliness is only available in zenoh-c.
   // Publish to the graph that a new node is in town
-  const bool pub_result = PublishToken::put(
-    &node->context->impl->session,
-    GenerateToken::node(context->actual_domain_id, namespace_, name)
+  // const bool pub_result = PublishToken::put(
+  //   &node->context->impl->session,
+  //   GenerateToken::node(context->actual_domain_id, namespace_, name)
+  // );
+  // if (!pub_result) {
+  //   return nullptr;
+  // }
+  // Initialize liveliness token for the node to advertise that a new node is in town.
+  node_data->token = zc_liveliness_declare_token(
+    z_loan(node->context->impl->session),
+    z_keyexpr(GenerateToken::node(context->actual_domain_id, namespace_, name).c_str()),
+    NULL
   );
-  if (!pub_result) {
-    return nullptr;
-  }
+  auto free_token = rcpputils::make_scope_exit(
+    [node]() {
+      if (node->data != nullptr) {
+        rmw_node_data_t * node_data = static_cast<rmw_node_data_t *>(node->data);
+        z_drop(z_move(node_data->token));
+      }
+    });
+  // TODO(Yadunund): Uncomment this after resolving build error.
+  // if (!z_check(node_data->token)) {
+  //   RCUTILS_LOG_ERROR_NAMED(
+  //     "rmw_zenoh_cpp",
+  //     "Unable to create liveliness token for the node.");
+  //   return nullptr;
+  // }
 
   free_node_data.cancel();
   free_namespace.cancel();
   free_name.cancel();
   free_node.cancel();
+  free_token.cancel();
   return node;
 }
 
@@ -204,20 +231,27 @@ rmw_destroy_node(rmw_node_t * node)
   RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->data, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node,
     node->implementation_identifier,
     rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
+  // Uncomment and rely on #if #endif blocks to enable this feature when building with
+  // zenoh-pico since liveliness is only available in zenoh-c.
   // Publish to the graph that a node has ridden off into the sunset
-  const bool del_result = PublishToken::del(
-    &node->context->impl->session,
-    GenerateToken::node(node->context->actual_domain_id, node->namespace_, node->name)
-  );
-  if (!del_result) {
-    return RMW_RET_ERROR;
-  }
+  // const bool del_result = PublishToken::del(
+  //   &node->context->impl->session,
+  //   GenerateToken::node(node->context->actual_domain_id, node->namespace_, node->name)
+  // );
+  // if (!del_result) {
+  //   return RMW_RET_ERROR;
+  // }
+
+  // Undeclare liveliness token for the node to advertise that the node has ridden off into the sunset.
+  rmw_node_data_t * node_data = static_cast<rmw_node_data_t *>(node->data);
+  z_drop(z_move(node_data->token));
 
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
@@ -516,21 +550,48 @@ rmw_create_publisher(
       z_undeclare_publisher(z_move(publisher_data->pub));
     });
 
+  // Uncomment and rely on #if #endif blocks to enable this feature when building with
+  // zenoh-pico since liveliness is only available in zenoh-c.
   // Publish to the graph that a new publisher is in town
   // TODO(Yadunund): Publish liveliness for the new publisher.
-  const bool pub_result = PublishToken::put(
-    &node->context->impl->session,
-    GenerateToken::publisher(
-      node->context->actual_domain_id,
-      node->namespace_,
-      node->name,
-      rmw_publisher->topic_name,
-      publisher_data->type_support->get_name(),
-      "reliable")
+  // const bool pub_result = PublishToken::put(
+  //   &node->context->impl->session,
+  //   GenerateToken::publisher(
+  //     node->context->actual_domain_id,
+  //     node->namespace_,
+  //     node->name,
+  //     rmw_publisher->topic_name,
+  //     publisher_data->type_support->get_name(),
+  //     "reliable")
+  // );
+  // if (!pub_result) {
+  //   return nullptr;
+  // }
+  publisher_data->token = zc_liveliness_declare_token(
+    z_loan(node->context->impl->session),
+    z_keyexpr(
+      GenerateToken::publisher(
+        node->context->actual_domain_id,
+        node->namespace_,
+        node->name,
+        rmw_publisher->topic_name,
+        publisher_data->type_support->get_name(),
+        "reliable").c_str()),
+    NULL
   );
-  if (!pub_result) {
-    return nullptr;
-  }
+  auto free_token = rcpputils::make_scope_exit(
+    [publisher_data]() {
+      if (publisher_data != nullptr) {
+        z_drop(z_move(publisher_data->token));
+      }
+    });
+  // TODO(Yadunund): Uncomment this after resolving build error.
+  // if (!z_check(publisher_data->token)) {
+  //   RCUTILS_LOG_ERROR_NAMED(
+  //     "rmw_zenoh_cpp",
+  //     "Unable to create liveliness token for the publisher.");
+  //   return nullptr;
+  // }
 
   publisher_data->graph_cache_handle = node->context->impl->graph_cache.add_publisher(
     rmw_publisher->topic_name, node->name, node->namespace_,
@@ -540,6 +601,7 @@ rmw_create_publisher(
       node->context->impl->graph_cache.remove_publisher(publisher_data->graph_cache_handle);
     });
 
+  free_token.cancel();
   remove_from_graph_cache.cancel();
   undeclare_z_publisher.cancel();
   free_topic_name.cancel();
@@ -575,22 +637,26 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
 
   auto publisher_data = static_cast<rmw_publisher_data_t *>(publisher->data);
   if (publisher_data != nullptr) {
+    // Uncomment and rely on #if #endif blocks to enable this feature when building with
+    // zenoh-pico since liveliness is only available in zenoh-c.
     // Publish to the graph that a publisher has ridden off into the sunset
-    const bool del_result = PublishToken::del(
-      &node->context->impl->session,
-      GenerateToken::publisher(
-        node->context->actual_domain_id,
-        node->namespace_,
-        node->name,
-        publisher->topic_name,
-        publisher_data->type_support->get_name(),
-        "reliable"
-      )
-    );
-    if (!del_result) {
-      // TODO(Yadunund): Should this really return an error?
-      return RMW_RET_ERROR;
-    }
+    // const bool del_result = PublishToken::del(
+    //   &node->context->impl->session,
+    //   GenerateToken::publisher(
+    //     node->context->actual_domain_id,
+    //     node->namespace_,
+    //     node->name,
+    //     publisher->topic_name,
+    //     publisher_data->type_support->get_name(),
+    //     "reliable"
+    //   )
+    // );
+    // if (!del_result) {
+    //   // TODO(Yadunund): Should this really return an error?
+    //   return RMW_RET_ERROR;
+    // }
+    // TODO(Yadunund): Fix linker error.
+    z_drop(z_move(publisher_data->token));
     node->context->impl->graph_cache.remove_publisher(publisher_data->graph_cache_handle);
 
     RMW_TRY_DESTRUCTOR(publisher_data->type_support->~MessageTypeSupport(), MessageTypeSupport, );
