@@ -580,7 +580,7 @@ rmw_create_publisher(
   auto free_token = rcpputils::make_scope_exit(
     [publisher_data]() {
       if (publisher_data != nullptr) {
-        z_drop(z_move(publisher_data->token));
+        zc_liveliness_undeclare_token(z_move(publisher_data->token));
       }
     });
   if (!zc_liveliness_token_check(&publisher_data->token)) {
@@ -608,6 +608,7 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
 {
   RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(publisher, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(publisher->data, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node,
     node->implementation_identifier,
@@ -1251,8 +1252,32 @@ rmw_create_subscription(
     });
 
   // Publish to the graph that a new subscription is in town
-  // TODO(Yadunund): Publish liveliness for the new subscription.
+  sub_data->token = zc_liveliness_declare_token(
+    z_loan(context_impl->session),
+    z_keyexpr(
+      GenerateToken::subscription(
+        node->context->actual_domain_id,
+        node->namespace_,
+        node->name,
+        rmw_subscription->topic_name,
+        sub_data->type_support->get_name(),
+        "reliable").c_str()),
+    NULL
+  );
+  auto free_token = rcpputils::make_scope_exit(
+    [sub_data]() {
+      if (sub_data != nullptr) {
+        zc_liveliness_undeclare_token(z_move(sub_data->token));
+      }
+    });
+  if (!zc_liveliness_token_check(&sub_data->token)) {
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to create liveliness token for the subscription.");
+    return nullptr;
+  }
 
+  free_token.cancel();
   undeclare_z_sub.cancel();
   free_topic_name.cancel();
   destruct_msg_type_support.cancel();
@@ -1284,15 +1309,13 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
 
   rmw_ret_t ret = RMW_RET_OK;
 
-  // Publish to the graph that a subscription has ridden off into the sunset
-  // TODO(Yadunund): Publish liveliness for the deleted subscription.
-
   rcutils_allocator_t * allocator = &node->context->options.allocator;
-
-  allocator->deallocate(const_cast<char *>(subscription->topic_name), allocator->state);
 
   auto sub_data = static_cast<rmw_subscription_data_t *>(subscription->data);
   if (sub_data != nullptr) {
+
+    // Publish to the graph that a subscription has ridden off into the sunset
+    zc_liveliness_undeclare_token(z_move(sub_data->token));
 
     RMW_TRY_DESTRUCTOR(sub_data->type_support->~MessageTypeSupport(), MessageTypeSupport, );
     allocator->deallocate(sub_data->type_support, allocator->state);
@@ -1305,6 +1328,7 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
     RMW_TRY_DESTRUCTOR(sub_data->~rmw_subscription_data_t(), rmw_subscription_data_t, );
     allocator->deallocate(sub_data, allocator->state);
   }
+  allocator->deallocate(const_cast<char *>(subscription->topic_name), allocator->state);
   allocator->deallocate(subscription, allocator->state);
 
   return ret;

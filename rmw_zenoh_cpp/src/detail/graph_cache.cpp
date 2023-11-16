@@ -84,6 +84,21 @@ std::string GenerateToken::publisher(
 }
 
 ///=============================================================================
+std::string GenerateToken::subscription(
+  size_t domain_id,
+  const std::string & node_namespace,
+  const std::string & node_name,
+  const std::string & topic,
+  const std::string & type,
+  const std::string & qos)
+{
+  std::string token = generate_base_token("MS", domain_id, node_namespace, node_name);
+  token += topic + "/" + type + "/" + qos;
+  printf("GenerateToken::Subscription: %s\n", token.c_str());
+  return token;
+}
+
+///=============================================================================
 bool PublishToken::put(
   z_owned_session_t * session,
   const std::string & token)
@@ -301,6 +316,8 @@ void GraphCache::parse_put(const std::string & keyexpr)
       if (!insertion.second && !node->pubs.empty()) {
         // Node already exists so just append the publisher.
         insertion.first->second->pubs.push_back(node->pubs[0]);
+      } else {
+        return;
       }
     }
     // Bookkeeping
@@ -320,6 +337,39 @@ void GraphCache::parse_put(const std::string & keyexpr)
     return;
   } else if (entity == "MS") {
     // Subscription
+    auto ns_it = graph_.find(node->ns);
+    if (ns_it == graph_.end()) {
+      // Potential edge case where a liveliness update for a node creation was missed.
+      // So we add the node here.
+      std::string ns = node->ns;
+      std::unordered_map<std::string, GraphNodePtr> map = {
+        {node->name, node}
+      };
+      graph_.insert(std::make_pair(std::move(ns), std::move(map)));
+    } else {
+      auto insertion = ns_it->second.insert(std::make_pair(node->name, node));
+      if (!insertion.second && !node->subs.empty()) {
+        // Node already exists so just append the publisher.
+        insertion.first->second->subs.push_back(node->subs[0]);
+      } else {
+        return;
+      }
+    }
+    // Bookkeeping
+    // TODO(Yadunund): Be more systematic about generating the key.
+    std::string topic_key = node->subs.at(0).topic + "?" + node->subs.at(0).type;
+    auto insertion = graph_topics_.insert(std::make_pair(std::move(topic_key), nullptr));
+    if (!insertion.second) {
+      // Such a topic already exists so we just increment its count.
+      ++insertion.first->second->sub_count_;
+    } else {
+      insertion.first->second = std::make_unique<TopicStats>(0, 1);
+    }
+    RCUTILS_LOG_WARN_NAMED(
+      "rmw_zenoh_cpp", "Added subscription %s to node /%s in graph.",
+      node->subs.at(0).topic.c_str(),
+      node->name.c_str());
+    return;
   } else if (entity == "SS") {
     // Service
   } else if (entity == "SC") {
@@ -404,6 +454,52 @@ void GraphCache::parse_del(const std::string & keyexpr)
     }
   } else if (entity == "MS") {
     // Subscription
+    if (node->subs.empty()) {
+      // This should never happen but we make sure _parse_token() has no error.
+      return;
+    }
+    auto ns_it = graph_.find(node->ns);
+    if (ns_it != graph_.end()) {
+      auto node_it = ns_it->second.find(node->name);
+      if (node_it != ns_it->second.end()) {
+        const auto found_node = node_it->second;
+        // Here we iterate throught the list of subscriptions and remove the one
+        // with matching name, type and qos.
+        // TODO(Yadunund): This can be more optimal than O(n) with some caching.
+        auto erase_it = found_node->subs.begin();
+        for (; erase_it != found_node->subs.end(); ++erase_it) {
+          const auto & sub = *erase_it;
+          if (sub.topic == node->subs.at(0).topic &&
+            sub.type == node->subs.at(0).type &&
+            sub.qos == node->subs.at(0).qos)
+          {
+            break;
+          }
+        }
+        if (erase_it != found_node->subs.end()) {
+          found_node->subs.erase(erase_it);
+          // Bookkeeping
+          // TODO(Yadunund): Be more systematic about generating the key.
+          std::string topic_key = node->subs.at(0).topic + "?" + node->subs.at(0).type;
+          auto topic_it = graph_topics_.find(topic_key);
+          if (topic_it != graph_topics_.end()) {
+            if (topic_it->second->sub_count_ == 1 && topic_it->second->pub_count_ == 0) {
+              // The last subscription was removed so we can delete this entry.
+              graph_topics_.erase(topic_key);
+            } else {
+              // Else we just decrement the count.
+              --topic_it->second->sub_count_;
+            }
+          }
+          RCUTILS_LOG_WARN_NAMED(
+            "rmw_zenoh_cpp",
+            "Removed subscription %s from node /%s in the graph.",
+            node->subs.at(0).topic.c_str(),
+            node->name.c_str()
+          );
+        }
+      }
+    }
   } else if (entity == "SS") {
     // Service
   } else if (entity == "SC") {

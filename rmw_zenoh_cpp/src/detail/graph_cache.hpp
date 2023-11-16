@@ -50,6 +50,14 @@ public:
     const std::string & topic,
     const std::string & type,
     const std::string & qos);
+
+  static std::string subscription(
+    size_t domain_id,
+    const std::string & node_namespace,
+    const std::string & node_name,
+    const std::string & topic,
+    const std::string & type,
+    const std::string & qos);
 };
 
 ///=============================================================================
