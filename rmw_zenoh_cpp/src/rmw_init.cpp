@@ -248,18 +248,22 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   // Setup liveliness subscriptions for discovery.
   const std::string liveliness_str = GenerateToken::liveliness(context->actual_domain_id);
 
-  // Query the router to get graph information before this session was started.
-  // TODO(Yadunund): This will not be needed once the zenoh-c liveliness API is available.
+  // Query the router/liveliness participants to get graph information before this session was started.
   RCUTILS_LOG_WARN_NAMED(
     "rmw_zenoh_cpp",
-    "Sending Query '%s' to fetch discovery data from router...",
+    "Sending Query '%s' to fetch discovery data...",
     liveliness_str.c_str()
   );
   z_owned_reply_channel_t channel = zc_reply_fifo_new(16);
-  z_get_options_t opts = z_get_options_default();
-  z_get(
-    z_loan(context->impl->session), z_keyexpr(liveliness_str.c_str()), "", z_move(channel.send),
-    &opts);      // here, the send is moved and will be dropped by zenoh when adequate
+  zc_liveliness_get(
+    z_loan(context->impl->session), z_keyexpr(liveliness_str.c_str()),
+    z_move(channel.send), NULL);
+  // Uncomment and rely on #if #endif blocks to enable this feature when building with
+  // zenoh-pico since liveliness is only available in zenoh-c.
+  // z_get_options_t opts = z_get_options_default();
+  // z_get(
+  //   z_loan(context->impl->session), z_keyexpr(liveliness_str.c_str()), "", z_move(channel.send),
+  //   &opts);      // here, the send is moved and will be dropped by zenoh when adequate
   z_owned_reply_t reply = z_reply_null();
   for (z_call(channel.recv, &reply); z_check(reply); z_call(channel.recv, &reply)) {
     if (z_reply_is_ok(&reply)) {
@@ -284,14 +288,23 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
     liveliness_str.c_str()
   );
 
-  auto sub_options = z_subscriber_options_default();
-  sub_options.reliability = Z_RELIABILITY_RELIABLE;
+  // Uncomment and rely on #if #endif blocks to enable this feature when building with
+  // zenoh-pico since liveliness is only available in zenoh-c.
+  // auto sub_options = z_subscriber_options_default();
+  // sub_options.reliability = Z_RELIABILITY_RELIABLE;
+  // context->impl->graph_subscriber = z_declare_subscriber(
+  //   z_loan(context->impl->session),
+  //   z_keyexpr(liveliness_str.c_str()),
+  //   z_move(callback),
+  //   &sub_options);
+  auto sub_options = zc_liveliness_subscriber_options_null();
   z_owned_closure_sample_t callback = z_closure(graph_sub_data_handler, nullptr, context->impl);
-  context->impl->graph_subscriber = z_declare_subscriber(
+  context->impl->graph_subscriber = zc_liveliness_declare_subscriber(
     z_loan(context->impl->session),
     z_keyexpr(liveliness_str.c_str()),
     z_move(callback),
     &sub_options);
+  zc_liveliness_subscriber_options_drop(z_move(sub_options));
   auto undeclare_z_sub = rcpputils::make_scope_exit(
     [context]() {
       z_undeclare_subscriber(z_move(context->impl->graph_subscriber));
