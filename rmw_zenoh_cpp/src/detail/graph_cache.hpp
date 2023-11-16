@@ -68,42 +68,6 @@ public:
 };
 
 ///=============================================================================
-class PublisherData final
-{
-public:
-  PublisherData(
-    const char * topic, const char * node, const char * namespace_,
-    const char * type, rcutils_allocator_t * allocator);
-
-  ~PublisherData();
-
-private:
-  rcutils_allocator_t * allocator_;
-  char * topic_name_{nullptr};
-  char * node_name_{nullptr};
-  char * namespace_name_{nullptr};
-  char * type_name_{nullptr};
-};
-
-///=============================================================================
-class SubscriptionData final
-{
-public:
-  SubscriptionData(
-    const char * topic, const char * node, const char * namespace_,
-    const char * type, rcutils_allocator_t * allocator);
-
-  ~SubscriptionData();
-
-private:
-  rcutils_allocator_t * allocator_;
-  char * topic_name_{nullptr};
-  char * node_name_{nullptr};
-  char * namespace_name_{nullptr};
-  char * type_name_{nullptr};
-};
-
-///=============================================================================
 // TODO(Yadunund): Expand to services and clients.
 struct GraphNode
 {
@@ -128,20 +92,6 @@ using GraphNodePtr = std::shared_ptr<GraphNode>;
 class GraphCache final
 {
 public:
-  uint64_t
-  add_publisher(
-    const char * topic, const char * node, const char * namespace_,
-    const char * type, rcutils_allocator_t * allocator);
-
-  void remove_publisher(uint64_t publisher_handle);
-
-  uint64_t
-  add_subscription(
-    const char * topic, const char * node, const char * namespace_,
-    const char * type, rcutils_allocator_t * allocator);
-
-  void remove_subscription(uint64_t subscription_handle);
-
   // Parse a PUT message over a token's key-expression and update the graph.
   void parse_put(const std::string & keyexpr);
   // Parse a DELETE message over a token's key-expression and update the graph.
@@ -159,14 +109,6 @@ public:
     rmw_names_and_types_t * topic_names_and_types);
 
 private:
-  std::mutex publishers_mutex_;
-  uint64_t publishers_handle_id_{0};
-  std::map<uint64_t, std::unique_ptr<PublisherData>> publishers_;
-
-  std::mutex subscriptions_mutex_;
-  uint64_t subscriptions_handle_id_{0};
-  std::map<uint64_t, std::unique_ptr<SubscriptionData>> subscriptions_;
-
   /*
   namespace_1:
     node_1:

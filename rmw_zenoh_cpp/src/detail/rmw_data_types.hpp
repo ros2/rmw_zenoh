@@ -80,8 +80,6 @@ struct rmw_publisher_data_t
 
   // Context for memory allocation for messages.
   rmw_context_t * context;
-
-  uint64_t graph_cache_handle;
 };
 
 ///==============================================================================
@@ -131,8 +129,6 @@ struct rmw_subscription_data_t
 
   std::mutex internal_mutex;
   std::condition_variable * condition{nullptr};
-
-  uint64_t graph_cache_handle;
 };
 
 #endif  // DETAIL__RMW_DATA_TYPES_HPP_

@@ -590,16 +590,7 @@ rmw_create_publisher(
     return nullptr;
   }
 
-  publisher_data->graph_cache_handle = node->context->impl->graph_cache.add_publisher(
-    rmw_publisher->topic_name, node->name, node->namespace_,
-    publisher_data->type_support->get_name(), allocator);
-  auto remove_from_graph_cache = rcpputils::make_scope_exit(
-    [node, publisher_data]() {
-      node->context->impl->graph_cache.remove_publisher(publisher_data->graph_cache_handle);
-    });
-
   free_token.cancel();
-  remove_from_graph_cache.cancel();
   undeclare_z_publisher.cancel();
   free_topic_name.cancel();
   destruct_msg_type_support.cancel();
@@ -653,8 +644,6 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
     //   return RMW_RET_ERROR;
     // }
     zc_liveliness_undeclare_token(z_move(publisher_data->token));
-
-    node->context->impl->graph_cache.remove_publisher(publisher_data->graph_cache_handle);
 
     RMW_TRY_DESTRUCTOR(publisher_data->type_support->~MessageTypeSupport(), MessageTypeSupport, );
     allocator->deallocate(publisher_data->type_support, allocator->state);
@@ -1264,16 +1253,6 @@ rmw_create_subscription(
   // Publish to the graph that a new subscription is in town
   // TODO(Yadunund): Publish liveliness for the new subscription.
 
-
-  sub_data->graph_cache_handle = node->context->impl->graph_cache.add_subscription(
-    rmw_subscription->topic_name, node->name, node->namespace_,
-    sub_data->type_support->get_name(), allocator);
-  auto remove_from_graph_cache = rcpputils::make_scope_exit(
-    [node, sub_data]() {
-      node->context->impl->graph_cache.remove_subscription(sub_data->graph_cache_handle);
-    });
-
-  remove_from_graph_cache.cancel();
   undeclare_z_sub.cancel();
   free_topic_name.cancel();
   destruct_msg_type_support.cancel();
@@ -1314,7 +1293,6 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
 
   auto sub_data = static_cast<rmw_subscription_data_t *>(subscription->data);
   if (sub_data != nullptr) {
-    node->context->impl->graph_cache.remove_subscription(sub_data->graph_cache_handle);
 
     RMW_TRY_DESTRUCTOR(sub_data->type_support->~MessageTypeSupport(), MessageTypeSupport, );
     allocator->deallocate(sub_data->type_support, allocator->state);
