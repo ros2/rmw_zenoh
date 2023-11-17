@@ -21,13 +21,6 @@ Install latest rustc.
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 
-Install zenohd router
-> Note: The manual zenoh router installation won't be required in the future.
-```bash
-echo "deb [trusted=yes] https://download.eclipse.org/zenoh/debian-repo/ /" | sudo tee -a /etc/apt/sources.list > /dev/null
-sudo apt update && sudo apt install zenoh -y
-```
-
 Build `rmw_zenoh_cpp`
 
 ```bash
