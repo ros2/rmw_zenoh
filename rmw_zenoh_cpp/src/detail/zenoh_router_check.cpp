@@ -17,9 +17,9 @@
 #include <rcutils/env.h>
 #include <rcutils/logging_macros.h>
 
-#include <string>
-#include <sstream>
 #include <iomanip>
+#include <sstream>
+#include <string>
 
 namespace
 {
@@ -27,13 +27,13 @@ namespace
 // Convert a Zenoh Id to a string
 // Zenoh IDs are LSB-first 128bit unsigned and non-zero integers in hexadecimal lowercase.
 // @param pid Zenoh Id to convert
-std::string ZidToStr(z_id_t pid)
+std::string zid_to_str(const z_id_t & pid)
 {
   std::stringstream ss;
   int len = 0;
-  for (int i = 0; i < 16; i++) {
+  for (size_t i = 0; i < sizeof(pid.id); ++i) {
     if (pid.id[i]) {
-      len = i + 1;
+      len = static_cast<int>(i) + 1;
     }
   }
   if (!len) {
@@ -51,14 +51,13 @@ std::string ZidToStr(z_id_t pid)
 rmw_ret_t zenoh_router_check(z_session_t session)
 {
   // Initialize context for callback
-  void * context = malloc(sizeof(int));
-  *(static_cast<int *>(context)) = 0;
+  int context = 0;
 
   // Define callback
   auto callback = [](const struct z_id_t * id, void * ctx) {
-      const std::string id_str = ZidToStr(*id);
+      const std::string id_str = zid_to_str(*id);
       RCUTILS_LOG_INFO_NAMED(
-        "ZenouRouterCheck",
+        "ZenohRouterCheck",
         "A Zenoh router connected to the session with id '%s'", id_str.c_str());
       // Note: Callback is guaranteed to never be called
       // concurrently according to z_info_routers_zid docstring
@@ -66,27 +65,25 @@ rmw_ret_t zenoh_router_check(z_session_t session)
     };
 
   rmw_ret_t ret;
-  z_owned_closure_zid_t router_callback = z_closure(callback, nullptr /* drop */, context);
+  z_owned_closure_zid_t router_callback = z_closure(callback, nullptr /* drop */, &context);
   if (z_info_routers_zid(session, z_move(router_callback))) {
     RCUTILS_LOG_ERROR_NAMED(
-      "ZenouRouterCheck",
+      "ZenohRouterCheck",
       "Failed to evaluate if Zenoh routers are connected to the session");
     ret = RMW_RET_ERROR;
   } else {
-    if (*(static_cast<int *>(context)) == 0) {
+    if (context == 0) {
       RCUTILS_LOG_ERROR_NAMED(
-        "ZenouRouterCheck",
+        "ZenohRouterCheck",
         "No Zenoh router connected to the session");
       ret = RMW_RET_ERROR;
     } else {
       RCUTILS_LOG_INFO_NAMED(
-        "ZenouRouterCheck",
-        "There are %d Zenoh routers connected to the session", *(static_cast<int *>(context)));
+        "ZenohRouterCheck",
+        "There are %d Zenoh routers connected to the session", context);
       ret = RMW_RET_OK;
     }
   }
 
-  // Not using the drop function from the closure as we want to keep the context for logging.
-  free(context);
   return ret;
 }
