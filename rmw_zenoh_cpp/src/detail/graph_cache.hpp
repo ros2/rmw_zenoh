@@ -79,7 +79,6 @@ public:
 // TODO(Yadunund): Expand to services and clients.
 struct GraphNode
 {
-
   struct TopicData
   {
     std::string topic;

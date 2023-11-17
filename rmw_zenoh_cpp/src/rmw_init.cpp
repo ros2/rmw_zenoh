@@ -248,7 +248,7 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   // Setup liveliness subscriptions for discovery.
   const std::string liveliness_str = GenerateToken::liveliness(context->actual_domain_id);
 
-  // Query the router/liveliness participants to get graph information before this session was started.
+  // Query router/liveliness participants to get graph information before this session was started.
   RCUTILS_LOG_WARN_NAMED(
     "rmw_zenoh_cpp",
     "Sending Query '%s' to fetch discovery data...",

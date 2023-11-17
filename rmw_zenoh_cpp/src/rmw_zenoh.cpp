@@ -15,12 +15,12 @@
 #include <fastcdr/FastBuffer.h>
 #include <fastcdr/Cdr.h>
 
+#include <zenoh.h>
+
 #include <chrono>
 #include <mutex>
 #include <new>
 #include <sstream>
-
-#include <zenoh.h>
 
 #include "detail/guard_condition.hpp"
 #include "detail/graph_cache.hpp"
@@ -247,7 +247,8 @@ rmw_destroy_node(rmw_node_t * node)
   //   return RMW_RET_ERROR;
   // }
 
-  // Undeclare liveliness token for the node to advertise that the node has ridden off into the sunset.
+  // Undeclare liveliness token for the node to advertise that the node has ridden
+  // off into the sunset.
   rmw_node_data_t * node_data = static_cast<rmw_node_data_t *>(node->data);
   zc_liveliness_undeclare_token(z_move(node_data->token));
 
@@ -1313,7 +1314,6 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
 
   auto sub_data = static_cast<rmw_subscription_data_t *>(subscription->data);
   if (sub_data != nullptr) {
-
     // Publish to the graph that a subscription has ridden off into the sunset
     zc_liveliness_undeclare_token(z_move(sub_data->token));
 
