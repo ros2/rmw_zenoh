@@ -10,7 +10,6 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <build_depend>zenoh_c_vendor</build_depend>
-  <build_depend>zenohd_vendor</build_depend>
 
   <depend>ament_index_cpp</depend>
   <depend>fastcdr</depend>

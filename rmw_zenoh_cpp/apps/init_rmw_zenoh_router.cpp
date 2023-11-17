@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <stdlib.h>
-#include <sys/wait.h>
-
-#include <iostream>
+#include <chrono>
+#include <cstdio>
 #include <string>
+#include <thread>
+
+#include <zenoh.h>
 
 #include <ament_index_cpp/get_package_share_directory.hpp>
 
@@ -31,19 +32,22 @@ int Main(int, char **)
     ament_index_cpp::get_package_share_directory(RMW_ZENOH_IDENTIFIER) +
     "/config/" + std::string(ZENOH_ROUTER_CONFIG_NAME);
 
-  // Execute zenohd command
-  const std::string zenohd_cmd = "zenohd -c " + zenoh_router_config_path;
-  const int ret = system(zenohd_cmd.c_str());
-  if (ret < 0) {
-    std::cerr << "Error running zenoh router via command: " << zenohd_cmd << std::endl;
-    return ret;
-  } else {
-    if (WIFEXITED(ret)) {
-      std::cout << "Zenoh router exited normally." << std::endl;
-    } else {
-      std::cout << "Zenoh router exited abnormally with error code [" << ret << "]" << std::endl;
+  z_owned_config_t config = zc_config_from_file(zenoh_router_config_path.c_str());
+  z_owned_session_t s = z_open(z_move(config));
+  if (!z_check(s)) {
+    printf("Unable to open router session!\n");
+    return 1;
+  }
+
+  printf("Enter 'q' to quit...\n");
+  char c = 0;
+  while (c != 'q') {
+    c = getchar();
+    if (c == -1) {
+      std::this_thread::sleep_for(std::chrono::seconds(1));
     }
   }
+  z_close(z_move(s));
   return 0;
 }
 
