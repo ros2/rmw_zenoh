@@ -20,6 +20,7 @@
 #include "detail/identifier.hpp"
 #include "detail/rmw_data_types.hpp"
 #include "detail/zenoh_config.hpp"
+#include "detail/zenoh_router_check.hpp"
 
 #include "rcutils/env.h"
 #include "rcutils/logging_macros.h"
@@ -172,6 +173,12 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
     [context]() {
       z_close(z_move(context->impl->session));
     });
+
+  // Verify if the zenoh router is running.
+  if ((ret = zenoh_router_check(z_loan(context->impl->session))) != RMW_RET_OK) {
+    RMW_SET_ERROR_MSG("Error while checking for Zenoh router");
+    return ret;
+  }
 
   // Initialize the shm manager if shared_memory is enabled in the config.
   if (shm_enabled._cstr != nullptr &&
