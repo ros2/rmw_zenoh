@@ -25,7 +25,7 @@ Build `rmw_zenoh_cpp`
 
 ```bash
 mkdir ~/ws_rmw_zenoh/src -p && cd ~/ws_rmw_zenoh/src
-git clone git@github.com:ros2/rmw_zenoh.git
+git clone https://github.com/ros2/rmw_zenoh.git
 cd ~/ws_rmw_zenoh
 source /opt/ros/<DISTRO>/setup.bash # replace <DISTRO> with ROS 2 distro of choice
 colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
@@ -34,24 +34,41 @@ colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
 
 ## Test
 
-Source workspace
+Make sure to source the built workspace using the commands below prior to running any other commands.
 ```bash
 cd ~/ws_rmw_zenoh
 source install/setup.bash
 ```
 
-In a terminal launch Zenoh router:
+### Start the zenoh router
+> Note: Manually launching zenoh router won't be necessary in the future.
 ```bash
+# terminal 1
 ros2 run rmw_zenoh_cpp init_rmw_zenoh_router
 ```
-> Note: Manually launching zenoh router won't be necessary in the future.
 
-In a different terminal source install folder and execute:
+> Note: Without the zenoh router, nodes will not be able to discover each other since multicast discovery is disabled by default in the node's session config. Instead, nodes will receive discovery information about other peers via the zenoh router's gossip functionality. See more information on the session configs [below](#config).
 
+### Run the `talker`
 ```bash
+# terminal 2
 export RMW_IMPLEMENTATION=rmw_zenoh_cpp
-ros2 topic pub "/chatter" std_msgs/msg/String '{data: hello}'
+ros2 run demo_nodes_cpp talker
 ```
+> Note: Ignore all the warning printouts.
+
+### Run the `listener`
+```bash
+# terminal 2
+export RMW_IMPLEMENTATION=rmw_zenoh_cpp
+ros2 run demo_nodes_cpp listener
+```
+
+The listener node should start receiving messages over the `/chatter` topic.
+> Note: Ignore all the warning printouts.
+
+### Graph introspection
+Presently we only support limited `ros2cli` commands to introspect the ROS graph such as `ros2 node list` and `ros2 topic list`.
 
 ## Config
 The [default configuration](rmw_zenoh_cpp/config/DEFAULT_RMW_ZENOH_SESSION_CONFIG.json5) sets up the zenoh sessions with the following main characteristics:
@@ -69,7 +86,7 @@ A custom configuration may be provided by setting the `RMW_ZENOH_CONFIG_FILE` en
 
 ## TODO Features
 - [x] Publisher
-- [ ] Subscription
+- [x] Subscription
 - [ ] Client
 - [ ] Service
 - [ ] Graph introspection
