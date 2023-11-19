@@ -14,11 +14,13 @@
 
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "rcpputils/find_and_replace.hpp"
 #include "rcpputils/scope_exit.hpp"
 
 #include "rcutils/logging_macros.h"
@@ -37,6 +39,19 @@ std::string GenerateToken::liveliness(size_t domain_id)
 }
 
 ///=============================================================================
+/**
+ * Generate a liveliness token for the particular entity.
+ *
+ * The liveliness tokens are in the form:
+ *
+ * @ros2_lv/<domainid>/<entity>/<namespace>/<nodename>
+ *
+ * Where:
+ *  <domainid> - A number set by the user to "partition" graphs.  Roughly equivalent to the domain ID in DDS.
+ *  <entity> - The type of entity.  This can be one of "NN" for a node, "MP" for a publisher, "MS" for a subscription, "SS" for a service server, or "SC" for a service client.
+ *  <namespace> - The ROS namespace for this entity.  If the namespace is absolute, this function will add in an _ for later parsing reasons.
+ *  <nodename> - The ROS node name for this entity.
+ */
 static std::string generate_base_token(
   const std::string & entity,
   size_t domain_id,
@@ -44,8 +59,17 @@ static std::string generate_base_token(
   const std::string & name)
 {
   std::stringstream token_ss;
-  // TODO(Yadunund): Empty namespace will contain /. Fix non-empty namespace.
-  token_ss << "@ros2_lv/" << domain_id << "/" << entity << namespace_ << name;
+  token_ss << "@ros2_lv/" << domain_id << "/" << entity << namespace_;
+  // An empty namespace from rcl will contain "/" but zenoh does not allow keys with "//".
+  // Hence we add an "_" to denote an empty namespace such that splitting the key
+  // will always result in 5 parts.
+  if (namespace_ == "/") {
+    token_ss << "_/";
+  } else {
+    token_ss << "/";
+  }
+  // Finally append node name.
+  token_ss << name;
   return token_ss.str();
 }
 
@@ -68,6 +92,20 @@ std::string GenerateToken::publisher(
   const std::string & qos)
 {
   std::string token = generate_base_token("MP", domain_id, node_namespace, node_name);
+  token += topic + "/" + type + "/" + qos;
+  return token;
+}
+
+///=============================================================================
+std::string GenerateToken::subscription(
+  size_t domain_id,
+  const std::string & node_namespace,
+  const std::string & node_name,
+  const std::string & topic,
+  const std::string & type,
+  const std::string & qos)
+{
+  std::string token = generate_base_token("MS", domain_id, node_namespace, node_name);
   token += topic + "/" + type + "/" + qos;
   return token;
 }
@@ -134,123 +172,18 @@ bool PublishToken::del(
 }
 
 ///=============================================================================
-PublisherData::PublisherData(
-  const char * topic, const char * node, const char * namespace_,
-  const char * type, rcutils_allocator_t * allocator)
-: allocator_(allocator)
+namespace
 {
-  // TODO(clalancette): Check for error
-  topic_name_ = rcutils_strdup(topic, *allocator);
-
-  // TODO(clalancette): Check for error
-  node_name_ = rcutils_strdup(node, *allocator);
-
-  // TODO(clalancette): Check for error
-  namespace_name_ = rcutils_strdup(namespace_, *allocator);
-
-  // TODO(clalancette): Check for error
-  type_name_ = rcutils_strdup(type, *allocator);
-}
-
-///=============================================================================
-PublisherData::~PublisherData()
-{
-  allocator_->deallocate(topic_name_, allocator_->state);
-  allocator_->deallocate(node_name_, allocator_->state);
-  allocator_->deallocate(namespace_name_, allocator_->state);
-  allocator_->deallocate(type_name_, allocator_->state);
-}
-
-///=============================================================================
-SubscriptionData::SubscriptionData(
-  const char * topic, const char * node, const char * namespace_,
-  const char * type, rcutils_allocator_t * allocator)
-: allocator_(allocator)
-{
-  // TODO(clalancette): Check for error
-  topic_name_ = rcutils_strdup(topic, *allocator);
-
-  // TODO(clalancette): Check for error
-  node_name_ = rcutils_strdup(node, *allocator);
-
-  // TODO(clalancette): Check for error
-  namespace_name_ = rcutils_strdup(namespace_, *allocator);
-
-  // TODO(clalancette): Check for error
-  type_name_ = rcutils_strdup(type, *allocator);
-}
-
-///=============================================================================
-SubscriptionData::~SubscriptionData()
-{
-  allocator_->deallocate(topic_name_, allocator_->state);
-  allocator_->deallocate(node_name_, allocator_->state);
-  allocator_->deallocate(namespace_name_, allocator_->state);
-  allocator_->deallocate(type_name_, allocator_->state);
-}
-
-///=============================================================================
-uint64_t
-GraphCache::add_publisher(
-  const char * topic, const char * node, const char * namespace_,
-  const char * type, rcutils_allocator_t * allocator)
-{
-  std::lock_guard<std::mutex> lck(publishers_mutex_);
-  uint64_t this_handle_id = publishers_handle_id_++;
-  publishers_.emplace(
-    std::make_pair(
-      this_handle_id, std::make_unique<PublisherData>(topic, node, namespace_, type, allocator)));
-  return this_handle_id;
-}
-
-///=============================================================================
-void
-GraphCache::remove_publisher(uint64_t handle)
-{
-  std::lock_guard<std::mutex> lck(publishers_mutex_);
-  if (publishers_.count(handle) == 0) {
-    return;
-  }
-
-  publishers_.erase(handle);
-}
-
-///=============================================================================
-uint64_t
-GraphCache::add_subscription(
-  const char * topic, const char * node, const char * namespace_,
-  const char * type, rcutils_allocator_t * allocator)
-{
-  std::lock_guard<std::mutex> lck(subscriptions_mutex_);
-  uint64_t this_handle_id = subscriptions_handle_id_++;
-  subscriptions_.emplace(
-    std::make_pair(
-      this_handle_id,
-      std::make_unique<SubscriptionData>(topic, node, namespace_, type, allocator)));
-  return this_handle_id;
-}
-
-///=============================================================================
-void
-GraphCache::remove_subscription(uint64_t handle)
-{
-  std::lock_guard<std::mutex> lck(subscriptions_mutex_);
-  if (subscriptions_.count(handle) == 0) {
-    return;
-  }
-
-  subscriptions_.erase(handle);
-}
-
-///=============================================================================
-static std::vector<std::string> split_keyexpr(const std::string & keyexpr)
+std::vector<std::string> split_keyexpr(
+  const std::string & keyexpr,
+  const char delim = '/')
 {
   std::vector<std::size_t> delim_idx = {};
   // Insert -1 for starting position to make the split easier when using substr.
   delim_idx.push_back(-1);
   std::size_t idx = 0;
   for (auto it = keyexpr.begin(); it != keyexpr.end(); ++it) {
-    if (*it == '/') {
+    if (*it == delim) {
       delim_idx.push_back(idx);
     }
     ++idx;
@@ -270,37 +203,184 @@ static std::vector<std::string> split_keyexpr(const std::string & keyexpr)
   result.push_back(keyexpr.substr(delim_idx.back() + 1));
   return result;
 }
+///=============================================================================
+// Convert a liveliness token into a <entity, Node>
+std::optional<std::pair<std::string, GraphNode>> _parse_token(const std::string & keyexpr)
+{
+  std::vector<std::string> parts = split_keyexpr(keyexpr);
+  // At minimum, a token will contain 5 parts (@ros2_lv, domain_id, entity, namespace, node_name).
+  // Basic validation.
+  if (parts.size() < 5) {
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Received invalid liveliness token");
+    return std::nullopt;
+  }
+  for (const std::string & p : parts) {
+    if (p.empty()) {
+      RCUTILS_LOG_ERROR_NAMED(
+        "rmw_zenoh_cpp",
+        "Received invalid liveliness token");
+      return std::nullopt;
+    }
+  }
+
+  // Get the entity, ie NN, MP, MS, SS, SC.
+  std::string & entity = parts[2];
+
+  GraphNode node;
+  // Nodes with empty namespaces will contain a "_".
+  node.ns = parts[3] == "_" ? "/" : "/" + parts[3];
+  node.name = std::move(parts[4]);
+
+  if (entity != "NN") {
+    if (parts.size() < 8) {
+      RCUTILS_LOG_ERROR_NAMED(
+        "rmw_zenoh_cpp",
+        "Received invalid liveliness token");
+      return std::nullopt;
+    }
+    GraphNode::TopicData data;
+    data.topic = "/" + std::move(parts[5]);
+    data.type = std::move(parts[6]);
+    data.qos = std::move(parts[7]);
+
+    if (entity == "MP") {
+      node.pubs.push_back(std::move(data));
+    } else if (entity == "MS") {
+      node.subs.push_back(std::move(data));
+    } else if (entity == "SS") {
+      // TODO(yadunund): Service server
+    } else if (entity == "SC") {
+      // TODO(yadunund): Service client
+    } else {
+      RCUTILS_LOG_ERROR_NAMED(
+        "rmw_zenoh_cpp",
+        "Invalid entity [%s] in liveliness token", entity.c_str());
+      return std::nullopt;
+    }
+  }
+
+  return std::make_pair(std::move(entity), std::move(node));
+}
+}  // namespace
+
+///=============================================================================
+GraphCache::TopicStats::TopicStats(std::size_t pub_count, std::size_t sub_count)
+: pub_count_(pub_count),
+  sub_count_(sub_count)
+{
+  // Do nothing.
+}
 
 ///=============================================================================
 void GraphCache::parse_put(const std::string & keyexpr)
 {
-  // TODO(Yadunund): Validate data.
-  std::vector<std::string> parts = split_keyexpr(keyexpr);
-  if (parts.size() < 3) {
-    RCUTILS_LOG_ERROR_NAMED(
-      "rmw_zenoh_cpp",
-      "Received invalid liveliness token");
+  auto valid_token = _parse_token(keyexpr);
+  if (!valid_token.has_value()) {
+    // Error message has already been logged.
     return;
   }
-  // Get the entity, ie N, MP, MS, SS, SC.
-  const std::string & entity = parts[2];
+  const std::string & entity = valid_token->first;
+  auto node = std::make_shared<GraphNode>(std::move(valid_token->second));
   std::lock_guard<std::mutex> lock(graph_mutex_);
+
   if (entity == "NN") {
     // Node
-    RCUTILS_LOG_WARN_NAMED("rmw_zenoh_cpp", "Adding node %s to the graph.", parts.back().c_str());
-    const bool has_namespace = entity.size() == 5 ? true : false;
-    graph_[parts.back()] = YAML::Node();
-    // TODO(Yadunund): Implement enclave support.
-    graph_[parts.back()]["enclave"] = "";
-    graph_[parts.back()]["namespace"] = has_namespace ? parts.at(4) : "/";
+    auto ns_it = graph_.find(node->ns);
+    if (ns_it == graph_.end()) {
+      // New namespace.
+      std::unordered_map<std::string, GraphNodePtr> map = {
+        {node->name, node}
+      };
+      graph_.insert(std::make_pair(std::move(node->ns), std::move(map)));
+    } else {
+      auto insertion = ns_it->second.insert(std::make_pair(node->name, node));
+      if (!insertion.second) {
+        RCUTILS_LOG_WARN_NAMED(
+          "rmw_zenoh_cpp", "Unable to add duplicate node /%s to the graph.",
+          node->name.c_str());
+      }
+    }
+    RCUTILS_LOG_WARN_NAMED(
+      "rmw_zenoh_cpp", "Added node /%s to the graph.",
+      node->name.c_str());
+    return;
+
   } else if (entity == "MP") {
     // Publisher
+    auto ns_it = graph_.find(node->ns);
+    if (ns_it == graph_.end()) {
+      // Potential edge case where a liveliness update for a node creation was missed.
+      // So we add the node here.
+      std::string ns = node->ns;
+      std::unordered_map<std::string, GraphNodePtr> map = {
+        {node->name, node}
+      };
+      graph_.insert(std::make_pair(std::move(ns), std::move(map)));
+    } else {
+      auto insertion = ns_it->second.insert(std::make_pair(node->name, node));
+      if (!insertion.second && !node->pubs.empty()) {
+        // Node already exists so just append the publisher.
+        insertion.first->second->pubs.push_back(node->pubs[0]);
+      } else {
+        return;
+      }
+    }
+    // Bookkeeping
+    // TODO(Yadunund): Be more systematic about generating the key.
+    std::string topic_key = node->pubs.at(0).topic + "?" + node->pubs.at(0).type;
+    auto insertion = graph_topics_.insert(std::make_pair(std::move(topic_key), nullptr));
+    if (!insertion.second) {
+      // Such a topic already exists so we just increment its count.
+      ++insertion.first->second->pub_count_;
+    } else {
+      insertion.first->second = std::make_unique<TopicStats>(1, 0);
+    }
+    RCUTILS_LOG_WARN_NAMED(
+      "rmw_zenoh_cpp", "Added publisher %s to node /%s in graph.",
+      node->pubs.at(0).topic.c_str(),
+      node->name.c_str());
+    return;
   } else if (entity == "MS") {
     // Subscription
+    auto ns_it = graph_.find(node->ns);
+    if (ns_it == graph_.end()) {
+      // Potential edge case where a liveliness update for a node creation was missed.
+      // So we add the node here.
+      std::string ns = node->ns;
+      std::unordered_map<std::string, GraphNodePtr> map = {
+        {node->name, node}
+      };
+      graph_.insert(std::make_pair(std::move(ns), std::move(map)));
+    } else {
+      auto insertion = ns_it->second.insert(std::make_pair(node->name, node));
+      if (!insertion.second && !node->subs.empty()) {
+        // Node already exists so just append the publisher.
+        insertion.first->second->subs.push_back(node->subs[0]);
+      } else {
+        return;
+      }
+    }
+    // Bookkeeping
+    // TODO(Yadunund): Be more systematic about generating the key.
+    std::string topic_key = node->subs.at(0).topic + "?" + node->subs.at(0).type;
+    auto insertion = graph_topics_.insert(std::make_pair(std::move(topic_key), nullptr));
+    if (!insertion.second) {
+      // Such a topic already exists so we just increment its count.
+      ++insertion.first->second->sub_count_;
+    } else {
+      insertion.first->second = std::make_unique<TopicStats>(0, 1);
+    }
+    RCUTILS_LOG_WARN_NAMED(
+      "rmw_zenoh_cpp", "Added subscription %s to node /%s in graph.",
+      node->subs.at(0).topic.c_str(),
+      node->name.c_str());
+    return;
   } else if (entity == "SS") {
-    // Service
+    // TODO(yadunund): Service server
   } else if (entity == "SC") {
-    // Client
+    // TODO(yadunud): Service Client
   } else {
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
@@ -312,33 +392,125 @@ void GraphCache::parse_put(const std::string & keyexpr)
 ///=============================================================================
 void GraphCache::parse_del(const std::string & keyexpr)
 {
-  // TODO(Yadunund): Validate data.
-  std::vector<std::string> parts = split_keyexpr(keyexpr);
-  if (parts.size() < 3) {
-    RCUTILS_LOG_ERROR_NAMED(
-      "rmw_zenoh_cpp",
-      "Received invalid liveliness token");
+  auto valid_token = _parse_token(keyexpr);
+  if (!valid_token.has_value()) {
+    // Error message has already been logged.
     return;
   }
-  // Get the entity, ie N, MP, MS, SS, SC.
-  const std::string & entity = parts[2];
+  const std::string & entity = valid_token->first;
+  auto node = std::make_shared<GraphNode>(std::move(valid_token->second));
   std::lock_guard<std::mutex> lock(graph_mutex_);
   if (entity == "NN") {
     // Node
+    auto ns_it = graph_.find(node->ns);
+    if (ns_it != graph_.end()) {
+      ns_it->second.erase(node->name);
+    }
     RCUTILS_LOG_WARN_NAMED(
       "rmw_zenoh_cpp",
-      "Removing node %s from the graph.",
-      parts.back().c_str()
+      "Removed node /%s from the graph.",
+      node->name.c_str()
     );
-    graph_.remove(entity.back());
   } else if (entity == "MP") {
     // Publisher
+    if (node->pubs.empty()) {
+      // This should never happen but we make sure _parse_token() has no error.
+      return;
+    }
+    auto ns_it = graph_.find(node->ns);
+    if (ns_it != graph_.end()) {
+      auto node_it = ns_it->second.find(node->name);
+      if (node_it != ns_it->second.end()) {
+        const auto found_node = node_it->second;
+        // Here we iterate throught the list of publishers and remove the one
+        // with matching name, type and qos.
+        // TODO(Yadunund): This can be more optimal than O(n) with some caching.
+        auto erase_it = found_node->pubs.begin();
+        for (; erase_it != found_node->pubs.end(); ++erase_it) {
+          const auto & pub = *erase_it;
+          if (pub.topic == node->pubs.at(0).topic &&
+            pub.type == node->pubs.at(0).type &&
+            pub.qos == node->pubs.at(0).qos)
+          {
+            break;
+          }
+        }
+        if (erase_it != found_node->pubs.end()) {
+          found_node->pubs.erase(erase_it);
+          // Bookkeeping
+          // TODO(Yadunund): Be more systematic about generating the key.
+          std::string topic_key = node->pubs.at(0).topic + "?" + node->pubs.at(0).type;
+          auto topic_it = graph_topics_.find(topic_key);
+          if (topic_it != graph_topics_.end()) {
+            if (topic_it->second->pub_count_ == 1 && topic_it->second->sub_count_ == 0) {
+              // The last publisher was removed so we can delete this entry.
+              graph_topics_.erase(topic_key);
+            } else {
+              // Else we just decrement the count.
+              --topic_it->second->pub_count_;
+            }
+          }
+          RCUTILS_LOG_WARN_NAMED(
+            "rmw_zenoh_cpp",
+            "Removed publisher %s from node /%s in the graph.",
+            node->pubs.at(0).topic.c_str(),
+            node->name.c_str()
+          );
+        }
+      }
+    }
   } else if (entity == "MS") {
     // Subscription
+    if (node->subs.empty()) {
+      // This should never happen but we make sure _parse_token() has no error.
+      return;
+    }
+    auto ns_it = graph_.find(node->ns);
+    if (ns_it != graph_.end()) {
+      auto node_it = ns_it->second.find(node->name);
+      if (node_it != ns_it->second.end()) {
+        const auto found_node = node_it->second;
+        // Here we iterate throught the list of subscriptions and remove the one
+        // with matching name, type and qos.
+        // TODO(Yadunund): This can be more optimal than O(n) with some caching.
+        auto erase_it = found_node->subs.begin();
+        for (; erase_it != found_node->subs.end(); ++erase_it) {
+          const auto & sub = *erase_it;
+          if (sub.topic == node->subs.at(0).topic &&
+            sub.type == node->subs.at(0).type &&
+            sub.qos == node->subs.at(0).qos)
+          {
+            break;
+          }
+        }
+        if (erase_it != found_node->subs.end()) {
+          found_node->subs.erase(erase_it);
+          // Bookkeeping
+          // TODO(Yadunund): Be more systematic about generating the key.
+          std::string topic_key = node->subs.at(0).topic + "?" + node->subs.at(0).type;
+          auto topic_it = graph_topics_.find(topic_key);
+          if (topic_it != graph_topics_.end()) {
+            if (topic_it->second->sub_count_ == 1 && topic_it->second->pub_count_ == 0) {
+              // The last subscription was removed so we can delete this entry.
+              graph_topics_.erase(topic_key);
+            } else {
+              // Else we just decrement the count.
+              --topic_it->second->sub_count_;
+            }
+          }
+          RCUTILS_LOG_WARN_NAMED(
+            "rmw_zenoh_cpp",
+            "Removed subscription %s from node /%s in the graph.",
+            node->subs.at(0).topic.c_str(),
+            node->name.c_str()
+          );
+        }
+      }
+    }
   } else if (entity == "SS") {
-    // Service
+    // TODO(yadunund): Service server
   } else if (entity == "SC") {
-    // Client
+    // TODO(yadunund): Service client
   } else {
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
@@ -370,7 +542,10 @@ rmw_ret_t GraphCache::get_node_names(
   RCUTILS_CHECK_ALLOCATOR_WITH_MSG(
     allocator, "get_node_names allocator is not valid", return RMW_RET_INVALID_ARGUMENT);
 
-  size_t nodes_number = graph_.size();
+  size_t nodes_number = 0;
+  for (auto it = graph_.begin(); it != graph_.end(); ++it) {
+    nodes_number += it->second.size();
+  }
 
   rcutils_ret_t rcutils_ret =
     rcutils_string_array_init(node_names, nodes_number, allocator);
@@ -423,31 +598,30 @@ rmw_ret_t GraphCache::get_node_names(
       std::move(free_enclaves_lambda));
   }
 
-  // TODO(Yadunund): Remove this printout.
-  const std::string & graph_str = YAML::Dump(graph_);
-  RCUTILS_LOG_WARN_NAMED("rmw_zenoh_cpp", "[graph]\n%s\n", graph_str.c_str());
   // Fill node names, namespaces and enclaves.
   std::size_t j = 0;
-  for (auto it = graph_.begin(); it != graph_.end(); ++it) {
-    const auto & node_name = it->first.as<std::string>();
-    const auto & yaml_node = it->second;
-    node_names->data[j] = rcutils_strdup(node_name.c_str(), *allocator);
-    if (!node_names->data[j]) {
-      return RMW_RET_BAD_ALLOC;
-    }
-    node_namespaces->data[j] = rcutils_strdup(
-      yaml_node["namespace"].as<std::string>().c_str(), *allocator);
-    if (!node_namespaces->data[j]) {
-      return RMW_RET_BAD_ALLOC;
-    }
-    if (enclaves) {
-      enclaves->data[j] = rcutils_strdup(
-        yaml_node["enclaves"].as<std::string>().c_str(), *allocator);
-      if (!enclaves->data[j]) {
+  for (auto ns_it = graph_.begin(); ns_it != graph_.end(); ++ns_it) {
+    const std::string & ns = ns_it->first;
+    for (auto node_it = ns_it->second.begin(); node_it != ns_it->second.end(); ++node_it) {
+      const auto node = node_it->second;
+      node_names->data[j] = rcutils_strdup(node->name.c_str(), *allocator);
+      if (!node_names->data[j]) {
         return RMW_RET_BAD_ALLOC;
       }
+      node_namespaces->data[j] = rcutils_strdup(
+        ns.c_str(), *allocator);
+      if (!node_namespaces->data[j]) {
+        return RMW_RET_BAD_ALLOC;
+      }
+      if (enclaves) {
+        enclaves->data[j] = rcutils_strdup(
+          node->enclave.c_str(), *allocator);
+        if (!enclaves->data[j]) {
+          return RMW_RET_BAD_ALLOC;
+        }
+      }
+      ++j;
     }
-    ++j;
   }
 
   if (free_enclaves) {
@@ -455,6 +629,100 @@ rmw_ret_t GraphCache::get_node_names(
   }
   free_node_namespaces.cancel();
   free_node_names.cancel();
+
+  return RMW_RET_OK;
+}
+
+namespace
+{
+// Shamelessly copied from https://github.com/ros2/rmw_cyclonedds/blob/f7f67bdef82f59558366aa6ce94ef9af3c5ab569/rmw_cyclonedds_cpp/src/demangle.cpp#L67
+std::string
+_demangle_if_ros_type(const std::string & dds_type_string)
+{
+  if (dds_type_string[dds_type_string.size() - 1] != '_') {
+    // not a ROS type
+    return dds_type_string;
+  }
+
+  std::string substring = "dds_::";
+  size_t substring_position = dds_type_string.find(substring);
+  if (substring_position == std::string::npos) {
+    // not a ROS type
+    return dds_type_string;
+  }
+
+  std::string type_namespace = dds_type_string.substr(0, substring_position);
+  type_namespace = rcpputils::find_and_replace(type_namespace, "::", "/");
+  size_t start = substring_position + substring.size();
+  std::string type_name = dds_type_string.substr(start, dds_type_string.length() - 1 - start);
+  return type_namespace + type_name;
+}
+
+}  // namespace
+
+///=============================================================================
+rmw_ret_t GraphCache::get_topic_names_and_types(
+  rcutils_allocator_t * allocator,
+  bool no_demangle,
+  rmw_names_and_types_t * topic_names_and_types)
+{
+  static_cast<void>(no_demangle);
+  RCUTILS_CHECK_ALLOCATOR_WITH_MSG(
+    allocator, "get_node_names allocator is not valid", return RMW_RET_INVALID_ARGUMENT);
+
+  std::lock_guard<std::mutex> lock(graph_mutex_);
+  const size_t topic_number = graph_topics_.size();
+
+  rmw_ret_t ret = rmw_names_and_types_init(topic_names_and_types, topic_number, allocator);
+  if (ret != RMW_RET_OK) {
+    return ret;
+  }
+  auto cleanup_names_and_types = rcpputils::make_scope_exit(
+    [topic_names_and_types] {
+      rmw_ret_t fail_ret = rmw_names_and_types_fini(topic_names_and_types);
+      if (fail_ret != RMW_RET_OK) {
+        RMW_SAFE_FWRITE_TO_STDERR("failed to cleanup names and types during error handling");
+      }
+    });
+
+  // Fill topic names and types.
+  std::size_t j = 0;
+  for (const auto & it : graph_topics_) {
+    // Split based on "?".
+    // TODO(Yadunund): Be more systematic about this.
+    // TODO(clalancette): Rather than doing the splitting here, should we store
+    // it in graph_topics_ already split?
+    std::vector<std::string> parts = split_keyexpr(it.first, '?');
+    if (parts.size() < 2) {
+      RCUTILS_LOG_ERROR_NAMED(
+        "rmw_zenoh_cpp",
+        "Invalid topic_key %s", it.first.c_str());
+      return RMW_RET_INVALID_ARGUMENT;
+    }
+
+    topic_names_and_types->names.data[j] = rcutils_strdup(parts[0].c_str(), *allocator);
+    if (!topic_names_and_types->names.data[j]) {
+      return RMW_RET_BAD_ALLOC;
+    }
+
+    // TODO(clalancette): This won't work if there are multiple types on the same topic
+    rcutils_ret_t rcutils_ret = rcutils_string_array_init(
+      &topic_names_and_types->types[j], 1, allocator);
+    if (RCUTILS_RET_OK != rcutils_ret) {
+      RMW_SET_ERROR_MSG(rcutils_get_error_string().str);
+      return RMW_RET_BAD_ALLOC;
+    }
+
+    topic_names_and_types->types[j].data[0] = rcutils_strdup(
+      _demangle_if_ros_type(parts[1]).c_str(), *allocator);
+    if (!topic_names_and_types->types[j].data[0]) {
+      return RMW_RET_BAD_ALLOC;
+    }
+
+    ++j;
+  }
+
+  cleanup_names_and_types.cancel();
 
   return RMW_RET_OK;
 }

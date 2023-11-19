@@ -58,11 +58,10 @@ struct rmw_context_impl_s
 ///==============================================================================
 struct rmw_node_data_t
 {
-  // TODO(yadunund): Add a GraphCache object.
-
-  // Map topic name to topic types.
-  std::unordered_set<std::unordered_set<std::string>> publishers;
-  std::unordered_set<std::unordered_set<std::string>> subscriptions;
+  // TODO(Yadunund): Do we need a token at the node level? Right now I have one
+  // for cases where a node may spin up but does not have any publishers or subscriptions.
+  // Liveliness token for the node.
+  zc_owned_liveliness_token_t token;
 };
 
 ///==============================================================================
@@ -71,6 +70,9 @@ struct rmw_publisher_data_t
   // An owned publisher.
   z_owned_publisher_t pub;
 
+  // Liveliness token for the publisher.
+  zc_owned_liveliness_token_t token;
+
   // Type support fields
   const void * type_support_impl;
   const char * typesupport_identifier;
@@ -78,8 +80,6 @@ struct rmw_publisher_data_t
 
   // Context for memory allocation for messages.
   rmw_context_t * context;
-
-  uint64_t graph_cache_handle;
 };
 
 ///==============================================================================
@@ -113,6 +113,9 @@ struct rmw_subscription_data_t
 {
   z_owned_subscriber_t sub;
 
+  // Liveliness token for the subscription.
+  zc_owned_liveliness_token_t token;
+
   const void * type_support_impl;
   const char * typesupport_identifier;
   MessageTypeSupport * type_support;
@@ -126,8 +129,6 @@ struct rmw_subscription_data_t
 
   std::mutex internal_mutex;
   std::condition_variable * condition{nullptr};
-
-  uint64_t graph_cache_handle;
 };
 
 #endif  // DETAIL__RMW_DATA_TYPES_HPP_

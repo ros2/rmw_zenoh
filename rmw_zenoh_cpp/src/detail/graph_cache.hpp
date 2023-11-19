@@ -21,14 +21,15 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "rcutils/allocator.h"
 #include "rcutils/types.h"
 
 #include "rmw/rmw.h"
+#include "rmw/names_and_types.h"
 
-#include "yaml-cpp/yaml.h"
 
 ///=============================================================================
 class GenerateToken
@@ -43,6 +44,14 @@ public:
     const std::string & name);
 
   static std::string publisher(
+    size_t domain_id,
+    const std::string & node_namespace,
+    const std::string & node_name,
+    const std::string & topic,
+    const std::string & type,
+    const std::string & qos);
+
+  static std::string subscription(
     size_t domain_id,
     const std::string & node_namespace,
     const std::string & node_name,
@@ -67,59 +76,29 @@ public:
 };
 
 ///=============================================================================
-class PublisherData final
+// TODO(Yadunund): Expand to services and clients.
+struct GraphNode
 {
-public:
-  PublisherData(
-    const char * topic, const char * node, const char * namespace_,
-    const char * type, rcutils_allocator_t * allocator);
+  struct TopicData
+  {
+    std::string topic;
+    std::string type;
+    std::string qos;
+  };
 
-  ~PublisherData();
-
-private:
-  rcutils_allocator_t * allocator_;
-  char * topic_name_{nullptr};
-  char * node_name_{nullptr};
-  char * namespace_name_{nullptr};
-  char * type_name_{nullptr};
+  std::string ns;
+  std::string name;
+  // TODO(Yadunund): Should enclave be the parent to the namespace key and not within a Node?
+  std::string enclave;
+  std::vector<TopicData> pubs;
+  std::vector<TopicData> subs;
 };
-
-///=============================================================================
-class SubscriptionData final
-{
-public:
-  SubscriptionData(
-    const char * topic, const char * node, const char * namespace_,
-    const char * type, rcutils_allocator_t * allocator);
-
-  ~SubscriptionData();
-
-private:
-  rcutils_allocator_t * allocator_;
-  char * topic_name_{nullptr};
-  char * node_name_{nullptr};
-  char * namespace_name_{nullptr};
-  char * type_name_{nullptr};
-};
+using GraphNodePtr = std::shared_ptr<GraphNode>;
 
 ///=============================================================================
 class GraphCache final
 {
 public:
-  uint64_t
-  add_publisher(
-    const char * topic, const char * node, const char * namespace_,
-    const char * type, rcutils_allocator_t * allocator);
-
-  void remove_publisher(uint64_t publisher_handle);
-
-  uint64_t
-  add_subscription(
-    const char * topic, const char * node, const char * namespace_,
-    const char * type, rcutils_allocator_t * allocator);
-
-  void remove_subscription(uint64_t subscription_handle);
-
   // Parse a PUT message over a token's key-expression and update the graph.
   void parse_put(const std::string & keyexpr);
   // Parse a DELETE message over a token's key-expression and update the graph.
@@ -131,36 +110,48 @@ public:
     rcutils_string_array_t * enclaves,
     rcutils_allocator_t * allocator) const;
 
+  rmw_ret_t get_topic_names_and_types(
+    rcutils_allocator_t * allocator,
+    bool no_demangle,
+    rmw_names_and_types_t * topic_names_and_types);
+
 private:
-  std::mutex publishers_mutex_;
-  uint64_t publishers_handle_id_{0};
-  std::map<uint64_t, std::unique_ptr<PublisherData>> publishers_;
-
-  std::mutex subscriptions_mutex_;
-  uint64_t subscriptions_handle_id_{0};
-  std::map<uint64_t, std::unique_ptr<SubscriptionData>> subscriptions_;
-
   /*
-  node_1:
-    enclave:
-    namespace:
-    publishers: [
-        {
-          topic:
-          type:
-          qos:
-        }
-    ]
-    subscriptions: [
-        {
-          topic:
-          type:
-          qos:
-        }
-    ]
-  node_n:
+  namespace_1:
+    node_1:
+      enclave:
+      publishers: [
+          {
+            topic:
+            type:
+            qos:
+          }
+      ],
+      subscriptions: [
+          {
+            topic:
+            type:
+            qos:
+          }
+      ],
+  namespace_2:
+    node_n:
   */
-  YAML::Node graph_;
+  // Map namespace to a map of <node_name, GraphNodePtr>.
+  std::unordered_map<std::string, std::unordered_map<std::string, GraphNodePtr>> graph_ = {};
+
+  // Optimize topic lookups mapping "topic_name?topic_type" keys to their pub/sub counts.
+  struct TopicStats
+  {
+    std::size_t pub_count_;
+    std::size_t sub_count_;
+
+    // Constructor which initialized counters to 0.
+    TopicStats(std::size_t pub_count, std::size_t sub_count);
+  };
+  using TopicStatsPtr = std::unique_ptr<TopicStats>;
+  std::unordered_map<std::string, TopicStatsPtr> graph_topics_ = {};
+
   mutable std::mutex graph_mutex_;
 };
 

@@ -15,6 +15,8 @@
 #include <fastcdr/FastBuffer.h>
 #include <fastcdr/Cdr.h>
 
+#include <zenoh.h>
+
 #include <chrono>
 #include <mutex>
 #include <new>
@@ -180,12 +182,34 @@ rmw_create_node(
   node->implementation_identifier = rmw_zenoh_identifier;
   node->context = context;
 
+  // Uncomment and rely on #if #endif blocks to enable this feature when building with
+  // zenoh-pico since liveliness is only available in zenoh-c.
   // Publish to the graph that a new node is in town
-  const bool result = PublishToken::put(
-    &node->context->impl->session,
-    GenerateToken::node(context->actual_domain_id, namespace_, name)
+  // const bool pub_result = PublishToken::put(
+  //   &node->context->impl->session,
+  //   GenerateToken::node(context->actual_domain_id, namespace_, name)
+  // );
+  // if (!pub_result) {
+  //   return nullptr;
+  // }
+  // Initialize liveliness token for the node to advertise that a new node is in town.
+  rmw_node_data_t * node_data = static_cast<rmw_node_data_t *>(node->data);
+  node_data->token = zc_liveliness_declare_token(
+    z_loan(node->context->impl->session),
+    z_keyexpr(GenerateToken::node(context->actual_domain_id, namespace_, name).c_str()),
+    NULL
   );
-  if (!result) {
+  auto free_token = rcpputils::make_scope_exit(
+    [node]() {
+      if (node->data != nullptr) {
+        rmw_node_data_t * node_data = static_cast<rmw_node_data_t *>(node->data);
+        z_drop(z_move(node_data->token));
+      }
+    });
+  if (!zc_liveliness_token_check(&node_data->token)) {
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to create liveliness token for the node.");
     return nullptr;
   }
 
@@ -193,6 +217,7 @@ rmw_create_node(
   free_namespace.cancel();
   free_name.cancel();
   free_node.cancel();
+  free_token.cancel();
   return node;
 }
 
@@ -204,20 +229,28 @@ rmw_destroy_node(rmw_node_t * node)
   RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->data, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node,
     node->implementation_identifier,
     rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
+  // Uncomment and rely on #if #endif blocks to enable this feature when building with
+  // zenoh-pico since liveliness is only available in zenoh-c.
   // Publish to the graph that a node has ridden off into the sunset
-  const bool result = PublishToken::del(
-    &node->context->impl->session,
-    GenerateToken::node(node->context->actual_domain_id, node->namespace_, node->name)
-  );
-  if (!result) {
-    return RMW_RET_ERROR;
-  }
+  // const bool del_result = PublishToken::del(
+  //   &node->context->impl->session,
+  //   GenerateToken::node(node->context->actual_domain_id, node->namespace_, node->name)
+  // );
+  // if (!del_result) {
+  //   return RMW_RET_ERROR;
+  // }
+
+  // Undeclare liveliness token for the node to advertise that the node has ridden
+  // off into the sunset.
+  rmw_node_data_t * node_data = static_cast<rmw_node_data_t *>(node->data);
+  zc_liveliness_undeclare_token(z_move(node_data->token));
 
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
@@ -516,18 +549,49 @@ rmw_create_publisher(
       z_undeclare_publisher(z_move(publisher_data->pub));
     });
 
+  // Uncomment and rely on #if #endif blocks to enable this feature when building with
+  // zenoh-pico since liveliness is only available in zenoh-c.
   // Publish to the graph that a new publisher is in town
   // TODO(Yadunund): Publish liveliness for the new publisher.
-
-  publisher_data->graph_cache_handle = node->context->impl->graph_cache.add_publisher(
-    rmw_publisher->topic_name, node->name, node->namespace_,
-    publisher_data->type_support->get_name(), allocator);
-  auto remove_from_graph_cache = rcpputils::make_scope_exit(
-    [node, publisher_data]() {
-      node->context->impl->graph_cache.remove_publisher(publisher_data->graph_cache_handle);
+  // const bool pub_result = PublishToken::put(
+  //   &node->context->impl->session,
+  //   GenerateToken::publisher(
+  //     node->context->actual_domain_id,
+  //     node->namespace_,
+  //     node->name,
+  //     rmw_publisher->topic_name,
+  //     publisher_data->type_support->get_name(),
+  //     "reliable")
+  // );
+  // if (!pub_result) {
+  //   return nullptr;
+  // }
+  publisher_data->token = zc_liveliness_declare_token(
+    z_loan(node->context->impl->session),
+    z_keyexpr(
+      GenerateToken::publisher(
+        node->context->actual_domain_id,
+        node->namespace_,
+        node->name,
+        rmw_publisher->topic_name,
+        publisher_data->type_support->get_name(),
+        "reliable").c_str()),
+    NULL
+  );
+  auto free_token = rcpputils::make_scope_exit(
+    [publisher_data]() {
+      if (publisher_data != nullptr) {
+        zc_liveliness_undeclare_token(z_move(publisher_data->token));
+      }
     });
+  if (!zc_liveliness_token_check(&publisher_data->token)) {
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to create liveliness token for the publisher.");
+    return nullptr;
+  }
 
-  remove_from_graph_cache.cancel();
+  free_token.cancel();
   undeclare_z_publisher.cancel();
   free_topic_name.cancel();
   destruct_msg_type_support.cancel();
@@ -545,6 +609,7 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
 {
   RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(publisher, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(publisher->data, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node,
     node->implementation_identifier,
@@ -558,16 +623,29 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
 
   rmw_ret_t ret = RMW_RET_OK;
 
-  // Publish to the graph that a publisher has ridden off into the sunset
-  // TODO(Yadunund): Publish liveliness for the deleted publisher.
-
   rcutils_allocator_t * allocator = &node->context->options.allocator;
-
-  allocator->deallocate(const_cast<char *>(publisher->topic_name), allocator->state);
 
   auto publisher_data = static_cast<rmw_publisher_data_t *>(publisher->data);
   if (publisher_data != nullptr) {
-    node->context->impl->graph_cache.remove_publisher(publisher_data->graph_cache_handle);
+    // Uncomment and rely on #if #endif blocks to enable this feature when building with
+    // zenoh-pico since liveliness is only available in zenoh-c.
+    // Publish to the graph that a publisher has ridden off into the sunset
+    // const bool del_result = PublishToken::del(
+    //   &node->context->impl->session,
+    //   GenerateToken::publisher(
+    //     node->context->actual_domain_id,
+    //     node->namespace_,
+    //     node->name,
+    //     publisher->topic_name,
+    //     publisher_data->type_support->get_name(),
+    //     "reliable"
+    //   )
+    // );
+    // if (!del_result) {
+    //   // TODO(Yadunund): Should this really return an error?
+    //   return RMW_RET_ERROR;
+    // }
+    zc_liveliness_undeclare_token(z_move(publisher_data->token));
 
     RMW_TRY_DESTRUCTOR(publisher_data->type_support->~MessageTypeSupport(), MessageTypeSupport, );
     allocator->deallocate(publisher_data->type_support, allocator->state);
@@ -577,6 +655,7 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
     }
     allocator->deallocate(publisher_data, allocator->state);
   }
+  allocator->deallocate(const_cast<char *>(publisher->topic_name), allocator->state);
   allocator->deallocate(publisher, allocator->state);
 
   return ret;
@@ -1174,18 +1253,32 @@ rmw_create_subscription(
     });
 
   // Publish to the graph that a new subscription is in town
-  // TODO(Yadunund): Publish liveliness for the new subscription.
-
-
-  sub_data->graph_cache_handle = node->context->impl->graph_cache.add_subscription(
-    rmw_subscription->topic_name, node->name, node->namespace_,
-    sub_data->type_support->get_name(), allocator);
-  auto remove_from_graph_cache = rcpputils::make_scope_exit(
-    [node, sub_data]() {
-      node->context->impl->graph_cache.remove_subscription(sub_data->graph_cache_handle);
+  sub_data->token = zc_liveliness_declare_token(
+    z_loan(context_impl->session),
+    z_keyexpr(
+      GenerateToken::subscription(
+        node->context->actual_domain_id,
+        node->namespace_,
+        node->name,
+        rmw_subscription->topic_name,
+        sub_data->type_support->get_name(),
+        "reliable").c_str()),
+    NULL
+  );
+  auto free_token = rcpputils::make_scope_exit(
+    [sub_data]() {
+      if (sub_data != nullptr) {
+        zc_liveliness_undeclare_token(z_move(sub_data->token));
+      }
     });
+  if (!zc_liveliness_token_check(&sub_data->token)) {
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to create liveliness token for the subscription.");
+    return nullptr;
+  }
 
-  remove_from_graph_cache.cancel();
+  free_token.cancel();
   undeclare_z_sub.cancel();
   free_topic_name.cancel();
   destruct_msg_type_support.cancel();
@@ -1217,16 +1310,12 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
 
   rmw_ret_t ret = RMW_RET_OK;
 
-  // Publish to the graph that a subscription has ridden off into the sunset
-  // TODO(Yadunund): Publish liveliness for the deleted subscription.
-
   rcutils_allocator_t * allocator = &node->context->options.allocator;
-
-  allocator->deallocate(const_cast<char *>(subscription->topic_name), allocator->state);
 
   auto sub_data = static_cast<rmw_subscription_data_t *>(subscription->data);
   if (sub_data != nullptr) {
-    node->context->impl->graph_cache.remove_subscription(sub_data->graph_cache_handle);
+    // Publish to the graph that a subscription has ridden off into the sunset
+    zc_liveliness_undeclare_token(z_move(sub_data->token));
 
     RMW_TRY_DESTRUCTOR(sub_data->type_support->~MessageTypeSupport(), MessageTypeSupport, );
     allocator->deallocate(sub_data->type_support, allocator->state);
@@ -1239,6 +1328,7 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
     RMW_TRY_DESTRUCTOR(sub_data->~rmw_subscription_data_t(), rmw_subscription_data_t, );
     allocator->deallocate(sub_data, allocator->state);
   }
+  allocator->deallocate(const_cast<char *>(subscription->topic_name), allocator->state);
   allocator->deallocate(subscription, allocator->state);
 
   return ret;
