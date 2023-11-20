@@ -581,7 +581,7 @@ rmw_create_publisher(
   auto free_token = rcpputils::make_scope_exit(
     [publisher_data]() {
       if (publisher_data != nullptr) {
-        z_drop((z_move(publisher_data->token));
+        z_drop(z_move(publisher_data->token));
       }
     });
   if (!z_check(publisher_data->token)) {
