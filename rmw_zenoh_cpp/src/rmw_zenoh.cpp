@@ -645,7 +645,7 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
     //   // TODO(Yadunund): Should this really return an error?
     //   return RMW_RET_ERROR;
     // }
-    z_drop((z_move(publisher_data->token));
+    z_drop(z_move(publisher_data->token));
 
     RMW_TRY_DESTRUCTOR(publisher_data->type_support->~MessageTypeSupport(), MessageTypeSupport, );
     allocator->deallocate(publisher_data->type_support, allocator->state);
