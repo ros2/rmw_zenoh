@@ -250,7 +250,7 @@ rmw_destroy_node(rmw_node_t * node)
   // Undeclare liveliness token for the node to advertise that the node has ridden
   // off into the sunset.
   rmw_node_data_t * node_data = static_cast<rmw_node_data_t *>(node->data);
-  z_drop((z_move(node_data->token));
+  z_drop(z_move(node_data->token));
 
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
