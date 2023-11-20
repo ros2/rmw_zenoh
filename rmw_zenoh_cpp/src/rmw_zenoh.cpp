@@ -1315,7 +1315,7 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
   auto sub_data = static_cast<rmw_subscription_data_t *>(subscription->data);
   if (sub_data != nullptr) {
     // Publish to the graph that a subscription has ridden off into the sunset
-    z_drop((z_move(sub_data->token));
+    z_drop(z_move(sub_data->token));
 
     RMW_TRY_DESTRUCTOR(sub_data->type_support->~MessageTypeSupport(), MessageTypeSupport, );
     allocator->deallocate(sub_data->type_support, allocator->state);
