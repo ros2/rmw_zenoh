@@ -1268,7 +1268,7 @@ rmw_create_subscription(
   auto free_token = rcpputils::make_scope_exit(
     [sub_data]() {
       if (sub_data != nullptr) {
-        z_drop((z_move(sub_data->token));
+        z_drop(z_move(sub_data->token));
       }
     });
   if (!z_check(sub_data->token)) {
