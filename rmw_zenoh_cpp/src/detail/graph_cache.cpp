@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <algorithm>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -425,16 +426,13 @@ void GraphCache::parse_del(const std::string & keyexpr)
         // Here we iterate throught the list of publishers and remove the one
         // with matching name, type and qos.
         // TODO(Yadunund): This can be more optimal than O(n) with some caching.
-        auto erase_it = found_node->pubs.begin();
-        for (; erase_it != found_node->pubs.end(); ++erase_it) {
-          const auto & pub = *erase_it;
-          if (pub.topic == node->pubs.at(0).topic &&
+        auto erase_it = std::find_if(
+          found_node->pubs.begin(), found_node->pubs.end(),
+          [&node](const auto & pub) {
+            return pub.topic == node->pubs.at(0).topic &&
             pub.type == node->pubs.at(0).type &&
-            pub.qos == node->pubs.at(0).qos)
-          {
-            break;
-          }
-        }
+            pub.qos == node->pubs.at(0).qos;
+          });
         if (erase_it != found_node->pubs.end()) {
           found_node->pubs.erase(erase_it);
           // Bookkeeping
