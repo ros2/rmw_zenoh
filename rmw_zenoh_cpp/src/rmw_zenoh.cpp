@@ -206,7 +206,7 @@ rmw_create_node(
         z_drop(z_move(node_data->token));
       }
     });
-  if (!zc_liveliness_token_check(&node_data->token)) {
+  if (!z_check(node_data->token)) {
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to create liveliness token for the node.");
@@ -250,7 +250,7 @@ rmw_destroy_node(rmw_node_t * node)
   // Undeclare liveliness token for the node to advertise that the node has ridden
   // off into the sunset.
   rmw_node_data_t * node_data = static_cast<rmw_node_data_t *>(node->data);
-  zc_liveliness_undeclare_token(z_move(node_data->token));
+  z_drop(z_move(node_data->token));
 
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
@@ -581,10 +581,10 @@ rmw_create_publisher(
   auto free_token = rcpputils::make_scope_exit(
     [publisher_data]() {
       if (publisher_data != nullptr) {
-        zc_liveliness_undeclare_token(z_move(publisher_data->token));
+        z_drop(z_move(publisher_data->token));
       }
     });
-  if (!zc_liveliness_token_check(&publisher_data->token)) {
+  if (!z_check(publisher_data->token)) {
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to create liveliness token for the publisher.");
@@ -645,7 +645,7 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
     //   // TODO(Yadunund): Should this really return an error?
     //   return RMW_RET_ERROR;
     // }
-    zc_liveliness_undeclare_token(z_move(publisher_data->token));
+    z_drop(z_move(publisher_data->token));
 
     RMW_TRY_DESTRUCTOR(publisher_data->type_support->~MessageTypeSupport(), MessageTypeSupport, );
     allocator->deallocate(publisher_data->type_support, allocator->state);
@@ -1268,10 +1268,10 @@ rmw_create_subscription(
   auto free_token = rcpputils::make_scope_exit(
     [sub_data]() {
       if (sub_data != nullptr) {
-        zc_liveliness_undeclare_token(z_move(sub_data->token));
+        z_drop(z_move(sub_data->token));
       }
     });
-  if (!zc_liveliness_token_check(&sub_data->token)) {
+  if (!z_check(sub_data->token)) {
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to create liveliness token for the subscription.");
@@ -1315,7 +1315,7 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
   auto sub_data = static_cast<rmw_subscription_data_t *>(subscription->data);
   if (sub_data != nullptr) {
     // Publish to the graph that a subscription has ridden off into the sunset
-    zc_liveliness_undeclare_token(z_move(sub_data->token));
+    z_drop(z_move(sub_data->token));
 
     RMW_TRY_DESTRUCTOR(sub_data->type_support->~MessageTypeSupport(), MessageTypeSupport, );
     allocator->deallocate(sub_data->type_support, allocator->state);
