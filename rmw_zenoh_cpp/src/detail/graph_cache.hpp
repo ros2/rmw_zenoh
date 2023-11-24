@@ -22,6 +22,7 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "rcutils/allocator.h"
@@ -76,22 +77,53 @@ public:
 };
 
 ///=============================================================================
+struct TopicStats
+{
+  std::size_t pub_count_;
+  std::size_t sub_count_;
+
+  // Constructor which initializes counters to 0.
+  TopicStats(std::size_t pub_count, std::size_t sub_count);
+};
+using TopicStatsPtr = std::unique_ptr<TopicStats>;
+
+///=============================================================================
+struct TopicData
+{
+  std::string type_;
+  std::string qos_;
+  TopicStats stats_;
+
+  TopicData(
+    std::string type,
+    std::string qos,
+    TopicStats stats);
+};
+using TopicDataPtr = std::shared_ptr<TopicData>;
+
+///=============================================================================
 // TODO(Yadunund): Expand to services and clients.
 struct GraphNode
 {
-  struct TopicData
-  {
-    std::string topic;
-    std::string type;
-    std::string qos;
-  };
-
-  std::string ns;
-  std::string name;
+  std::string ns_;
+  std::string name_;
   // TODO(Yadunund): Should enclave be the parent to the namespace key and not within a Node?
-  std::string enclave;
-  std::vector<TopicData> pubs;
-  std::vector<TopicData> subs;
+  std::string enclave_;
+
+  // Hash topic data using "type" string to only support unique topic_types.
+  // TODO(Yadunund): Should we also factor the "qos" into the cache?
+  struct TopicDataHash
+  {
+    std::size_t operator()(const TopicDataPtr & data) const
+    {
+      return std::hash<std::string>{}(data->type_);
+    }
+  };
+  // Map topic name to a set of TopicData to support multiple types per topic.
+  using TopicDataSet = std::unordered_set<TopicDataPtr, TopicDataHash>;
+  using TopicMap = std::unordered_map<std::string, TopicDataSet>;
+  TopicMap pubs_ = {};
+  TopicMap subs_ = {};
 };
 using GraphNodePtr = std::shared_ptr<GraphNode>;
 
@@ -140,16 +172,8 @@ private:
   // Map namespace to a map of <node_name, GraphNodePtr>.
   std::unordered_map<std::string, std::unordered_map<std::string, GraphNodePtr>> graph_ = {};
 
-  // Optimize topic lookups mapping "topic_name?topic_type" keys to their pub/sub counts.
-  struct TopicStats
-  {
-    std::size_t pub_count_;
-    std::size_t sub_count_;
-
-    // Constructor which initialized counters to 0.
-    TopicStats(std::size_t pub_count, std::size_t sub_count);
-  };
-  using TopicStatsPtr = std::unique_ptr<TopicStats>;
+  // Optimize topic lookups across the graph by mapping "topic_name?topic_type" keys to their pub/sub counts.
+  // TODO(Yadunund): Consider storing a set of NodePtrs for each key.
   std::unordered_map<std::string, TopicStatsPtr> graph_topics_ = {};
 
   mutable std::mutex graph_mutex_;
