@@ -91,7 +91,17 @@ public:
   rmw_ret_t get_topic_names_and_types(
     rcutils_allocator_t * allocator,
     bool no_demangle,
-    rmw_names_and_types_t * topic_names_and_types);
+    rmw_names_and_types_t * topic_names_and_types) const;
+
+  rmw_ret_t count_publishers(
+    const rmw_node_t * node,
+    const char * topic_name,
+    size_t * count) const;
+
+  rmw_ret_t count_subscriptions(
+    const rmw_node_t * node,
+    const char * topic_name,
+    size_t * count) const;
 
 private:
   /*

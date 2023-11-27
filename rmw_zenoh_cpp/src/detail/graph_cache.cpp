@@ -282,7 +282,11 @@ void GraphCache::parse_del(const std::string & keyexpr)
             if (cache_topic_data_it->second->stats_.pub_count_ == 0 &&
               cache_topic_data_it->second->stats_.sub_count_ == 0)
             {
-              graph_topics_.erase(entity.topic_info()->name_);
+              cache_topic_it->second.erase(cache_topic_data_it);
+            }
+            // If the topic does not have any TopicData entries, erase the topic from the map.
+            if (cache_topic_it->second.empty()) {
+              graph_topics_.erase(cache_topic_it);
             }
           }
 
@@ -495,7 +499,7 @@ _demangle_if_ros_type(const std::string & dds_type_string)
 rmw_ret_t GraphCache::get_topic_names_and_types(
   rcutils_allocator_t * allocator,
   bool no_demangle,
-  rmw_names_and_types_t * topic_names_and_types)
+  rmw_names_and_types_t * topic_names_and_types) const
 {
   static_cast<void>(no_demangle);
   RCUTILS_CHECK_ALLOCATOR_WITH_MSG(
@@ -547,6 +551,46 @@ rmw_ret_t GraphCache::get_topic_names_and_types(
   }
 
   cleanup_names_and_types.cancel();
+
+  return RMW_RET_OK;
+}
+
+///=============================================================================
+rmw_ret_t GraphCache::count_publishers(
+  const rmw_node_t * node,
+  const char * topic_name,
+  size_t * count) const
+{
+  static_cast<void>(node);
+  *count = 0;
+  auto topic_it = graph_topics_.find(topic_name);
+  if (topic_it == graph_topics_.end()) {
+    return RMW_RET_OK;
+  }
+  for (const auto & it : topic_it->second) {
+    // Iterate through all the types and increment count.
+    *count += it.second->stats_.pub_count_;
+  }
+
+  return RMW_RET_OK;
+}
+
+///=============================================================================
+rmw_ret_t GraphCache::count_subscriptions(
+  const rmw_node_t * node,
+  const char * topic_name,
+  size_t * count) const
+{
+  static_cast<void>(node);
+  *count = 0;
+  auto topic_it = graph_topics_.find(topic_name);
+  if (topic_it == graph_topics_.end()) {
+    return RMW_RET_OK;
+  }
+  for (const auto & it : topic_it->second) {
+    // Iterate through all the types and increment count.
+    *count += it.second->stats_.sub_count_;
+  }
 
   return RMW_RET_OK;
 }
