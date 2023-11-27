@@ -15,6 +15,7 @@
 #include "liveliness_utils.hpp"
 
 #include <sstream>
+#include <vector>
 
 #include "rcpputils/scope_exit.hpp"
 #include "rcutils/logging_macros.h"
@@ -157,6 +158,41 @@ std::optional<Entity> Entity::make(
   Entity entity{std::move(type), std::move(node_info), std::move(topic_info)};
   return std::move(entity);
 }
+
+namespace
+{
+///=============================================================================
+std::vector<std::string> split_keyexpr(
+  const std::string & keyexpr,
+  const char delim = '/')
+{
+  std::vector<std::size_t> delim_idx = {};
+  // Insert -1 for starting position to make the split easier when using substr.
+  delim_idx.push_back(-1);
+  std::size_t idx = 0;
+  for (auto it = keyexpr.begin(); it != keyexpr.end(); ++it) {
+    if (*it == delim) {
+      delim_idx.push_back(idx);
+    }
+    ++idx;
+  }
+  std::vector<std::string> result = {};
+  try {
+    for (std::size_t i = 1; i < delim_idx.size(); ++i) {
+      const auto & prev_idx = delim_idx.at(i - 1);
+      const auto & idx = delim_idx.at(i);
+      result.push_back(keyexpr.substr(prev_idx + 1, idx - prev_idx - 1));
+    }
+  } catch (const std::exception & e) {
+    printf("%s\n", e.what());
+    return {};
+  }
+  // Finally add the last substr.
+  result.push_back(keyexpr.substr(delim_idx.back() + 1));
+  return result;
+}
+
+} // namespace
 
 ///=============================================================================
 std::optional<Entity> Entity::make(const std::string & keyexpr)
@@ -306,37 +342,6 @@ bool PublishToken::del(
   }
 
   return true;
-}
-
-///=============================================================================
-std::vector<std::string> split_keyexpr(
-  const std::string & keyexpr,
-  const char delim)
-{
-  std::vector<std::size_t> delim_idx = {};
-  // Insert -1 for starting position to make the split easier when using substr.
-  delim_idx.push_back(-1);
-  std::size_t idx = 0;
-  for (auto it = keyexpr.begin(); it != keyexpr.end(); ++it) {
-    if (*it == delim) {
-      delim_idx.push_back(idx);
-    }
-    ++idx;
-  }
-  std::vector<std::string> result = {};
-  try {
-    for (std::size_t i = 1; i < delim_idx.size(); ++i) {
-      const auto & prev_idx = delim_idx.at(i - 1);
-      const auto & idx = delim_idx.at(i);
-      result.push_back(keyexpr.substr(prev_idx + 1, idx - prev_idx - 1));
-    }
-  } catch (const std::exception & e) {
-    printf("%s\n", e.what());
-    return {};
-  }
-  // Finally add the last substr.
-  result.push_back(keyexpr.substr(delim_idx.back() + 1));
-  return result;
 }
 
 } // namespace liveliness

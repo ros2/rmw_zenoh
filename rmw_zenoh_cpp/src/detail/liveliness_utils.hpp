@@ -126,12 +126,6 @@ public:
     const std::string & token);
 };
 
-///=============================================================================
-/// Split a liveliness token's expression into parts based on a delimiter.
-std::vector<std::string> split_keyexpr(
-  const std::string & keyexpr,
-  const char delim = '/');
-
 } // namespace liveliness
 
 #endif  // DETAIL__LIVELINESS_UTILS_HPP_
