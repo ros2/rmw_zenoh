@@ -19,7 +19,7 @@
 
 #include <optional>
 #include <string>
-#include <unordered_map>
+#include <vector>
 
 
 namespace liveliness
@@ -28,7 +28,6 @@ namespace liveliness
 ///=============================================================================
 struct NodeInfo
 {
-
   std::size_t domain_id_;
   std::string ns_;
   std::string name_;
@@ -126,6 +125,6 @@ public:
     const std::string & token);
 };
 
-} // namespace liveliness
+}  // namespace liveliness
 
 #endif  // DETAIL__LIVELINESS_UTILS_HPP_

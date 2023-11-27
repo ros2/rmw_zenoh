@@ -14,7 +14,12 @@
 
 #include "liveliness_utils.hpp"
 
+#include <optional>
 #include <sstream>
+#include <stdexcept>
+#include <string>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "rcpputils/scope_exit.hpp"
@@ -55,12 +60,12 @@ namespace
 {
 
 /// The admin space used to prefix the liveliness tokens.
-static const std::string ADMIN_SPACE = "@ros2_lv";
-static const std::string NODE_STR = "NN";
-static const std::string PUB_STR = "MP";
-static const std::string SUB_STR = "MS";
-static const std::string SRV_STR = "SS";
-static const std::string CLI_STR = "SC";
+static const char ADMIN_SPACE[] = "@ros2_lv";
+static const char NODE_STR[] = "NN";
+static const char PUB_STR[] = "MP";
+static const char SUB_STR[] = "MS";
+static const char SRV_STR[] = "SS";
+static const char CLI_STR[] = "SC";
 
 static const std::unordered_map<EntityType, std::string> entity_to_str = {
   {EntityType::Node, NODE_STR},
@@ -78,12 +83,12 @@ static const std::unordered_map<std::string, EntityType> str_to_entity = {
   {CLI_STR, EntityType::Client}
 };
 
-} // namespace
+}  // namespace
 
 ///=============================================================================
 std::string subscription_token(size_t domain_id)
 {
-  std::string token = ADMIN_SPACE + "/" + std::to_string(domain_id) + "/**";
+  std::string token = std::string(ADMIN_SPACE) + "/" + std::to_string(domain_id) + "/**";
   return token;
 }
 
@@ -156,7 +161,7 @@ std::optional<Entity> Entity::make(
   }
 
   Entity entity{std::move(type), std::move(node_info), std::move(topic_info)};
-  return std::move(entity);
+  return entity;
 }
 
 namespace
@@ -192,14 +197,14 @@ std::vector<std::string> split_keyexpr(
   return result;
 }
 
-} // namespace
+}  // namespace
 
 ///=============================================================================
 std::optional<Entity> Entity::make(const std::string & keyexpr)
 {
-
   std::vector<std::string> parts = split_keyexpr(keyexpr);
-  // At minimum, a token will contain 5 parts (ADMIN_SPACE, domain_id, entity_str, namespace, node_name).
+  // A token will contain at least 5 parts:
+  // (ADMIN_SPACE, domain_id, entity_str, namespace, node_name).
   // Basic validation.
   if (parts.size() < 5) {
     RCUTILS_LOG_ERROR_NAMED(
@@ -344,4 +349,4 @@ bool PublishToken::del(
   return true;
 }
 
-} // namespace liveliness
+}  // namespace liveliness

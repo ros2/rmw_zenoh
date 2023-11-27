@@ -93,14 +93,15 @@ void GraphCache::parse_put(const std::string & keyexpr)
             graph_topic_data->info_.type_,
             graph_topic_data));
         if (!type_insertion.second) {
-          // We have another instance of a pub/sub over the same topic and type so we increment the counters.
+          // We have another instance of a pub/sub over the same topic and type so we increment
+          // the counters.
           auto & existing_graph_topic = type_insertion.first->second;
           existing_graph_topic->stats_.pub_count_ += pub_count;
           existing_graph_topic->stats_.pub_count_ += sub_count;
         }
       }
 
-      // Bookkeeping: We update graph_topic_ which keeps track of topics across all nodes in the graph.
+      // Bookkeeping: Update graph_topic_ which keeps track of topics across all nodes in the graph.
       if (update_cache) {
         auto cache_topic_it = graph_topics_.find(entity.topic_info()->name_);
         if (cache_topic_it == graph_topics_.end()) {
@@ -113,8 +114,8 @@ void GraphCache::parse_put(const std::string & keyexpr)
             {entity.topic_info()->type_, topic_data_ptr}
           };
         } else {
-          // If a TopicData entry for the same type exists in the topic map, update pub/sub counts or
-          // else create an new TopicData.
+          // If a TopicData entry for the same type exists in the topic map, update pub/sub counts
+          // or else create an new TopicData.
           auto topic_data_insertion =
             cache_topic_it->second.insert(std::make_pair(entity.topic_info()->type_, nullptr));
           if (topic_data_insertion.second) {
@@ -251,7 +252,7 @@ void GraphCache::parse_del(const std::string & keyexpr)
         return;
       }
 
-      // Decrement the relevant counters. Check if both counters are 0 and if so remove from graph_node.
+      // Decrement the relevant counters. If both counters are 0 remove from graph_node.
       auto & existing_topic_data = topic_data_it->second;
       existing_topic_data->stats_.pub_count_ -= pub_count;
       existing_topic_data->stats_.sub_count_ -= sub_count;
@@ -265,7 +266,7 @@ void GraphCache::parse_del(const std::string & keyexpr)
         topic_map.erase(entity.topic_info()->name_);
       }
 
-      // Bookkeeping: We update graph_topic_ which keeps track of topics across all nodes in the graph.
+      // Bookkeeping: Update graph_topic_ which keeps track of topics across all nodes in the graph.
       if (update_cache) {
         auto cache_topic_it = graph_topics_.find(entity.topic_info()->name_);
         if (cache_topic_it == graph_topics_.end()) {
@@ -276,7 +277,7 @@ void GraphCache::parse_del(const std::string & keyexpr)
         } else {
           auto cache_topic_data_it = cache_topic_it->second.find(entity.topic_info()->type_);
           if (cache_topic_data_it != cache_topic_it->second.end()) {
-            // Decrement the relevant counters. Check if both counters are 0 and if so remove from cache.
+            // Decrement the relevant counters. If both counters are 0 remove from cache.
             cache_topic_data_it->second->stats_.pub_count_ -= pub_count;
             cache_topic_data_it->second->stats_.sub_count_ -= sub_count;
             if (cache_topic_data_it->second->stats_.pub_count_ == 0 &&
@@ -289,7 +290,6 @@ void GraphCache::parse_del(const std::string & keyexpr)
               graph_topics_.erase(cache_topic_it);
             }
           }
-
         }
       }
 
@@ -321,17 +321,18 @@ void GraphCache::parse_del(const std::string & keyexpr)
   if (entity.type() == EntityType::Node) {
     // Node
     // The liveliness tokens to remove pub/subs should be received before the one to remove a node
-    // given the reliability QoS for liveliness subs. However, if we find any pubs/subs present in the node below,
-    // we should update the count in graph_topics_.
+    // given the reliability QoS for liveliness subs. However, if we find any pubs/subs present in
+    // the node below, we should update the count in graph_topics_.
     const auto graph_node = node_it->second;
     if (!graph_node->pubs_.empty() || !graph_node->subs_.empty()) {
       RCUTILS_LOG_WARN_NAMED(
         "rmw_zenoh_cpp",
-        "Received liveliness token to remove node /%s from the graph before all pub/subs for this node have been removed. "
-        "Report this issue.",
+        "Received liveliness token to remove node /%s from the graph before all pub/subs for this "
+        "node have been removed. Report this issue.",
         entity.node_info().name_.c_str()
       );
-      // TODO(Yadunund): Iterate through the nodes pubs_ and subs_ and decrement topic count in graph_topics_.
+      // TODO(Yadunund): Iterate through the nodes pubs_ and subs_ and decrement topic count in
+      // graph_topics_.
     }
     ns_it->second.erase(entity.node_info().name_);
     RCUTILS_LOG_WARN_NAMED(

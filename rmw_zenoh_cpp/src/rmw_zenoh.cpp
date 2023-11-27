@@ -251,7 +251,8 @@ rmw_destroy_node(rmw_node_t * node)
   // Publish to the graph that a node has ridden off into the sunset
   // const bool del_result = PublishToken::del(
   //   &node->context->impl->session,
-  //   liveliness::GenerateToken::node(node->context->actual_domain_id, node->namespace_, node->name)
+  //   liveliness::GenerateToken::node(node->context->actual_domain_id, node->namespace_,
+  //     node->name)
   // );
   // if (!del_result) {
   //   return RMW_RET_ERROR;
