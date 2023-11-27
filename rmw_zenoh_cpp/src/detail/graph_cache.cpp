@@ -82,14 +82,19 @@ void GraphCache::parse_put(const std::string & keyexpr)
         entity.topic_info().value(),
         TopicStats{pub_count, sub_count});
 
-      GraphNode::TopicDataSet topic_data_set = {graph_topic_data};
-      auto insertion = topic_map.insert(std::make_pair(entity.topic_info()->name_, topic_data_set));
+      GraphNode::TopicDataMap topic_data_map = {
+        {graph_topic_data->info_.type_, graph_topic_data}};
+      auto insertion = topic_map.insert(std::make_pair(entity.topic_info()->name_, topic_data_map));
       if (!insertion.second) {
         // A topic with the same name already exists in the node so we append the type.
-        auto type_insertion = insertion.first->second.insert(graph_topic_data);
+        auto type_insertion =
+          insertion.first->second.insert(
+          std::make_pair(
+            graph_topic_data->info_.type_,
+            graph_topic_data));
         if (!type_insertion.second) {
           // We have another instance of a pub/sub over the same topic and type so we increment the counters.
-          auto & existing_graph_topic = *(type_insertion.first);
+          auto & existing_graph_topic = type_insertion.first->second;
           existing_graph_topic->stats_.pub_count_ += pub_count;
           existing_graph_topic->stats_.pub_count_ += sub_count;
         }
@@ -219,14 +224,10 @@ void GraphCache::parse_del(const std::string & keyexpr)
         return;
       }
 
-      auto & topic_data_set = topic_it->second;
+      auto & topic_data_map = topic_it->second;
       // Search the unordered_set for the TopicData for this topic.
-      auto topic_data_it = std::find_if(
-        topic_data_set.begin(), topic_data_set.end(),
-        [&entity](const auto topic_data_ptr) {
-          return entity.topic_info()->type_ == topic_data_ptr->info_.type_;
-        });
-      if (topic_data_it == topic_data_set.end()) {
+      auto topic_data_it = topic_data_map.find(entity.topic_info()->type_);
+      if (topic_data_it == topic_data_map.end()) {
         // Something is wrong.
         RCUTILS_LOG_ERROR_NAMED(
           "rmw_zenoh_cpp", "TopicData not found for topic %s. Report this.",
@@ -235,16 +236,16 @@ void GraphCache::parse_del(const std::string & keyexpr)
       }
 
       // Decrement the relevant counters. Check if both counters are 0 and if so remove from graph_node.
-      auto & existing_topic_data = *topic_data_it;
+      auto & existing_topic_data = topic_data_it->second;
       existing_topic_data->stats_.pub_count_ -= pub_count;
       existing_topic_data->stats_.sub_count_ -= sub_count;
       if (existing_topic_data->stats_.pub_count_ == 0 &&
         existing_topic_data->stats_.sub_count_ == 0)
       {
-        topic_data_set.erase(topic_data_it);
+        topic_data_map.erase(topic_data_it);
       }
       // If the topic does not have any TopicData entries, erase the topic from the map.
-      if (topic_data_set.empty()) {
+      if (topic_data_map.empty()) {
         topic_map.erase(entity.topic_info()->name_);
       }
 

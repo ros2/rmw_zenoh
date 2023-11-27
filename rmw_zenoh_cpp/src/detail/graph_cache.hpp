@@ -43,6 +43,7 @@ struct TopicStats
 };
 using TopicStatsPtr = std::unique_ptr<TopicStats>;
 using TopicInfo = liveliness::TopicInfo;
+
 ///=============================================================================
 struct TopicData
 {
@@ -64,18 +65,10 @@ struct GraphNode
   // TODO(Yadunund): Should enclave be the parent to the namespace key and not within a Node?
   std::string enclave_;
 
-  // Hash topic data using "type" string to only support unique topic_types.
-  // TODO(Yadunund): Should we also factor the "qos" into the cache?
-  struct TopicDataHash
-  {
-    std::size_t operator()(const TopicDataPtr & data) const
-    {
-      return std::hash<std::string>{}(data->info_.type_);
-    }
-  };
-  // Map topic name to a set of TopicData to support multiple types per topic.
-  using TopicDataSet = std::unordered_set<TopicDataPtr, TopicDataHash>;
-  using TopicMap = std::unordered_map<std::string, TopicDataSet>;
+  // Map topic type to TopicData
+  using TopicDataMap = std::unordered_map<std::string, TopicDataPtr>;
+  // Map topic name to TopicDataMap
+  using TopicMap = std::unordered_map<std::string, TopicDataMap>;
   TopicMap pubs_ = {};
   TopicMap subs_ = {};
 };
