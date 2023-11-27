@@ -89,8 +89,11 @@ public:
   /// Get the entity type.
   const EntityType & type() const;
 
-  /// Get the node_info.
-  const NodeInfo & node_info() const;
+  std::string node_namespace() const;
+
+  std::string node_name() const;
+
+  std::string node_enclave() const;
 
   /// Get the topic_info.
   const std::optional<TopicInfo> & topic_info() const;

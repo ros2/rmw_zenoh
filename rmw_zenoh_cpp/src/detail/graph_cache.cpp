@@ -143,9 +143,9 @@ void GraphCache::parse_put(const std::string & keyexpr)
     [&](const Entity & entity) -> std::shared_ptr<GraphNode>
     {
       auto graph_node = std::make_shared<GraphNode>();
-      graph_node->ns_ = entity.node_info().ns_;
-      graph_node->name_ = entity.node_info().name_;
-      graph_node->enclave_ = entity.node_info().enclave_;
+      graph_node->ns_ = entity.node_namespace();
+      graph_node->name_ = entity.node_name();
+      graph_node->enclave_ = entity.node_enclave();
 
       if (!entity.topic_info().has_value()) {
         // Token was for a node.
@@ -161,26 +161,26 @@ void GraphCache::parse_put(const std::string & keyexpr)
   std::lock_guard<std::mutex> lock(graph_mutex_);
 
   // If the namespace did not exist, create it and add the node to the graph and return.
-  auto ns_it = graph_.find(entity.node_info().ns_);
+  auto ns_it = graph_.find(entity.node_namespace());
   if (ns_it == graph_.end()) {
     std::unordered_map<std::string, GraphNodePtr> node_map = {
-      {entity.node_info().name_, make_graph_node(entity)}};
-    graph_.insert(std::make_pair(entity.node_info().ns_, std::move(node_map)));
+      {entity.node_name(), make_graph_node(entity)}};
+    graph_.insert(std::make_pair(entity.node_namespace(), std::move(node_map)));
     RCUTILS_LOG_WARN_NAMED(
       "rmw_zenoh_cpp", "Added node /%s to a new namespace %s in the graph.",
-      entity.node_info().name_.c_str(),
-      entity.node_info().ns_.c_str());
+      entity.node_name().c_str(),
+      entity.node_namespace().c_str());
     return;
   }
 
   // Add the node to the namespace if it did not exist and return.
-  auto node_it = ns_it->second.find(entity.node_info().name_);
+  auto node_it = ns_it->second.find(entity.node_name());
   if (node_it == ns_it->second.end()) {
-    ns_it->second.insert(std::make_pair(entity.node_info().name_, make_graph_node(entity)));
+    ns_it->second.insert(std::make_pair(entity.node_name(), make_graph_node(entity)));
     RCUTILS_LOG_WARN_NAMED(
       "rmw_zenoh_cpp", "Added node /%s to an existing namespace %s in the graph.",
-      entity.node_info().name_.c_str(),
-      entity.node_info().ns_.c_str());
+      entity.node_name().c_str(),
+      entity.node_namespace().c_str());
     return;
   }
 
@@ -304,13 +304,13 @@ void GraphCache::parse_del(const std::string & keyexpr)
   std::lock_guard<std::mutex> lock(graph_mutex_);
 
   // If namespace does not exist, ignore the request.
-  auto ns_it = graph_.find(entity.node_info().ns_);
+  auto ns_it = graph_.find(entity.node_namespace());
   if (ns_it == graph_.end()) {
     return;
   }
 
   // If the node does not exist, ignore the request.
-  auto node_it = ns_it->second.find(entity.node_info().name_);
+  auto node_it = ns_it->second.find(entity.node_name());
   if (node_it == ns_it->second.end()) {
     return;
   }
@@ -326,16 +326,16 @@ void GraphCache::parse_del(const std::string & keyexpr)
         "rmw_zenoh_cpp",
         "Received liveliness token to remove node /%s from the graph before all pub/subs for this "
         "node have been removed. Report this issue.",
-        entity.node_info().name_.c_str()
+        entity.node_name().c_str()
       );
       // TODO(Yadunund): Iterate through the nodes pubs_ and subs_ and decrement topic count in
       // graph_topics_.
     }
-    ns_it->second.erase(entity.node_info().name_);
+    ns_it->second.erase(entity.node_name());
     RCUTILS_LOG_WARN_NAMED(
       "rmw_zenoh_cpp",
       "Removed node /%s from the graph.",
-      entity.node_info().name_.c_str()
+      entity.node_name().c_str()
     );
     return;
   }

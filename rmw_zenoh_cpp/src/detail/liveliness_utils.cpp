@@ -119,7 +119,7 @@ Entity::Entity(
    * <ADMIN_SPACE>/<domainid>/<entity>/<namespace>/<nodename>/<topic_name>/<topic_type>/<topic_qos>
    */
   std::stringstream token_ss;
-  const auto & ns = node_info_.ns_;
+  const std::string & ns = node_info_.ns_;
   token_ss << ADMIN_SPACE << "/" << node_info_.domain_id_ << "/" << entity_to_str.at(type_) << ns;
   // An empty namespace from rcl will contain "/" but zenoh does not allow keys with "//".
   // Hence we add an "_" to denote an empty namespace such that splitting the key
@@ -230,7 +230,8 @@ std::optional<Entity> Entity::make(const std::string & keyexpr)
 
   // Get the entity, ie NN, MP, MS, SS, SC.
   std::string & entity_str = parts[2];
-  const auto entity_it = str_to_entity.find(entity_str);
+  std::unordered_map<std::string, EntityType>::const_iterator entity_it =
+    str_to_entity.find(entity_str);
   if (entity_it == str_to_entity.end()) {
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
@@ -270,10 +271,19 @@ const EntityType & Entity::type() const
   return this->type_;
 }
 
-///=============================================================================
-const NodeInfo & Entity::node_info() const
+std::string Entity::node_namespace() const
 {
-  return this->node_info_;
+  return this->node_info_.ns_;
+}
+
+std::string Entity::node_name() const
+{
+  return this->node_info_.name_;
+}
+
+std::string Entity::node_enclave() const
+{
+  return this->node_info_.enclave_;
 }
 
 ///=============================================================================
