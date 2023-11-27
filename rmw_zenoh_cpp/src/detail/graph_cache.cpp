@@ -55,12 +55,12 @@ TopicData::TopicData(
 ///=============================================================================
 void GraphCache::parse_put(const std::string & keyexpr)
 {
-  auto valid_entity = liveliness::Entity::make(keyexpr);
+  std::optional<liveliness::Entity> valid_entity = liveliness::Entity::make(keyexpr);
   if (!valid_entity.has_value()) {
     // Error message has already been logged.
     return;
   }
-  const auto & entity = *valid_entity;
+  const liveliness::Entity & entity = *valid_entity;
 
   // Helper lambda to append pub/subs to the GraphNode.
   // We capture by reference to update graph_topics_
@@ -71,7 +71,7 @@ void GraphCache::parse_put(const std::string & keyexpr)
         return;
       }
 
-      auto & topic_map = entity.type() ==
+      GraphNode::TopicMap & topic_map = entity.type() ==
         EntityType::Publisher ? graph_node.pubs_ : graph_node.subs_;
       const std::string entity_desc = entity.type() ==
         EntityType::Publisher ? "publisher" : "subscription";
@@ -83,10 +83,11 @@ void GraphCache::parse_put(const std::string & keyexpr)
 
       GraphNode::TopicDataMap topic_data_map = {
         {graph_topic_data->info_.type_, graph_topic_data}};
-      auto insertion = topic_map.insert(std::make_pair(entity.topic_info()->name_, topic_data_map));
+      std::pair<GraphNode::TopicMap::iterator, bool> insertion =
+        topic_map.insert(std::make_pair(entity.topic_info()->name_, topic_data_map));
       if (!insertion.second) {
         // A topic with the same name already exists in the node so we append the type.
-        auto type_insertion =
+        std::pair<GraphNode::TopicDataMap::iterator, bool> type_insertion =
           insertion.first->second.insert(
           std::make_pair(
             graph_topic_data->info_.type_,
@@ -94,14 +95,14 @@ void GraphCache::parse_put(const std::string & keyexpr)
         if (!type_insertion.second) {
           // We have another instance of a pub/sub over the same topic and type so we increment
           // the counters.
-          auto & existing_graph_topic = type_insertion.first->second;
+          TopicDataPtr & existing_graph_topic = type_insertion.first->second;
           existing_graph_topic->stats_.pub_count_ += pub_count;
           existing_graph_topic->stats_.sub_count_ += sub_count;
         }
       }
 
       // Bookkeeping: Update graph_topics_ which keeps track of topics across all nodes in the graph
-      auto cache_topic_it = graph_topics_.find(entity.topic_info()->name_);
+      GraphNode::TopicMap::iterator cache_topic_it = graph_topics_.find(entity.topic_info()->name_);
       if (cache_topic_it == graph_topics_.end()) {
         // First time this topic name is added to the graph.
         auto topic_data_ptr = std::make_shared<TopicData>(
@@ -114,7 +115,7 @@ void GraphCache::parse_put(const std::string & keyexpr)
       } else {
         // If a TopicData entry for the same type exists in the topic map, update pub/sub counts
         // or else create an new TopicData.
-        auto topic_data_insertion =
+        std::pair<GraphNode::TopicDataMap::iterator, bool> topic_data_insertion =
           cache_topic_it->second.insert(std::make_pair(entity.topic_info()->type_, nullptr));
         if (topic_data_insertion.second) {
           // A TopicData for the topic_type does not exist.
@@ -161,9 +162,9 @@ void GraphCache::parse_put(const std::string & keyexpr)
   std::lock_guard<std::mutex> lock(graph_mutex_);
 
   // If the namespace did not exist, create it and add the node to the graph and return.
-  auto ns_it = graph_.find(entity.node_namespace());
+  NamespaceMap::iterator ns_it = graph_.find(entity.node_namespace());
   if (ns_it == graph_.end()) {
-    std::unordered_map<std::string, GraphNodePtr> node_map = {
+    NodeMap node_map = {
       {entity.node_name(), make_graph_node(entity)}};
     graph_.insert(std::make_pair(entity.node_namespace(), std::move(node_map)));
     RCUTILS_LOG_WARN_NAMED(
@@ -174,7 +175,7 @@ void GraphCache::parse_put(const std::string & keyexpr)
   }
 
   // Add the node to the namespace if it did not exist and return.
-  auto node_it = ns_it->second.find(entity.node_name());
+  NodeMap::iterator node_it = ns_it->second.find(entity.node_name());
   if (node_it == ns_it->second.end()) {
     ns_it->second.insert(std::make_pair(entity.node_name(), make_graph_node(entity)));
     RCUTILS_LOG_WARN_NAMED(
@@ -208,12 +209,12 @@ void GraphCache::parse_put(const std::string & keyexpr)
 ///=============================================================================
 void GraphCache::parse_del(const std::string & keyexpr)
 {
-  auto valid_entity = liveliness::Entity::make(keyexpr);
+  std::optional<liveliness::Entity> valid_entity = liveliness::Entity::make(keyexpr);
   if (!valid_entity.has_value()) {
     // Error message has already been logged.
     return;
   }
-  const auto & entity = *valid_entity;
+  const liveliness::Entity & entity = *valid_entity;
 
   // Helper lambda to append pub/subs to the GraphNode.
   // We capture by reference to update caches like graph_topics_ if update_cache is true.
@@ -225,22 +226,23 @@ void GraphCache::parse_del(const std::string & keyexpr)
         return;
       }
 
-      auto & topic_map = entity.type() ==
+      GraphNode::TopicMap & topic_map = entity.type() ==
         EntityType::Publisher ? graph_node.pubs_ : graph_node.subs_;
       const std::string entity_desc = entity.type() ==
         EntityType::Publisher ? "publisher" : "subscription";
       const std::size_t pub_count = entity.type() == EntityType::Publisher ? 1 : 0;
       const std::size_t sub_count = !pub_count;
 
-      auto topic_it = topic_map.find(entity.topic_info()->name_);
+      GraphNode::TopicMap::iterator topic_it = topic_map.find(entity.topic_info()->name_);
       if (topic_it == topic_map.end()) {
         // Pub/sub not found.
         return;
       }
 
-      auto & topic_data_map = topic_it->second;
+      GraphNode::TopicDataMap & topic_data_map = topic_it->second;
       // Search the unordered_set for the TopicData for this topic.
-      auto topic_data_it = topic_data_map.find(entity.topic_info()->type_);
+      GraphNode::TopicDataMap::iterator topic_data_it =
+        topic_data_map.find(entity.topic_info()->type_);
       if (topic_data_it == topic_data_map.end()) {
         // Something is wrong.
         RCUTILS_LOG_ERROR_NAMED(
@@ -250,7 +252,7 @@ void GraphCache::parse_del(const std::string & keyexpr)
       }
 
       // Decrement the relevant counters. If both counters are 0 remove from graph_node.
-      auto & existing_topic_data = topic_data_it->second;
+      TopicDataPtr & existing_topic_data = topic_data_it->second;
       existing_topic_data->stats_.pub_count_ -= pub_count;
       existing_topic_data->stats_.sub_count_ -= sub_count;
       if (existing_topic_data->stats_.pub_count_ == 0 &&
@@ -265,14 +267,16 @@ void GraphCache::parse_del(const std::string & keyexpr)
 
       // Bookkeeping: Update graph_topic_ which keeps track of topics across all nodes in the graph.
       if (update_cache) {
-        auto cache_topic_it = graph_topics_.find(entity.topic_info()->name_);
+        GraphNode::TopicMap::iterator cache_topic_it =
+          graph_topics_.find(entity.topic_info()->name_);
         if (cache_topic_it == graph_topics_.end()) {
           // This should not happen.
           RCUTILS_LOG_ERROR_NAMED(
             "rmw_zenoh_cpp", "topic_key %s not found in graph_topics_. Report this.",
             entity.topic_info()->name_.c_str());
         } else {
-          auto cache_topic_data_it = cache_topic_it->second.find(entity.topic_info()->type_);
+          GraphNode::TopicDataMap::iterator cache_topic_data_it =
+            cache_topic_it->second.find(entity.topic_info()->type_);
           if (cache_topic_data_it != cache_topic_it->second.end()) {
             // Decrement the relevant counters. If both counters are 0 remove from cache.
             cache_topic_data_it->second->stats_.pub_count_ -= pub_count;
@@ -304,13 +308,13 @@ void GraphCache::parse_del(const std::string & keyexpr)
   std::lock_guard<std::mutex> lock(graph_mutex_);
 
   // If namespace does not exist, ignore the request.
-  auto ns_it = graph_.find(entity.node_namespace());
+  NamespaceMap::iterator ns_it = graph_.find(entity.node_namespace());
   if (ns_it == graph_.end()) {
     return;
   }
 
   // If the node does not exist, ignore the request.
-  auto node_it = ns_it->second.find(entity.node_name());
+  NodeMap::iterator node_it = ns_it->second.find(entity.node_name());
   if (node_it == ns_it->second.end()) {
     return;
   }
@@ -320,7 +324,7 @@ void GraphCache::parse_del(const std::string & keyexpr)
     // The liveliness tokens to remove pub/subs should be received before the one to remove a node
     // given the reliability QoS for liveliness subs. However, if we find any pubs/subs present in
     // the node below, we should update the count in graph_topics_.
-    const auto graph_node = node_it->second;
+    const GraphNodePtr graph_node = node_it->second;
     if (!graph_node->pubs_.empty() || !graph_node->subs_.empty()) {
       RCUTILS_LOG_WARN_NAMED(
         "rmw_zenoh_cpp",
@@ -376,8 +380,8 @@ rmw_ret_t GraphCache::get_node_names(
     allocator, "get_node_names allocator is not valid", return RMW_RET_INVALID_ARGUMENT);
 
   size_t nodes_number = 0;
-  for (auto it = graph_.begin(); it != graph_.end(); ++it) {
-    nodes_number += it->second.size();
+  for (const std::pair<const std::string, NodeMap> & it : graph_) {
+    nodes_number += it.second.size();
   }
 
   rcutils_ret_t rcutils_ret =
@@ -433,10 +437,12 @@ rmw_ret_t GraphCache::get_node_names(
 
   // Fill node names, namespaces and enclaves.
   std::size_t j = 0;
-  for (auto ns_it = graph_.begin(); ns_it != graph_.end(); ++ns_it) {
+  for (NamespaceMap::const_iterator ns_it = graph_.begin(); ns_it != graph_.end(); ++ns_it) {
     const std::string & ns = ns_it->first;
-    for (auto node_it = ns_it->second.begin(); node_it != ns_it->second.end(); ++node_it) {
-      const auto node = node_it->second;
+    for (NodeMap::const_iterator node_it = ns_it->second.begin(); node_it != ns_it->second.end();
+      ++node_it)
+    {
+      const GraphNodePtr node = node_it->second;
       node_names->data[j] = rcutils_strdup(node->name_.c_str(), *allocator);
       if (!node_names->data[j]) {
         return RMW_RET_BAD_ALLOC;
@@ -520,7 +526,7 @@ rmw_ret_t GraphCache::get_topic_names_and_types(
 
   // Fill topic names and types.
   std::size_t index = 0;
-  for (const auto & item : graph_topics_) {
+  for (const std::pair<const std::string, GraphNode::TopicDataMap> & item : graph_topics_) {
     topic_names_and_types->names.data[index] = rcutils_strdup(item.first.c_str(), *allocator);
     if (!topic_names_and_types->names.data[index]) {
       return RMW_RET_BAD_ALLOC;
@@ -536,7 +542,7 @@ rmw_ret_t GraphCache::get_topic_names_and_types(
       }
     }
     size_t type_index = 0;
-    for (const auto & type : item.second) {
+    for (const std::pair<const std::string, TopicDataPtr> & type : item.second) {
       char * type_name = rcutils_strdup(_demangle_if_ros_type(type.first).c_str(), *allocator);
       if (!type_name) {
         RMW_SET_ERROR_MSG("failed to allocate memory for type name");
@@ -559,13 +565,12 @@ rmw_ret_t GraphCache::count_publishers(
   size_t * count) const
 {
   *count = 0;
-  auto topic_it = graph_topics_.find(topic_name);
-  if (topic_it == graph_topics_.end()) {
-    return RMW_RET_OK;
-  }
-  for (const auto & it : topic_it->second) {
-    // Iterate through all the types and increment count.
-    *count += it.second->stats_.pub_count_;
+
+  if (graph_topics_.count(topic_name) != 0) {
+    for (const std::pair<const std::string, TopicDataPtr> & it : graph_topics_.at(topic_name)) {
+      // Iterate through all the types and increment count.
+      *count += it.second->stats_.pub_count_;
+    }
   }
 
   return RMW_RET_OK;
@@ -577,13 +582,12 @@ rmw_ret_t GraphCache::count_subscriptions(
   size_t * count) const
 {
   *count = 0;
-  auto topic_it = graph_topics_.find(topic_name);
-  if (topic_it == graph_topics_.end()) {
-    return RMW_RET_OK;
-  }
-  for (const auto & it : topic_it->second) {
-    // Iterate through all the types and increment count.
-    *count += it.second->stats_.sub_count_;
+
+  if (graph_topics_.count(topic_name) != 0) {
+    for (const std::pair<const std::string, TopicDataPtr> & it : graph_topics_.at(topic_name)) {
+      // Iterate through all the types and increment count.
+      *count += it.second->stats_.sub_count_;
+    }
   }
 
   return RMW_RET_OK;

@@ -122,8 +122,11 @@ private:
   namespace_2:
     node_n:
   */
+
+  using NodeMap = std::unordered_map<std::string, GraphNodePtr>;
+  using NamespaceMap = std::unordered_map<std::string, NodeMap>;
   // Map namespace to a map of <node_name, GraphNodePtr>.
-  std::unordered_map<std::string, std::unordered_map<std::string, GraphNodePtr>> graph_ = {};
+  NamespaceMap graph_ = {};
 
   // Optimize topic lookups across the graph.
   GraphNode::TopicMap graph_topics_ = {};

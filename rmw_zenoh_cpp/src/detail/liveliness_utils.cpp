@@ -175,7 +175,7 @@ std::vector<std::string> split_keyexpr(
   // Insert -1 for starting position to make the split easier when using substr.
   delim_idx.push_back(-1);
   std::size_t idx = 0;
-  for (auto it = keyexpr.begin(); it != keyexpr.end(); ++it) {
+  for (std::string::const_iterator it = keyexpr.begin(); it != keyexpr.end(); ++it) {
     if (*it == delim) {
       delim_idx.push_back(idx);
     }
@@ -184,8 +184,8 @@ std::vector<std::string> split_keyexpr(
   std::vector<std::string> result = {};
   try {
     for (std::size_t i = 1; i < delim_idx.size(); ++i) {
-      const auto & prev_idx = delim_idx.at(i - 1);
-      const auto & idx = delim_idx.at(i);
+      const size_t prev_idx = delim_idx[i - 1];
+      const size_t idx = delim_idx[i];
       result.push_back(keyexpr.substr(prev_idx + 1, idx - prev_idx - 1));
     }
   } catch (const std::exception & e) {
