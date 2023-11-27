@@ -15,8 +15,6 @@
 #ifndef DETAIL__GRAPH_CACHE_HPP_
 #define DETAIL__GRAPH_CACHE_HPP_
 
-#include <zenoh.h>
-
 #include <map>
 #include <memory>
 #include <mutex>
@@ -25,56 +23,14 @@
 #include <unordered_set>
 #include <vector>
 
+#include "liveliness_utils.hpp"
+
 #include "rcutils/allocator.h"
 #include "rcutils/types.h"
 
 #include "rmw/rmw.h"
 #include "rmw/names_and_types.h"
 
-
-///=============================================================================
-class GenerateToken
-{
-public:
-  static std::string liveliness(size_t domain_id);
-
-  /// Returns a string with key-expression @ros2_lv/domain_id/N/namespace/name
-  static std::string node(
-    size_t domain_id,
-    const std::string & namespace_,
-    const std::string & name);
-
-  static std::string publisher(
-    size_t domain_id,
-    const std::string & node_namespace,
-    const std::string & node_name,
-    const std::string & topic,
-    const std::string & type,
-    const std::string & qos);
-
-  static std::string subscription(
-    size_t domain_id,
-    const std::string & node_namespace,
-    const std::string & node_name,
-    const std::string & topic,
-    const std::string & type,
-    const std::string & qos);
-};
-
-///=============================================================================
-/// Helper utilities to put/delete tokens until liveliness is supported in the
-/// zenoh-c bindings.
-class PublishToken
-{
-public:
-  static bool put(
-    z_owned_session_t * session,
-    const std::string & token);
-
-  static bool del(
-    z_owned_session_t * session,
-    const std::string & token);
-};
 
 ///=============================================================================
 struct TopicStats
@@ -86,17 +42,15 @@ struct TopicStats
   TopicStats(std::size_t pub_count, std::size_t sub_count);
 };
 using TopicStatsPtr = std::unique_ptr<TopicStats>;
-
+using TopicInfo = liveliness::TopicInfo;
 ///=============================================================================
 struct TopicData
 {
-  std::string type_;
-  std::string qos_;
+  TopicInfo info_;
   TopicStats stats_;
 
   TopicData(
-    std::string type,
-    std::string qos,
+    TopicInfo info,
     TopicStats stats);
 };
 using TopicDataPtr = std::shared_ptr<TopicData>;
@@ -116,7 +70,7 @@ struct GraphNode
   {
     std::size_t operator()(const TopicDataPtr & data) const
     {
-      return std::hash<std::string>{}(data->type_);
+      return std::hash<std::string>{}(data->info_.type_);
     }
   };
   // Map topic name to a set of TopicData to support multiple types per topic.

@@ -25,6 +25,7 @@
 #include "detail/guard_condition.hpp"
 #include "detail/graph_cache.hpp"
 #include "detail/identifier.hpp"
+#include "detail/liveliness_utils.hpp"
 #include "detail/message_type_support.hpp"
 #include "detail/rmw_data_types.hpp"
 #include "detail/serialization_format.hpp"
@@ -187,16 +188,25 @@ rmw_create_node(
   // Publish to the graph that a new node is in town
   // const bool pub_result = PublishToken::put(
   //   &node->context->impl->session,
-  //   GenerateToken::node(context->actual_domain_id, namespace_, name)
+  //   liveliness::GenerateToken::node(context->actual_domain_id, namespace_, name)
   // );
   // if (!pub_result) {
   //   return nullptr;
   // }
   // Initialize liveliness token for the node to advertise that a new node is in town.
   rmw_node_data_t * node_data = static_cast<rmw_node_data_t *>(node->data);
+  const auto liveliness_entity = liveliness::Entity::make(
+    liveliness::EntityType::Node,
+    liveliness::NodeInfo{context->actual_domain_id, namespace_, name, ""});
+  if (!liveliness_entity.has_value()) {
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to generate keyexpr for liveliness token for the node.");
+    return nullptr;
+  }
   node_data->token = zc_liveliness_declare_token(
     z_loan(node->context->impl->session),
-    z_keyexpr(GenerateToken::node(context->actual_domain_id, namespace_, name).c_str()),
+    z_keyexpr(liveliness_entity->keyexpr().c_str()),
     NULL
   );
   auto free_token = rcpputils::make_scope_exit(
@@ -241,7 +251,7 @@ rmw_destroy_node(rmw_node_t * node)
   // Publish to the graph that a node has ridden off into the sunset
   // const bool del_result = PublishToken::del(
   //   &node->context->impl->session,
-  //   GenerateToken::node(node->context->actual_domain_id, node->namespace_, node->name)
+  //   liveliness::GenerateToken::node(node->context->actual_domain_id, node->namespace_, node->name)
   // );
   // if (!del_result) {
   //   return RMW_RET_ERROR;
@@ -555,7 +565,7 @@ rmw_create_publisher(
   // TODO(Yadunund): Publish liveliness for the new publisher.
   // const bool pub_result = PublishToken::put(
   //   &node->context->impl->session,
-  //   GenerateToken::publisher(
+  //   liveliness::GenerateToken::publisher(
   //     node->context->actual_domain_id,
   //     node->namespace_,
   //     node->name,
@@ -566,16 +576,21 @@ rmw_create_publisher(
   // if (!pub_result) {
   //   return nullptr;
   // }
+  const auto liveliness_entity = liveliness::Entity::make(
+    liveliness::EntityType::Publisher,
+    liveliness::NodeInfo{node->context->actual_domain_id, node->namespace_, node->name, ""},
+    liveliness::TopicInfo{rmw_publisher->topic_name,
+      publisher_data->type_support->get_name(), "reliable"}
+  );
+  if (!liveliness_entity.has_value()) {
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to generate keyexpr for liveliness token for the publisher.");
+    return nullptr;
+  }
   publisher_data->token = zc_liveliness_declare_token(
     z_loan(node->context->impl->session),
-    z_keyexpr(
-      GenerateToken::publisher(
-        node->context->actual_domain_id,
-        node->namespace_,
-        node->name,
-        rmw_publisher->topic_name,
-        publisher_data->type_support->get_name(),
-        "reliable").c_str()),
+    z_keyexpr(liveliness_entity->keyexpr().c_str()),
     NULL
   );
   auto free_token = rcpputils::make_scope_exit(
@@ -632,7 +647,7 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
     // Publish to the graph that a publisher has ridden off into the sunset
     // const bool del_result = PublishToken::del(
     //   &node->context->impl->session,
-    //   GenerateToken::publisher(
+    //   liveliness::GenerateToken::publisher(
     //     node->context->actual_domain_id,
     //     node->namespace_,
     //     node->name,
@@ -1253,16 +1268,21 @@ rmw_create_subscription(
     });
 
   // Publish to the graph that a new subscription is in town
+  const auto liveliness_entity = liveliness::Entity::make(
+    liveliness::EntityType::Publisher,
+    liveliness::NodeInfo{node->context->actual_domain_id, node->namespace_, node->name, ""},
+    liveliness::TopicInfo{rmw_subscription->topic_name,
+      sub_data->type_support->get_name(), "reliable"}
+  );
+  if (!liveliness_entity.has_value()) {
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to generate keyexpr for liveliness token for the subscription.");
+    return nullptr;
+  }
   sub_data->token = zc_liveliness_declare_token(
     z_loan(context_impl->session),
-    z_keyexpr(
-      GenerateToken::subscription(
-        node->context->actual_domain_id,
-        node->namespace_,
-        node->name,
-        rmw_subscription->topic_name,
-        sub_data->type_support->get_name(),
-        "reliable").c_str()),
+    z_keyexpr(liveliness_entity->keyexpr().c_str()),
     NULL
   );
   auto free_token = rcpputils::make_scope_exit(

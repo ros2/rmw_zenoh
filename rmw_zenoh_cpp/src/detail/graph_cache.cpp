@@ -33,285 +33,8 @@
 #include "graph_cache.hpp"
 
 ///=============================================================================
-std::string GenerateToken::liveliness(size_t domain_id)
-{
-  std::string token = "@ros2_lv/" + std::to_string(domain_id) + "/**";
-  return token;
-}
-
-///=============================================================================
-/**
- * Generate a liveliness token for the particular entity.
- *
- * The liveliness tokens are in the form:
- *
- * @ros2_lv/<domainid>/<entity>/<namespace>/<nodename>
- *
- * Where:
- *  <domainid> - A number set by the user to "partition" graphs.  Roughly equivalent to the domain ID in DDS.
- *  <entity> - The type of entity.  This can be one of "NN" for a node, "MP" for a publisher, "MS" for a subscription, "SS" for a service server, or "SC" for a service client.
- *  <namespace> - The ROS namespace for this entity.  If the namespace is absolute, this function will add in an _ for later parsing reasons.
- *  <nodename> - The ROS node name for this entity.
- */
-static std::string generate_base_token(
-  const std::string & entity,
-  size_t domain_id,
-  const std::string & namespace_,
-  const std::string & name)
-{
-  std::stringstream token_ss;
-  token_ss << "@ros2_lv/" << domain_id << "/" << entity << namespace_;
-  // An empty namespace from rcl will contain "/" but zenoh does not allow keys with "//".
-  // Hence we add an "_" to denote an empty namespace such that splitting the key
-  // will always result in 5 parts.
-  if (namespace_ == "/") {
-    token_ss << "_/";
-  } else {
-    token_ss << "/";
-  }
-  // Finally append node name.
-  token_ss << name;
-  return token_ss.str();
-}
-
-///=============================================================================
-std::string GenerateToken::node(
-  size_t domain_id,
-  const std::string & namespace_,
-  const std::string & name)
-{
-  return generate_base_token("NN", domain_id, namespace_, name);
-}
-
-///=============================================================================
-std::string GenerateToken::publisher(
-  size_t domain_id,
-  const std::string & node_namespace,
-  const std::string & node_name,
-  const std::string & topic,
-  const std::string & type,
-  const std::string & qos)
-{
-  std::string token = generate_base_token("MP", domain_id, node_namespace, node_name);
-  token += topic + "/" + type + "/" + qos;
-  return token;
-}
-
-///=============================================================================
-std::string GenerateToken::subscription(
-  size_t domain_id,
-  const std::string & node_namespace,
-  const std::string & node_name,
-  const std::string & topic,
-  const std::string & type,
-  const std::string & qos)
-{
-  std::string token = generate_base_token("MS", domain_id, node_namespace, node_name);
-  token += topic + "/" + type + "/" + qos;
-  return token;
-}
-
-///=============================================================================
-bool PublishToken::put(
-  z_owned_session_t * session,
-  const std::string & token)
-{
-  if (!z_session_check(session)) {
-    RCUTILS_SET_ERROR_MSG("The zenoh session is invalid.");
-    return false;
-  }
-
-  // TODO(Yadunund): z_keyexpr_new creates a copy so find a way to avoid it.
-  z_owned_keyexpr_t keyexpr = z_keyexpr_new(token.c_str());
-  auto drop_keyexpr = rcpputils::make_scope_exit(
-    [&keyexpr]() {
-      z_drop(z_move(keyexpr));
-    });
-  if (!z_keyexpr_check(&keyexpr)) {
-    RCUTILS_SET_ERROR_MSG("invalid keyexpression generation for liveliness publication.");
-    return false;
-  }
-  RCUTILS_LOG_WARN_NAMED("rmw_zenoh_cpp", "Sending PUT on %s", token.c_str());
-  z_put_options_t options = z_put_options_default();
-  options.encoding = z_encoding(Z_ENCODING_PREFIX_EMPTY, NULL);
-  if (z_put(z_loan(*session), z_keyexpr(token.c_str()), nullptr, 0, &options) < 0) {
-    RCUTILS_SET_ERROR_MSG("unable to publish liveliness for node creation");
-    return false;
-  }
-
-  return true;
-}
-
-///=============================================================================
-bool PublishToken::del(
-  z_owned_session_t * session,
-  const std::string & token)
-{
-  if (!z_session_check(session)) {
-    RCUTILS_SET_ERROR_MSG("The zenoh session is invalid.");
-    return false;
-  }
-
-  // TODO(Yadunund): z_keyexpr_new creates a copy so find a way to avoid it.
-  z_owned_keyexpr_t keyexpr = z_keyexpr_new(token.c_str());
-  auto drop_keyexpr = rcpputils::make_scope_exit(
-    [&keyexpr]() {
-      z_drop(z_move(keyexpr));
-    });
-  if (!z_keyexpr_check(&keyexpr)) {
-    RCUTILS_SET_ERROR_MSG("invalid key-expression generation for liveliness publication.");
-    return false;
-  }
-  RCUTILS_LOG_WARN_NAMED("rmw_zenoh_cpp", "Sending DELETE on %s", token.c_str());
-  const z_delete_options_t options = z_delete_options_default();
-  if (z_delete(z_loan(*session), z_loan(keyexpr), &options) < 0) {
-    RCUTILS_SET_ERROR_MSG("failed to delete liveliness key");
-    return false;
-  }
-
-  return true;
-}
-
-///=============================================================================
-namespace
-{
-std::vector<std::string> split_keyexpr(
-  const std::string & keyexpr,
-  const char delim = '/')
-{
-  std::vector<std::size_t> delim_idx = {};
-  // Insert -1 for starting position to make the split easier when using substr.
-  delim_idx.push_back(-1);
-  std::size_t idx = 0;
-  for (auto it = keyexpr.begin(); it != keyexpr.end(); ++it) {
-    if (*it == delim) {
-      delim_idx.push_back(idx);
-    }
-    ++idx;
-  }
-  std::vector<std::string> result = {};
-  try {
-    for (std::size_t i = 1; i < delim_idx.size(); ++i) {
-      const auto & prev_idx = delim_idx.at(i - 1);
-      const auto & idx = delim_idx.at(i);
-      result.push_back(keyexpr.substr(prev_idx + 1, idx - prev_idx - 1));
-    }
-  } catch (const std::exception & e) {
-    printf("%s\n", e.what());
-    return {};
-  }
-  // Finally add the last substr.
-  result.push_back(keyexpr.substr(delim_idx.back() + 1));
-  return result;
-}
-
-///=============================================================================
-// An internal struct to bundle results of parsing a token.
-struct TokenNode
-{
-
-  struct TokenTopicData
-  {
-    std::string name_;
-    std::string type_;
-    std::string qos_;
-
-    TokenTopicData(
-      std::string name,
-      std::string type,
-      std::string qos)
-    : name_(std::move(name)),
-      type_(std::move(type)),
-      qos_(std::move(qos))
-    {
-      // Do nothing.
-    }
-  };
-
-  std::string ns_;
-  std::string name_;
-  std::string enclave_;
-  std::optional<TokenTopicData> topic_data_;
-
-  TokenNode(
-    std::string ns,
-    std::string name,
-    std::string enclave,
-    std::optional<TokenTopicData> topic_data = std::nullopt)
-  : ns_(std::move(ns)),
-    name_(std::move(name)),
-    enclave_(std::move(enclave)),
-    topic_data_(std::move(topic_data))
-  {
-    // Do nothing.
-  }
-};
-
-///=============================================================================
-// Convert a liveliness token into a <entity, Node>
-std::optional<std::pair<std::string, TokenNode>> _parse_token(const std::string & keyexpr)
-{
-  std::vector<std::string> parts = split_keyexpr(keyexpr);
-  // At minimum, a token will contain 5 parts (@ros2_lv, domain_id, entity, namespace, node_name).
-  // Basic validation.
-  if (parts.size() < 5) {
-    RCUTILS_LOG_ERROR_NAMED(
-      "rmw_zenoh_cpp",
-      "Received invalid liveliness token");
-    return std::nullopt;
-  }
-  for (const std::string & p : parts) {
-    if (p.empty()) {
-      RCUTILS_LOG_ERROR_NAMED(
-        "rmw_zenoh_cpp",
-        "Received invalid liveliness token");
-      return std::nullopt;
-    }
-  }
-
-  // Get the entity, ie NN, MP, MS, SS, SC.
-  std::string & entity = parts[2];
-  if (entity != "NN" && entity != "MP" && entity != "MS" && entity != "SS" && entity != "SC") {
-    RCUTILS_LOG_ERROR_NAMED(
-      "rmw_zenoh_cpp",
-      "Received liveliness token with invalid entity [%s].", entity.c_str());
-    return std::nullopt;
-  }
-
-  // TODO(Yadunund): Support enclaves.
-  // Nodes with empty namespaces will contain a "_".
-  TokenNode node{
-    parts[3] == "_" ? "/" : "/" + parts[3],
-    std::move(parts[4]),
-    ""
-  };
-
-  if (entity != "NN") {
-    if (parts.size() < 8) {
-      RCUTILS_LOG_ERROR_NAMED(
-        "rmw_zenoh_cpp",
-        "Received invalid liveliness token");
-      return std::nullopt;
-    }
-    if (entity == "MP" || entity == "MS" || entity == "SS" || entity == "SC") {
-      TokenNode::TokenTopicData topic_data{
-        "/" + std::move(parts[5]),
-        std::move(parts[6]),
-        std::move(parts[7])
-      };
-      node.topic_data_ = std::move(topic_data);
-    } else {
-      RCUTILS_LOG_ERROR_NAMED(
-        "rmw_zenoh_cpp",
-        "Invalid entity [%s] in liveliness token", entity.c_str());
-      return std::nullopt;
-    }
-  }
-
-  return std::make_pair(std::move(entity), std::move(node));
-}
-}  // namespace
-
+using Entity = liveliness::Entity;
+using EntityType = liveliness::EntityType;
 
 ///=============================================================================
 TopicStats::TopicStats(std::size_t pub_count, std::size_t sub_count)
@@ -321,49 +44,46 @@ TopicStats::TopicStats(std::size_t pub_count, std::size_t sub_count)
   // Do nothing.
 }
 
-
 ///=============================================================================
 TopicData::TopicData(
-  std::string type,
-  std::string qos,
+  TopicInfo info,
   TopicStats stats)
-: type_(std::move(type)),
-  qos_(std::move(qos)),
+: info_(std::move(info)),
   stats_(std::move(stats))
 {}
 
 ///=============================================================================
 void GraphCache::parse_put(const std::string & keyexpr)
 {
-  auto valid_token = _parse_token(keyexpr);
-  if (!valid_token.has_value()) {
+  auto valid_entity = liveliness::Entity::make(keyexpr);
+  if (!valid_entity.has_value()) {
     // Error message has already been logged.
     return;
   }
-  const std::string & entity = valid_token->first;
-  const auto & token_node = valid_token->second;
+  const auto & entity = *valid_entity;
 
   // Helper lambda to append pub/subs to the GraphNode.
   // We capture by reference to update caches like graph_topics_ if update_cache is true.
   auto add_topic_data =
-    [&](const TokenNode::TokenTopicData & topic_data, GraphNode & graph_node,
-      const std::string & entity, bool update_cache = false) -> void
+    [&](const Entity & entity, GraphNode & graph_node,
+      bool update_cache = false) -> void
     {
-      if (entity != "MP" && entity != "MS") {
+      if (entity.type() != EntityType::Publisher && entity.type() != EntityType::Subscription) {
         return;
       }
 
-      auto & topic_map = entity == "MP" ? graph_node.pubs_ : graph_node.subs_;
-      const std::string entity_desc = entity == "MP" ? "publisher" : "subscription";
-      const std::size_t pub_count = entity == "MP" ? 1 : 0;
+      auto & topic_map = entity.type() ==
+        EntityType::Publisher ? graph_node.pubs_ : graph_node.subs_;
+      const std::string entity_desc = entity.type() ==
+        EntityType::Publisher ? "publisher" : "subscription";
+      const std::size_t pub_count = entity.type() == EntityType::Publisher ? 1 : 0;
       const std::size_t sub_count = !pub_count;
       TopicDataPtr graph_topic_data = std::make_shared<TopicData>(
-        topic_data.type_,
-        topic_data.qos_,
+        entity.topic_info().value(),
         TopicStats{pub_count, sub_count});
 
       GraphNode::TopicDataSet topic_data_set = {graph_topic_data};
-      auto insertion = topic_map.insert(std::make_pair(topic_data.name_, topic_data_set));
+      auto insertion = topic_map.insert(std::make_pair(entity.topic_info()->name_, topic_data_set));
       if (!insertion.second) {
         // A topic with the same name already exists in the node so we append the type.
         auto type_insertion = insertion.first->second.insert(graph_topic_data);
@@ -377,7 +97,7 @@ void GraphCache::parse_put(const std::string & keyexpr)
 
       // Bookkeeping: We update graph_topic_ which keeps track of topics across all nodes in the graph.
       if (update_cache) {
-        std::string topic_key = topic_data.name_ + "?" + topic_data.type_;
+        std::string topic_key = entity.topic_info()->name_ + "?" + entity.topic_info()->type_;
         auto cache_insertion = graph_topics_.insert(std::make_pair(std::move(topic_key), nullptr));
         if (cache_insertion.second) {
           // First entry for this topic name + type combo so we create a new TopicStats instance.
@@ -393,27 +113,27 @@ void GraphCache::parse_put(const std::string & keyexpr)
         "rmw_zenoh_cpp",
         "Added %s on topic %s with type %s and qos %s to node /%s.",
         entity_desc.c_str(),
-        topic_data.name_.c_str(),
-        topic_data.type_.c_str(),
-        topic_data.qos_.c_str(),
+        entity.topic_info()->name_.c_str(),
+        entity.topic_info()->type_.c_str(),
+        entity.topic_info()->qos_.c_str(),
         graph_node.name_.c_str());
     };
 
-  // Helper lambdas to convert a TokenNode into a basic GraphNode.
+  // Helper lambdas to convert an Entity into a GraphNode.
   auto make_graph_node =
-    [&](const TokenNode & token_node, const std::string & entity) -> std::shared_ptr<GraphNode>
+    [&](const Entity & entity) -> std::shared_ptr<GraphNode>
     {
       auto graph_node = std::make_shared<GraphNode>();
-      graph_node->ns_ = token_node.ns_;
-      graph_node->name_ = token_node.name_;
-      graph_node->enclave_ = token_node.enclave_;
+      graph_node->ns_ = entity.node_info().ns_;
+      graph_node->name_ = entity.node_info().name_;
+      graph_node->enclave_ = entity.node_info().enclave_;
 
-      if (!token_node.topic_data_.has_value()) {
+      if (!entity.topic_info().has_value()) {
         // Token was for a node.
         return graph_node;
       }
       // Add pub/sub entries.
-      add_topic_data(token_node.topic_data_.value(), *graph_node, entity, true);
+      add_topic_data(entity, *graph_node, true);
 
       return graph_node;
     };
@@ -422,31 +142,31 @@ void GraphCache::parse_put(const std::string & keyexpr)
   std::lock_guard<std::mutex> lock(graph_mutex_);
 
   // If the namespace did not exist, create it and add the node to the graph and return.
-  auto ns_it = graph_.find(token_node.ns_);
+  auto ns_it = graph_.find(entity.node_info().ns_);
   if (ns_it == graph_.end()) {
     std::unordered_map<std::string, GraphNodePtr> node_map = {
-      {token_node.name_, make_graph_node(token_node, entity)}};
-    graph_.insert(std::make_pair(token_node.ns_, std::move(node_map)));
+      {entity.node_info().name_, make_graph_node(entity)}};
+    graph_.insert(std::make_pair(entity.node_info().ns_, std::move(node_map)));
     RCUTILS_LOG_WARN_NAMED(
       "rmw_zenoh_cpp", "Added node /%s to a new namespace %s in the graph.",
-      token_node.name_.c_str(),
-      token_node.ns_.c_str());
+      entity.node_info().name_.c_str(),
+      entity.node_info().ns_.c_str());
     return;
   }
 
   // Add the node to the namespace if it did not exist and return.
-  auto node_it = ns_it->second.find(token_node.name_);
+  auto node_it = ns_it->second.find(entity.node_info().name_);
   if (node_it == ns_it->second.end()) {
-    ns_it->second.insert(std::make_pair(token_node.name_, make_graph_node(token_node, entity)));
+    ns_it->second.insert(std::make_pair(entity.node_info().name_, make_graph_node(entity)));
     RCUTILS_LOG_WARN_NAMED(
       "rmw_zenoh_cpp", "Added node /%s to an existing namespace %s in the graph.",
-      token_node.name_.c_str(),
-      token_node.ns_.c_str());
+      entity.node_info().name_.c_str(),
+      entity.node_info().ns_.c_str());
     return;
   }
 
   // Handles additions to an existing node in the graph.
-  if (entity == "NN") {
+  if (entity.type() == EntityType::Node) {
     // The NN entity is implicitly handled above where we add the node.
     // If control reaches here, then we received a duplicate entry for the same node.
     // This could happen when we get() all the liveliness tokens when the node spins up and
@@ -454,45 +174,46 @@ void GraphCache::parse_put(const std::string & keyexpr)
     return;
   }
 
-  if (!token_node.topic_data_.has_value()) {
+  if (!entity.topic_info().has_value()) {
     // Likely an error with parsing the token.
     RCUTILS_LOG_WARN_NAMED(
-      "rmw_zenoh_cpp", "Put token %s parsed without extracting TopicData.",
+      "rmw_zenoh_cpp", "Put token %s parsed without extracting topic_info.",
       keyexpr.c_str());
     return;
   }
 
   // Update the graph based on the entity.
-  add_topic_data(token_node.topic_data_.value(), *(node_it->second), entity, true);
+  add_topic_data(entity, *(node_it->second), true);
 }
 
 ///=============================================================================
 void GraphCache::parse_del(const std::string & keyexpr)
 {
-  auto valid_token = _parse_token(keyexpr);
-  if (!valid_token.has_value()) {
+  auto valid_entity = liveliness::Entity::make(keyexpr);
+  if (!valid_entity.has_value()) {
     // Error message has already been logged.
     return;
   }
-  const std::string & entity = valid_token->first;
-  const auto & token_node = valid_token->second;
+  const auto & entity = *valid_entity;
 
   // Helper lambda to append pub/subs to the GraphNode.
   // We capture by reference to update caches like graph_topics_ if update_cache is true.
   auto remove_topic_data =
-    [&](const TokenNode::TokenTopicData & topic_data, GraphNode & graph_node,
-      const std::string & entity, bool update_cache = false) -> void
+    [&](const Entity & entity, GraphNode & graph_node,
+      bool update_cache = false) -> void
     {
-      if (entity != "MP" && entity != "MS") {
+      if (entity.type() != EntityType::Publisher && entity.type() != EntityType::Subscription) {
         return;
       }
 
-      auto & topic_map = entity == "MP" ? graph_node.pubs_ : graph_node.subs_;
-      const std::string entity_desc = entity == "MP" ? "publisher" : "subscription";
-      const std::size_t pub_count = entity == "MP" ? 1 : 0;
+      auto & topic_map = entity.type() ==
+        EntityType::Publisher ? graph_node.pubs_ : graph_node.subs_;
+      const std::string entity_desc = entity.type() ==
+        EntityType::Publisher ? "publisher" : "subscription";
+      const std::size_t pub_count = entity.type() == EntityType::Publisher ? 1 : 0;
       const std::size_t sub_count = !pub_count;
 
-      auto topic_it = topic_map.find(topic_data.name_);
+      auto topic_it = topic_map.find(entity.topic_info()->name_);
       if (topic_it == topic_map.end()) {
         // Pub/sub not found.
         return;
@@ -502,14 +223,14 @@ void GraphCache::parse_del(const std::string & keyexpr)
       // Search the unordered_set for the TopicData for this topic.
       auto topic_data_it = std::find_if(
         topic_data_set.begin(), topic_data_set.end(),
-        [&topic_data](const auto topic_data_ptr) {
-          return topic_data.type_ == topic_data_ptr->type_;
+        [&entity](const auto topic_data_ptr) {
+          return entity.topic_info()->type_ == topic_data_ptr->info_.type_;
         });
       if (topic_data_it == topic_data_set.end()) {
         // Something is wrong.
         RCUTILS_LOG_ERROR_NAMED(
           "rmw_zenoh_cpp", "TopicData not found for topic %s. Report this.",
-          topic_data.name_.c_str());
+          entity.topic_info()->name_.c_str());
         return;
       }
 
@@ -524,12 +245,12 @@ void GraphCache::parse_del(const std::string & keyexpr)
       }
       // If the topic does not have any TopicData entries, erase the topic from the map.
       if (topic_data_set.empty()) {
-        topic_map.erase(topic_data.name_);
+        topic_map.erase(entity.topic_info()->name_);
       }
 
       // Bookkeeping: We update graph_topic_ which keeps track of topics across all nodes in the graph.
       if (update_cache) {
-        std::string topic_key = topic_data.name_ + "?" + topic_data.type_;
+        std::string topic_key = entity.topic_info()->name_ + "?" + entity.topic_info()->type_;
         auto cache_topic_it = graph_topics_.find(topic_key);
         if (cache_topic_it == graph_topics_.end()) {
           // This should not happen.
@@ -550,9 +271,9 @@ void GraphCache::parse_del(const std::string & keyexpr)
         "rmw_zenoh_cpp",
         "Removed %s on topic %s with type %s and qos %s to node /%s.",
         entity_desc.c_str(),
-        topic_data.name_.c_str(),
-        topic_data.type_.c_str(),
-        topic_data.qos_.c_str(),
+        entity.topic_info()->name_.c_str(),
+        entity.topic_info()->type_.c_str(),
+        entity.topic_info()->qos_.c_str(),
         graph_node.name_.c_str());
     };
 
@@ -560,18 +281,18 @@ void GraphCache::parse_del(const std::string & keyexpr)
   std::lock_guard<std::mutex> lock(graph_mutex_);
 
   // If namespace does not exist, ignore the request.
-  auto ns_it = graph_.find(token_node.ns_);
+  auto ns_it = graph_.find(entity.node_info().ns_);
   if (ns_it == graph_.end()) {
     return;
   }
 
   // If the node does not exist, ignore the request.
-  auto node_it = ns_it->second.find(token_node.name_);
+  auto node_it = ns_it->second.find(entity.node_info().name_);
   if (node_it == ns_it->second.end()) {
     return;
   }
 
-  if (entity == "NN") {
+  if (entity.type() == EntityType::Node) {
     // Node
     // The liveliness tokens to remove pub/subs should be received before the one to remove a node
     // given the reliability QoS for liveliness subs. However, if we find any pubs/subs present in the node below,
@@ -582,20 +303,20 @@ void GraphCache::parse_del(const std::string & keyexpr)
         "rmw_zenoh_cpp",
         "Received liveliness token to remove node /%s from the graph before all pub/subs for this node have been removed. "
         "Report this issue.",
-        token_node.name_.c_str()
+        entity.node_info().name_.c_str()
       );
       // TODO(Yadunund): Iterate through the nodes pubs_ and subs_ and decrement topic count in graph_topics_.
     }
-    ns_it->second.erase(token_node.name_);
+    ns_it->second.erase(entity.node_info().name_);
     RCUTILS_LOG_WARN_NAMED(
       "rmw_zenoh_cpp",
       "Removed node /%s from the graph.",
-      token_node.name_.c_str()
+      entity.node_info().name_.c_str()
     );
     return;
   }
 
-  if (!token_node.topic_data_.has_value()) {
+  if (!entity.topic_info().has_value()) {
     // Likely an error with parsing the token.
     RCUTILS_LOG_WARN_NAMED(
       "rmw_zenoh_cpp", "Del token %s parsed without extracting TopicData.",
@@ -604,7 +325,7 @@ void GraphCache::parse_del(const std::string & keyexpr)
   }
 
   // Update the graph based on the entity.
-  remove_topic_data(token_node.topic_data_.value(), *(node_it->second), entity, true);
+  remove_topic_data(entity, *(node_it->second), true);
 }
 
 ///=============================================================================
@@ -780,7 +501,7 @@ rmw_ret_t GraphCache::get_topic_names_and_types(
     // TODO(Yadunund): Be more systematic about this.
     // TODO(clalancette): Rather than doing the splitting here, should we store
     // it in graph_topics_ already split?
-    std::vector<std::string> parts = split_keyexpr(it.first, '?');
+    std::vector<std::string> parts = liveliness::split_keyexpr(it.first, '?');
     if (parts.size() < 2) {
       RCUTILS_LOG_ERROR_NAMED(
         "rmw_zenoh_cpp",
