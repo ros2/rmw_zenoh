@@ -102,15 +102,31 @@ void GraphCache::parse_put(const std::string & keyexpr)
 
       // Bookkeeping: We update graph_topic_ which keeps track of topics across all nodes in the graph.
       if (update_cache) {
-        std::string topic_key = entity.topic_info()->name_ + "?" + entity.topic_info()->type_;
-        auto cache_insertion = graph_topics_.insert(std::make_pair(std::move(topic_key), nullptr));
-        if (cache_insertion.second) {
-          // First entry for this topic name + type combo so we create a new TopicStats instance.
-          cache_insertion.first->second = std::make_unique<TopicStats>(pub_count, sub_count);
+        auto cache_topic_it = graph_topics_.find(entity.topic_info()->name_);
+        if (cache_topic_it == graph_topics_.end()) {
+          // First time this topic name is added to the graph.
+          auto topic_data_ptr = std::make_shared<TopicData>(
+            entity.topic_info().value(),
+            TopicStats{pub_count, sub_count}
+          );
+          graph_topics_[entity.topic_info()->name_] = GraphNode::TopicDataMap{
+            {entity.topic_info()->type_, topic_data_ptr}
+          };
         } else {
-          // Else we update the existing counters.
-          cache_insertion.first->second->pub_count_ += pub_count;
-          cache_insertion.first->second->sub_count_ += sub_count;
+          // If a TopicData entry for the same type exists in the topic map, update pub/sub counts or
+          // else create an new TopicData.
+          auto topic_data_insertion =
+            cache_topic_it->second.insert(std::make_pair(entity.topic_info()->type_, nullptr));
+          if (topic_data_insertion.second) {
+            // A TopicData for the topic_type does not exist.
+            topic_data_insertion.first->second = std::make_shared<TopicData>(
+              entity.topic_info().value(),
+              TopicStats{pub_count, sub_count});
+          } else {
+            // Update the existing counters.
+            topic_data_insertion.first->second->stats_.pub_count_ += pub_count;
+            topic_data_insertion.first->second->stats_.sub_count_ += sub_count;
+          }
         }
       }
 
@@ -251,20 +267,25 @@ void GraphCache::parse_del(const std::string & keyexpr)
 
       // Bookkeeping: We update graph_topic_ which keeps track of topics across all nodes in the graph.
       if (update_cache) {
-        std::string topic_key = entity.topic_info()->name_ + "?" + entity.topic_info()->type_;
-        auto cache_topic_it = graph_topics_.find(topic_key);
+        auto cache_topic_it = graph_topics_.find(entity.topic_info()->name_);
         if (cache_topic_it == graph_topics_.end()) {
           // This should not happen.
           RCUTILS_LOG_ERROR_NAMED(
             "rmw_zenoh_cpp", "topic_key %s not found in graph_topics_. Report this.",
-            topic_key.c_str());
+            entity.topic_info()->name_.c_str());
         } else {
-          // Decrement the relevant counters. Check if both counters are 0 and if so remove from cache.
-          cache_topic_it->second->pub_count_ -= pub_count;
-          cache_topic_it->second->sub_count_ -= sub_count;
-          if (cache_topic_it->second->pub_count_ == 0 && cache_topic_it->second->sub_count_ == 0) {
-            graph_topics_.erase(topic_key);
+          auto cache_topic_data_it = cache_topic_it->second.find(entity.topic_info()->type_);
+          if (cache_topic_data_it != cache_topic_it->second.end()) {
+            // Decrement the relevant counters. Check if both counters are 0 and if so remove from cache.
+            cache_topic_data_it->second->stats_.pub_count_ -= pub_count;
+            cache_topic_data_it->second->stats_.sub_count_ -= sub_count;
+            if (cache_topic_data_it->second->stats_.pub_count_ == 0 &&
+              cache_topic_data_it->second->stats_.sub_count_ == 0)
+            {
+              graph_topics_.erase(entity.topic_info()->name_);
+            }
           }
+
         }
       }
 
@@ -496,40 +517,33 @@ rmw_ret_t GraphCache::get_topic_names_and_types(
     });
 
   // Fill topic names and types.
-  std::size_t j = 0;
-  for (const auto & it : graph_topics_) {
-    // Split based on "?".
-    // TODO(Yadunund): Be more systematic about this.
-    // TODO(clalancette): Rather than doing the splitting here, should we store
-    // it in graph_topics_ already split?
-    std::vector<std::string> parts = liveliness::split_keyexpr(it.first, '?');
-    if (parts.size() < 2) {
-      RCUTILS_LOG_ERROR_NAMED(
-        "rmw_zenoh_cpp",
-        "Invalid topic_key %s", it.first.c_str());
-      return RMW_RET_INVALID_ARGUMENT;
-    }
-
-    topic_names_and_types->names.data[j] = rcutils_strdup(parts[0].c_str(), *allocator);
-    if (!topic_names_and_types->names.data[j]) {
+  std::size_t index = 0;
+  for (const auto & item : graph_topics_) {
+    topic_names_and_types->names.data[index] = rcutils_strdup(item.first.c_str(), *allocator);
+    if (!topic_names_and_types->names.data[index]) {
       return RMW_RET_BAD_ALLOC;
     }
-
-    // TODO(clalancette): This won't work if there are multiple types on the same topic
-    rcutils_ret_t rcutils_ret = rcutils_string_array_init(
-      &topic_names_and_types->types[j], 1, allocator);
-    if (RCUTILS_RET_OK != rcutils_ret) {
-      RMW_SET_ERROR_MSG(rcutils_get_error_string().str);
-      return RMW_RET_BAD_ALLOC;
+    {
+      rcutils_ret_t rcutils_ret = rcutils_string_array_init(
+        &topic_names_and_types->types[index],
+        item.second.size(),
+        allocator);
+      if (RCUTILS_RET_OK != rcutils_ret) {
+        RMW_SET_ERROR_MSG(rcutils_get_error_string().str);
+        return RMW_RET_BAD_ALLOC;
+      }
     }
-
-    topic_names_and_types->types[j].data[0] = rcutils_strdup(
-      _demangle_if_ros_type(parts[1]).c_str(), *allocator);
-    if (!topic_names_and_types->types[j].data[0]) {
-      return RMW_RET_BAD_ALLOC;
+    size_t type_index = 0;
+    for (const auto & type : item.second) {
+      char * type_name = rcutils_strdup(_demangle_if_ros_type(type.first).c_str(), *allocator);
+      if (!type_name) {
+        RMW_SET_ERROR_MSG("failed to allocate memory for type name");
+        return RMW_RET_BAD_ALLOC;
+      }
+      topic_names_and_types->types[index].data[type_index] = type_name;
+      ++type_index;
     }
-
-    ++j;
+    ++index;
   }
 
   cleanup_names_and_types.cancel();

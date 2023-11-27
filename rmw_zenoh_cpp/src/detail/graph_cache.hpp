@@ -41,7 +41,6 @@ struct TopicStats
   // Constructor which initializes counters to 0.
   TopicStats(std::size_t pub_count, std::size_t sub_count);
 };
-using TopicStatsPtr = std::unique_ptr<TopicStats>;
 using TopicInfo = liveliness::TopicInfo;
 
 ///=============================================================================
@@ -119,9 +118,8 @@ private:
   // Map namespace to a map of <node_name, GraphNodePtr>.
   std::unordered_map<std::string, std::unordered_map<std::string, GraphNodePtr>> graph_ = {};
 
-  // Optimize topic lookups across the graph by mapping "topic_name?topic_type" keys to their pub/sub counts.
-  // TODO(Yadunund): Consider storing a set of NodePtrs for each key.
-  std::unordered_map<std::string, TopicStatsPtr> graph_topics_ = {};
+  // Optimize topic lookups across the graph.
+  GraphNode::TopicMap graph_topics_ = {};
 
   mutable std::mutex graph_mutex_;
 };
