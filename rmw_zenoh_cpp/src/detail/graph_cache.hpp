@@ -41,16 +41,15 @@ struct TopicStats
   // Constructor which initializes counters to 0.
   TopicStats(std::size_t pub_count, std::size_t sub_count);
 };
-using TopicInfo = liveliness::TopicInfo;
 
 ///=============================================================================
 struct TopicData
 {
-  TopicInfo info_;
+  liveliness::TopicInfo info_;
   TopicStats stats_;
 
   TopicData(
-    TopicInfo info,
+    liveliness::TopicInfo info,
     TopicStats stats);
 };
 using TopicDataPtr = std::shared_ptr<TopicData>;
@@ -94,12 +93,10 @@ public:
     rmw_names_and_types_t * topic_names_and_types) const;
 
   rmw_ret_t count_publishers(
-    const rmw_node_t * node,
     const char * topic_name,
     size_t * count) const;
 
   rmw_ret_t count_subscriptions(
-    const rmw_node_t * node,
     const char * topic_name,
     size_t * count) const;
 

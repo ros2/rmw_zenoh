@@ -1270,7 +1270,7 @@ rmw_create_subscription(
 
   // Publish to the graph that a new subscription is in town
   const auto liveliness_entity = liveliness::Entity::make(
-    liveliness::EntityType::Publisher,
+    liveliness::EntityType::Subscription,
     liveliness::NodeInfo{node->context->actual_domain_id, node->namespace_, node->name, ""},
     liveliness::TopicInfo{rmw_subscription->topic_name,
       sub_data->type_support->get_name(), "reliable"}
@@ -2173,8 +2173,7 @@ rmw_count_publishers(
   }
   RMW_CHECK_ARGUMENT_FOR_NULL(count, RMW_RET_INVALID_ARGUMENT);
 
-  return node->context->impl->graph_cache.count_publishers(
-    node, topic_name, count);
+  return node->context->impl->graph_cache.count_publishers(topic_name, count);
 }
 
 //==============================================================================
@@ -2204,8 +2203,7 @@ rmw_count_subscribers(
   }
   RMW_CHECK_ARGUMENT_FOR_NULL(count, RMW_RET_INVALID_ARGUMENT);
 
-  return node->context->impl->graph_cache.count_subscriptions(
-    node, topic_name, count);
+  return node->context->impl->graph_cache.count_subscriptions(topic_name, count);
 }
 
 //==============================================================================
