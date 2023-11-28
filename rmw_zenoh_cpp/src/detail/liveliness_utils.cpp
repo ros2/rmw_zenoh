@@ -266,7 +266,7 @@ std::optional<Entity> Entity::make(const std::string & keyexpr)
 }
 
 ///=============================================================================
-const EntityType & Entity::type() const
+EntityType Entity::type() const
 {
   return this->type_;
 }
@@ -287,13 +287,13 @@ std::string Entity::node_enclave() const
 }
 
 ///=============================================================================
-const std::optional<TopicInfo> & Entity::topic_info() const
+std::optional<TopicInfo> Entity::topic_info() const
 {
   return this->topic_info_;
 }
 
 ///=============================================================================
-const std::string & Entity::keyexpr() const
+std::string Entity::keyexpr() const
 {
   return this->keyexpr_;
 }

@@ -87,7 +87,7 @@ public:
   static std::optional<Entity> make(const std::string & keyexpr);
 
   /// Get the entity type.
-  const EntityType & type() const;
+  EntityType type() const;
 
   std::string node_namespace() const;
 
@@ -96,10 +96,10 @@ public:
   std::string node_enclave() const;
 
   /// Get the topic_info.
-  const std::optional<TopicInfo> & topic_info() const;
+  std::optional<TopicInfo> topic_info() const;
 
   /// Get the liveliness keyexpr for this entity.
-  const std::string & keyexpr() const;
+  std::string keyexpr() const;
 
 private:
   Entity(

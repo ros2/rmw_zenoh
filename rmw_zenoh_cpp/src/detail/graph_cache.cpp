@@ -71,6 +71,16 @@ void GraphCache::parse_put(const std::string & keyexpr)
         return;
       }
 
+      if (!entity.topic_info().has_value()) {
+        // This should not happen as add_topic_data() is called after validating the existence
+        // of topic_info.
+        RCUTILS_LOG_WARN_NAMED(
+          "rmw_zenoh_cpp",
+          "add_topic_data() called without valid TopicInfo. Report this.");
+        return;
+      }
+
+      const liveliness::TopicInfo topic_info = entity.topic_info().value();
       GraphNode::TopicMap & topic_map = entity.type() ==
         EntityType::Publisher ? graph_node.pubs_ : graph_node.subs_;
       const std::string entity_desc = entity.type() ==
@@ -78,13 +88,13 @@ void GraphCache::parse_put(const std::string & keyexpr)
       const std::size_t pub_count = entity.type() == EntityType::Publisher ? 1 : 0;
       const std::size_t sub_count = !pub_count;
       TopicDataPtr graph_topic_data = std::make_shared<TopicData>(
-        entity.topic_info().value(),
+        topic_info,
         TopicStats{pub_count, sub_count});
 
       GraphNode::TopicDataMap topic_data_map = {
         {graph_topic_data->info_.type_, graph_topic_data}};
       std::pair<GraphNode::TopicMap::iterator, bool> insertion =
-        topic_map.insert(std::make_pair(entity.topic_info()->name_, topic_data_map));
+        topic_map.insert(std::make_pair(topic_info.name_, topic_data_map));
       if (!insertion.second) {
         // A topic with the same name already exists in the node so we append the type.
         std::pair<GraphNode::TopicDataMap::iterator, bool> type_insertion =
@@ -102,25 +112,25 @@ void GraphCache::parse_put(const std::string & keyexpr)
       }
 
       // Bookkeeping: Update graph_topics_ which keeps track of topics across all nodes in the graph
-      GraphNode::TopicMap::iterator cache_topic_it = graph_topics_.find(entity.topic_info()->name_);
+      GraphNode::TopicMap::iterator cache_topic_it = graph_topics_.find(topic_info.name_);
       if (cache_topic_it == graph_topics_.end()) {
         // First time this topic name is added to the graph.
         auto topic_data_ptr = std::make_shared<TopicData>(
-          entity.topic_info().value(),
+          topic_info,
           TopicStats{pub_count, sub_count}
         );
-        graph_topics_[entity.topic_info()->name_] = GraphNode::TopicDataMap{
-          {entity.topic_info()->type_, topic_data_ptr}
+        graph_topics_[topic_info.name_] = GraphNode::TopicDataMap{
+          {topic_info.type_, topic_data_ptr}
         };
       } else {
         // If a TopicData entry for the same type exists in the topic map, update pub/sub counts
         // or else create an new TopicData.
         std::pair<GraphNode::TopicDataMap::iterator, bool> topic_data_insertion =
-          cache_topic_it->second.insert(std::make_pair(entity.topic_info()->type_, nullptr));
+          cache_topic_it->second.insert(std::make_pair(topic_info.type_, nullptr));
         if (topic_data_insertion.second) {
           // A TopicData for the topic_type does not exist.
           topic_data_insertion.first->second = std::make_shared<TopicData>(
-            entity.topic_info().value(),
+            topic_info,
             TopicStats{pub_count, sub_count});
         } else {
           // Update the existing counters.
@@ -133,9 +143,9 @@ void GraphCache::parse_put(const std::string & keyexpr)
         "rmw_zenoh_cpp",
         "Added %s on topic %s with type %s and qos %s to node /%s.",
         entity_desc.c_str(),
-        entity.topic_info()->name_.c_str(),
-        entity.topic_info()->type_.c_str(),
-        entity.topic_info()->qos_.c_str(),
+        topic_info.name_.c_str(),
+        topic_info.type_.c_str(),
+        topic_info.qos_.c_str(),
         graph_node.name_.c_str());
     };
 
@@ -226,6 +236,16 @@ void GraphCache::parse_del(const std::string & keyexpr)
         return;
       }
 
+      if (!entity.topic_info().has_value()) {
+        // This should not happen as add_topic_data() is called after validating the existence
+        // of topic_info.
+        RCUTILS_LOG_WARN_NAMED(
+          "rmw_zenoh_cpp",
+          "remove_topic_data() called without valid TopicInfo. Report this.");
+        return;
+      }
+
+      const liveliness::TopicInfo topic_info = entity.topic_info().value();
       GraphNode::TopicMap & topic_map = entity.type() ==
         EntityType::Publisher ? graph_node.pubs_ : graph_node.subs_;
       const std::string entity_desc = entity.type() ==
@@ -233,7 +253,7 @@ void GraphCache::parse_del(const std::string & keyexpr)
       const std::size_t pub_count = entity.type() == EntityType::Publisher ? 1 : 0;
       const std::size_t sub_count = !pub_count;
 
-      GraphNode::TopicMap::iterator topic_it = topic_map.find(entity.topic_info()->name_);
+      GraphNode::TopicMap::iterator topic_it = topic_map.find(topic_info.name_);
       if (topic_it == topic_map.end()) {
         // Pub/sub not found.
         return;
@@ -242,12 +262,12 @@ void GraphCache::parse_del(const std::string & keyexpr)
       GraphNode::TopicDataMap & topic_data_map = topic_it->second;
       // Search the unordered_set for the TopicData for this topic.
       GraphNode::TopicDataMap::iterator topic_data_it =
-        topic_data_map.find(entity.topic_info()->type_);
+        topic_data_map.find(topic_info.type_);
       if (topic_data_it == topic_data_map.end()) {
         // Something is wrong.
         RCUTILS_LOG_ERROR_NAMED(
           "rmw_zenoh_cpp", "TopicData not found for topic %s. Report this.",
-          entity.topic_info()->name_.c_str());
+          topic_info.name_.c_str());
         return;
       }
 
@@ -262,21 +282,21 @@ void GraphCache::parse_del(const std::string & keyexpr)
       }
       // If the topic does not have any TopicData entries, erase the topic from the map.
       if (topic_data_map.empty()) {
-        topic_map.erase(entity.topic_info()->name_);
+        topic_map.erase(topic_info.name_);
       }
 
       // Bookkeeping: Update graph_topic_ which keeps track of topics across all nodes in the graph.
       if (update_cache) {
         GraphNode::TopicMap::iterator cache_topic_it =
-          graph_topics_.find(entity.topic_info()->name_);
+          graph_topics_.find(topic_info.name_);
         if (cache_topic_it == graph_topics_.end()) {
           // This should not happen.
           RCUTILS_LOG_ERROR_NAMED(
             "rmw_zenoh_cpp", "topic_key %s not found in graph_topics_. Report this.",
-            entity.topic_info()->name_.c_str());
+            topic_info.name_.c_str());
         } else {
           GraphNode::TopicDataMap::iterator cache_topic_data_it =
-            cache_topic_it->second.find(entity.topic_info()->type_);
+            cache_topic_it->second.find(topic_info.type_);
           if (cache_topic_data_it != cache_topic_it->second.end()) {
             // Decrement the relevant counters. If both counters are 0 remove from cache.
             cache_topic_data_it->second->stats_.pub_count_ -= pub_count;
@@ -298,9 +318,9 @@ void GraphCache::parse_del(const std::string & keyexpr)
         "rmw_zenoh_cpp",
         "Removed %s on topic %s with type %s and qos %s to node /%s.",
         entity_desc.c_str(),
-        entity.topic_info()->name_.c_str(),
-        entity.topic_info()->type_.c_str(),
-        entity.topic_info()->qos_.c_str(),
+        topic_info.name_.c_str(),
+        topic_info.type_.c_str(),
+        topic_info.qos_.c_str(),
         graph_node.name_.c_str());
     };
 
