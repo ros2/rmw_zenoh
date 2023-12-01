@@ -115,13 +115,7 @@ void GraphCache::parse_put(const std::string & keyexpr)
       GraphNode::TopicMap::iterator cache_topic_it = graph_topics_.find(topic_info.name_);
       if (cache_topic_it == graph_topics_.end()) {
         // First time this topic name is added to the graph.
-        auto topic_data_ptr = std::make_shared<TopicData>(
-          topic_info,
-          TopicStats{pub_count, sub_count}
-        );
-        graph_topics_[topic_info.name_] = GraphNode::TopicDataMap{
-          {topic_info.type_, topic_data_ptr}
-        };
+        graph_topics_[topic_info.name_] = std::move(topic_data_map);
       } else {
         // If a TopicData entry for the same type exists in the topic map, update pub/sub counts
         // or else create an new TopicData.
@@ -176,7 +170,7 @@ void GraphCache::parse_put(const std::string & keyexpr)
   if (ns_it == graph_.end()) {
     NodeMap node_map = {
       {entity.node_name(), make_graph_node(entity)}};
-    graph_.insert(std::make_pair(entity.node_namespace(), std::move(node_map)));
+    graph_.emplace(std::make_pair(entity.node_namespace(), std::move(node_map)));
     RCUTILS_LOG_WARN_NAMED(
       "rmw_zenoh_cpp", "Added node /%s to a new namespace %s in the graph.",
       entity.node_name().c_str(),
