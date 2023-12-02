@@ -12,8 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "detail/identifier.hpp"
+#include "detail/liveliness_utils.hpp"
+#include "detail/rmw_data_types.hpp"
 
 #include "rmw/get_node_info_and_types.h"
+#include "rmw/impl/cpp/macros.hpp"
 
 extern "C"
 {
@@ -28,13 +32,21 @@ rmw_get_subscriber_names_and_types_by_node(
   bool no_demangle,
   rmw_names_and_types_t * topic_names_and_types)
 {
-  static_cast<void>(node);
-  static_cast<void>(allocator);
-  static_cast<void>(node_name);
-  static_cast<void>(node_namespace);
-  static_cast<void>(no_demangle);
-  static_cast<void>(topic_names_and_types);
-  return RMW_RET_UNSUPPORTED;
+  RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    node,
+    node->implementation_identifier,
+    rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->context, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
+  return node->context->impl->graph_cache.get_entity_names_and_types_by_node(
+    liveliness::EntityType::Subscription,
+    allocator,
+    node_name,
+    node_namespace,
+    no_demangle,
+    topic_names_and_types);
 }
 
 ///==============================================================================
@@ -48,13 +60,21 @@ rmw_get_publisher_names_and_types_by_node(
   bool no_demangle,
   rmw_names_and_types_t * topic_names_and_types)
 {
-  static_cast<void>(node);
-  static_cast<void>(allocator);
-  static_cast<void>(node_name);
-  static_cast<void>(node_namespace);
-  static_cast<void>(no_demangle);
-  static_cast<void>(topic_names_and_types);
-  return RMW_RET_UNSUPPORTED;
+  RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    node,
+    node->implementation_identifier,
+    rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->context, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
+  return node->context->impl->graph_cache.get_entity_names_and_types_by_node(
+    liveliness::EntityType::Publisher,
+    allocator,
+    node_name,
+    node_namespace,
+    no_demangle,
+    topic_names_and_types);
 }
 
 ///==============================================================================
@@ -67,12 +87,21 @@ rmw_get_service_names_and_types_by_node(
   const char * node_namespace,
   rmw_names_and_types_t * service_names_and_types)
 {
-  static_cast<void>(node);
-  static_cast<void>(allocator);
-  static_cast<void>(node_name);
-  static_cast<void>(node_namespace);
-  static_cast<void>(service_names_and_types);
-  return RMW_RET_UNSUPPORTED;
+  RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    node,
+    node->implementation_identifier,
+    rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->context, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
+  return node->context->impl->graph_cache.get_entity_names_and_types_by_node(
+    liveliness::EntityType::Service,
+    allocator,
+    node_name,
+    node_namespace,
+    false,
+    service_names_and_types);
 }
 
 ///==============================================================================
@@ -85,11 +114,20 @@ rmw_get_client_names_and_types_by_node(
   const char * node_namespace,
   rmw_names_and_types_t * service_names_and_types)
 {
-  static_cast<void>(node);
-  static_cast<void>(allocator);
-  static_cast<void>(node_name);
-  static_cast<void>(node_namespace);
-  static_cast<void>(service_names_and_types);
-  return RMW_RET_UNSUPPORTED;
+  RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    node,
+    node->implementation_identifier,
+    rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->context, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
+  return node->context->impl->graph_cache.get_entity_names_and_types_by_node(
+    liveliness::EntityType::Client,
+    allocator,
+    node_name,
+    node_namespace,
+    false,
+    service_names_and_types);
 }
 }  // extern "C"

@@ -100,6 +100,14 @@ public:
     const char * topic_name,
     size_t * count) const;
 
+  rmw_ret_t get_entity_names_and_types_by_node(
+    liveliness::EntityType entity_type,
+    rcutils_allocator_t * allocator,
+    const char * node_name,
+    const char * node_namespace,
+    bool no_demangle,
+    rmw_names_and_types_t * names_and_types) const;
+
 private:
   /*
   namespace_1:
