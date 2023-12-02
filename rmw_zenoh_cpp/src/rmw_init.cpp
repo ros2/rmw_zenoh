@@ -18,6 +18,7 @@
 
 #include "detail/guard_condition.hpp"
 #include "detail/identifier.hpp"
+#include "detail/liveliness_utils.hpp"
 #include "detail/rmw_data_types.hpp"
 #include "detail/zenoh_config.hpp"
 #include "detail/zenoh_router_check.hpp"
@@ -246,7 +247,7 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
     });
 
   // Setup liveliness subscriptions for discovery.
-  const std::string liveliness_str = GenerateToken::liveliness(context->actual_domain_id);
+  const std::string liveliness_str = liveliness::subscription_token(context->actual_domain_id);
 
   // Query router/liveliness participants to get graph information before this session was started.
   RCUTILS_LOG_WARN_NAMED(

@@ -28,6 +28,7 @@ add_library(rmw_zenoh_cpp SHARED
   src/detail/identifier.cpp
   src/detail/graph_cache.cpp
   src/detail/guard_condition.cpp
+  src/detail/liveliness_utils.cpp
   src/detail/message_type_support.cpp
   src/detail/rmw_data_types.cpp
   src/detail/service_type_support.cpp
