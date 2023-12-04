@@ -22,6 +22,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 
@@ -31,6 +32,7 @@
 
 #include "graph_cache.hpp"
 #include "message_type_support.hpp"
+#include "service_type_support.hpp"
 
 /// Structs for various type erased data fields.
 
@@ -126,6 +128,85 @@ struct rmw_subscription_data_t
 
   size_t queue_depth;
   bool reliable;
+
+  std::mutex internal_mutex;
+  std::condition_variable * condition{nullptr};
+};
+
+
+///==============================================================================
+
+// z_owned_closure_query_t
+void service_data_handler(const z_query_t * query, void * service_data);
+
+void client_data_handler(z_owned_reply_t * reply, void * client_data);
+
+
+struct saved_queryable_data
+{
+  explicit saved_queryable_data(z_owned_query_t query)
+  : query(query)
+  {
+  }
+
+  const z_owned_query_t query;
+};
+
+///==============================================================================
+
+struct rmw_service_data_t
+{
+  unsigned int get_new_uid()
+  {
+    return client_count++;
+  }
+
+  const char * zn_queryable_key;
+  z_owned_queryable_t zn_queryable;
+
+  const void * request_type_support_impl;
+  const void * response_type_support_impl;
+  const char * typesupport_identifier;
+  RequestTypeSupport * request_type_support;
+  ResponseTypeSupport * response_type_support;
+
+  rmw_context_t * context;
+
+  // Map to store the query id and the query.
+  // The query handler is saved as it is needed to answer the query later on.
+  std::unordered_map<unsigned int, std::unique_ptr<saved_queryable_data>> id_query_map;
+  // The query id's of the queries that need to be processed.
+  std::deque<unsigned int> to_take;
+  std::mutex query_queue_mutex;
+
+  std::mutex internal_mutex;
+  std::condition_variable * condition{nullptr};
+
+  unsigned int client_count{};
+};
+
+///==============================================================================
+
+struct rmw_client_data_t
+{
+  const char * service_name;
+
+  // TODO(francocipollone): Remove this. For some reason if I remove this(not being even used) it
+  //                        ends up panicking when calling the service. Something is missing.
+  z_owned_reply_channel_t zn_reply_channel;
+  z_owned_closure_reply_t zn_closure_reply;
+
+
+  std::mutex message_mutex;
+  std::unique_ptr<saved_msg_data> message;
+
+  const void * request_type_support_impl;
+  const void * response_type_support_impl;
+  const char * typesupport_identifier;
+  RequestTypeSupport * request_type_support;
+  ResponseTypeSupport * response_type_support;
+
+  rmw_context_t * context;
 
   std::mutex internal_mutex;
   std::condition_variable * condition{nullptr};
