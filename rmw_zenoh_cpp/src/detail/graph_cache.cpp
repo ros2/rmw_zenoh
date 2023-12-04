@@ -27,8 +27,10 @@
 #include "rcutils/logging_macros.h"
 #include "rcutils/strdup.h"
 
-#include "rmw/sanity_checks.h"
 #include "rmw/error_handling.h"
+#include "rmw/sanity_checks.h"
+#include "rmw/validate_namespace.h"
+#include "rmw/validate_node_name.h"
 
 #include "graph_cache.hpp"
 
@@ -517,43 +519,33 @@ _demangle_if_ros_type(const std::string & dds_type_string)
   return type_namespace + type_name;
 }
 
-}  // namespace
-
-///=============================================================================
-rmw_ret_t GraphCache::get_topic_names_and_types(
+rmw_ret_t fill_names_and_types(
+  const GraphNode::TopicMap & entity_map,
   rcutils_allocator_t * allocator,
-  bool no_demangle,
-  rmw_names_and_types_t * topic_names_and_types) const
+  rmw_names_and_types_t * names_and_types)
 {
-  static_cast<void>(no_demangle);
-  RCUTILS_CHECK_ALLOCATOR_WITH_MSG(
-    allocator, "get_node_names allocator is not valid", return RMW_RET_INVALID_ARGUMENT);
-
-  std::lock_guard<std::mutex> lock(graph_mutex_);
-  const size_t topic_number = graph_topics_.size();
-
-  rmw_ret_t ret = rmw_names_and_types_init(topic_names_and_types, topic_number, allocator);
+  const std::size_t entity_size = entity_map.size();
+  rmw_ret_t ret = rmw_names_and_types_init(names_and_types, entity_size, allocator);
   if (ret != RMW_RET_OK) {
     return ret;
   }
   auto cleanup_names_and_types = rcpputils::make_scope_exit(
-    [topic_names_and_types] {
-      rmw_ret_t fail_ret = rmw_names_and_types_fini(topic_names_and_types);
+    [names_and_types] {
+      rmw_ret_t fail_ret = rmw_names_and_types_fini(names_and_types);
       if (fail_ret != RMW_RET_OK) {
         RMW_SAFE_FWRITE_TO_STDERR("failed to cleanup names and types during error handling");
       }
     });
-
   // Fill topic names and types.
   std::size_t index = 0;
-  for (const std::pair<const std::string, GraphNode::TopicDataMap> & item : graph_topics_) {
-    topic_names_and_types->names.data[index] = rcutils_strdup(item.first.c_str(), *allocator);
-    if (!topic_names_and_types->names.data[index]) {
+  for (const std::pair<const std::string, GraphNode::TopicDataMap> & item : entity_map) {
+    names_and_types->names.data[index] = rcutils_strdup(item.first.c_str(), *allocator);
+    if (!names_and_types->names.data[index]) {
       return RMW_RET_BAD_ALLOC;
     }
     {
       rcutils_ret_t rcutils_ret = rcutils_string_array_init(
-        &topic_names_and_types->types[index],
+        &names_and_types->types[index],
         item.second.size(),
         allocator);
       if (RCUTILS_RET_OK != rcutils_ret) {
@@ -568,7 +560,7 @@ rmw_ret_t GraphCache::get_topic_names_and_types(
         RMW_SET_ERROR_MSG("failed to allocate memory for type name");
         return RMW_RET_BAD_ALLOC;
       }
-      topic_names_and_types->types[index].data[type_index] = type_name;
+      names_and_types->types[index].data[type_index] = type_name;
       ++type_index;
     }
     ++index;
@@ -579,13 +571,29 @@ rmw_ret_t GraphCache::get_topic_names_and_types(
   return RMW_RET_OK;
 }
 
+}  // namespace
+
+///=============================================================================
+rmw_ret_t GraphCache::get_topic_names_and_types(
+  rcutils_allocator_t * allocator,
+  bool no_demangle,
+  rmw_names_and_types_t * topic_names_and_types) const
+{
+  static_cast<void>(no_demangle);
+  RCUTILS_CHECK_ALLOCATOR_WITH_MSG(
+    allocator, "get_node_names allocator is not valid", return RMW_RET_INVALID_ARGUMENT);
+
+  std::lock_guard<std::mutex> lock(graph_mutex_);
+  return fill_names_and_types(graph_topics_, allocator, topic_names_and_types);
+}
+
 ///=============================================================================
 rmw_ret_t GraphCache::count_publishers(
   const char * topic_name,
   size_t * count) const
 {
   *count = 0;
-
+  std::lock_guard<std::mutex> lock(graph_mutex_);
   if (graph_topics_.count(topic_name) != 0) {
     for (const std::pair<const std::string, TopicDataPtr> & it : graph_topics_.at(topic_name)) {
       // Iterate through all the types and increment count.
@@ -602,12 +610,75 @@ rmw_ret_t GraphCache::count_subscriptions(
   size_t * count) const
 {
   *count = 0;
-
+  std::lock_guard<std::mutex> lock(graph_mutex_);
   if (graph_topics_.count(topic_name) != 0) {
     for (const std::pair<const std::string, TopicDataPtr> & it : graph_topics_.at(topic_name)) {
       // Iterate through all the types and increment count.
       *count += it.second->stats_.sub_count_;
     }
+  }
+
+  return RMW_RET_OK;
+}
+
+///=============================================================================
+rmw_ret_t GraphCache::get_entity_names_and_types_by_node(
+  liveliness::EntityType entity_type,
+  rcutils_allocator_t * allocator,
+  const char * node_name,
+  const char * node_namespace,
+  bool no_demangle,
+  rmw_names_and_types_t * names_and_types) const
+{
+  static_cast<void>(no_demangle);
+  RCUTILS_CHECK_ALLOCATOR_WITH_MSG(
+    allocator, "allocator argument is invalid", return RMW_RET_INVALID_ARGUMENT);
+  int validation_result = RMW_NODE_NAME_VALID;
+  rmw_ret_t ret = rmw_validate_node_name(node_name, &validation_result, nullptr);
+  if (RMW_RET_OK != ret) {
+    return ret;
+  }
+  if (RMW_NODE_NAME_VALID != validation_result) {
+    const char * reason = rmw_node_name_validation_result_string(validation_result);
+    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("node_name argument is invalid: %s", reason);
+    return RMW_RET_INVALID_ARGUMENT;
+  }
+  validation_result = RMW_NAMESPACE_VALID;
+  ret = rmw_validate_namespace(node_namespace, &validation_result, nullptr);
+  if (RMW_RET_OK != ret) {
+    return ret;
+  }
+  if (RMW_NAMESPACE_VALID != validation_result) {
+    const char * reason = rmw_namespace_validation_result_string(validation_result);
+    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("node_namespace argument is invalid: %s", reason);
+    return RMW_RET_INVALID_ARGUMENT;
+  }
+  ret = rmw_names_and_types_check_zero(names_and_types);
+  if (RMW_RET_OK != ret) {
+    return ret;
+  }
+
+  std::lock_guard<std::mutex> lock(graph_mutex_);
+
+  // Check if namespace exists.
+  NamespaceMap::const_iterator ns_it = graph_.find(node_namespace);
+  if (ns_it == graph_.end()) {
+    return RMW_RET_OK;
+  }
+
+  // Check if node exists.
+  NodeMap::const_iterator node_it = ns_it->second.find(node_name);
+  if (node_it == ns_it->second.end()) {
+    return RMW_RET_OK;
+  }
+
+  // TODO(Yadunund): Support service and client when ready.
+  if (entity_type == EntityType::Publisher) {
+    return fill_names_and_types(node_it->second->pubs_, allocator, names_and_types);
+  } else if (entity_type == EntityType::Subscription) {
+    return fill_names_and_types(node_it->second->subs_, allocator, names_and_types);
+  } else {
+    return RMW_RET_OK;
   }
 
   return RMW_RET_OK;
