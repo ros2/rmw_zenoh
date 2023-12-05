@@ -2,7 +2,8 @@ name: build
 on:
   pull_request:
   push:
-    branches: [ main ]
+    branches: [ rolling ]
+  workflow_dispatch:
 defaults:
   run:
     shell: bash
