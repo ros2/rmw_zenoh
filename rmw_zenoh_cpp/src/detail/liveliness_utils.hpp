@@ -111,6 +111,7 @@ private:
     NodeInfo node_info,
     std::optional<TopicInfo> topic_info);
 
+  std::string id_;
   EntityType type_;
   NodeInfo node_info_;
   std::optional<TopicInfo> topic_info_;

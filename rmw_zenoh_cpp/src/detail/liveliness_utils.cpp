@@ -83,14 +83,15 @@ static const std::unordered_map<std::string, EntityType> str_to_entity = {
   {CLI_STR, EntityType::Client}
 };
 
-std::string convert(z_id_t id) {
+std::string convert(z_id_t id)
+{
   std::stringstream ss;
   ss << std::hex;
   size_t i = 0;
   for (; i < (sizeof(id.id) - 1); i++) {
     ss << static_cast<int>(id.id[i]) << ".";
   }
-  ss << static_cast<int>(id.id[i]) << std::dec;
+  ss << static_cast<int>(id.id[i]);
   return ss.str();
 }
 
@@ -109,7 +110,8 @@ Entity::Entity(
   EntityType type,
   NodeInfo node_info,
   std::optional<TopicInfo> topic_info)
-: type_(std::move(type)),
+: id_(std::move(id)),
+  type_(std::move(type)),
   node_info_(std::move(node_info)),
   topic_info_(std::move(topic_info))
 {
@@ -132,7 +134,8 @@ Entity::Entity(
    */
   std::stringstream token_ss;
   const std::string & ns = node_info_.ns_;
-  token_ss << ADMIN_SPACE << "/" << node_info_.domain_id_ << "/" << id << "/" << entity_to_str.at(type_) << ns;
+  token_ss << ADMIN_SPACE << "/" << node_info_.domain_id_ << "/" << id_ << "/" << entity_to_str.at(
+    type_) << ns;
   // An empty namespace from rcl will contain "/" but zenoh does not allow keys with "//".
   // Hence we add an "_" to denote an empty namespace such that splitting the key
   // will always result in 5 parts.
@@ -254,7 +257,7 @@ std::optional<Entity> Entity::make(const std::string & keyexpr)
 
   EntityType entity_type = entity_it->second;
   std::size_t domain_id = std::stoul(parts[1]);
-  std::string& id = parts[2];
+  std::string & id = parts[2];
   std::string ns = parts[4] == "_" ? "/" : "/" + std::move(parts[4]);
   std::string node_name = std::move(parts[5]);
   std::optional<TopicInfo> topic_info = std::nullopt;
@@ -278,6 +281,12 @@ std::optional<Entity> Entity::make(const std::string & keyexpr)
     std::move(entity_type),
     NodeInfo{std::move(domain_id), std::move(ns), std::move(node_name), ""},
     std::move(topic_info)};
+}
+
+///=============================================================================
+std::string Entity::id() const
+{
+  return this->id_;
 }
 
 ///=============================================================================
