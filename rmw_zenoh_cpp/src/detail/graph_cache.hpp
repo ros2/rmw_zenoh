@@ -72,9 +72,6 @@ struct GraphNode
   TopicMap subs_ = {};
 };
 using GraphNodePtr = std::shared_ptr<GraphNode>;
-// Two nodes are the same if their id, name and namespaces are identical.
-// TODO(Yadunund): Once zenoh API gives us globally unique IDs for entities, rely on only the id.
-// bool operator==(const GraphNodePtr & lhs, const GraphNodePtr & rhs);
 
 ///=============================================================================
 class GraphCache final
@@ -134,12 +131,6 @@ private:
   namespace_2:
     node_n:
   */
-
-  // // A comparator for sorting nodes that have the same name based on their
-  // // zenoh session ids.
-  // struct NodeComparator {
-  //   bool operator()(const GraphNodePtr & lhs, const GraphNodePtr & rhs) const;
-  // };
 
   // We rely on a multimap to store nodes with duplicate names.
   using NodeMap = std::multimap<std::string, GraphNodePtr>;

@@ -56,16 +56,6 @@ TopicData::TopicData(
 {}
 
 ///=============================================================================
-// bool operator==(const GraphNodePtr & lhs, const GraphNodePtr & rhs) {
-//   return lhs->id_ == rhs->id_ && lhs->ns_ == rhs->ns_ && lhs->name_ == rhs->name_;
-// }
-
-///=============================================================================
-// bool GraphCache::NodeComparator::operator()(const GraphNodePtr & lhs, const GraphNodePtr & rhs) const {
-//   return std::hash<std::string>{}(lhs->id_) < std::hash<std::string>{}(rhs->id_);
-// }
-
-///=============================================================================
 void GraphCache::parse_put(const std::string & keyexpr)
 {
   std::optional<liveliness::Entity> valid_entity = liveliness::Entity::make(keyexpr);
