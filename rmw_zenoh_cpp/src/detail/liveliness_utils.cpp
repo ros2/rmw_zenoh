@@ -120,17 +120,21 @@ Entity::Entity(
    *
    * The liveliness token keyexprs are in the form:
    *
-   * <ADMIN_SPACE>/<domainid>/<entity>/<namespace>/<nodename>
+   * <ADMIN_SPACE>/<domainid>/<id>/<entity>/<namespace>/<nodename>
    *
    * Where:
    *  <domainid> - A number set by the user to "partition" graphs.  Roughly equivalent to the domain ID in DDS.
+   *  <id> - A unique ID to identify this entity. Currently the id is the zenoh session's id with elements concatenated into a string using '.' as separator.
    *  <entity> - The type of entity.  This can be one of "NN" for a node, "MP" for a publisher, "MS" for a subscription, "SS" for a service server, or "SC" for a service client.
    *  <namespace> - The ROS namespace for this entity.  If the namespace is absolute, this function will add in an _ for later parsing reasons.
    *  <nodename> - The ROS node name for this entity.
    *
    * For entities with topic infomation, the liveliness token keyexpr have additional fields:
    *
-   * <ADMIN_SPACE>/<domainid>/<entity>/<namespace>/<nodename>/<topic_name>/<topic_type>/<topic_qos>
+   * <ADMIN_SPACE>/<domainid>/<id>/<entity>/<namespace>/<nodename>/<topic_name>/<topic_type>/<topic_qos>
+   *  <topic_name> - The ROS topic name for this entity.
+   *  <topic_type> - The type for the topic.
+   *  <topic_qos> - The qos for the topic.
    */
   std::stringstream token_ss;
   const std::string & ns = node_info_.ns_;
