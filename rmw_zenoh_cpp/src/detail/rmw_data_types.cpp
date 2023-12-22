@@ -22,6 +22,13 @@
 #include "rmw_data_types.hpp"
 
 ///==============================================================================
+
+saved_msg_data::saved_msg_data(zc_owned_payload_t p, uint64_t recv_ts, const uint8_t pub_gid[16])
+: payload(p), recv_timestamp(recv_ts)
+{
+  memcpy(publisher_gid, pub_gid, 16);
+}
+
 void sub_data_handler(
   const z_sample_t * sample,
   void * data)
@@ -69,6 +76,21 @@ void sub_data_handler(
   }
 
   z_drop(z_move(keystr));
+}
+
+saved_queryable_data::saved_queryable_data(z_owned_query_t query)
+: query(query)
+{}
+
+saved_queryable_data::~saved_queryable_data()
+{
+  z_query_drop(&query);
+}
+
+
+unsigned int rmw_service_data_t::get_new_uid()
+{
+  return client_count++;
 }
 
 void service_data_handler(const z_query_t * query, void * service_data)

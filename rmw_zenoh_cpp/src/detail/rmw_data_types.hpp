@@ -99,11 +99,7 @@ void sub_data_handler(const z_sample_t * sample, void * sub_data);
 
 struct saved_msg_data
 {
-  explicit saved_msg_data(zc_owned_payload_t p, uint64_t recv_ts, const uint8_t pub_gid[16])
-  : payload(p), recv_timestamp(recv_ts)
-  {
-    memcpy(publisher_gid, pub_gid, 16);
-  }
+  explicit saved_msg_data(zc_owned_payload_t p, uint64_t recv_ts, const uint8_t pub_gid[16]);
 
   zc_owned_payload_t payload;
   uint64_t recv_timestamp;
@@ -144,22 +140,17 @@ void client_data_handler(z_owned_reply_t * reply, void * client_data);
 
 struct saved_queryable_data
 {
-  explicit saved_queryable_data(z_owned_query_t query)
-  : query(query)
-  {
-  }
+  explicit saved_queryable_data(z_owned_query_t query);
+  ~saved_queryable_data();
 
-  const z_owned_query_t query;
+  z_owned_query_t query;
 };
 
 ///==============================================================================
 
 struct rmw_service_data_t
 {
-  unsigned int get_new_uid()
-  {
-    return client_count++;
-  }
+  unsigned int get_new_uid();
 
   const char * zn_queryable_key;
   z_owned_queryable_t zn_queryable;

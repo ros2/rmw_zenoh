@@ -1874,8 +1874,14 @@ rmw_destroy_client(rmw_node_t * node, rmw_client_t * client)
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
   auto client_data = static_cast<rmw_client_data_t *>(client->data);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    client_data,
+    "client implementation pointer is null",
+    return RMW_RET_INVALID_ARGUMENT);
 
   // CLEANUP ===================================================================
+  z_drop(z_move(client_data->zn_closure_reply));
+
   allocator->deallocate(client_data->request_type_support, allocator->state);
   allocator->deallocate(client_data->response_type_support, allocator->state);
   allocator->deallocate(client->data, allocator->state);
@@ -1883,6 +1889,8 @@ rmw_destroy_client(rmw_node_t * node, rmw_client_t * client)
   allocator->deallocate(const_cast<char *>(client->service_name), allocator->state);
   allocator->deallocate(client, allocator->state);
 
+  RCUTILS_LOG_DEBUG_NAMED(
+    "rmw_zenoh_cpp", "[rmw_destroy_client] %s FINISHED", client->service_name);
   return RMW_RET_OK;
 }
 
@@ -1957,12 +1965,10 @@ rmw_send_request(
   // TODO(francocipollone): Do I really need the sequency number here?
   *sequence_id = 0;
 
-
   // Send request
   z_get_options_t opts = z_get_options_default();
   opts.value.payload = z_bytes_t{data_length, reinterpret_cast<const uint8_t *>(request_bytes)};
   opts.value.encoding = z_encoding(Z_ENCODING_PREFIX_EMPTY, NULL);
-
 
   z_owned_keyexpr_t keyexpr = ros_topic_name_to_zenoh_key(
     client->service_name, client_data->context->actual_domain_id, allocator);
@@ -2264,7 +2270,6 @@ rmw_create_service(
       allocator->deallocate(const_cast<char *>(rmw_service->service_name), allocator->state);
     });
 
-
   // Zenoh implementation for the service
 
   // TODO(francocipollone): Replace ros_topic_name_to_zenoh_key by service related function.
@@ -2302,7 +2307,6 @@ rmw_create_service(
       z_undeclare_queryable(z_move(service_data->zn_queryable));
     });
 
-
   // TODO(francocipollone): Update graph cache.
 
   free_rmw_service.cancel();
@@ -2322,11 +2326,35 @@ rmw_create_service(
 rmw_ret_t
 rmw_destroy_service(rmw_node_t * node, rmw_service_t * service)
 {
-  // Interim implementation to suppress type_description service that spins up
-  // with a node by default.
-  if (node == nullptr || service == nullptr) {
-    return RMW_RET_ERROR;
-  }
+  // ASSERTIONS ================================================================
+  RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(service, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    node,
+    node->implementation_identifier,
+    rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    service,
+    service->implementation_identifier,
+    rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+
+  rcutils_allocator_t * allocator = &node->context->options.allocator;
+
+  auto service_data = static_cast<rmw_service_data_t *>(service->data);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    service_data,
+    "service implementation pointer is null",
+    return RMW_RET_INVALID_ARGUMENT);
+
+  // CLEANUP ================================================================
+  z_drop(z_move(service_data->zn_queryable));
+
+  allocator->deallocate(service_data->request_type_support, allocator->state);
+  allocator->deallocate(service_data->response_type_support, allocator->state);
+  allocator->deallocate(service->data, allocator->state);
+
   rmw_service_free(service);
 
   // TODO(francocipollone): Update graph cache.
@@ -2359,7 +2387,6 @@ rmw_take_request(
     service->service_name, "service has no service name", RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_FOR_NULL_WITH_MSG(
     service->data, "service implementation pointer is null", RMW_RET_INVALID_ARGUMENT);
-
 
   auto * service_data = static_cast<rmw_service_data_t *>(service->data);
 
