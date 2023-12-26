@@ -2532,6 +2532,7 @@ rmw_send_response(
     query_ptr, z_query_keyexpr(query_ptr), reinterpret_cast<const uint8_t *>(
       response_bytes), data_length + meta_length, &options);
 
+  z_drop(z_move(*owned_query_ptr));
   return RMW_RET_OK;
 }
 

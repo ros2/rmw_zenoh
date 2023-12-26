@@ -139,10 +139,17 @@ void client_data_handler(z_owned_reply_t * reply, void * client_data)
     "[client_data_handler] triggered for %s",
     rmw_client_data->service_name
   );
-  if (!z_reply_check(reply)) {
+  if (!z_check(*reply)) {
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "z_check returned False"
+    );
+    return;
+  }
+  if (!z_reply_check(reply)) {
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "z_reply_check returned False"
     );
     return;
   }
