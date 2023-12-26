@@ -138,22 +138,14 @@ void service_data_handler(const z_query_t * query, void * service_data);
 void client_data_handler(z_owned_reply_t * reply, void * client_data);
 
 
-struct saved_queryable_data
-{
-  explicit saved_queryable_data(z_owned_query_t query);
-  ~saved_queryable_data();
-
-  z_owned_query_t query;
-};
-
 ///==============================================================================
 
 struct rmw_service_data_t
 {
   unsigned int get_new_uid();
 
-  const char * zn_queryable_key;
-  z_owned_queryable_t zn_queryable;
+  const char * keyexpr;
+  z_owned_queryable_t qable;
 
   const void * request_type_support_impl;
   const void * response_type_support_impl;
@@ -165,7 +157,7 @@ struct rmw_service_data_t
 
   // Map to store the query id and the query.
   // The query handler is saved as it is needed to answer the query later on.
-  std::unordered_map<unsigned int, std::unique_ptr<saved_queryable_data>> id_query_map;
+  std::unordered_map<unsigned int, std::unique_ptr<z_owned_query_t>> id_query_map;
   // The query id's of the queries that need to be processed.
   std::deque<unsigned int> to_take;
   std::mutex query_queue_mutex;

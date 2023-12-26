@@ -78,15 +78,6 @@ void sub_data_handler(
   z_drop(z_move(keystr));
 }
 
-saved_queryable_data::saved_queryable_data(z_owned_query_t query)
-: query(query)
-{}
-
-saved_queryable_data::~saved_queryable_data()
-{
-  z_query_drop(&query);
-}
-
 
 unsigned int rmw_service_data_t::get_new_uid()
 {
@@ -109,6 +100,7 @@ void service_data_handler(const z_query_t * query, void * service_data)
       "service for %s",
       z_loan(keystr)
     );
+    z_drop(z_move(keystr));
     return;
   }
 
@@ -118,7 +110,7 @@ void service_data_handler(const z_query_t * query, void * service_data)
 
     const unsigned int client_id = rmw_service_data->get_new_uid();
     rmw_service_data->id_query_map.emplace(
-      std::make_pair(client_id, std::make_unique<saved_queryable_data>(z_query_clone(query))));
+      std::make_pair(client_id, std::make_unique<z_owned_query_t>(z_query_clone(query))));
     rmw_service_data->to_take.push_back(client_id);
 
 

@@ -2284,6 +2284,7 @@ rmw_create_service(
     RMW_SET_ERROR_MSG("unable to create zenoh keyexpr.");
     return nullptr;
   }
+  service_data->keyexpr = z_keyexpr_to_string(z_loan(keyexpr))._cstr;
 
   RCUTILS_LOG_INFO_NAMED(
     "rmw_zenoh_cpp", "[rmw_create_service] keyexpr: %s",
@@ -2291,20 +2292,20 @@ rmw_create_service(
 
   z_owned_closure_query_t callback = z_closure(service_data_handler, nullptr, service_data);
 
-  service_data->zn_queryable = z_declare_queryable(
+  service_data->qable = z_declare_queryable(
     z_loan(context_impl->session),
     z_loan(keyexpr),
     z_move(callback),
     nullptr);
 
-  if (!z_check(service_data->zn_queryable)) {
+  if (!z_check(service_data->qable)) {
     RMW_SET_ERROR_MSG("unable to create zenoh queryable");
     return nullptr;
   }
 
   auto undeclare_z_queryable = rcpputils::make_scope_exit(
     [service_data]() {
-      z_undeclare_queryable(z_move(service_data->zn_queryable));
+      z_undeclare_queryable(z_move(service_data->qable));
     });
 
   // TODO(francocipollone): Update graph cache.
@@ -2349,7 +2350,10 @@ rmw_destroy_service(rmw_node_t * node, rmw_service_t * service)
     return RMW_RET_INVALID_ARGUMENT);
 
   // CLEANUP ================================================================
-  z_drop(z_move(service_data->zn_queryable));
+  z_drop(z_move(service_data->qable));
+  for (auto & id_query : service_data->id_query_map) {
+    z_drop(z_move(id_query.second));
+  }
 
   allocator->deallocate(service_data->request_type_support, allocator->state);
   allocator->deallocate(service_data->response_type_support, allocator->state);
@@ -2404,8 +2408,7 @@ rmw_take_request(
     RMW_SET_ERROR_MSG("Query id not found in id_query_map");
     return RMW_RET_ERROR;
   }
-  const saved_queryable_data * query = (*query_ret).second.get();
-  const z_owned_query_t * owned_query_ptr = &query->query;
+  const z_owned_query_t * owned_query_ptr = (*query_ret).second.get();
   // TODO(francocipollone): Remove the query id from the to_take collection
   service_data->to_take.pop_back();
   service_data->query_queue_mutex.unlock();
@@ -2439,10 +2442,8 @@ rmw_take_request(
 
   RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "[rmw_take_request] deserialized message");
 
-
   // Fill in the request header.
   request_header->request_id.sequence_number = query_id;
-
 
   *taken = true;
 
@@ -2520,13 +2521,12 @@ rmw_send_response(
 
   // Create the queryable payload
   service_data->query_queue_mutex.lock();
-  auto query = service_data->id_query_map[request_header->sequence_number]
-    ->query;
+  auto owned_query_ptr = service_data->id_query_map[request_header->sequence_number].get();
   service_data->query_queue_mutex.unlock();
 
   z_query_reply_options_t options = z_query_reply_options_default();
   options.encoding = z_encoding(Z_ENCODING_PREFIX_EMPTY, NULL);
-  const z_query_t loaned_query = z_loan(query);
+  const z_query_t loaned_query = z_loan(*owned_query_ptr);
   const z_query_t * query_ptr = &loaned_query;
   z_query_reply(
     query_ptr, z_query_keyexpr(query_ptr), reinterpret_cast<const uint8_t *>(
