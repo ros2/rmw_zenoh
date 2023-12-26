@@ -174,11 +174,7 @@ struct rmw_client_data_t
 {
   const char * service_name;
 
-  // TODO(francocipollone): Remove this. For some reason if I remove this(not being even used) it
-  //                        ends up panicking when calling the service. Something is missing.
-  z_owned_reply_channel_t zn_reply_channel;
   z_owned_closure_reply_t zn_closure_reply;
-
 
   std::mutex message_mutex;
   std::unique_ptr<saved_msg_data> message;
