@@ -137,14 +137,13 @@ void service_data_handler(const z_query_t * query, void * service_data);
 
 void client_data_handler(z_owned_reply_t * reply, void * client_data);
 
-
 ///==============================================================================
 
 struct rmw_service_data_t
 {
-  unsigned int get_new_uid();
+  std::size_t get_new_uid();
 
-  const char * keyexpr;
+  z_owned_keyexpr_t keyexpr;
   z_owned_queryable_t qable;
 
   const void * request_type_support_impl;
@@ -157,27 +156,27 @@ struct rmw_service_data_t
 
   // Map to store the query id and the query.
   // The query handler is saved as it is needed to answer the query later on.
-  std::unordered_map<unsigned int, std::unique_ptr<z_owned_query_t>> id_query_map;
+  std::unordered_map<std::size_t, z_owned_query_t> id_query_map;
   // The query id's of the queries that need to be processed.
-  std::deque<unsigned int> to_take;
+  std::deque<std::size_t> to_take;
   std::mutex query_queue_mutex;
 
   std::mutex internal_mutex;
   std::condition_variable * condition{nullptr};
 
-  unsigned int client_count{};
+  std::size_t client_count = 0;
 };
 
 ///==============================================================================
 
 struct rmw_client_data_t
 {
-  const char * service_name;
+  z_owned_keyexpr_t keyexpr;
 
   z_owned_closure_reply_t zn_closure_reply;
 
   std::mutex message_mutex;
-  std::unique_ptr<saved_msg_data> message;
+  std::vector<z_owned_reply_t> replies;
 
   const void * request_type_support_impl;
   const void * response_type_support_impl;
