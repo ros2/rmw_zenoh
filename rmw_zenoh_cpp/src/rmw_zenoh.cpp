@@ -1885,7 +1885,7 @@ rmw_destroy_client(rmw_node_t * node, rmw_client_t * client)
   z_drop(z_move(client_data->zn_closure_reply));
   // z_drop(z_move(client_data->channel));
   z_drop(z_move(client_data->keyexpr));
-  for(z_owned_reply_t & reply : client_data->replies) {
+  for (z_owned_reply_t & reply : client_data->replies) {
     z_reply_drop(&reply);
   }
   client_data->replies.clear();
@@ -1990,7 +1990,9 @@ rmw_send_request(
 
   client_data->zn_closure_reply = z_closure(client_data_handler, nullptr, client_data);
 
-  z_get(z_loan(context_impl->session), z_loan(client_data->keyexpr), "", &client_data->zn_closure_reply, &opts);
+  z_get(
+    z_loan(context_impl->session), z_loan(
+      client_data->keyexpr), "", &client_data->zn_closure_reply, &opts);
 
   // z_owned_reply_channel_t channel = zc_reply_non_blocking_fifo_new(16);
   // z_get(z_loan(context_impl->session), z_loan(client_data->keyexpr), "", z_move(channel.send),
@@ -2085,7 +2087,7 @@ rmw_take_response(
 
   *taken = true;
 
-  for(z_owned_reply_t & reply : client_data->replies) {
+  for (z_owned_reply_t & reply : client_data->replies) {
     z_reply_drop(&reply);
   }
   client_data->replies.clear();
