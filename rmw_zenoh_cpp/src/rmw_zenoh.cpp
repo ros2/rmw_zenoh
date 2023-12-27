@@ -1739,6 +1739,13 @@ rmw_create_client(
       allocator->deallocate(client_data, allocator->state);
     });
 
+  RMW_TRY_PLACEMENT_NEW(client_data, client_data, return nullptr, rmw_client_data_t);
+  auto destruct_client_data = rcpputils::make_scope_exit(
+    [client_data]() {
+      RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(
+        client_data->~rmw_client_data_t(),
+        rmw_client_data_t);
+    });
 
   // Obtain the type support
   const rosidl_service_type_support_t * type_support = find_service_type_support(type_supports);
@@ -1809,43 +1816,39 @@ rmw_create_client(
     });
 
   // Populate the rmw_client.
-  rmw_client->data = client_data;
   rmw_client->implementation_identifier = rmw_zenoh_identifier;
-
   rmw_client->service_name = rcutils_strdup(service_name, *allocator);
-
   RMW_CHECK_FOR_NULL_WITH_MSG(
     rmw_client->service_name,
     "failed to allocate client name",
     return nullptr);
-
   auto free_service_name = rcpputils::make_scope_exit(
     [rmw_client, allocator]() {
       allocator->deallocate(const_cast<char *>(rmw_client->service_name), allocator->state);
     });
 
-  // Zenoh implementation for the client
-
-  // TODO(francocipollone): Replace ros_topic_name_to_zenoh_key by service related function.
-  //                        If this is enough simply rename the method.
-  z_owned_keyexpr_t keyexpr = ros_topic_name_to_zenoh_key(
+  client_data->keyexpr = ros_topic_name_to_zenoh_key(
     rmw_client->service_name, node->context->actual_domain_id, allocator);
-  auto always_free_ros_keyexpr = rcpputils::make_scope_exit(
-    [&keyexpr]() {
-      z_keyexpr_drop(z_move(keyexpr));
+  auto free_ros_keyexpr = rcpputils::make_scope_exit(
+    [client_data]() {
+      z_keyexpr_drop(z_move(client_data->keyexpr));
     });
-  if (!z_keyexpr_check(&keyexpr)) {
+  if (!z_keyexpr_check(&client_data->keyexpr)) {
     RMW_SET_ERROR_MSG("unable to create zenoh keyexpr.");
     return nullptr;
   }
+
+  rmw_client->data = client_data;
 
   free_rmw_client.cancel();
   free_client_data.cancel();
   free_request_type_support.cancel();
   destruct_request_type_support.cancel();
   free_response_type_support.cancel();
+  destruct_client_data.cancel();
   destruct_response_type_support.cancel();
   free_service_name.cancel();
+  free_ros_keyexpr.cancel();
 
   return rmw_client;
 }
@@ -1855,11 +1858,10 @@ rmw_create_client(
 rmw_ret_t
 rmw_destroy_client(rmw_node_t * node, rmw_client_t * client)
 {
-  RCUTILS_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "[rmw_destroy_client] %s", client->service_name);
-
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(client, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(client->data, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node,
     node->implementation_identifier,
@@ -1873,14 +1875,20 @@ rmw_destroy_client(rmw_node_t * node, rmw_client_t * client)
 
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
-  auto client_data = static_cast<rmw_client_data_t *>(client->data);
+  rmw_client_data_t * client_data = static_cast<rmw_client_data_t *>(client->data);
   RMW_CHECK_FOR_NULL_WITH_MSG(
     client_data,
-    "client implementation pointer is null",
+    "client implementation pointer is null.",
     return RMW_RET_INVALID_ARGUMENT);
 
   // CLEANUP ===================================================================
-  z_drop(z_move(client_data->zn_closure_reply));
+  // z_drop(z_move(client_data->zn_closure_reply));
+  z_drop(z_move(client_data->channel));
+  z_drop(z_move(client_data->keyexpr));
+  for(z_owned_reply_t & reply : client_data->replies) {
+    z_reply_drop(&reply);
+  }
+  client_data->replies.clear();
 
   allocator->deallocate(client_data->request_type_support, allocator->state);
   allocator->deallocate(client_data->response_type_support, allocator->state);
@@ -1889,8 +1897,6 @@ rmw_destroy_client(rmw_node_t * node, rmw_client_t * client)
   allocator->deallocate(const_cast<char *>(client->service_name), allocator->state);
   allocator->deallocate(client, allocator->state);
 
-  RCUTILS_LOG_DEBUG_NAMED(
-    "rmw_zenoh_cpp", "[rmw_destroy_client] %s FINISHED", client->service_name);
   return RMW_RET_OK;
 }
 
@@ -1904,23 +1910,21 @@ rmw_send_request(
 {
   RCUTILS_LOG_INFO_NAMED(
     "rmw_zenoh_cpp", "[rmw_send_request]");
-
   RMW_CHECK_ARGUMENT_FOR_NULL(client, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(client->data, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(ros_request, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(sequence_id, RMW_RET_INVALID_ARGUMENT);
-
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     client,
     client->implementation_identifier,
     rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
+  rmw_client_data_t * client_data = static_cast<rmw_client_data_t *>(client->data);
   RMW_CHECK_FOR_NULL_WITH_MSG(
-    client->data,
-    "client implementation pointer is null",
+    client_data,
+    "Unable to retrieve client_data from client.",
     RMW_RET_INVALID_ARGUMENT);
-
-  auto * client_data = static_cast<rmw_client_data_t *>(client->data);
 
   rmw_context_impl_s * context_impl = static_cast<rmw_context_impl_s *>(
     client_data->context->impl);
@@ -1967,24 +1971,51 @@ rmw_send_request(
 
   // Send request
   z_get_options_t opts = z_get_options_default();
+  opts.target = Z_QUERY_TARGET_ALL;
   opts.value.payload = z_bytes_t{data_length, reinterpret_cast<const uint8_t *>(request_bytes)};
   opts.value.encoding = z_encoding(Z_ENCODING_PREFIX_EMPTY, NULL);
 
-  z_owned_keyexpr_t keyexpr = ros_topic_name_to_zenoh_key(
-    client->service_name, client_data->context->actual_domain_id, allocator);
-  auto always_free_ros_keyexpr = rcpputils::make_scope_exit(
-    [&keyexpr]() {
-      z_keyexpr_drop(z_move(keyexpr));
-    });
-  if (!z_keyexpr_check(&keyexpr)) {
-    RMW_SET_ERROR_MSG("unable to create zenoh keyexpr.");
-    return RMW_RET_ERROR;
+  // z_owned_keyexpr_t keyexpr = ros_topic_name_to_zenoh_key(
+  //   client->service_name, client_data->context->actual_domain_id, allocator);
+  // auto always_free_ros_keyexpr = rcpputils::make_scope_exit(
+  //   [&keyexpr]() {
+  //     z_keyexpr_drop(z_move(keyexpr));
+  //   });
+  // if (!z_keyexpr_check(&keyexpr)) {
+  //   RMW_SET_ERROR_MSG("unable to create zenoh keyexpr.");
+  //   return RMW_RET_ERROR;
+  // }
+
+  // client_data->service_name = client->service_name;
+
+  // client_data->zn_closure_reply = z_closure(client_data_handler, nullptr, client_data);
+
+  // z_get(z_loan(context_impl->session), z_loan(keyexpr), "", &client_data->zn_closure_reply, &opts);
+
+  client_data->channel = zc_reply_non_blocking_fifo_new(16);
+  z_get(z_loan(context_impl->session), z_loan(client_data->keyexpr), "", z_move(client_data->channel.send),
+        &opts);  // here, the send is moved and will be dropped by zenoh when adequate
+  z_owned_reply_t reply = z_reply_null();
+  for (bool call_success = z_call(client_data->channel.recv, &reply); !call_success || z_check(reply);
+        call_success = z_call(client_data->channel.recv, &reply)) {
+      if (!call_success) {
+          RCUTILS_LOG_WARN_NAMED(
+            "rmw_zenoh_cpp", "[rmw_send_request] call unsuccessful");
+          continue;
+      }
+      if (z_reply_is_ok(&reply)) {
+        client_data->replies.push_back(std::move(reply));
+        std::lock_guard<std::mutex> internal_lock(client_data->internal_mutex);
+        if (client_data->condition != nullptr) {
+          client_data->condition->notify_one();
+        }
+        // reply = z_reply_null();
+      } else {
+          RCUTILS_LOG_WARN_NAMED(
+            "rmw_zenoh_cpp", "[rmw_send_request] z_reply is not ok");
+          return RMW_RET_ERROR;
+      }
   }
-
-  client_data->service_name = client->service_name;
-  client_data->zn_closure_reply = z_closure(client_data_handler, nullptr, client_data);
-
-  z_get(z_loan(context_impl->session), z_loan(keyexpr), "", &client_data->zn_closure_reply, &opts);
 
   return RMW_RET_OK;
 }
@@ -2002,41 +2033,39 @@ rmw_take_response(
   RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "[rmw_take_response]");
 
   RMW_CHECK_ARGUMENT_FOR_NULL(client, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(client->data, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(ros_response, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(taken, RMW_RET_INVALID_ARGUMENT);
-
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     client,
     client->implementation_identifier,
     rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
-
   RMW_CHECK_FOR_NULL_WITH_MSG(
     client->service_name, "client has no service name", RMW_RET_INVALID_ARGUMENT);
+
+  rmw_client_data_t * client_data = static_cast<rmw_client_data_t *>(client->data);
   RMW_CHECK_FOR_NULL_WITH_MSG(
-    client->data, "client implementation pointer is null", RMW_RET_INVALID_ARGUMENT);
+    client->data, "Unable to retrieve client_data from client.", RMW_RET_INVALID_ARGUMENT);
 
+  z_owned_reply_t * latest_reply = nullptr;
 
-  auto client_data = static_cast<rmw_client_data_t *>(client->data);
-
-  std::unique_ptr<saved_msg_data> msg_data = nullptr;
-
-  {
-    std::lock_guard<std::mutex> lock(client_data->message_mutex);
-    if (client_data->message == nullptr) {
-      // TODO(francocipollone): Verify behavior.
-      RCUTILS_LOG_ERROR_NAMED("rmw_zenoh_cpp", "[rmw_take_response] Response message is empty");
-      return RMW_RET_ERROR;
-    }
-
-    msg_data = std::move(client_data->message);
-    client_data->message.release();
+  std::lock_guard<std::mutex> lock(client_data->message_mutex);
+  if (client_data->replies.empty()) {
+    // TODO(francocipollone): Verify behavior.
+    RCUTILS_LOG_ERROR_NAMED("rmw_zenoh_cpp", "[rmw_take_response] Response message is empty");
+    return RMW_RET_ERROR;
   }
+  latest_reply = &client_data->replies.back();
+  // msg_data = std::move(client_data->message);
+  // client_data->message.release();
+
+  z_sample_t sample = z_reply_ok(latest_reply);
 
   // Object that manages the raw buffer
   eprosima::fastcdr::FastBuffer fastbuffer(
-    reinterpret_cast<char *>(const_cast<uint8_t *>(msg_data->payload.payload.start)),
-    msg_data->payload.payload.len);
+    reinterpret_cast<char *>(const_cast<uint8_t *>(sample.payload.start)),
+    sample.payload.len);
 
   // Object that serializes the data
   eprosima::fastcdr::Cdr deser(
@@ -2053,7 +2082,12 @@ rmw_take_response(
   }
 
   *taken = true;
-  zc_payload_drop(&(msg_data->payload));
+
+  for(z_owned_reply_t & reply : client_data->replies) {
+    z_reply_drop(&reply);
+  }
+  client_data->replies.clear();
+  // zc_payload_drop(&(msg_data->payload));
 
   // TODO(francocipollone): Verify request_header information.
   request_header->request_id.sequence_number = 0;
@@ -2807,7 +2841,7 @@ rmw_wait(
     // Go through each of the clients and attach the wait set condition variable to them.
     // That way they can wake it up if they are triggered while we are waiting.
     for (size_t i = 0; i < clients->client_count; ++i) {
-      auto client_data = static_cast<rmw_client_data_t *>(clients->clients[i]);
+      rmw_client_data_t * client_data = static_cast<rmw_client_data_t *>(clients->clients[i]);
       if (client_data != nullptr) {
         client_data->condition = &wait_set_data->condition_variable;
       }
@@ -2876,12 +2910,13 @@ rmw_wait(
   if (clients) {
     // Now detach the condition variable and mutex from each of the clients
     for (size_t i = 0; i < clients->client_count; ++i) {
-      auto client_data = static_cast<rmw_client_data_t *>(clients->clients[i]);
+      rmw_client_data_t * client_data = static_cast<rmw_client_data_t *>(clients->clients[i]);
       if (client_data != nullptr) {
         client_data->condition = nullptr;
         // According to the documentation for rmw_wait in rmw.h, entries in the
         // array that have *not* been triggered should be set to NULL
-        if (client_data->message == nullptr) {
+        if (client_data->replies.empty()) {
+          printf("client replies are empty!!");
           // Setting to nullptr lets rcl know that this client is not ready
           clients->clients[i] = nullptr;
         }
