@@ -1883,7 +1883,6 @@ rmw_destroy_client(rmw_node_t * node, rmw_client_t * client)
 
   // CLEANUP ===================================================================
   z_drop(z_move(client_data->zn_closure_reply));
-  // z_drop(z_move(client_data->channel));
   z_drop(z_move(client_data->keyexpr));
   for (z_owned_reply_t & reply : client_data->replies) {
     z_reply_drop(&reply);
@@ -1974,53 +1973,11 @@ rmw_send_request(
   opts.target = Z_QUERY_TARGET_ALL;
   opts.value.payload = z_bytes_t{data_length, reinterpret_cast<const uint8_t *>(request_bytes)};
   opts.value.encoding = z_encoding(Z_ENCODING_PREFIX_EMPTY, NULL);
-
-  // z_owned_keyexpr_t keyexpr = ros_topic_name_to_zenoh_key(
-  //   client->service_name, client_data->context->actual_domain_id, allocator);
-  // auto always_free_ros_keyexpr = rcpputils::make_scope_exit(
-  //   [&keyexpr]() {
-  //     z_keyexpr_drop(z_move(keyexpr));
-  //   });
-  // if (!z_keyexpr_check(&keyexpr)) {
-  //   RMW_SET_ERROR_MSG("unable to create zenoh keyexpr.");
-  //   return RMW_RET_ERROR;
-  // }
-
-  // client_data->service_name = client->service_name;
-
   client_data->zn_closure_reply = z_closure(client_data_handler, nullptr, client_data);
-
   z_get(
     z_loan(context_impl->session), z_loan(
       client_data->keyexpr), "", &client_data->zn_closure_reply, &opts);
 
-  // z_owned_reply_channel_t channel = zc_reply_non_blocking_fifo_new(16);
-  // z_get(z_loan(context_impl->session), z_loan(client_data->keyexpr), "", z_move(channel.send),
-  //       &opts);  // here, the send is moved and will be dropped by zenoh when adequate
-  // z_owned_reply_t reply = z_reply_null();
-  // for (bool call_success = z_call(channel.recv, &reply); !call_success || z_check(reply);
-  //       call_success = z_call(channel.recv, &reply)) {
-  //     if (!call_success) {
-  //         RCUTILS_LOG_WARN_NAMED(
-  //           "rmw_zenoh_cpp", "[rmw_send_request] call unsuccessful");
-  //         continue;
-  //     }
-  //     if (z_reply_is_ok(&reply)) {
-  //       client_data->replies.push_back(std::move(reply));
-  //       // reply = z_reply_null();
-  //     } else {
-  //         RCUTILS_LOG_WARN_NAMED(
-  //           "rmw_zenoh_cpp", "[rmw_send_request] z_reply is not ok");
-  //         return RMW_RET_ERROR;
-  //     }
-  // }
-  // std::lock_guard<std::mutex> internal_lock(client_data->internal_mutex);
-  // if (client_data->condition != nullptr) {
-  //   client_data->condition->notify_one();
-  // }
-
-  // z_drop(z_move(channel));
-  // z_reply_drop(&reply);
   return RMW_RET_OK;
 }
 
@@ -2061,9 +2018,6 @@ rmw_take_response(
     return RMW_RET_ERROR;
   }
   latest_reply = &client_data->replies.back();
-  // msg_data = std::move(client_data->message);
-  // client_data->message.release();
-
   z_sample_t sample = z_reply_ok(latest_reply);
 
   // Object that manages the raw buffer
@@ -2091,7 +2045,6 @@ rmw_take_response(
     z_reply_drop(&reply);
   }
   client_data->replies.clear();
-  // zc_payload_drop(&(msg_data->payload));
 
   // TODO(francocipollone): Verify request_header information.
   request_header->request_id.sequence_number = 0;
@@ -2433,16 +2386,10 @@ rmw_take_request(
     RMW_SET_ERROR_MSG("Query id not found in id_query_map");
     return RMW_RET_ERROR;
   }
-  // const z_owned_query_t * owned_query_ptr = (*query_it).second.get();
-  // TODO(francocipollone): Remove the query id from the to_take collection
   service_data->to_take.pop_back();
   service_data->query_queue_mutex.unlock();
 
   // DESERIALIZE MESSAGE ========================================================
-  // if (!z_query_check(owned_query_ptr)) {
-  //   RMW_SET_ERROR_MSG("onwed_query_t contains gravestone, can't deserialize message");
-  //   return RMW_RET_ERROR;
-  // }
   const z_query_t z_loaned_query = z_query_loan(&query_it->second);
   z_value_t payload_value = z_query_value(&z_loaned_query);
 
@@ -2464,8 +2411,6 @@ rmw_take_request(
     RMW_SET_ERROR_MSG("could not deserialize ROS message");
     return RMW_RET_ERROR;
   }
-
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "[rmw_take_request] deserialized message");
 
   // Fill in the request header.
   request_header->request_id.sequence_number = query_id;
@@ -2553,13 +2498,10 @@ rmw_send_response(
     return RMW_RET_ERROR;
   }
   const z_query_t z_loaned_query = z_query_loan(&query_it->second);
-
   z_query_reply_options_t options = z_query_reply_options_default();
   options.encoding = z_encoding(Z_ENCODING_PREFIX_EMPTY, NULL);
-  // const z_query_t loaned_query = z_loan(*owned_query_ptr);
-  // const z_query_t * query_ptr = &loaned_query;
   z_query_reply(
-    &z_loaned_query, z_query_keyexpr(&z_loaned_query), reinterpret_cast<const uint8_t *>(
+    &z_loaned_query, z_loan(service_data->keyexpr), reinterpret_cast<const uint8_t *>(
       response_bytes), data_length + meta_length, &options);
 
   z_drop(z_move(query_it->second));
@@ -2913,7 +2855,6 @@ rmw_wait(
         // According to the documentation for rmw_wait in rmw.h, entries in the
         // array that have *not* been triggered should be set to NULL
         if (client_data->replies.empty()) {
-          printf("client replies are empty!!");
           // Setting to nullptr lets rcl know that this client is not ready
           clients->clients[i] = nullptr;
         }
