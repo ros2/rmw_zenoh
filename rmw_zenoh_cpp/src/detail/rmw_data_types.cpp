@@ -124,65 +124,67 @@ void service_data_handler(const z_query_t * query, void * service_data)
   z_drop(z_move(keystr));
 }
 
-// void client_data_handler(z_owned_reply_t * reply, void * client_data)
-// {
-//   auto rmw_client_data = static_cast<rmw_client_data_t *>(client_data);
-//   if (rmw_client_data == nullptr) {
-//     RCUTILS_LOG_ERROR_NAMED(
-//       "rmw_zenoh_cpp",
-//       "Unable to obtain rmw_client_data_t "
-//     );
-//     return;
-//   }
-//   RCUTILS_LOG_INFO_NAMED(
-//     "rmw_zenoh_cpp",
-//     "[client_data_handler] triggered for %s",
-//     rmw_client_data->service_name
-//   );
-//   if (!z_check(*reply)) {
-//     RCUTILS_LOG_ERROR_NAMED(
-//       "rmw_zenoh_cpp",
-//       "z_check returned False"
-//     );
-//     return;
-//   }
-//   if (!z_reply_check(reply)) {
-//     RCUTILS_LOG_ERROR_NAMED(
-//       "rmw_zenoh_cpp",
-//       "z_reply_check returned False"
-//     );
-//     return;
-//   }
-//   if (!z_reply_is_ok(reply)) {
-//     RCUTILS_LOG_ERROR_NAMED(
-//       "rmw_zenoh_cpp",
-//       "z_reply_is_ok returned False"
-//     );
-//     return;
-//   }
+void client_data_handler(z_owned_reply_t * reply, void * data)
+{
+  auto client_data = static_cast<rmw_client_data_t *>(data);
+  if (client_data == nullptr) {
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to obtain client_data_t "
+    );
+    return;
+  }
+  // RCUTILS_LOG_INFO_NAMED(
+  //   "rmw_zenoh_cpp",
+  //   "[client_data_handler] triggered for %s",
+  //   client_data->service_name
+  // );
+  // if (!z_check(*reply)) {
+  //   RCUTILS_LOG_ERROR_NAMED(
+  //     "rmw_zenoh_cpp",
+  //     "z_check returned False"
+  //   );
+  //   return;
+  // }
+  if (!z_reply_check(reply)) {
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "z_reply_check returned False"
+    );
+    return;
+  }
+  if (!z_reply_is_ok(reply)) {
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "z_reply_is_ok returned False"
+    );
+    return;
+  }
 
-//   z_sample_t sample = z_reply_ok(reply);
+  // z_sample_t sample = z_reply_ok(reply);
 
-//   z_owned_str_t keystr = z_keyexpr_to_string(sample.keyexpr);
+  // z_owned_str_t keystr = z_keyexpr_to_string(sample.keyexpr);
 
-//   RCUTILS_LOG_DEBUG_NAMED(
-//     "rmw_zenoh_cpp",
-//     "[client_data_handler] keyexpr of sample: %s",
-//     z_loan(keystr)
-//   );
+  // RCUTILS_LOG_DEBUG_NAMED(
+  //   "rmw_zenoh_cpp",
+  //   "[client_data_handler] keyexpr of sample: %s",
+  //   z_loan(keystr)
+  // );
 
-//   {
-//     std::lock_guard<std::mutex> msg_lock(rmw_client_data->message_mutex);
-//     rmw_client_data->message = std::make_unique<saved_msg_data>(
-//       zc_sample_payload_rcinc(&sample), sample.timestamp.time, sample.timestamp.id.id);
-//   }
-//   {
-//     std::lock_guard<std::mutex> internal_lock(rmw_client_data->internal_mutex);
-//     if (rmw_client_data->condition != nullptr) {
-//       rmw_client_data->condition->notify_one();
-//     }
-//   }
+  {
+    std::lock_guard<std::mutex> msg_lock(client_data->message_mutex);
+    // client_data->message = std::make_unique<saved_msg_data>(
+    //   zc_sample_payload_rcinc(&sample), sample.timestamp.time, sample.timestamp.id.id);
+    // Take ownership of the reply.
+    client_data->replies.emplace_back(*reply);
+    *reply = z_reply_null();
+  }
+  {
+    std::lock_guard<std::mutex> internal_lock(client_data->internal_mutex);
+    if (client_data->condition != nullptr) {
+      client_data->condition->notify_one();
+    }
+  }
 
-//   z_reply_drop(reply);
-//   z_drop(z_move(keystr));
-// }
+  // z_drop(z_move(keystr));
+}

@@ -135,7 +135,7 @@ struct rmw_subscription_data_t
 // z_owned_closure_query_t
 void service_data_handler(const z_query_t * query, void * service_data);
 
-// void client_data_handler(z_owned_reply_t * reply, void * client_data);
+void client_data_handler(z_owned_reply_t * reply, void * client_data);
 
 
 ///==============================================================================
@@ -175,8 +175,8 @@ struct rmw_client_data_t
   // const char * service_name;
   z_owned_keyexpr_t keyexpr;
 
-  // z_owned_closure_reply_t zn_closure_reply;
-  z_owned_reply_channel_t channel;
+  z_owned_closure_reply_t zn_closure_reply;
+  // z_owned_reply_channel_t channel;
 
   std::mutex message_mutex;
   std::vector<z_owned_reply_t> replies;

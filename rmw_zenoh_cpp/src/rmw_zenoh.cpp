@@ -1882,8 +1882,8 @@ rmw_destroy_client(rmw_node_t * node, rmw_client_t * client)
     return RMW_RET_INVALID_ARGUMENT);
 
   // CLEANUP ===================================================================
-  // z_drop(z_move(client_data->zn_closure_reply));
-  z_drop(z_move(client_data->channel));
+  z_drop(z_move(client_data->zn_closure_reply));
+  // z_drop(z_move(client_data->channel));
   z_drop(z_move(client_data->keyexpr));
   for(z_owned_reply_t & reply : client_data->replies) {
     z_reply_drop(&reply);
@@ -1988,35 +1988,37 @@ rmw_send_request(
 
   // client_data->service_name = client->service_name;
 
-  // client_data->zn_closure_reply = z_closure(client_data_handler, nullptr, client_data);
+  client_data->zn_closure_reply = z_closure(client_data_handler, nullptr, client_data);
 
-  // z_get(z_loan(context_impl->session), z_loan(keyexpr), "", &client_data->zn_closure_reply, &opts);
+  z_get(z_loan(context_impl->session), z_loan(client_data->keyexpr), "", &client_data->zn_closure_reply, &opts);
 
-  client_data->channel = zc_reply_non_blocking_fifo_new(16);
-  z_get(z_loan(context_impl->session), z_loan(client_data->keyexpr), "", z_move(client_data->channel.send),
-        &opts);  // here, the send is moved and will be dropped by zenoh when adequate
-  z_owned_reply_t reply = z_reply_null();
-  for (bool call_success = z_call(client_data->channel.recv, &reply); !call_success || z_check(reply);
-        call_success = z_call(client_data->channel.recv, &reply)) {
-      if (!call_success) {
-          RCUTILS_LOG_WARN_NAMED(
-            "rmw_zenoh_cpp", "[rmw_send_request] call unsuccessful");
-          continue;
-      }
-      if (z_reply_is_ok(&reply)) {
-        client_data->replies.push_back(std::move(reply));
-        std::lock_guard<std::mutex> internal_lock(client_data->internal_mutex);
-        if (client_data->condition != nullptr) {
-          client_data->condition->notify_one();
-        }
-        // reply = z_reply_null();
-      } else {
-          RCUTILS_LOG_WARN_NAMED(
-            "rmw_zenoh_cpp", "[rmw_send_request] z_reply is not ok");
-          return RMW_RET_ERROR;
-      }
-  }
+  // z_owned_reply_channel_t channel = zc_reply_non_blocking_fifo_new(16);
+  // z_get(z_loan(context_impl->session), z_loan(client_data->keyexpr), "", z_move(channel.send),
+  //       &opts);  // here, the send is moved and will be dropped by zenoh when adequate
+  // z_owned_reply_t reply = z_reply_null();
+  // for (bool call_success = z_call(channel.recv, &reply); !call_success || z_check(reply);
+  //       call_success = z_call(channel.recv, &reply)) {
+  //     if (!call_success) {
+  //         RCUTILS_LOG_WARN_NAMED(
+  //           "rmw_zenoh_cpp", "[rmw_send_request] call unsuccessful");
+  //         continue;
+  //     }
+  //     if (z_reply_is_ok(&reply)) {
+  //       client_data->replies.push_back(std::move(reply));
+  //       // reply = z_reply_null();
+  //     } else {
+  //         RCUTILS_LOG_WARN_NAMED(
+  //           "rmw_zenoh_cpp", "[rmw_send_request] z_reply is not ok");
+  //         return RMW_RET_ERROR;
+  //     }
+  // }
+  // std::lock_guard<std::mutex> internal_lock(client_data->internal_mutex);
+  // if (client_data->condition != nullptr) {
+  //   client_data->condition->notify_one();
+  // }
 
+  // z_drop(z_move(channel));
+  // z_reply_drop(&reply);
   return RMW_RET_OK;
 }
 
