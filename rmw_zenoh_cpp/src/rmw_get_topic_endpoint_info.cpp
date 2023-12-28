@@ -13,7 +13,12 @@
 // limitations under the License.
 
 
+#include "detail/identifier.hpp"
+#include "detail/liveliness_utils.hpp"
+#include "detail/rmw_data_types.hpp"
+
 #include "rmw/get_topic_endpoint_info.h"
+#include "rmw/impl/cpp/macros.hpp"
 
 extern "C"
 {
@@ -27,12 +32,20 @@ rmw_get_publishers_info_by_topic(
   bool no_mangle,
   rmw_topic_endpoint_info_array_t * publishers_info)
 {
-  static_cast<void>(node);
-  static_cast<void>(allocator);
-  static_cast<void>(topic_name);
-  static_cast<void>(no_mangle);
-  static_cast<void>(publishers_info);
-  return RMW_RET_OK;
+  RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    node,
+    node->implementation_identifier,
+    rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->context, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
+  return node->context->impl->graph_cache.get_entities_info_by_topic(
+    liveliness::EntityType::Publisher,
+    allocator,
+    topic_name,
+    no_mangle,
+    publishers_info);
 }
 
 ///==============================================================================
@@ -45,11 +58,19 @@ rmw_get_subscriptions_info_by_topic(
   bool no_mangle,
   rmw_topic_endpoint_info_array_t * subscriptions_info)
 {
-  static_cast<void>(node);
-  static_cast<void>(allocator);
-  static_cast<void>(topic_name);
-  static_cast<void>(no_mangle);
-  static_cast<void>(subscriptions_info);
-  return RMW_RET_OK;
+  RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    node,
+    node->implementation_identifier,
+    rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->context, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
+  return node->context->impl->graph_cache.get_entities_info_by_topic(
+    liveliness::EntityType::Subscription,
+    allocator,
+    topic_name,
+    no_mangle,
+    subscriptions_info);
 }
 }  // extern "C"

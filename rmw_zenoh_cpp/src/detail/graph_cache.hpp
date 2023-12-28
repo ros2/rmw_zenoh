@@ -29,6 +29,7 @@
 #include "rcutils/types.h"
 
 #include "rmw/rmw.h"
+#include "rmw/get_topic_endpoint_info.h"
 #include "rmw/names_and_types.h"
 
 
@@ -107,6 +108,13 @@ public:
     const char * node_namespace,
     bool no_demangle,
     rmw_names_and_types_t * names_and_types) const;
+
+  rmw_ret_t get_entities_info_by_topic(
+    liveliness::EntityType entity_type,
+    rcutils_allocator_t * allocator,
+    const char * topic_name,
+    bool no_demangle,
+    rmw_topic_endpoint_info_array_t * endpoints_info) const;
 
 private:
   /*
