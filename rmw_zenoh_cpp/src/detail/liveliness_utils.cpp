@@ -255,7 +255,7 @@ std::optional<Entity> Entity::make(const std::string & keyexpr)
   if (entity_it == str_to_entity.end()) {
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
-      "Received liveliness token with invalid entity.");
+      "Received liveliness token with invalid entity %s.", entity_str.c_str());
     return std::nullopt;
   }
 

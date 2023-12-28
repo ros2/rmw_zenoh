@@ -34,9 +34,14 @@
 
 
 ///=============================================================================
+// TODO(Yadunund): Since we reuse pub_count_ and sub_count_ for pub/sub and
+// service/client consider more general names for these fields.
 struct TopicStats
 {
+  // The count of publishers or clients.
   std::size_t pub_count_;
+
+  // The count of subscriptions or services.
   std::size_t sub_count_;
 
   // Constructor which initializes counters to 0.
@@ -69,8 +74,15 @@ struct GraphNode
   using TopicDataMap = std::unordered_map<std::string, TopicDataPtr>;
   // Map topic name to TopicDataMap
   using TopicMap = std::unordered_map<std::string, TopicDataMap>;
+
+  // Entries for pub/sub.
   TopicMap pubs_ = {};
   TopicMap subs_ = {};
+
+  // Entires for service/client.
+  TopicMap clients_ = {};
+  TopicMap services_ = {};
+
 };
 using GraphNodePtr = std::shared_ptr<GraphNode>;
 
@@ -146,8 +158,10 @@ private:
   // Map namespace to a map of <node_name, GraphNodePtr>.
   NamespaceMap graph_ = {};
 
-  // Optimize topic lookups across the graph.
+  // Optimize pub/sub lookups across the graph.
   GraphNode::TopicMap graph_topics_ = {};
+  // Optimize service/client lookups across the graph.
+  GraphNode::TopicMap graph_services_ = {};
 
   mutable std::mutex graph_mutex_;
 };
