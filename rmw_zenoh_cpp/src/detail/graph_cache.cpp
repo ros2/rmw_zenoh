@@ -755,6 +755,40 @@ rmw_ret_t GraphCache::count_subscriptions(
 }
 
 ///=============================================================================
+rmw_ret_t GraphCache::count_services(
+  const char * service_name,
+  size_t * count) const
+{
+  *count = 0;
+  std::lock_guard<std::mutex> lock(graph_mutex_);
+  if (graph_services_.count(service_name) != 0) {
+    for (const std::pair<const std::string, TopicDataPtr> & it : graph_services_.at(service_name)) {
+      // Iterate through all the types and increment count.
+      *count += it.second->stats_.sub_count_;
+    }
+  }
+
+  return RMW_RET_OK;
+}
+
+///=============================================================================
+rmw_ret_t GraphCache::count_clients(
+  const char * service_name,
+  size_t * count) const
+{
+  *count = 0;
+  std::lock_guard<std::mutex> lock(graph_mutex_);
+  if (graph_services_.count(service_name) != 0) {
+    for (const std::pair<const std::string, TopicDataPtr> & it : graph_services_.at(service_name)) {
+      // Iterate through all the types and increment count.
+      *count += it.second->stats_.pub_count_;
+    }
+  }
+
+  return RMW_RET_OK;
+}
+
+///=============================================================================
 rmw_ret_t GraphCache::get_entity_names_and_types_by_node(
   liveliness::EntityType entity_type,
   rcutils_allocator_t * allocator,

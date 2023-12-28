@@ -118,6 +118,14 @@ public:
     const char * topic_name,
     size_t * count) const;
 
+  rmw_ret_t count_services(
+    const char * service_name,
+    size_t * count) const;
+
+  rmw_ret_t count_clients(
+    const char * service_name,
+    size_t * count) const;
+
   rmw_ret_t get_entity_names_and_types_by_node(
     liveliness::EntityType entity_type,
     rcutils_allocator_t * allocator,
