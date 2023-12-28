@@ -66,6 +66,7 @@ static const char PUB_STR[] = "MP";
 static const char SUB_STR[] = "MS";
 static const char SRV_STR[] = "SS";
 static const char CLI_STR[] = "SC";
+static const char SLASH_REPLACEMENT = '%';
 
 static const std::unordered_map<EntityType, std::string> entity_to_str = {
   {EntityType::Node, NODE_STR},
@@ -149,12 +150,12 @@ Entity::Entity(
     token_ss << "/";
   }
   // Finally append node name.
-  token_ss << node_info_.name_;
+  token_ss << mangle_name(node_info_.name_);
   // If this entity has a topic info, append it to the token.
   if (topic_info_.has_value()) {
     const auto & topic_info = this->topic_info_.value();
     // Note: We don't append a leading "/" as we expect the ROS topic name to start with a "/".
-    token_ss << topic_info.name_ + "/" + topic_info.type_ + "/" + topic_info.qos_;
+    token_ss << "/" + mangle_name(topic_info.name_) + "/" + topic_info.type_ + "/" + topic_info.qos_;
   }
 
   this->keyexpr_ = token_ss.str();
@@ -263,7 +264,7 @@ std::optional<Entity> Entity::make(const std::string & keyexpr)
   std::size_t domain_id = std::stoul(parts[1]);
   std::string & id = parts[2];
   std::string ns = parts[4] == "_" ? "/" : "/" + std::move(parts[4]);
-  std::string node_name = std::move(parts[5]);
+  std::string node_name = demangle_name(std::move(parts[5]));
   std::optional<TopicInfo> topic_info = std::nullopt;
 
   // Populate topic_info if we have a token for an entity other than a node.
@@ -275,7 +276,7 @@ std::optional<Entity> Entity::make(const std::string & keyexpr)
       return std::nullopt;
     }
     topic_info = TopicInfo{
-      "/" + std::move(parts[6]),
+      demangle_name(std::move(parts[6])),
       std::move(parts[7]),
       std::move(parts[8])};
   }
@@ -385,6 +386,34 @@ bool PublishToken::del(
   }
 
   return true;
+}
+
+///=============================================================================
+std::string mangle_name(const std::string& input) {
+  std::string output = "";
+  for (std::size_t i = 0; i < input.length(); ++i) {
+    if (input[i] == '/') {
+      output += SLASH_REPLACEMENT;
+    }
+    else {
+      output += input[i];
+    }
+  }
+  return output;
+}
+
+///=============================================================================
+std::string demangle_name(const std::string& input) {
+  std::string output = "";
+  for (std::size_t i = 0; i < input.length(); ++i) {
+    if (input[i] == SLASH_REPLACEMENT) {
+      output += '/';
+    }
+    else {
+      output += input[i];
+    }
+  }
+  return output;
 }
 
 }  // namespace liveliness

@@ -133,6 +133,12 @@ public:
     const std::string & token);
 };
 
+/// Replace "/" instances with "§".
+std::string mangle_name(const std::string& input);
+
+/// Replace "§" instances with "/".
+std::string demangle_name(const std::string& input);
+
 }  // namespace liveliness
 
 #endif  // DETAIL__LIVELINESS_UTILS_HPP_
