@@ -1851,15 +1851,27 @@ rmw_create_client(
     return nullptr;
   }
 
-  // Note: The typename in the liveliness token is the that of the request.
-  // When updating the graph cache, the _Response suffix will be removed such
-  // that the types of clients and services will match.
+  // Note: Service request/response types will contain a suffix Request_ or Response_.
+  // We remove the suffix when appending the type to the liveliness tokens for
+  // better reusability within GraphCache.
+  std::string service_type = client_data->request_type_support->get_name();
+  size_t suffix_substring_position = service_type.find("Request_");
+  if (std::string::npos != suffix_substring_position) {
+    service_type = service_type.substr(0, suffix_substring_position);
+  }
+  else {
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unexpected type %s for client %s. Report this bug",
+      service_type.c_str(), rmw_client->service_name);
+      return nullptr;
+  }
   const auto liveliness_entity = liveliness::Entity::make(
     z_info_zid(z_loan(node->context->impl->session)),
     liveliness::EntityType::Client,
     liveliness::NodeInfo{node->context->actual_domain_id, node->namespace_, node->name, ""},
     liveliness::TopicInfo{rmw_client->service_name,
-      client_data->request_type_support->get_name(), "reliable"}
+      std::move(service_type), "reliable"}
   );
   if (!liveliness_entity.has_value()) {
     RCUTILS_LOG_ERROR_NAMED(
@@ -2423,15 +2435,27 @@ rmw_create_service(
       z_undeclare_queryable(z_move(service_data->qable));
     });
 
-  // Note: The typename in the liveliness token is the that of the request.
-  // When updating the graph cache, the _Response suffix will be removed such
-  // that the types of clients and services will match.
+  // Note: Service request/response types will contain a suffix Request_ or Response_.
+  // We remove the suffix when appending the type to the liveliness tokens for
+  // better reusability within GraphCache.
+  std::string service_type = service_data->response_type_support->get_name();
+  size_t suffix_substring_position = service_type.find("Response_");
+  if (std::string::npos != suffix_substring_position) {
+    service_type = service_type.substr(0, suffix_substring_position);
+  }
+  else {
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unexpected type %s for service %s. Report this bug",
+      service_type.c_str(), rmw_service->service_name);
+      return nullptr;
+  }
   const auto liveliness_entity = liveliness::Entity::make(
     z_info_zid(z_loan(node->context->impl->session)),
     liveliness::EntityType::Service,
     liveliness::NodeInfo{node->context->actual_domain_id, node->namespace_, node->name, ""},
     liveliness::TopicInfo{rmw_service->service_name,
-      service_data->response_type_support->get_name(), "reliable"}
+      std::move(service_type), "reliable"}
   );
   if (!liveliness_entity.has_value()) {
     RCUTILS_LOG_ERROR_NAMED(
