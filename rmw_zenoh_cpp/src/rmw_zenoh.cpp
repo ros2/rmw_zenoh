@@ -1851,6 +1851,40 @@ rmw_create_client(
     return nullptr;
   }
 
+  // Note: The typename in the liveliness token is the that of the request.
+  // When updating the graph cache, the _Response suffix will be removed such
+  // that the types of clients and services will match.
+  const auto liveliness_entity = liveliness::Entity::make(
+    z_info_zid(z_loan(node->context->impl->session)),
+    liveliness::EntityType::Client,
+    liveliness::NodeInfo{node->context->actual_domain_id, node->namespace_, node->name, ""},
+    liveliness::TopicInfo{rmw_client->service_name,
+      client_data->request_type_support->get_name(), "reliable"}
+  );
+  if (!liveliness_entity.has_value()) {
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to generate keyexpr for liveliness token for the client.");
+    return nullptr;
+  }
+  client_data->token = zc_liveliness_declare_token(
+    z_loan(node->context->impl->session),
+    z_keyexpr(liveliness_entity->keyexpr().c_str()),
+    NULL
+  );
+  auto free_token = rcpputils::make_scope_exit(
+    [client_data]() {
+      if (client_data != nullptr) {
+        z_drop(z_move(client_data->token));
+      }
+    });
+  if (!z_check(client_data->token)) {
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to create liveliness token for the client.");
+    return nullptr;
+  }
+
   rmw_client->data = client_data;
 
   free_rmw_client.cancel();
@@ -1901,6 +1935,7 @@ rmw_destroy_client(rmw_node_t * node, rmw_client_t * client)
     z_reply_drop(&reply);
   }
   client_data->replies.clear();
+  z_drop(z_move(client_data->token));
 
   allocator->deallocate(client_data->request_type_support, allocator->state);
   allocator->deallocate(client_data->response_type_support, allocator->state);
@@ -2388,7 +2423,39 @@ rmw_create_service(
       z_undeclare_queryable(z_move(service_data->qable));
     });
 
-  // TODO(francocipollone): Update graph cache.
+  // Note: The typename in the liveliness token is the that of the request.
+  // When updating the graph cache, the _Response suffix will be removed such
+  // that the types of clients and services will match.
+  const auto liveliness_entity = liveliness::Entity::make(
+    z_info_zid(z_loan(node->context->impl->session)),
+    liveliness::EntityType::Service,
+    liveliness::NodeInfo{node->context->actual_domain_id, node->namespace_, node->name, ""},
+    liveliness::TopicInfo{rmw_service->service_name,
+      service_data->response_type_support->get_name(), "reliable"}
+  );
+  if (!liveliness_entity.has_value()) {
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to generate keyexpr for liveliness token for the service.");
+    return nullptr;
+  }
+  service_data->token = zc_liveliness_declare_token(
+    z_loan(node->context->impl->session),
+    z_keyexpr(liveliness_entity->keyexpr().c_str()),
+    NULL
+  );
+  auto free_token = rcpputils::make_scope_exit(
+    [service_data]() {
+      if (service_data != nullptr) {
+        z_drop(z_move(service_data->token));
+      }
+    });
+  if (!z_check(service_data->token)) {
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to create liveliness token for the service.");
+    return nullptr;
+  }
 
   rmw_service->data = service_data;
 
@@ -2402,6 +2469,8 @@ rmw_create_service(
   free_response_type_support.cancel();
   free_ros_keyexpr.cancel();
   undeclare_z_queryable.cancel();
+  free_token.cancel();
+
   return rmw_service;
 }
 
@@ -2439,8 +2508,7 @@ rmw_destroy_service(rmw_node_t * node, rmw_service_t * service)
   for (z_owned_query_t & query : service_data->query_queue) {
     z_drop(z_move(query));
   }
-  service_data->query_queue.clear();
-  service_data->sequence_to_query_map.clear();
+  z_drop(z_move(service_data->token));
 
   allocator->deallocate(service_data->request_type_support, allocator->state);
   allocator->deallocate(service_data->response_type_support, allocator->state);
@@ -2449,7 +2517,6 @@ rmw_destroy_service(rmw_node_t * node, rmw_service_t * service)
   allocator->deallocate(const_cast<char *>(service->service_name), allocator->state);
   allocator->deallocate(service, allocator->state);
 
-  // TODO(francocipollone): Update graph cache.
   return RMW_RET_OK;
 }
 
