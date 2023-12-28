@@ -1858,13 +1858,12 @@ rmw_create_client(
   size_t suffix_substring_position = service_type.find("Request_");
   if (std::string::npos != suffix_substring_position) {
     service_type = service_type.substr(0, suffix_substring_position);
-  }
-  else {
+  } else {
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unexpected type %s for client %s. Report this bug",
       service_type.c_str(), rmw_client->service_name);
-      return nullptr;
+    return nullptr;
   }
   const auto liveliness_entity = liveliness::Entity::make(
     z_info_zid(z_loan(node->context->impl->session)),
@@ -2442,13 +2441,12 @@ rmw_create_service(
   size_t suffix_substring_position = service_type.find("Response_");
   if (std::string::npos != suffix_substring_position) {
     service_type = service_type.substr(0, suffix_substring_position);
-  }
-  else {
+  } else {
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unexpected type %s for service %s. Report this bug",
       service_type.c_str(), rmw_service->service_name);
-      return nullptr;
+    return nullptr;
   }
   const auto liveliness_entity = liveliness::Entity::make(
     z_info_zid(z_loan(node->context->impl->session)),
@@ -3312,7 +3310,8 @@ rmw_service_server_is_available(
 
   rmw_client_data_t * client_data = static_cast<rmw_client_data_t *>(client->data);
   if (client_data == nullptr) {
-    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("Unable to retreive client_data from client for service %s", client->service_name);
+    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
+      "Unable to retreive client_data from client for service %s", client->service_name);
     return RMW_RET_INVALID_ARGUMENT;
   }
 
@@ -3320,13 +3319,12 @@ rmw_service_server_is_available(
   size_t suffix_substring_position = service_type.find("Request_");
   if (std::string::npos != suffix_substring_position) {
     service_type = service_type.substr(0, suffix_substring_position);
-  }
-  else {
+  } else {
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unexpected type %s for client %s. Report this bug",
       service_type.c_str(), client->service_name);
-      return RMW_RET_INVALID_ARGUMENT;
+    return RMW_RET_INVALID_ARGUMENT;
   }
 
   return node->context->impl->graph_cache.service_server_is_available(

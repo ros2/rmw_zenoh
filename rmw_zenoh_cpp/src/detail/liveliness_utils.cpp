@@ -155,7 +155,8 @@ Entity::Entity(
   if (topic_info_.has_value()) {
     const auto & topic_info = this->topic_info_.value();
     // Note: We don't append a leading "/" as we expect the ROS topic name to start with a "/".
-    token_ss << "/" + mangle_name(topic_info.name_) + "/" + topic_info.type_ + "/" + topic_info.qos_;
+    token_ss <<
+      "/" + mangle_name(topic_info.name_) + "/" + topic_info.type_ + "/" + topic_info.qos_;
   }
 
   this->keyexpr_ = token_ss.str();
@@ -389,13 +390,13 @@ bool PublishToken::del(
 }
 
 ///=============================================================================
-std::string mangle_name(const std::string& input) {
+std::string mangle_name(const std::string & input)
+{
   std::string output = "";
   for (std::size_t i = 0; i < input.length(); ++i) {
     if (input[i] == '/') {
       output += SLASH_REPLACEMENT;
-    }
-    else {
+    } else {
       output += input[i];
     }
   }
@@ -403,13 +404,13 @@ std::string mangle_name(const std::string& input) {
 }
 
 ///=============================================================================
-std::string demangle_name(const std::string& input) {
+std::string demangle_name(const std::string & input)
+{
   std::string output = "";
   for (std::size_t i = 0; i < input.length(); ++i) {
     if (input[i] == SLASH_REPLACEMENT) {
       output += '/';
-    }
-    else {
+    } else {
       output += input[i];
     }
   }

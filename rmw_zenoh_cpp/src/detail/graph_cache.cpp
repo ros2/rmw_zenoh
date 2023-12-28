@@ -73,7 +73,8 @@ void GraphCache::parse_put(const std::string & keyexpr)
       if (entity.type() != EntityType::Publisher &&
         entity.type() != EntityType::Subscription &&
         entity.type() != EntityType::Service &&
-        entity.type() != EntityType::Client) {
+        entity.type() != EntityType::Client)
+      {
         RCUTILS_LOG_WARN_NAMED(
           "rmw_zenoh_cpp",
           "add_topic_data() for invalid EntityType. Report this.");
@@ -92,29 +93,27 @@ void GraphCache::parse_put(const std::string & keyexpr)
       const liveliness::TopicInfo topic_info = entity.topic_info().value();
       std::string entity_desc = "";
       GraphNode::TopicMap & topic_map =
-        [&]() -> GraphNode::TopicMap&
+        [&]() -> GraphNode::TopicMap &
         {
           if (entity.type() == EntityType::Publisher) {
             entity_desc = "publisher";
             return graph_node.pubs_;
-          }
-          else if (entity.type() == EntityType::Subscription) {
+          } else if (entity.type() == EntityType::Subscription) {
             entity_desc = "subscription";
             return graph_node.subs_;
-          }
-          else if (entity.type() == EntityType::Service) {
+          } else if (entity.type() == EntityType::Service) {
             entity_desc = "service";
             return graph_node.services_;
 
-          }
-          else {
+          } else {
             entity_desc = "client";
             return graph_node.clients_;
           }
         }();
       // For the sake of reusing data structures and lookup functions, we treat publishers and clients are equivalent.
       // Similarly, subscriptions and services are equivalent.
-      const std::size_t pub_count = entity.type() == EntityType::Publisher || entity.type() == EntityType::Client ? 1 : 0;
+      const std::size_t pub_count = entity.type() == EntityType::Publisher ||
+        entity.type() == EntityType::Client ? 1 : 0;
       const std::size_t sub_count = !pub_count;
 
       TopicDataPtr graph_topic_data = std::make_shared<TopicData>(
@@ -331,7 +330,8 @@ void GraphCache::parse_del(const std::string & keyexpr)
       if (entity.type() != EntityType::Publisher &&
         entity.type() != EntityType::Subscription &&
         entity.type() != EntityType::Service &&
-        entity.type() != EntityType::Client) {
+        entity.type() != EntityType::Client)
+      {
         RCUTILS_LOG_WARN_NAMED(
           "rmw_zenoh_cpp",
           "remove_topic_data() for invalid EntityType. Report this.");
@@ -349,29 +349,27 @@ void GraphCache::parse_del(const std::string & keyexpr)
       const liveliness::TopicInfo topic_info = entity.topic_info().value();
       std::string entity_desc = "";
       GraphNode::TopicMap & topic_map =
-        [&]() -> GraphNode::TopicMap&
+        [&]() -> GraphNode::TopicMap &
         {
           if (entity.type() == EntityType::Publisher) {
             entity_desc = "publisher";
             return graph_node.pubs_;
-          }
-          else if (entity.type() == EntityType::Subscription) {
+          } else if (entity.type() == EntityType::Subscription) {
             entity_desc = "subscription";
             return graph_node.subs_;
-          }
-          else if (entity.type() == EntityType::Service) {
+          } else if (entity.type() == EntityType::Service) {
             entity_desc = "service";
             return graph_node.services_;
 
-          }
-          else {
+          } else {
             entity_desc = "client";
             return graph_node.clients_;
           }
         }();
       // For the sake of reusing data structures and lookup functions, we treat publishers and clients are equivalent.
       // Similarly, subscriptions and services are equivalent.
-      const std::size_t pub_count = entity.type() == EntityType::Publisher || entity.type() == EntityType::Client ? 1 : 0;
+      const std::size_t pub_count = entity.type() == EntityType::Publisher ||
+        entity.type() == EntityType::Client ? 1 : 0;
       const std::size_t sub_count = !pub_count;
 
       GraphNode::TopicMap::iterator topic_it = topic_map.find(topic_info.name_);
@@ -463,7 +461,8 @@ void GraphCache::parse_del(const std::string & keyexpr)
       );
       auto remove_topics =
         [&](const GraphNode::TopicMap & topic_map, const EntityType & entity_type) -> void {
-          std::size_t pub_count = entity_type == EntityType::Publisher || entity_type == EntityType::Client ? 1 : 0;
+          std::size_t pub_count = entity_type == EntityType::Publisher ||
+            entity_type == EntityType::Client ? 1 : 0;
           std::size_t sub_count = !pub_count;
           for (auto topic_it = topic_map.begin(); topic_it != topic_map.end(); ++topic_it) {
             for (auto type_it = topic_it->second.begin(); type_it != topic_it->second.end();
@@ -974,9 +973,9 @@ rmw_ret_t GraphCache::service_server_is_available(
   *is_available = false;
   std::lock_guard<std::mutex> lock(graph_mutex_);
   GraphNode::TopicMap::iterator service_it = graph_services_.find(service_name);
-  if (service_it != graph_services_.end()){
+  if (service_it != graph_services_.end()) {
     GraphNode::TopicDataMap::iterator type_it = service_it->second.find(service_type);
-    if (type_it != service_it->second.end()){
+    if (type_it != service_it->second.end()) {
       *is_available = true;
     }
   }
