@@ -963,3 +963,23 @@ rmw_ret_t GraphCache::get_entities_info_by_topic(
   cleanup_endpoints_info.cancel();
   return RMW_RET_OK;
 }
+
+
+///=============================================================================
+rmw_ret_t GraphCache::service_server_is_available(
+  const char * service_name,
+  const char * service_type,
+  bool * is_available)
+{
+  *is_available = false;
+  std::lock_guard<std::mutex> lock(graph_mutex_);
+  GraphNode::TopicMap::iterator service_it = graph_services_.find(service_name);
+  if (service_it != graph_services_.end()){
+    GraphNode::TopicDataMap::iterator type_it = service_it->second.find(service_type);
+    if (type_it != service_it->second.end()){
+      *is_available = true;
+    }
+  }
+
+  return RMW_RET_OK;
+}

@@ -3300,12 +3300,37 @@ rmw_service_server_is_available(
   const rmw_client_t * client,
   bool * is_available)
 {
-  // TODO(francocipollone): Provide a proper implementation.
-  //                        We need graph cache information for this.
-  *is_available = true;
-  static_cast<void>(node);
-  static_cast<void>(client);
-  return RMW_RET_OK;
+  RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    node,
+    node->implementation_identifier,
+    rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_ARGUMENT_FOR_NULL(client, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(client->data, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(is_available, RMW_RET_INVALID_ARGUMENT);
+
+  rmw_client_data_t * client_data = static_cast<rmw_client_data_t *>(client->data);
+  if (client_data == nullptr) {
+    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("Unable to retreive client_data from client for service %s", client->service_name);
+    return RMW_RET_INVALID_ARGUMENT;
+  }
+
+  std::string service_type = client_data->request_type_support->get_name();
+  size_t suffix_substring_position = service_type.find("Request_");
+  if (std::string::npos != suffix_substring_position) {
+    service_type = service_type.substr(0, suffix_substring_position);
+  }
+  else {
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unexpected type %s for client %s. Report this bug",
+      service_type.c_str(), client->service_name);
+      return RMW_RET_INVALID_ARGUMENT;
+  }
+
+  return node->context->impl->graph_cache.service_server_is_available(
+    client->service_name, service_type.c_str(), is_available);
 }
 
 //==============================================================================

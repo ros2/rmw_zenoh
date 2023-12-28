@@ -141,6 +141,11 @@ public:
     bool no_demangle,
     rmw_topic_endpoint_info_array_t * endpoints_info) const;
 
+  rmw_ret_t service_server_is_available(
+    const char * service_name,
+    const char * service_type,
+    bool * is_available);
+
 private:
   /*
   namespace_1:
