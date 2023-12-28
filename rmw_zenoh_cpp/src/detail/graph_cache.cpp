@@ -800,6 +800,10 @@ rmw_ret_t GraphCache::get_entity_names_and_types_by_node(
     return fill_names_and_types(node_it->second->pubs_, allocator, names_and_types);
   } else if (entity_type == EntityType::Subscription) {
     return fill_names_and_types(node_it->second->subs_, allocator, names_and_types);
+  } else if (entity_type == EntityType::Service) {
+    return fill_names_and_types(node_it->second->services_, allocator, names_and_types);
+  } else if (entity_type == EntityType::Client) {
+    return fill_names_and_types(node_it->second->clients_, allocator, names_and_types);
   } else {
     return RMW_RET_OK;
   }
@@ -849,7 +853,6 @@ rmw_ret_t GraphCache::get_entities_info_by_topic(
       }
     }
   }
-
 
   rmw_ret_t ret = rmw_topic_endpoint_info_array_init_with_size(
     endpoints_info,
