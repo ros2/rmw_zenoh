@@ -709,6 +709,18 @@ rmw_ret_t GraphCache::get_topic_names_and_types(
 }
 
 ///=============================================================================
+rmw_ret_t GraphCache::get_service_names_and_types(
+  rcutils_allocator_t * allocator,
+  rmw_names_and_types_t * service_names_and_types) const
+{
+  RCUTILS_CHECK_ALLOCATOR_WITH_MSG(
+    allocator, "get_node_names allocator is not valid", return RMW_RET_INVALID_ARGUMENT);
+
+  std::lock_guard<std::mutex> lock(graph_mutex_);
+  return fill_names_and_types(graph_services_, allocator, service_names_and_types);
+}
+
+///=============================================================================
 rmw_ret_t GraphCache::count_publishers(
   const char * topic_name,
   size_t * count) const

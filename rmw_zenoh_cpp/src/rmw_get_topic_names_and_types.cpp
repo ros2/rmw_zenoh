@@ -14,12 +14,8 @@
 
 #include "detail/rmw_data_types.hpp"
 
-#include "rcutils/strdup.h"
-
 #include "rmw/error_handling.h"
 #include "rmw/get_topic_names_and_types.h"
-
-#include "rcpputils/scope_exit.hpp"
 
 extern "C"
 {

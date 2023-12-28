@@ -106,6 +106,10 @@ public:
     bool no_demangle,
     rmw_names_and_types_t * topic_names_and_types) const;
 
+  rmw_ret_t get_service_names_and_types(
+    rcutils_allocator_t * allocator,
+    rmw_names_and_types_t * service_names_and_types) const;
+
   rmw_ret_t count_publishers(
     const char * topic_name,
     size_t * count) const;
