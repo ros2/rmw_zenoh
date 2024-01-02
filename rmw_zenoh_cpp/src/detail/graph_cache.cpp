@@ -207,13 +207,12 @@ void GraphCache::parse_put(const std::string & keyexpr)
     NodeMap::iterator insertion_it =
       ns_it->second.insert(std::make_pair(entity.node_name(), make_graph_node(entity)));
     if (insertion_it != ns_it->second.end()) {
-      RCUTILS_LOG_WARN_NAMED(
+      RCUTILS_LOG_INFO_NAMED(
         "rmw_zenoh_cpp",
         "Added a new node /%s with id %s to an existing namespace %s in the graph.",
         entity.node_name().c_str(),
         entity.id().c_str(),
         entity.node_namespace().c_str());
-      return;
     } else {
       RCUTILS_LOG_ERROR_NAMED(
         "rmw_zenoh_cpp",
@@ -221,12 +220,11 @@ void GraphCache::parse_put(const std::string & keyexpr)
         entity.node_name().c_str(),
         entity.id().c_str(),
         entity.node_namespace().c_str());
-      return;
     }
-  } else {
-    // The entity represents a node that already exists in the graph.
-    // Update topic info if required below.
+    return;
   }
+  // Otherwise, the entity represents a node that already exists in the graph.
+  // Update topic info if required below.
 
   // Handles additions to an existing node in the graph.
   if (entity.type() == EntityType::Node) {
