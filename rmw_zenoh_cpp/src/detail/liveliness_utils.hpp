@@ -79,12 +79,15 @@ public:
   /// fields are not present for the EntityType.
   // TODO(Yadunund): Find a way to better bundle the type and the associated data.
   static std::optional<Entity> make(
+    z_id_t id,
     EntityType type,
     NodeInfo node_info,
     std::optional<TopicInfo> topic_info = std::nullopt);
 
   /// Make an Entity from a liveliness keyexpr.
   static std::optional<Entity> make(const std::string & keyexpr);
+
+  std::string id() const;
 
   /// Get the entity type.
   EntityType type() const;
@@ -103,10 +106,12 @@ public:
 
 private:
   Entity(
+    std::string id,
     EntityType type,
     NodeInfo node_info,
     std::optional<TopicInfo> topic_info);
 
+  std::string id_;
   EntityType type_;
   NodeInfo node_info_;
   std::optional<TopicInfo> topic_info_;

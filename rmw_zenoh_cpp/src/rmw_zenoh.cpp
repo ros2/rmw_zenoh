@@ -196,6 +196,7 @@ rmw_create_node(
   // Initialize liveliness token for the node to advertise that a new node is in town.
   rmw_node_data_t * node_data = static_cast<rmw_node_data_t *>(node->data);
   const auto liveliness_entity = liveliness::Entity::make(
+    z_info_zid(z_loan(context->impl->session)),
     liveliness::EntityType::Node,
     liveliness::NodeInfo{context->actual_domain_id, namespace_, name, ""});
   if (!liveliness_entity.has_value()) {
@@ -578,6 +579,7 @@ rmw_create_publisher(
   //   return nullptr;
   // }
   const auto liveliness_entity = liveliness::Entity::make(
+    z_info_zid(z_loan(node->context->impl->session)),
     liveliness::EntityType::Publisher,
     liveliness::NodeInfo{node->context->actual_domain_id, node->namespace_, node->name, ""},
     liveliness::TopicInfo{rmw_publisher->topic_name,
@@ -1270,6 +1272,7 @@ rmw_create_subscription(
 
   // Publish to the graph that a new subscription is in town
   const auto liveliness_entity = liveliness::Entity::make(
+    z_info_zid(z_loan(node->context->impl->session)),
     liveliness::EntityType::Subscription,
     liveliness::NodeInfo{node->context->actual_domain_id, node->namespace_, node->name, ""},
     liveliness::TopicInfo{rmw_subscription->topic_name,
