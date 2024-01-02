@@ -83,7 +83,7 @@ static const std::unordered_map<std::string, EntityType> str_to_entity = {
   {CLI_STR, EntityType::Client}
 };
 
-std::string convert(z_id_t id)
+std::string zid_to_str(z_id_t id)
 {
   std::stringstream ss;
   ss << std::hex;
@@ -180,7 +180,7 @@ std::optional<Entity> Entity::make(
     return std::nullopt;
   }
 
-  Entity entity{convert(id), std::move(type), std::move(node_info), std::move(topic_info)};
+  Entity entity{zid_to_str(id), std::move(type), std::move(node_info), std::move(topic_info)};
   return entity;
 }
 
