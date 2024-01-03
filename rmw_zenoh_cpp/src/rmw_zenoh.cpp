@@ -1723,7 +1723,8 @@ rmw_create_client(
   }
 
   // client data
-  rmw_client_t * rmw_client = static_cast<rmw_client_t *>(allocator->allocate(
+  rmw_client_t * rmw_client = static_cast<rmw_client_t *>(allocator->zero_allocate(
+      1,
       sizeof(rmw_client_t),
       allocator->state));
   RMW_CHECK_FOR_NULL_WITH_MSG(
@@ -2150,7 +2151,8 @@ rmw_create_service(
   // SERVICE DATA ==============================================================
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
-  rmw_service_t * rmw_service = static_cast<rmw_service_t *>(allocator->allocate(
+  rmw_service_t * rmw_service = static_cast<rmw_service_t *>(allocator->zero_allocate(
+      1,
       sizeof(rmw_service_t),
       allocator->state));
   RMW_CHECK_FOR_NULL_WITH_MSG(
