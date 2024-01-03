@@ -48,6 +48,102 @@
 #include "rmw/validate_namespace.h"
 #include "rmw/validate_node_name.h"
 
+namespace
+{
+
+//==============================================================================
+// A function to take ros topic names and convert them to valid Zenoh keys.
+// In particular, Zenoh keys cannot start or end with a /, so this function
+// will strip them out.
+// The Zenoh key is also prefixed with the ros_domain_id.
+// Performance note: at present, this function allocates a new string and copies
+// the old string into it. If this becomes a performance problem, we could consider
+// modifying the topic_name in place. But this means we need to be much more
+// careful about who owns the string.
+z_owned_keyexpr_t ros_topic_name_to_zenoh_key(
+  const char * const topic_name, size_t domain_id, rcutils_allocator_t * allocator)
+{
+  size_t start_offset = 0;
+  size_t topic_name_len = strlen(topic_name);
+  size_t end_offset = topic_name_len;
+
+  if (topic_name_len > 0) {
+    if (topic_name[0] == '/') {
+      // Strip the leading '/'
+      start_offset = 1;
+    }
+    if (topic_name[end_offset - 1] == '/') {
+      // Strip the trailing '/'
+      end_offset -= 1;
+    }
+  }
+
+  std::stringstream domain_ss;
+  domain_ss << domain_id;
+  char * stripped_topic_name = rcutils_strndup(
+    &topic_name[start_offset], end_offset - start_offset, *allocator);
+  z_owned_keyexpr_t keyexpr = z_keyexpr_join(
+    z_keyexpr(domain_ss.str().c_str()), z_keyexpr(stripped_topic_name));
+  allocator->deallocate(stripped_topic_name, allocator->state);
+
+  return keyexpr;
+}
+
+//==============================================================================
+const rosidl_message_type_support_t * find_type_support(
+  const rosidl_message_type_support_t * type_supports)
+{
+  const rosidl_message_type_support_t * type_support = get_message_typesupport_handle(
+    type_supports, RMW_ZENOH_CPP_TYPESUPPORT_C);
+  if (!type_support) {
+    rcutils_error_string_t prev_error_string = rcutils_get_error_string();
+    rcutils_reset_error();
+    type_support = get_message_typesupport_handle(type_supports, RMW_ZENOH_CPP_TYPESUPPORT_CPP);
+    if (!type_support) {
+      rcutils_error_string_t error_string = rcutils_get_error_string();
+      rcutils_reset_error();
+      RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
+        "Type support not from this implementation. Got:\n"
+        "    %s\n"
+        "    %s\n"
+        "while fetching it",
+        prev_error_string.str, error_string.str);
+      return nullptr;
+    }
+  }
+
+  return type_support;
+}
+
+//==============================================================================
+const rosidl_service_type_support_t * find_service_type_support(
+  const rosidl_service_type_support_t * type_supports)
+{
+  const rosidl_service_type_support_t * type_support = get_service_typesupport_handle(
+    type_supports, RMW_ZENOH_CPP_TYPESUPPORT_C);
+  if (!type_support) {
+    rcutils_error_string_t prev_error_string = rcutils_get_error_string();
+    rcutils_reset_error();
+    type_support = get_service_typesupport_handle(
+      type_supports, RMW_ZENOH_CPP_TYPESUPPORT_CPP);
+    if (!type_support) {
+      rcutils_error_string_t error_string = rcutils_get_error_string();
+      rcutils_reset_error();
+      RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
+        "Type support not from this implementation. Got:\n"
+        "    %s\n"
+        "    %s\n"
+        "while fetching it",
+        prev_error_string.str, error_string.str);
+      return nullptr;
+    }
+  }
+
+  return type_support;
+}
+
+}  // namespace
+
 extern "C"
 {
 //==============================================================================
@@ -316,97 +412,6 @@ rmw_fini_publisher_allocation(
   static_cast<void>(allocation);
   RMW_SET_ERROR_MSG("rmw_fini_publisher_allocation: unimplemented");
   return RMW_RET_UNSUPPORTED;
-}
-
-//==============================================================================
-// A function to take ros topic names and convert them to valid Zenoh keys.
-// In particular, Zenoh keys cannot start or end with a /, so this function
-// will strip them out.
-// The Zenoh key is also prefixed with the ros_domain_id.
-// Performance note: at present, this function allocates a new string and copies
-// the old string into it. If this becomes a performance problem, we could consider
-// modifying the topic_name in place. But this means we need to be much more
-// careful about who owns the string.
-static z_owned_keyexpr_t ros_topic_name_to_zenoh_key(
-  const char * const topic_name, size_t domain_id, rcutils_allocator_t * allocator)
-{
-  size_t start_offset = 0;
-  size_t topic_name_len = strlen(topic_name);
-  size_t end_offset = topic_name_len;
-
-  if (topic_name_len > 0) {
-    if (topic_name[0] == '/') {
-      // Strip the leading '/'
-      start_offset = 1;
-    }
-    if (topic_name[end_offset - 1] == '/') {
-      // Strip the trailing '/'
-      end_offset -= 1;
-    }
-  }
-
-  std::stringstream domain_ss;
-  domain_ss << domain_id;
-  char * stripped_topic_name = rcutils_strndup(
-    &topic_name[start_offset], end_offset - start_offset, *allocator);
-  z_owned_keyexpr_t keyexpr = z_keyexpr_join(
-    z_keyexpr(domain_ss.str().c_str()), z_keyexpr(stripped_topic_name));
-  allocator->deallocate(stripped_topic_name, allocator->state);
-
-  return keyexpr;
-}
-
-//==============================================================================
-static const rosidl_message_type_support_t * find_type_support(
-  const rosidl_message_type_support_t * type_supports)
-{
-  const rosidl_message_type_support_t * type_support = get_message_typesupport_handle(
-    type_supports, RMW_ZENOH_CPP_TYPESUPPORT_C);
-  if (!type_support) {
-    rcutils_error_string_t prev_error_string = rcutils_get_error_string();
-    rcutils_reset_error();
-    type_support = get_message_typesupport_handle(type_supports, RMW_ZENOH_CPP_TYPESUPPORT_CPP);
-    if (!type_support) {
-      rcutils_error_string_t error_string = rcutils_get_error_string();
-      rcutils_reset_error();
-      RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
-        "Type support not from this implementation. Got:\n"
-        "    %s\n"
-        "    %s\n"
-        "while fetching it",
-        prev_error_string.str, error_string.str);
-      return nullptr;
-    }
-  }
-
-  return type_support;
-}
-
-//==============================================================================
-static const rosidl_service_type_support_t * find_service_type_support(
-  const rosidl_service_type_support_t * type_supports)
-{
-  const rosidl_service_type_support_t * type_support = get_service_typesupport_handle(
-    type_supports, RMW_ZENOH_CPP_TYPESUPPORT_C);
-  if (!type_support) {
-    rcutils_error_string_t prev_error_string = rcutils_get_error_string();
-    rcutils_reset_error();
-    type_support = get_service_typesupport_handle(
-      type_supports, RMW_ZENOH_CPP_TYPESUPPORT_CPP);
-    if (!type_support) {
-      rcutils_error_string_t error_string = rcutils_get_error_string();
-      rcutils_reset_error();
-      RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
-        "Type support not from this implementation. Got:\n"
-        "    %s\n"
-        "    %s\n"
-        "while fetching it",
-        prev_error_string.str, error_string.str);
-      return nullptr;
-    }
-  }
-
-  return type_support;
 }
 
 //==============================================================================
