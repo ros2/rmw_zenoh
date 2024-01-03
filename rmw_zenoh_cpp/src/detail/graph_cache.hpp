@@ -59,6 +59,7 @@ using TopicDataPtr = std::shared_ptr<TopicData>;
 // TODO(Yadunund): Expand to services and clients.
 struct GraphNode
 {
+  std::string id_;
   std::string ns_;
   std::string name_;
   // TODO(Yadunund): Should enclave be the parent to the namespace key and not within a Node?
@@ -139,7 +140,8 @@ private:
     node_n:
   */
 
-  using NodeMap = std::unordered_map<std::string, GraphNodePtr>;
+  // We rely on a multimap to store nodes with duplicate names.
+  using NodeMap = std::multimap<std::string, GraphNodePtr>;
   using NamespaceMap = std::unordered_map<std::string, NodeMap>;
   // Map namespace to a map of <node_name, GraphNodePtr>.
   NamespaceMap graph_ = {};

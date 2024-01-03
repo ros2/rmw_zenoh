@@ -83,6 +83,18 @@ static const std::unordered_map<std::string, EntityType> str_to_entity = {
   {CLI_STR, EntityType::Client}
 };
 
+std::string zid_to_str(z_id_t id)
+{
+  std::stringstream ss;
+  ss << std::hex;
+  size_t i = 0;
+  for (; i < (sizeof(id.id) - 1); i++) {
+    ss << static_cast<int>(id.id[i]) << ".";
+  }
+  ss << static_cast<int>(id.id[i]);
+  return ss.str();
+}
+
 }  // namespace
 
 ///=============================================================================
@@ -94,10 +106,12 @@ std::string subscription_token(size_t domain_id)
 
 ///=============================================================================
 Entity::Entity(
+  std::string id,
   EntityType type,
   NodeInfo node_info,
   std::optional<TopicInfo> topic_info)
-: type_(std::move(type)),
+: id_(std::move(id)),
+  type_(std::move(type)),
   node_info_(std::move(node_info)),
   topic_info_(std::move(topic_info))
 {
@@ -106,21 +120,26 @@ Entity::Entity(
    *
    * The liveliness token keyexprs are in the form:
    *
-   * <ADMIN_SPACE>/<domainid>/<entity>/<namespace>/<nodename>
+   * <ADMIN_SPACE>/<domainid>/<id>/<entity>/<namespace>/<nodename>
    *
    * Where:
    *  <domainid> - A number set by the user to "partition" graphs.  Roughly equivalent to the domain ID in DDS.
+   *  <id> - A unique ID to identify this entity. Currently the id is the zenoh session's id with elements concatenated into a string using '.' as separator.
    *  <entity> - The type of entity.  This can be one of "NN" for a node, "MP" for a publisher, "MS" for a subscription, "SS" for a service server, or "SC" for a service client.
    *  <namespace> - The ROS namespace for this entity.  If the namespace is absolute, this function will add in an _ for later parsing reasons.
    *  <nodename> - The ROS node name for this entity.
    *
    * For entities with topic infomation, the liveliness token keyexpr have additional fields:
    *
-   * <ADMIN_SPACE>/<domainid>/<entity>/<namespace>/<nodename>/<topic_name>/<topic_type>/<topic_qos>
+   * <ADMIN_SPACE>/<domainid>/<id>/<entity>/<namespace>/<nodename>/<topic_name>/<topic_type>/<topic_qos>
+   *  <topic_name> - The ROS topic name for this entity.
+   *  <topic_type> - The type for the topic.
+   *  <topic_qos> - The qos for the topic.
    */
   std::stringstream token_ss;
   const std::string & ns = node_info_.ns_;
-  token_ss << ADMIN_SPACE << "/" << node_info_.domain_id_ << "/" << entity_to_str.at(type_) << ns;
+  token_ss << ADMIN_SPACE << "/" << node_info_.domain_id_ << "/" << id_ << "/" << entity_to_str.at(
+    type_) << ns;
   // An empty namespace from rcl will contain "/" but zenoh does not allow keys with "//".
   // Hence we add an "_" to denote an empty namespace such that splitting the key
   // will always result in 5 parts.
@@ -143,6 +162,7 @@ Entity::Entity(
 
 ///=============================================================================
 std::optional<Entity> Entity::make(
+  z_id_t id,
   EntityType type,
   NodeInfo node_info,
   std::optional<TopicInfo> topic_info)
@@ -160,7 +180,7 @@ std::optional<Entity> Entity::make(
     return std::nullopt;
   }
 
-  Entity entity{std::move(type), std::move(node_info), std::move(topic_info)};
+  Entity entity{zid_to_str(id), std::move(type), std::move(node_info), std::move(topic_info)};
   return entity;
 }
 
@@ -206,7 +226,7 @@ std::optional<Entity> Entity::make(const std::string & keyexpr)
   // A token will contain at least 5 parts:
   // (ADMIN_SPACE, domain_id, entity_str, namespace, node_name).
   // Basic validation.
-  if (parts.size() < 5) {
+  if (parts.size() < 6) {
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Received invalid liveliness token");
@@ -229,7 +249,7 @@ std::optional<Entity> Entity::make(const std::string & keyexpr)
   }
 
   // Get the entity, ie NN, MP, MS, SS, SC.
-  std::string & entity_str = parts[2];
+  std::string & entity_str = parts[3];
   std::unordered_map<std::string, EntityType>::const_iterator entity_it =
     str_to_entity.find(entity_str);
   if (entity_it == str_to_entity.end()) {
@@ -241,28 +261,36 @@ std::optional<Entity> Entity::make(const std::string & keyexpr)
 
   EntityType entity_type = entity_it->second;
   std::size_t domain_id = std::stoul(parts[1]);
-  std::string ns = parts[3] == "_" ? "/" : "/" + std::move(parts[3]);
-  std::string node_name = std::move(parts[4]);
+  std::string & id = parts[2];
+  std::string ns = parts[4] == "_" ? "/" : "/" + std::move(parts[4]);
+  std::string node_name = std::move(parts[5]);
   std::optional<TopicInfo> topic_info = std::nullopt;
 
   // Populate topic_info if we have a token for an entity other than a node.
   if (entity_type != EntityType::Node) {
-    if (parts.size() < 8) {
+    if (parts.size() < 9) {
       RCUTILS_LOG_ERROR_NAMED(
         "rmw_zenoh_cpp",
         "Received liveliness token for non-node entity without required parameters.");
       return std::nullopt;
     }
     topic_info = TopicInfo{
-      "/" + std::move(parts[5]),
-      std::move(parts[6]),
-      std::move(parts[7])};
+      "/" + std::move(parts[6]),
+      std::move(parts[7]),
+      std::move(parts[8])};
   }
 
   return Entity{
+    std::move(id),
     std::move(entity_type),
     NodeInfo{std::move(domain_id), std::move(ns), std::move(node_name), ""},
     std::move(topic_info)};
+}
+
+///=============================================================================
+std::string Entity::id() const
+{
+  return this->id_;
 }
 
 ///=============================================================================
