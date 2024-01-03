@@ -216,7 +216,8 @@ void GraphCache::parse_put(const std::string & keyexpr)
     } else {
       RCUTILS_LOG_ERROR_NAMED(
         "rmw_zenoh_cpp",
-        "Unable to add a new node /%s with id %s an existing namespace %s in the graph. Report this bug.",
+        "Unable to add a new node /%s with id %s an "
+        "existing namespace %s in the graph. Report this bug.",
         entity.node_name().c_str(),
         entity.id().c_str(),
         entity.node_namespace().c_str());
