@@ -963,7 +963,6 @@ rmw_ret_t GraphCache::get_entities_info_by_topic(
   return RMW_RET_OK;
 }
 
-
 ///=============================================================================
 rmw_ret_t GraphCache::service_server_is_available(
   const char * service_name,

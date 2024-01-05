@@ -255,10 +255,11 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
     "Sending Query '%s' to fetch discovery data...",
     liveliness_str.c_str()
   );
-  // Without setting the bound value to 0, the liveliness get call
-  // block execution where there are more than 3 nodes in the graph.
-  // From the zenoh-c documentation: If `bound` is different from 0, that channel will be bound and apply back-pressure when full.
-  // TODO(Yadunund): Investigate why this is the case and try switching to callbacks instead.
+  // We create a blocking channel that is unbounded, ie. `bound` = 0, to receive
+  // replies for the zc_liveliness_get() call. This is necessary as if the `bound`
+  // is too low, the channel may starve the zenoh executor of its threads which
+  // would lead to deadlocks when trying to receive replies and block the
+  // execution here.
   z_owned_reply_channel_t channel = zc_reply_fifo_new(0);
   zc_liveliness_get(
     z_loan(context->impl->session), z_keyexpr(liveliness_str.c_str()),
