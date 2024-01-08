@@ -90,7 +90,7 @@ z_owned_keyexpr_t ros_topic_name_to_zenoh_key(
 }
 
 //==============================================================================
-const rosidl_message_type_support_t * find_type_support(
+const rosidl_message_type_support_t * find_message_type_support(
   const rosidl_message_type_support_t * type_supports)
 {
   const rosidl_message_type_support_t * type_support = get_message_typesupport_handle(
@@ -466,9 +466,9 @@ rmw_create_publisher(
   }
 
   // Get the RMW type support.
-  const rosidl_message_type_support_t * type_support = find_type_support(type_supports);
+  const rosidl_message_type_support_t * type_support = find_message_type_support(type_supports);
   if (type_support == nullptr) {
-    // error was already set by find_type_support
+    // error was already set by find_message_type_support
     return nullptr;
   }
 
@@ -1032,9 +1032,9 @@ rmw_serialize(
   const rosidl_message_type_support_t * type_support,
   rmw_serialized_message_t * serialized_message)
 {
-  const rosidl_message_type_support_t * ts = find_type_support(type_support);
+  const rosidl_message_type_support_t * ts = find_message_type_support(type_support);
   if (ts == nullptr) {
-    // error was already set by find_type_support
+    // error was already set by find_message_type_support
     return RMW_RET_ERROR;
   }
 
@@ -1067,9 +1067,9 @@ rmw_deserialize(
   const rosidl_message_type_support_t * type_support,
   void * ros_message)
 {
-  const rosidl_message_type_support_t * ts = find_type_support(type_support);
+  const rosidl_message_type_support_t * ts = find_message_type_support(type_support);
   if (ts == nullptr) {
-    // error was already set by find_type_support
+    // error was already set by find_message_type_support
     return RMW_RET_ERROR;
   }
 
@@ -1147,9 +1147,9 @@ rmw_create_subscription(
   //   return nullptr;
   // }
 
-  const rosidl_message_type_support_t * type_support = find_type_support(type_supports);
+  const rosidl_message_type_support_t * type_support = find_message_type_support(type_supports);
   if (type_support == nullptr) {
-    // error was already set by find_type_support
+    // error was already set by find_message_type_support
     return nullptr;
   }
 
@@ -1759,7 +1759,7 @@ rmw_create_client(
   // Obtain the type support
   const rosidl_service_type_support_t * type_support = find_service_type_support(type_supports);
   if (type_support == nullptr) {
-    // error was already set by find_type_support
+    // error was already set by find_service_type_support
     return nullptr;
   }
 
@@ -2186,7 +2186,7 @@ rmw_create_service(
   // Get the RMW type support.
   const rosidl_service_type_support_t * type_support = find_service_type_support(type_supports);
   if (type_support == nullptr) {
-    // error was already set by find_type_support
+    // error was already set by find_service_type_support
     return nullptr;
   }
 
