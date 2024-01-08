@@ -2474,9 +2474,12 @@ rmw_send_response(
       allocator->state));
   if (!response_bytes) {
     RMW_SET_ERROR_MSG("failed allocate response message bytes");
-    allocator->deallocate(response_bytes, allocator->state);
     return RMW_RET_ERROR;
   }
+  auto free_response_bytes = rcpputils::make_scope_exit(
+    [response_bytes, allocator]() {
+      allocator->deallocate(response_bytes, allocator->state);
+    });
 
   // Object that manages the raw buffer
   eprosima::fastcdr::FastBuffer fastbuffer(response_bytes, max_data_length);
@@ -2491,7 +2494,6 @@ rmw_send_response(
       ser,
       service_data->response_type_support_impl))
   {
-    allocator->deallocate(response_bytes, allocator->state);
     return RMW_RET_ERROR;
   }
 
