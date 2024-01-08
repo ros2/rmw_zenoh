@@ -17,6 +17,7 @@
 #include <mutex>
 #include <utility>
 
+#include "rcpputils/scope_exit.hpp"
 #include "rcutils/logging_macros.h"
 
 #include "rmw_data_types.hpp"
@@ -34,6 +35,10 @@ void sub_data_handler(
   void * data)
 {
   z_owned_str_t keystr = z_keyexpr_to_string(sample->keyexpr);
+  auto drop_keystr = rcpputils::make_scope_exit(
+    [&keystr]() {
+      z_drop(z_move(keystr));
+    });
 
   auto sub_data = static_cast<rmw_subscription_data_t *>(data);
   if (sub_data == nullptr) {
@@ -74,8 +79,6 @@ void sub_data_handler(
       sub_data->condition->notify_one();
     }
   }
-
-  z_drop(z_move(keystr));
 }
 
 
@@ -93,6 +96,10 @@ void service_data_handler(const z_query_t * query, void * data)
     "[service_data_handler] triggered"
   );
   z_owned_str_t keystr = z_keyexpr_to_string(z_query_keyexpr(query));
+  auto drop_keystr = rcpputils::make_scope_exit(
+    [&keystr]() {
+      z_drop(z_move(keystr));
+    });
 
   rmw_service_data_t * service_data = static_cast<rmw_service_data_t *>(data);
   if (service_data == nullptr) {
@@ -102,7 +109,6 @@ void service_data_handler(const z_query_t * query, void * data)
       "service for %s",
       z_loan(keystr)
     );
-    z_drop(z_move(keystr));
     return;
   }
 
@@ -121,8 +127,6 @@ void service_data_handler(const z_query_t * query, void * data)
       service_data->condition->notify_one();
     }
   }
-
-  z_drop(z_move(keystr));
 }
 
 //==============================================================================
