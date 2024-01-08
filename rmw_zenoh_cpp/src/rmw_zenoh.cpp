@@ -82,6 +82,9 @@ z_owned_keyexpr_t ros_topic_name_to_zenoh_key(
   domain_ss << domain_id;
   char * stripped_topic_name = rcutils_strndup(
     &topic_name[start_offset], end_offset - start_offset, *allocator);
+  if (stripped_topic_name == nullptr) {
+    return z_keyexpr_null();
+  }
   z_owned_keyexpr_t keyexpr = z_keyexpr_join(
     z_keyexpr(domain_ss.str().c_str()), z_keyexpr(stripped_topic_name));
   allocator->deallocate(stripped_topic_name, allocator->state);
