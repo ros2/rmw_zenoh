@@ -1954,9 +1954,12 @@ rmw_send_request(
       allocator->state));
   if (!request_bytes) {
     RMW_SET_ERROR_MSG("failed allocate request message bytes");
-    allocator->deallocate(request_bytes, allocator->state);
     return RMW_RET_ERROR;
   }
+  auto free_request_bytes = rcpputils::make_scope_exit(
+    [request_bytes, allocator]() {
+      allocator->deallocate(request_bytes, allocator->state);
+    });
 
   // Object that manages the raw buffer
   eprosima::fastcdr::FastBuffer fastbuffer(request_bytes, max_data_length);
@@ -1971,7 +1974,6 @@ rmw_send_request(
       ser,
       client_data->request_type_support_impl))
   {
-    allocator->deallocate(request_bytes, allocator->state);
     return RMW_RET_ERROR;
   }
 
