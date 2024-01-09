@@ -2193,9 +2193,6 @@ rmw_create_service(
     return nullptr;
   }
 
-  // TODO(francocipollone): Verify if this is the right way to get the
-  //                        type support as the architecture for the service here
-  //                        is different to the one used in DDS (with fastcdr).
   auto service_members = static_cast<const service_type_support_callbacks_t *>(type_support->data);
   auto request_members = static_cast<const message_type_support_callbacks_t *>(
     service_members->request_members_->data);
