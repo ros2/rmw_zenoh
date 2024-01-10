@@ -1486,7 +1486,7 @@ static rmw_ret_t __rmw_take(
 
   std::unique_ptr<saved_msg_data> msg_data;
   {
-    std::unique_lock<std::mutex> lock(sub_data->message_queue_mutex);
+    std::lock_guard<std::mutex> lock(sub_data->message_queue_mutex);
 
     if (sub_data->message_queue.empty()) {
       // This tells rcl that the check for a new message was done, but no messages have come in yet.
@@ -2386,20 +2386,21 @@ rmw_take_request(
   RMW_CHECK_FOR_NULL_WITH_MSG(
     service->data, "Unable to retrieve service_data from service", RMW_RET_INVALID_ARGUMENT);
 
-  std::unique_lock<std::mutex> lock(service_data->query_queue_mutex);
-  if (service_data->id_query_map.empty()) {
-    // TODO(francocipollone): Verify behavior.
-    RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "[rmw_take_request] Take id_query_map is empty");
-    return RMW_RET_OK;
+  std::unordered_map<std::size_t, z_owned_query_t>::iterator query_it;
+  std::size_t query_id;
+  {
+    std::lock_guard<std::mutex> lock(service_data->query_queue_mutex);
+    if (service_data->id_query_map.empty()) {
+      return RMW_RET_OK;
+    }
+    query_id = service_data->to_take.front();
+    query_it = service_data->id_query_map.find(query_id);
+    if (query_it == service_data->id_query_map.end()) {
+      RMW_SET_ERROR_MSG("Query id not found in id_query_map");
+      return RMW_RET_ERROR;
+    }
+    service_data->to_take.pop_back();
   }
-  const std::size_t query_id = service_data->to_take.back();
-  auto query_it = service_data->id_query_map.find(query_id);
-  if (query_it == service_data->id_query_map.end()) {
-    RMW_SET_ERROR_MSG("Query id not found in id_query_map");
-    return RMW_RET_ERROR;
-  }
-  service_data->to_take.pop_back();
-  service_data->query_queue_mutex.unlock();
 
   // DESERIALIZE MESSAGE ========================================================
   const z_query_t z_loaned_query = z_query_loan(&query_it->second);

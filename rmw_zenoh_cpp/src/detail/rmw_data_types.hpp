@@ -156,7 +156,7 @@ struct rmw_service_data_t
   rmw_context_t * context;
 
   // Map to store the query id and the query.
-  // The query handler is saved as it is needed to answer the query later on.
+  // The query handle is saved as it is needed to answer the query later on.
   std::unordered_map<std::size_t, z_owned_query_t> id_query_map;
   // The query id's of the queries that need to be processed.
   std::deque<std::size_t> to_take;
