@@ -584,6 +584,29 @@ rmw_create_publisher(
     RMW_SET_ERROR_MSG("unable to create zenoh keyexpr.");
     return nullptr;
   }
+
+  // Create a Publication Cache if durability is transient_local.
+  publisher_data->pub_cache = ze_publication_cache_null();
+  if (adapted_qos_profile.durability == RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL) {
+    ze_publication_cache_options_t pub_cache_opts = ze_publication_cache_options_default();
+    pub_cache_opts.history = adapted_qos_profile.depth;
+    publisher_data->pub_cache = ze_declare_publication_cache(
+      z_loan(context_impl->session),
+      z_loan(keyexpr),
+      &pub_cache_opts
+    );
+    if (!z_check(publisher_data->pub_cache)) {
+      RMW_SET_ERROR_MSG("unable to create zenoh publisher cache");
+      return nullptr;
+    }
+  }
+  auto undeclare_z_publisher_cache = rcpputils::make_scope_exit(
+    [publisher_data]() {
+      if (publisher_data) {
+        z_drop(z_move(publisher_data->pub_cache));
+      }
+    });
+
   // TODO(clalancette): What happens if the key name is a valid but empty string?
   publisher_data->pub = z_declare_publisher(
     z_loan(context_impl->session),
@@ -648,6 +671,7 @@ rmw_create_publisher(
   }
 
   free_token.cancel();
+  undeclare_z_publisher_cache.cancel();
   undeclare_z_publisher.cancel();
   free_topic_name.cancel();
   destruct_msg_type_support.cancel();
@@ -702,6 +726,7 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
     //   return RMW_RET_ERROR;
     // }
     z_drop(z_move(publisher_data->token));
+    z_drop(z_move(publisher_data->pub_cache));
 
     RMW_TRY_DESTRUCTOR(publisher_data->type_support->~MessageTypeSupport(), MessageTypeSupport, );
     allocator->deallocate(publisher_data->type_support, allocator->state);

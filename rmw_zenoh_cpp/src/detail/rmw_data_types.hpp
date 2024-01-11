@@ -74,6 +74,9 @@ struct rmw_publisher_data_t
   // An owned publisher.
   z_owned_publisher_t pub;
 
+  // Optional publication cache when durability is transient_local.
+  ze_owned_publication_cache_t pub_cache;
+
   // Liveliness token for the publisher.
   zc_owned_liveliness_token_t token;
 
