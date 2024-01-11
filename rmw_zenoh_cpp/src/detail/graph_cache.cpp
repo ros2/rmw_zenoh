@@ -175,11 +175,10 @@ void GraphCache::parse_put(const std::string & keyexpr)
 
       RCUTILS_LOG_INFO_NAMED(
         "rmw_zenoh_cpp",
-        "Added %s on topic %s with type %s and qos %s to node /%s.",
+        "Added %s on topic %s with type %s to node /%s.",
         entity_desc.c_str(),
         topic_info.name_.c_str(),
         topic_info.type_.c_str(),
-        topic_info.qos_.c_str(),
         graph_node.name_.c_str());
     };
 
@@ -412,11 +411,10 @@ void GraphCache::parse_del(const std::string & keyexpr)
 
       RCUTILS_LOG_INFO_NAMED(
         "rmw_zenoh_cpp",
-        "Removed %s on topic %s with type %s and qos %s to node /%s.",
+        "Removed %s on topic %s with type %s to node /%s.",
         entity_desc.c_str(),
         topic_info.name_.c_str(),
         topic_info.type_.c_str(),
-        topic_info.qos_.c_str(),
         graph_node.name_.c_str());
     };
 
@@ -927,7 +925,7 @@ rmw_ret_t GraphCache::get_entities_info_by_topic(
       entity_type == EntityType::Publisher ? nodes[i]->pubs_ :
       nodes[i]->subs_;
     const GraphNode::TopicDataMap & topic_data_map = entity_map.find(topic_name)->second;
-    for (const auto & [topic_data, _] : topic_data_map) {
+    for (const auto & [topic_type, topic_data] : topic_data_map) {
       rmw_topic_endpoint_info_t & endpoint_info = endpoints_info->info_array[i];
       endpoint_info = rmw_get_zero_initialized_topic_endpoint_info();
 
@@ -949,7 +947,7 @@ rmw_ret_t GraphCache::get_entities_info_by_topic(
 
       ret = rmw_topic_endpoint_info_set_topic_type(
         &endpoint_info,
-        _demangle_if_ros_type(topic_data).c_str(),
+        _demangle_if_ros_type(topic_type).c_str(),
         allocator);
       if (RMW_RET_OK != ret) {
         return ret;
@@ -961,7 +959,16 @@ rmw_ret_t GraphCache::get_entities_info_by_topic(
       if (RMW_RET_OK != ret) {
         return ret;
       }
-      // TODO(Yadunund): Set type_hash, qos_profile, gid.
+
+      ret = rmw_topic_endpoint_info_set_qos_profile(
+        &endpoint_info,
+        &topic_data->info_.qos_
+      );
+      if (RMW_RET_OK != ret) {
+        return ret;
+      }
+
+      // TODO(Yadunund): Set type_hash, gid.
     }
   }
 

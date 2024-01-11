@@ -456,12 +456,12 @@ rmw_create_publisher(
     }
   }
   // Adapt any 'best available' QoS options
-  // rmw_qos_profile_t adapted_qos_profile = *qos_profile;
-  // rmw_ret_t ret = rmw_dds_common::qos_profile_get_best_available_for_topic_publisher(
-  //   node, topic_name, &adapted_qos_profile, rmw_get_subscriptions_info_by_topic);
-  // if (RMW_RET_OK != ret) {
-  //   return nullptr;
-  // }
+  rmw_qos_profile_t adapted_qos_profile = *qos_profile;
+  rmw_ret_t ret = rmw_dds_common::qos_profile_get_best_available_for_topic_publisher(
+    node, topic_name, &adapted_qos_profile, rmw_get_subscriptions_info_by_topic);
+  if (RMW_RET_OK != ret) {
+    return nullptr;
+  }
   RMW_CHECK_ARGUMENT_FOR_NULL(publisher_options, nullptr);
   if (publisher_options->require_unique_network_flow_endpoints ==
     RMW_UNIQUE_NETWORK_FLOW_ENDPOINTS_STRICTLY_REQUIRED)
@@ -621,7 +621,7 @@ rmw_create_publisher(
     liveliness::EntityType::Publisher,
     liveliness::NodeInfo{node->context->actual_domain_id, node->namespace_, node->name, ""},
     liveliness::TopicInfo{rmw_publisher->topic_name,
-      publisher_data->type_support->get_name(), "reliable"}
+      publisher_data->type_support->get_name(), adapted_qos_profile}
   );
   if (!liveliness_entity.has_value()) {
     RCUTILS_LOG_ERROR_NAMED(
@@ -1335,7 +1335,7 @@ rmw_create_subscription(
     liveliness::EntityType::Subscription,
     liveliness::NodeInfo{node->context->actual_domain_id, node->namespace_, node->name, ""},
     liveliness::TopicInfo{rmw_subscription->topic_name,
-      sub_data->type_support->get_name(), "reliable"}
+      sub_data->type_support->get_name(), adapted_qos_profile}
   );
   if (!liveliness_entity.has_value()) {
     RCUTILS_LOG_ERROR_NAMED(
@@ -1905,7 +1905,7 @@ rmw_create_client(
     liveliness::EntityType::Client,
     liveliness::NodeInfo{node->context->actual_domain_id, node->namespace_, node->name, ""},
     liveliness::TopicInfo{rmw_client->service_name,
-      std::move(service_type), "reliable"}
+      std::move(service_type), *qos_profile}
   );
   if (!liveliness_entity.has_value()) {
     RCUTILS_LOG_ERROR_NAMED(
@@ -2493,7 +2493,7 @@ rmw_create_service(
     liveliness::EntityType::Service,
     liveliness::NodeInfo{node->context->actual_domain_id, node->namespace_, node->name, ""},
     liveliness::TopicInfo{rmw_service->service_name,
-      std::move(service_type), "reliable"}
+      std::move(service_type), *qos_profiles}
   );
   if (!liveliness_entity.has_value()) {
     RCUTILS_LOG_ERROR_NAMED(

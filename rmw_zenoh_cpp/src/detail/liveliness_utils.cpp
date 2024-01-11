@@ -47,7 +47,7 @@ NodeInfo::NodeInfo(
 TopicInfo::TopicInfo(
   std::string name,
   std::string type,
-  std::string qos)
+  rmw_qos_profile_t qos)
 : name_(std::move(name)),
   type_(std::move(type)),
   qos_(std::move(qos))
@@ -67,6 +67,7 @@ static const char SUB_STR[] = "MS";
 static const char SRV_STR[] = "SS";
 static const char CLI_STR[] = "SC";
 static const char SLASH_REPLACEMENT = '%';
+static const char QOS_DELIMITER = ':';
 
 static const std::unordered_map<EntityType, std::string> entity_to_str = {
   {EntityType::Node, NODE_STR},
@@ -84,6 +85,12 @@ static const std::unordered_map<std::string, EntityType> str_to_entity = {
   {CLI_STR, EntityType::Client}
 };
 
+// Map string literals to qos enums.
+// static const std::unordered_map<std::string, uint8_t> str_to_qos_e = {
+//   {"reliable", RMW_QOS_POLICY_RELIABILITY_RELIABLE},
+//   {"best_effort", RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT}
+// };
+
 std::string zid_to_str(z_id_t id)
 {
   std::stringstream ss;
@@ -94,6 +101,84 @@ std::string zid_to_str(z_id_t id)
   }
   ss << static_cast<int>(id.id[i]);
   return ss.str();
+}
+
+std::vector<std::string> split_keyexpr(
+  const std::string & keyexpr,
+  const char delim = '/')
+{
+  std::vector<std::size_t> delim_idx = {};
+  // Insert -1 for starting position to make the split easier when using substr.
+  delim_idx.push_back(-1);
+  std::size_t idx = 0;
+  for (std::string::const_iterator it = keyexpr.begin(); it != keyexpr.end(); ++it) {
+    if (*it == delim) {
+      delim_idx.push_back(idx);
+    }
+    ++idx;
+  }
+  std::vector<std::string> result = {};
+  try {
+    for (std::size_t i = 1; i < delim_idx.size(); ++i) {
+      const size_t prev_idx = delim_idx[i - 1];
+      const size_t idx = delim_idx[i];
+      result.push_back(keyexpr.substr(prev_idx + 1, idx - prev_idx - 1));
+    }
+  } catch (const std::exception & e) {
+    printf("%s\n", e.what());
+    return {};
+  }
+  // Finally add the last substr.
+  result.push_back(keyexpr.substr(delim_idx.back() + 1));
+  return result;
+}
+
+/**
+ * Convert a rmw_qos_profile_t to a string with format:
+ *
+ * <ReliabilityKind>:<DurabilityKind>:<HistoryKind>,<HistoryDepth>"
+ * Where:
+ *  <ReliabilityKind> - "reliable" or "best_effort".
+ *  <DurabilityKind> - "volatile" or "transient_local".
+ *  <HistoryKind> - "keep_last".
+ *  <HistoryDepth> - The depth number.
+ */
+// TODO(Yadunund): Rely on maps to retrieve strings.
+std::string qos_to_keyexpr(rmw_qos_profile_t qos)
+{
+  std::string keyexpr = "";
+  keyexpr += qos.reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE ? "reliable" : "best_effort";
+  keyexpr += QOS_DELIMITER;
+  keyexpr += qos.durability ==
+    RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL ? "transient_local" : "volatile";
+  keyexpr += QOS_DELIMITER;
+  // TODO(Yadunund): Update once we properly support History.
+  keyexpr += "keep_last,";
+  keyexpr += std::to_string(qos.depth);
+  return keyexpr;
+}
+
+/// Convert a rmw_qos_profile_t from a keyexpr. Return std::nullopt if invalid.
+std::optional<rmw_qos_profile_t> keyexpr_to_qos(const std::string & keyexpr)
+{
+  rmw_qos_profile_t qos;
+  const std::vector<std::string> parts = split_keyexpr(keyexpr, QOS_DELIMITER);
+  if (parts.size() < 3) {
+    return std::nullopt;
+  }
+  qos.reliability = parts[0] ==
+    "reliable" ? RMW_QOS_POLICY_RELIABILITY_RELIABLE : RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT;
+  qos.durability = parts[1] ==
+    "transient_local" ? RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL :
+    RMW_QOS_POLICY_DURABILITY_VOLATILE;
+  const std::vector<std::string> history_parts = split_keyexpr(parts[2], ',');
+  if (history_parts.size() < 2) {
+    return std::nullopt;
+  }
+  qos.history = RMW_QOS_POLICY_HISTORY_KEEP_LAST;
+  sscanf(history_parts[1].c_str(), "%zu", &qos.depth);
+
+  return qos;
 }
 
 }  // namespace
@@ -156,7 +241,8 @@ Entity::Entity(
     const auto & topic_info = this->topic_info_.value();
     // Note: We don't append a leading "/" as we expect the ROS topic name to start with a "/".
     token_ss <<
-      "/" + mangle_name(topic_info.name_) + "/" + topic_info.type_ + "/" + topic_info.qos_;
+      "/" + mangle_name(topic_info.name_) + "/" + topic_info.type_ + "/" + qos_to_keyexpr(
+      topic_info.qos_);
   }
 
   this->keyexpr_ = token_ss.str();
@@ -185,41 +271,6 @@ std::optional<Entity> Entity::make(
   Entity entity{zid_to_str(id), std::move(type), std::move(node_info), std::move(topic_info)};
   return entity;
 }
-
-namespace
-{
-///=============================================================================
-std::vector<std::string> split_keyexpr(
-  const std::string & keyexpr,
-  const char delim = '/')
-{
-  std::vector<std::size_t> delim_idx = {};
-  // Insert -1 for starting position to make the split easier when using substr.
-  delim_idx.push_back(-1);
-  std::size_t idx = 0;
-  for (std::string::const_iterator it = keyexpr.begin(); it != keyexpr.end(); ++it) {
-    if (*it == delim) {
-      delim_idx.push_back(idx);
-    }
-    ++idx;
-  }
-  std::vector<std::string> result = {};
-  try {
-    for (std::size_t i = 1; i < delim_idx.size(); ++i) {
-      const size_t prev_idx = delim_idx[i - 1];
-      const size_t idx = delim_idx[i];
-      result.push_back(keyexpr.substr(prev_idx + 1, idx - prev_idx - 1));
-    }
-  } catch (const std::exception & e) {
-    printf("%s\n", e.what());
-    return {};
-  }
-  // Finally add the last substr.
-  result.push_back(keyexpr.substr(delim_idx.back() + 1));
-  return result;
-}
-
-}  // namespace
 
 ///=============================================================================
 std::optional<Entity> Entity::make(const std::string & keyexpr)
@@ -276,10 +327,18 @@ std::optional<Entity> Entity::make(const std::string & keyexpr)
         "Received liveliness token for non-node entity without required parameters.");
       return std::nullopt;
     }
+    std::optional<rmw_qos_profile_t> qos = keyexpr_to_qos(parts[8]);
+    if (!qos.has_value()) {
+      RCUTILS_LOG_ERROR_NAMED(
+        "rmw_zenoh_cpp",
+        "Received liveliness token with invalid qos keyexpr");
+      return std::nullopt;
+    }
     topic_info = TopicInfo{
       demangle_name(std::move(parts[6])),
       std::move(parts[7]),
-      std::move(parts[8])};
+      std::move(qos.value())
+    };
   }
 
   return Entity{

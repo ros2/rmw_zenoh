@@ -21,6 +21,8 @@
 #include <string>
 #include <vector>
 
+#include "rmw/types.h"
+
 
 namespace liveliness
 {
@@ -45,12 +47,12 @@ struct TopicInfo
 {
   std::string name_;
   std::string type_;
-  std::string qos_;
+  rmw_qos_profile_t qos_;
 
   TopicInfo(
     std::string name,
     std::string type,
-    std::string qos);
+    rmw_qos_profile_t qos);
 };
 
 ///=============================================================================
