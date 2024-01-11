@@ -17,7 +17,6 @@
 
 #include <zenoh.h>
 
-#include <atomic>
 #include <chrono>
 #include <cinttypes>
 #include <mutex>
@@ -2057,6 +2056,8 @@ static int64_t get_sequence_num_from_attachment(const z_attachment_t * const att
     return -1;
   }
 
+  // The largest possible int64_t number is INT64_MAX, i.e. 9223372036854775807.
+  // That is 19 characters long, plus one for the trailing \0, means we need 20 bytes.
   char sequence_num_str[20];
 
   memcpy(sequence_num_str, sequence_num_index.start, sequence_num_index.len);
@@ -2149,6 +2150,8 @@ rmw_take_response(
     // get_sequence_num_from_attachment already set an error
     return RMW_RET_ERROR;
   }
+  // TODO(clalancette): We also need to fill in the source_timestamp, received_timestamp,
+  // and writer_guid
 
   *taken = true;
 
@@ -2436,6 +2439,8 @@ rmw_destroy_service(rmw_node_t * node, rmw_service_t * service)
   for (z_owned_query_t & query : service_data->query_queue) {
     z_drop(z_move(query));
   }
+  service_data->query_queue.clear();
+  service_data->sequence_to_query_map.clear();
 
   allocator->deallocate(service_data->request_type_support, allocator->state);
   allocator->deallocate(service_data->response_type_support, allocator->state);
@@ -2501,7 +2506,10 @@ rmw_take_request(
   // Add this query to the map, so that rmw_send_response can quickly look it up later
   {
     std::lock_guard<std::mutex> lock(service_data->sequence_to_query_map_mutex);
-    // TODO(clalancette): Check if it already exists in the map; this should never happen
+    if (service_data->sequence_to_query_map.find(sequence_number) != service_data->sequence_to_query_map.end()) {
+      RMW_SET_ERROR_MSG("duplicate sequence number in the map");
+      return RMW_RET_ERROR;
+    }
     service_data->sequence_to_query_map.emplace(std::pair(sequence_number, query));
   }
 
@@ -2528,8 +2536,8 @@ rmw_take_request(
   }
 
   // Fill in the request header.
-  // TODO(clalancette): This must be the same as what we were delivered
-  // (i.e. we may have to propagate the guid, etc.
+  // TODO(clalancette): We also need to fill in writer_guid, source_timestamp,
+  // and received_timestamp
   request_header->request_id.sequence_number = sequence_number;
 
   service_data->query_queue.pop_front();
@@ -2621,6 +2629,7 @@ rmw_send_response(
   const z_query_t loaned_query = z_query_loan(&query_it->second);
   z_query_reply_options_t options = z_query_reply_options_default();
 
+  // TODO(clalancette): We also need to fill in and send the writer_guid
   z_owned_bytes_map_t map = create_map_and_set_sequence_num(request_header->sequence_number);
   if (!z_check(map)) {
     // create_map_and_set_sequence_num already set the error
