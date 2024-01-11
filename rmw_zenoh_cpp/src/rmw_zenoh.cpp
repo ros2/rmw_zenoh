@@ -2119,7 +2119,6 @@ rmw_take_response(
 
   std::lock_guard<std::mutex> lock(client_data->message_mutex);
   if (client_data->replies.empty()) {
-    // TODO(francocipollone): Verify behavior.
     RCUTILS_LOG_ERROR_NAMED("rmw_zenoh_cpp", "[rmw_take_response] Response message is empty");
     return RMW_RET_ERROR;
   }
@@ -2613,12 +2612,6 @@ rmw_send_response(
 
   size_t data_length = ser.getSerializedDataLength();
 
-  size_t meta_length = sizeof(request_header->sequence_number);
-  memcpy(
-    &response_bytes[data_length],
-    reinterpret_cast<char *>(&request_header->sequence_number),
-    meta_length);
-
   // Create the queryable payload
   std::lock_guard<std::mutex> lock(service_data->sequence_to_query_map_mutex);
   auto query_it = service_data->sequence_to_query_map.find(request_header->sequence_number);
@@ -2645,7 +2638,7 @@ rmw_send_response(
   options.encoding = z_encoding(Z_ENCODING_PREFIX_EMPTY, NULL);
   z_query_reply(
     &loaned_query, z_loan(service_data->keyexpr), reinterpret_cast<const uint8_t *>(
-      response_bytes), data_length + meta_length, &options);
+      response_bytes), data_length, &options);
 
   z_drop(z_move(query_it->second));
   service_data->sequence_to_query_map.erase(query_it);
