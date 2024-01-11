@@ -81,13 +81,6 @@ void sub_data_handler(
   }
 }
 
-
-//==============================================================================
-std::size_t rmw_service_data_t::get_new_uid()
-{
-  return client_count++;
-}
-
 //==============================================================================
 void service_data_handler(const z_query_t * query, void * data)
 {
@@ -115,10 +108,7 @@ void service_data_handler(const z_query_t * query, void * data)
   // Get the query parameters and payload
   {
     std::lock_guard<std::mutex> lock(service_data->query_queue_mutex);
-    const std::size_t client_id = service_data->get_new_uid();
-    service_data->id_query_map.emplace(
-      std::make_pair(client_id, z_query_clone(query)));
-    service_data->to_take.push_back(client_id);
+    service_data->query_queue.push_back(z_query_clone(query));
   }
   {
     // Since we added new data, trigger the guard condition if it is available

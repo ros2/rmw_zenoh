@@ -17,7 +17,9 @@
 
 #include <zenoh.h>
 
+#include <atomic>
 #include <chrono>
+#include <cinttypes>
 #include <mutex>
 #include <new>
 #include <sstream>
@@ -1979,11 +1981,29 @@ rmw_send_request(
 
   size_t data_length = ser.getSerializedDataLength();
 
-  // TODO(francocipollone): Do I really need the sequency number here?
-  *sequence_id = 0;
+  // TODO(clalancette): Locking for multiple requests at the same time
+  *sequence_id = client_data->sequence_number++;
 
   // Send request
   z_get_options_t opts = z_get_options_default();
+
+  z_owned_bytes_map_t map = z_bytes_map_new();
+  auto free_attachment_map = rcpputils::make_scope_exit(
+    [&map]() {
+      z_bytes_map_drop(z_move(map));
+    });
+
+  opts.attachment = z_bytes_map_as_attachment(&map);
+
+  // The largest possible int64_t number is INT64_MAX, i.e. 9223372036854775807.
+  // That is 19 characters long, plus one for the trailing \0, means we need 20 bytes.
+  char seq_id_str[20];
+  if (rcutils_snprintf(seq_id_str, 20, "%" PRId64, *sequence_id) < 0) {
+    RMW_SET_ERROR_MSG("failed to print sequence_number into buffer");
+    return RMW_RET_ERROR;
+  }
+  z_bytes_map_insert_by_copy(&map, z_bytes_new("sequence_number"), z_bytes_new(seq_id_str));
+
   opts.target = Z_QUERY_TARGET_ALL;
   opts.value.payload = z_bytes_t{data_length, reinterpret_cast<const uint8_t *>(request_bytes)};
   opts.value.encoding = z_encoding(Z_ENCODING_PREFIX_EMPTY, NULL);
@@ -2031,7 +2051,7 @@ rmw_take_response(
     RCUTILS_LOG_ERROR_NAMED("rmw_zenoh_cpp", "[rmw_take_response] Response message is empty");
     return RMW_RET_ERROR;
   }
-  latest_reply = &client_data->replies.back();
+  latest_reply = &client_data->replies.front();
   z_sample_t sample = z_reply_ok(latest_reply);
 
   // Object that manages the raw buffer
@@ -2055,13 +2075,35 @@ rmw_take_response(
 
   *taken = true;
 
-  for (z_owned_reply_t & reply : client_data->replies) {
-    z_reply_drop(&reply);
+  // Get the sequence_number out of the attachment
+  if (!z_check(sample.attachment)) {
+    // A valid request must have had an attachment
+    RMW_SET_ERROR_MSG("Could not get attachment from query");
+    return RMW_RET_ERROR;
   }
-  client_data->replies.clear();
 
-  // TODO(francocipollone): Verify request_header information.
-  request_header->request_id.sequence_number = 0;
+  z_bytes_t sequence_num_index = z_attachment_get(sample.attachment, z_bytes_new("sequence_number"));
+  if (!z_check(sequence_num_index)) {
+    // A valid request must have had a sequence number attached
+    RMW_SET_ERROR_MSG("Could not get sequence number from query");
+    return RMW_RET_ERROR;
+  }
+
+  char sequence_num_str[20];
+  if (sequence_num_index.len > 19) {
+    // The sequence number was larger than we expected
+    RMW_SET_ERROR_MSG("Sequence number too large");
+    return RMW_RET_ERROR;
+  }
+
+  memcpy(sequence_num_str, sequence_num_index.start, sequence_num_index.len);
+  sequence_num_str[sequence_num_index.len] = '\0';
+
+  // TODO(clalancette): Error checking
+  request_header->request_id.sequence_number = strtol(sequence_num_str, nullptr, 10);
+
+  client_data->replies.pop_front();
+  z_reply_drop(latest_reply);
 
   return RMW_RET_OK;
 }
@@ -2341,8 +2383,8 @@ rmw_destroy_service(rmw_node_t * node, rmw_service_t * service)
   // CLEANUP ================================================================
   z_drop(z_move(service_data->keyexpr));
   z_drop(z_move(service_data->qable));
-  for (auto & id_query : service_data->id_query_map) {
-    z_drop(z_move(id_query.second));
+  for (z_owned_query_t & query : service_data->query_queue) {
+    z_drop(z_move(query));
   }
 
   allocator->deallocate(service_data->request_type_support, allocator->state);
@@ -2386,25 +2428,54 @@ rmw_take_request(
   RMW_CHECK_FOR_NULL_WITH_MSG(
     service->data, "Unable to retrieve service_data from service", RMW_RET_INVALID_ARGUMENT);
 
-  std::unordered_map<std::size_t, z_owned_query_t>::iterator query_it;
-  std::size_t query_id;
+  z_owned_query_t query;
   {
     std::lock_guard<std::mutex> lock(service_data->query_queue_mutex);
-    if (service_data->id_query_map.empty()) {
+    if (service_data->query_queue.empty()) {
       return RMW_RET_OK;
     }
-    query_id = service_data->to_take.front();
-    query_it = service_data->id_query_map.find(query_id);
-    if (query_it == service_data->id_query_map.end()) {
-      RMW_SET_ERROR_MSG("Query id not found in id_query_map");
-      return RMW_RET_ERROR;
-    }
-    service_data->to_take.pop_back();
+    query = service_data->query_queue.front();
+  }
+
+  const z_query_t loaned_query = z_query_loan(&query);
+
+  // Get the sequence_number out of the attachment
+  z_attachment_t attachment = z_query_attachment(&loaned_query);
+  if (!z_check(attachment)) {
+    // A valid request must have had an attachment
+    RMW_SET_ERROR_MSG("Could not get attachment from query");
+    return RMW_RET_ERROR;
+  }
+
+  z_bytes_t sequence_num_index = z_attachment_get(attachment, z_bytes_new("sequence_number"));
+  if (!z_check(sequence_num_index)) {
+    // A valid request must have had a sequence number attached
+    RMW_SET_ERROR_MSG("Could not get sequence number from query");
+    return RMW_RET_ERROR;
+  }
+
+  char sequence_num_str[20];
+  if (sequence_num_index.len > 19) {
+    // The sequence number was larger than we expected
+    RMW_SET_ERROR_MSG("Sequence number too large");
+    return RMW_RET_ERROR;
+  }
+
+  memcpy(sequence_num_str, sequence_num_index.start, sequence_num_index.len);
+  sequence_num_str[sequence_num_index.len] = '\0';
+
+  // TODO(clalancette): Error checking
+  int64_t sequence_number = strtol(sequence_num_str, nullptr, 10);
+
+  // Add this query to the map, so that rmw_send_response can quickly look it up later
+  {
+    std::lock_guard<std::mutex> lock(service_data->sequence_to_query_map_mutex);
+    // TODO(clalancette): Check if it already exists in the map; this should never happen
+    service_data->sequence_to_query_map.emplace(std::pair(sequence_number, query));
   }
 
   // DESERIALIZE MESSAGE ========================================================
-  const z_query_t z_loaned_query = z_query_loan(&query_it->second);
-  z_value_t payload_value = z_query_value(&z_loaned_query);
+  z_value_t payload_value = z_query_value(&loaned_query);
 
   // Object that manages the raw buffer
   eprosima::fastcdr::FastBuffer fastbuffer(
@@ -2426,7 +2497,11 @@ rmw_take_request(
   }
 
   // Fill in the request header.
-  request_header->request_id.sequence_number = query_id;
+  // TODO(clalancette): This must be the same as what we were delivered
+  // (i.e. we may have to propagate the guid, etc.
+  request_header->request_id.sequence_number = sequence_number;
+
+  service_data->query_queue.pop_front();
 
   *taken = true;
 
@@ -2506,21 +2581,39 @@ rmw_send_response(
     meta_length);
 
   // Create the queryable payload
-  std::lock_guard<std::mutex> lock(service_data->query_queue_mutex);
-  auto query_it = service_data->id_query_map.find(request_header->sequence_number);
-  if (query_it == service_data->id_query_map.end()) {
+  std::lock_guard<std::mutex> lock(service_data->sequence_to_query_map_mutex);
+  auto query_it = service_data->sequence_to_query_map.find(request_header->sequence_number);
+  if (query_it == service_data->sequence_to_query_map.end()) {
     RMW_SET_ERROR_MSG("Unable to find taken request. Report this bug.");
     return RMW_RET_ERROR;
   }
-  const z_query_t z_loaned_query = z_query_loan(&query_it->second);
+  const z_query_t loaned_query = z_query_loan(&query_it->second);
   z_query_reply_options_t options = z_query_reply_options_default();
+
+  z_owned_bytes_map_t map = z_bytes_map_new();
+  auto free_attachment_map = rcpputils::make_scope_exit(
+    [&map]() {
+      z_bytes_map_drop(z_move(map));
+    });
+
+  options.attachment = z_bytes_map_as_attachment(&map);
+
+  // The largest possible int64_t number is INT64_MAX, i.e. 9223372036854775807.
+  // That is 19 characters long, plus one for the trailing \0, means we need 20 bytes.
+  char seq_id_str[20];
+  if (rcutils_snprintf(seq_id_str, 20, "%" PRId64, request_header->sequence_number) < 0) {
+    RMW_SET_ERROR_MSG("failed to print sequence_number into buffer");
+    return RMW_RET_ERROR;
+  }
+  z_bytes_map_insert_by_copy(&map, z_bytes_new("sequence_number"), z_bytes_new(seq_id_str));
+
   options.encoding = z_encoding(Z_ENCODING_PREFIX_EMPTY, NULL);
   z_query_reply(
-    &z_loaned_query, z_loan(service_data->keyexpr), reinterpret_cast<const uint8_t *>(
+    &loaned_query, z_loan(service_data->keyexpr), reinterpret_cast<const uint8_t *>(
       response_bytes), data_length + meta_length, &options);
 
   z_drop(z_move(query_it->second));
-  service_data->id_query_map.erase(query_it);
+  service_data->sequence_to_query_map.erase(query_it);
   return RMW_RET_OK;
 }
 
@@ -2853,7 +2946,7 @@ rmw_wait(
       auto serv_data = static_cast<rmw_service_data_t *>(services->services[i]);
       if (serv_data != nullptr) {
         serv_data->condition = nullptr;
-        if (serv_data->to_take.empty()) {
+        if (serv_data->query_queue.empty()) {
           // Setting to nullptr lets rcl know that this service is not ready
           services->services[i] = nullptr;
         }

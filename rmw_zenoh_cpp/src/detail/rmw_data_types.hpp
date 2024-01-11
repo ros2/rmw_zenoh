@@ -133,7 +133,6 @@ struct rmw_subscription_data_t
 
 ///==============================================================================
 
-// z_owned_closure_query_t
 void service_data_handler(const z_query_t * query, void * service_data);
 
 void client_data_handler(z_owned_reply_t * reply, void * client_data);
@@ -155,17 +154,16 @@ struct rmw_service_data_t
 
   rmw_context_t * context;
 
-  // Map to store the query id and the query.
-  // The query handle is saved as it is needed to answer the query later on.
-  std::unordered_map<std::size_t, z_owned_query_t> id_query_map;
-  // The query id's of the queries that need to be processed.
-  std::deque<std::size_t> to_take;
+  // Deque to store the queries in the order they arrive.
+  std::deque<z_owned_query_t> query_queue;
   std::mutex query_queue_mutex;
+
+  // Map to store the sequence_number -> query_id
+  std::map<int64_t, z_owned_query_t> sequence_to_query_map;
+  std::mutex sequence_to_query_map_mutex;
 
   std::mutex internal_mutex;
   std::condition_variable * condition{nullptr};
-
-  std::size_t client_count = 0;
 };
 
 ///==============================================================================
@@ -177,7 +175,7 @@ struct rmw_client_data_t
   z_owned_closure_reply_t zn_closure_reply;
 
   std::mutex message_mutex;
-  std::vector<z_owned_reply_t> replies;
+  std::deque<z_owned_reply_t> replies;
 
   const void * request_type_support_impl;
   const void * response_type_support_impl;
@@ -189,6 +187,8 @@ struct rmw_client_data_t
 
   std::mutex internal_mutex;
   std::condition_variable * condition{nullptr};
+
+  size_t sequence_number{1};
 };
 
 #endif  // DETAIL__RMW_DATA_TYPES_HPP_
