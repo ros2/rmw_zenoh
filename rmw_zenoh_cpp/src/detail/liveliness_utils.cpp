@@ -68,6 +68,7 @@ static const char SRV_STR[] = "SS";
 static const char CLI_STR[] = "SC";
 static const char SLASH_REPLACEMENT = '%';
 static const char QOS_DELIMITER = ':';
+static const char QOS_HISTORY_DELIMITER = ',';
 
 static const std::unordered_map<EntityType, std::string> entity_to_str = {
   {EntityType::Node, NODE_STR},
@@ -140,7 +141,7 @@ std::vector<std::string> split_keyexpr(
  * Where:
  *  <ReliabilityKind> - "reliable" or "best_effort".
  *  <DurabilityKind> - "volatile" or "transient_local".
- *  <HistoryKind> - "keep_last".
+ *  <HistoryKind> - "keep_all" or "keep_last".
  *  <HistoryDepth> - The depth number.
  */
 // TODO(Yadunund): Rely on maps to retrieve strings.
@@ -152,8 +153,8 @@ std::string qos_to_keyexpr(rmw_qos_profile_t qos)
   keyexpr += qos.durability ==
     RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL ? "transient_local" : "volatile";
   keyexpr += QOS_DELIMITER;
-  // TODO(Yadunund): Update once we properly support History.
-  keyexpr += "keep_last,";
+  keyexpr += qos.history == RMW_QOS_POLICY_HISTORY_KEEP_ALL ? "keep_all" : "keep_last";
+  keyexpr += QOS_HISTORY_DELIMITER;
   keyexpr += std::to_string(qos.depth);
   return keyexpr;
 }
@@ -171,11 +172,12 @@ std::optional<rmw_qos_profile_t> keyexpr_to_qos(const std::string & keyexpr)
   qos.durability = parts[1] ==
     "transient_local" ? RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL :
     RMW_QOS_POLICY_DURABILITY_VOLATILE;
-  const std::vector<std::string> history_parts = split_keyexpr(parts[2], ',');
+  const std::vector<std::string> history_parts = split_keyexpr(parts[2], QOS_HISTORY_DELIMITER);
   if (history_parts.size() < 2) {
     return std::nullopt;
   }
-  qos.history = RMW_QOS_POLICY_HISTORY_KEEP_LAST;
+  qos.history = history_parts[0] ==
+    "keep_all" ? RMW_QOS_POLICY_HISTORY_KEEP_ALL : RMW_QOS_POLICY_HISTORY_KEEP_LAST;
   sscanf(history_parts[1].c_str(), "%zu", &qos.depth);
 
   return qos;

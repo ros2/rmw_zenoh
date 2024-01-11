@@ -607,11 +607,20 @@ rmw_create_publisher(
       }
     });
 
+  // Set congestion_control to BLOCK if appropriate.
+  z_publisher_options_t opts = z_publisher_options_default();
+  if (adapted_qos_profile.history == RMW_QOS_POLICY_HISTORY_KEEP_ALL &&
+    adapted_qos_profile.reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE)
+  {
+    opts.congestion_control = Z_CONGESTION_CONTROL_BLOCK;
+  } else {
+    opts.congestion_control = Z_CONGESTION_CONTROL_DROP;
+  }
   // TODO(clalancette): What happens if the key name is a valid but empty string?
   publisher_data->pub = z_declare_publisher(
     z_loan(context_impl->session),
     z_loan(keyexpr),
-    NULL
+    &opts
   );
   if (!z_check(publisher_data->pub)) {
     RMW_SET_ERROR_MSG("unable to create zenoh publisher");
