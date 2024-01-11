@@ -1913,6 +1913,26 @@ rmw_destroy_client(rmw_node_t * node, rmw_client_t * client)
   return RMW_RET_OK;
 }
 
+static z_owned_bytes_map_t create_map_and_set_sequence_num(int64_t sequence_number)
+{
+  z_owned_bytes_map_t map = z_bytes_map_new();
+  if (!z_check(map)) {
+    RMW_SET_ERROR_MSG("failed to allocate map for sequence number");
+    return z_bytes_map_null();
+  }
+
+  // The largest possible int64_t number is INT64_MAX, i.e. 9223372036854775807.
+  // That is 19 characters long, plus one for the trailing \0, means we need 20 bytes.
+  char seq_id_str[20];
+  if (rcutils_snprintf(seq_id_str, 20, "%" PRId64, sequence_number) < 0) {
+    RMW_SET_ERROR_MSG("failed to print sequence_number into buffer");
+    return z_bytes_map_null();
+  }
+  z_bytes_map_insert_by_copy(&map, z_bytes_new("sequence_number"), z_bytes_new(seq_id_str));
+
+  return map;
+}
+
 //==============================================================================
 /// Send a ROS service request.
 rmw_ret_t
@@ -1987,22 +2007,17 @@ rmw_send_request(
   // Send request
   z_get_options_t opts = z_get_options_default();
 
-  z_owned_bytes_map_t map = z_bytes_map_new();
+  z_owned_bytes_map_t map = create_map_and_set_sequence_num(*sequence_id);
+  if (!z_check(map)) {
+    // create_map_and_set_sequence_num already set the error
+    return RMW_RET_ERROR;
+  }
   auto free_attachment_map = rcpputils::make_scope_exit(
     [&map]() {
       z_bytes_map_drop(z_move(map));
     });
 
   opts.attachment = z_bytes_map_as_attachment(&map);
-
-  // The largest possible int64_t number is INT64_MAX, i.e. 9223372036854775807.
-  // That is 19 characters long, plus one for the trailing \0, means we need 20 bytes.
-  char seq_id_str[20];
-  if (rcutils_snprintf(seq_id_str, 20, "%" PRId64, *sequence_id) < 0) {
-    RMW_SET_ERROR_MSG("failed to print sequence_number into buffer");
-    return RMW_RET_ERROR;
-  }
-  z_bytes_map_insert_by_copy(&map, z_bytes_new("sequence_number"), z_bytes_new(seq_id_str));
 
   opts.target = Z_QUERY_TARGET_ALL;
   opts.value.payload = z_bytes_t{data_length, reinterpret_cast<const uint8_t *>(request_bytes)};
@@ -2606,22 +2621,17 @@ rmw_send_response(
   const z_query_t loaned_query = z_query_loan(&query_it->second);
   z_query_reply_options_t options = z_query_reply_options_default();
 
-  z_owned_bytes_map_t map = z_bytes_map_new();
+  z_owned_bytes_map_t map = create_map_and_set_sequence_num(request_header->sequence_number);
+  if (!z_check(map)) {
+    // create_map_and_set_sequence_num already set the error
+    return RMW_RET_ERROR;
+  }
   auto free_attachment_map = rcpputils::make_scope_exit(
     [&map]() {
       z_bytes_map_drop(z_move(map));
     });
 
   options.attachment = z_bytes_map_as_attachment(&map);
-
-  // The largest possible int64_t number is INT64_MAX, i.e. 9223372036854775807.
-  // That is 19 characters long, plus one for the trailing \0, means we need 20 bytes.
-  char seq_id_str[20];
-  if (rcutils_snprintf(seq_id_str, 20, "%" PRId64, request_header->sequence_number) < 0) {
-    RMW_SET_ERROR_MSG("failed to print sequence_number into buffer");
-    return RMW_RET_ERROR;
-  }
-  z_bytes_map_insert_by_copy(&map, z_bytes_new("sequence_number"), z_bytes_new(seq_id_str));
 
   options.encoding = z_encoding(Z_ENCODING_PREFIX_EMPTY, NULL);
   z_query_reply(
