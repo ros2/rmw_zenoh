@@ -19,6 +19,7 @@
   <depend>rosidl_typesupport_fastrtps_c</depend>
   <depend>rosidl_typesupport_fastrtps_cpp</depend>
   <depend>rmw</depend>
+  <depend>rmw_dds_common</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

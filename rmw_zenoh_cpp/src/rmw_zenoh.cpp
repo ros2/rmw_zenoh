@@ -49,6 +49,8 @@
 #include "rmw/validate_namespace.h"
 #include "rmw/validate_node_name.h"
 
+#include "rmw_dds_common/qos.hpp"
+
 namespace
 {
 
@@ -1137,19 +1139,14 @@ rmw_create_subscription(
   }
   RMW_CHECK_ARGUMENT_FOR_NULL(qos_profile, nullptr);
   // Adapt any 'best available' QoS options
-  // rmw_qos_profile_t adapted_qos_profile = *qos_profile;
-  // rmw_ret_t ret = rmw_dds_common::qos_profile_get_best_available_for_topic_subscription(
-  //   node, topic_name, &adapted_qos_profile, rmw_get_publishers_info_by_topic);
-  // if (RMW_RET_OK != ret) {
-  //   return nullptr;
-  // }
+  rmw_qos_profile_t adapted_qos_profile = *qos_profile;
+  rmw_ret_t ret = rmw_dds_common::qos_profile_get_best_available_for_topic_subscription(
+    node, topic_name, &adapted_qos_profile, rmw_get_publishers_info_by_topic);
+  if (RMW_RET_OK != ret) {
+    RMW_SET_ERROR_MSG("Failed to obtain adapted_qos_profile.");
+    return nullptr;
+  }
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription_options, nullptr);
-
-  // Check RMW QoS
-  // if (!is_valid_qos(*qos_profile)) {
-  //   RMW_SET_ERROR_MSG("create_subscription() called with invalid QoS");
-  //   return nullptr;
-  // }
 
   const rosidl_message_type_support_t * type_support = find_message_type_support(type_supports);
   if (type_support == nullptr) {
@@ -1215,15 +1212,6 @@ rmw_create_subscription(
         sub_data->~rmw_subscription_data_t(),
         rmw_subscription_data_t);
     });
-
-  // Set the reliability of the subscription options based on qos_profile.
-  // The default options will be initialized with Best Effort reliability.
-  auto sub_options = z_subscriber_options_default();
-  sub_data->reliable = false;
-  if (qos_profile->reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE) {
-    sub_options.reliability = Z_RELIABILITY_RELIABLE;
-    sub_data->reliable = true;
-  }
 
   sub_data->typesupport_identifier = type_support->typesupport_identifier;
   sub_data->type_support_impl = type_support->data;
@@ -1291,19 +1279,54 @@ rmw_create_subscription(
     RMW_SET_ERROR_MSG("unable to create zenoh keyexpr.");
     return nullptr;
   }
-  sub_data->sub = z_declare_subscriber(
-    z_loan(context_impl->session),
-    z_loan(keyexpr),
-    z_move(callback),
-    &sub_options
-  );
-  if (!z_check(sub_data->sub)) {
-    RMW_SET_ERROR_MSG("unable to create zenoh subscription");
-    return nullptr;
+  // Instantiate the subscription with suitable options depending on the
+  // adapted_qos_profile.
+  // TODO(Yadunund): Rely on a separate function to return the sub
+  // as we start supporting more qos settings.
+  sub_data->reliable = false;
+  if (adapted_qos_profile.durability == RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL) {
+    ze_querying_subscriber_options_t sub_options = ze_querying_subscriber_options_default();
+    if (adapted_qos_profile.reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE) {
+      sub_options.reliability = Z_RELIABILITY_RELIABLE;
+      sub_data->reliable = true;
+      sub_options.query_target = Z_QUERY_TARGET_ALL_COMPLETE;
+    }
+    sub_data->sub = ze_declare_querying_subscriber(
+      z_loan(context_impl->session),
+      z_loan(keyexpr),
+      z_move(callback),
+      &sub_options
+    );
+    if (!z_check(std::get<ze_owned_querying_subscriber_t>(sub_data->sub))) {
+      RMW_SET_ERROR_MSG("unable to create zenoh subscription");
+      return nullptr;
+    }
   }
+  // Create a regular subscriber for all other durability settings.
+  else {
+    z_subscriber_options_t sub_options = z_subscriber_options_default();
+    if (qos_profile->reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE) {
+      sub_options.reliability = Z_RELIABILITY_RELIABLE;
+      sub_data->reliable = true;
+    }
+    sub_data->sub = z_declare_subscriber(
+      z_loan(context_impl->session),
+      z_loan(keyexpr),
+      z_move(callback),
+      &sub_options
+    );
+    if (!z_check(std::get<z_owned_subscriber_t>(sub_data->sub))) {
+      RMW_SET_ERROR_MSG("unable to create zenoh subscription");
+      return nullptr;
+    }
+  }
+
   auto undeclare_z_sub = rcpputils::make_scope_exit(
     [sub_data]() {
-      z_undeclare_subscriber(z_move(sub_data->sub));
+      // TODO(Yadunund): Check if this is okay or if it is better
+      // to cast into explicit types and call appropriate undeclare method.
+      // See rmw_destroy_subscription()
+      z_drop(z_move(sub_data->sub));
     });
 
   // Publish to the graph that a new subscription is in town
@@ -1380,9 +1403,19 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
     RMW_TRY_DESTRUCTOR(sub_data->type_support->~MessageTypeSupport(), MessageTypeSupport, );
     allocator->deallocate(sub_data->type_support, allocator->state);
 
-    if (z_undeclare_subscriber(z_move(sub_data->sub))) {
-      RMW_SET_ERROR_MSG("failed to undeclare sub");
-      ret = RMW_RET_ERROR;
+    z_owned_subscriber_t * sub = std::get_if<z_owned_subscriber_t>(&sub_data->sub);
+    if (sub != nullptr) {
+      if (z_undeclare_subscriber(sub)) {
+        RMW_SET_ERROR_MSG("failed to undeclare sub");
+        ret = RMW_RET_ERROR;
+      }
+    } else {
+      ze_owned_querying_subscriber_t * querying_sub =
+        std::get_if<ze_owned_querying_subscriber_t>(&sub_data->sub);
+      if (querying_sub == nullptr || ze_undeclare_querying_subscriber(querying_sub)) {
+        RMW_SET_ERROR_MSG("failed to undeclare sub");
+        ret = RMW_RET_ERROR;
+      }
     }
 
     RMW_TRY_DESTRUCTOR(sub_data->~rmw_subscription_data_t(), rmw_subscription_data_t, );
@@ -1429,6 +1462,8 @@ rmw_subscription_get_actual_qos(
 
   qos->reliability = sub_data->reliable ? RMW_QOS_POLICY_RELIABILITY_RELIABLE :
     RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT;
+  qos->durability = std::holds_alternative<ze_owned_querying_subscriber_t>(sub_data->sub) ?
+    RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL : RMW_QOS_POLICY_DURABILITY_VOLATILE;
   return RMW_RET_OK;
 }
 

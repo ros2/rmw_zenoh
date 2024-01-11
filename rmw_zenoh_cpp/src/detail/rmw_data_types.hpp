@@ -25,6 +25,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "rcutils/allocator.h"
@@ -110,7 +111,8 @@ struct saved_msg_data
 ///==============================================================================
 struct rmw_subscription_data_t
 {
-  z_owned_subscriber_t sub;
+  // An owned subscriber or querying_subscriber depending on the QoS settings.
+  std::variant<z_owned_subscriber_t, ze_owned_querying_subscriber_t> sub;
 
   // Liveliness token for the subscription.
   zc_owned_liveliness_token_t token;
