@@ -23,7 +23,6 @@
 
 #include "rmw/types.h"
 
-
 namespace liveliness
 {
 

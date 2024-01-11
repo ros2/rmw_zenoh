@@ -86,21 +86,14 @@ static const std::unordered_map<std::string, EntityType> str_to_entity = {
   {CLI_STR, EntityType::Client}
 };
 
-// Map string literals to qos enums.
-// static const std::unordered_map<std::string, uint8_t> str_to_qos_e = {
-//   {"reliable", RMW_QOS_POLICY_RELIABILITY_RELIABLE},
-//   {"best_effort", RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT}
-// };
-
 std::string zid_to_str(z_id_t id)
 {
   std::stringstream ss;
   ss << std::hex;
   size_t i = 0;
-  for (; i < (sizeof(id.id) - 1); i++) {
-    ss << static_cast<int>(id.id[i]) << ".";
+  for (; i < (sizeof(id.id)); i++) {
+    ss << static_cast<int>(id.id[i]);
   }
-  ss << static_cast<int>(id.id[i]);
   return ss.str();
 }
 
@@ -139,21 +132,20 @@ std::vector<std::string> split_keyexpr(
  *
  * <ReliabilityKind>:<DurabilityKind>:<HistoryKind>,<HistoryDepth>"
  * Where:
- *  <ReliabilityKind> - "reliable" or "best_effort".
- *  <DurabilityKind> - "volatile" or "transient_local".
- *  <HistoryKind> - "keep_all" or "keep_last".
+ *  <ReliabilityKind> - enum value from rmw_qos_reliability_policy_e.
+ *  <DurabilityKind> - enum value from rmw_qos_durability_policy_e.
+ *  <HistoryKind> - enum value from rmw_qos_history_policy_e.
  *  <HistoryDepth> - The depth number.
  */
 // TODO(Yadunund): Rely on maps to retrieve strings.
 std::string qos_to_keyexpr(rmw_qos_profile_t qos)
 {
   std::string keyexpr = "";
-  keyexpr += qos.reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE ? "reliable" : "best_effort";
+  keyexpr += std::to_string(qos.reliability);
   keyexpr += QOS_DELIMITER;
-  keyexpr += qos.durability ==
-    RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL ? "transient_local" : "volatile";
+  keyexpr += std::to_string(qos.durability);
   keyexpr += QOS_DELIMITER;
-  keyexpr += qos.history == RMW_QOS_POLICY_HISTORY_KEEP_ALL ? "keep_all" : "keep_last";
+  keyexpr += std::to_string(qos.history);
   keyexpr += QOS_HISTORY_DELIMITER;
   keyexpr += std::to_string(qos.depth);
   return keyexpr;
@@ -167,17 +159,13 @@ std::optional<rmw_qos_profile_t> keyexpr_to_qos(const std::string & keyexpr)
   if (parts.size() < 3) {
     return std::nullopt;
   }
-  qos.reliability = parts[0] ==
-    "reliable" ? RMW_QOS_POLICY_RELIABILITY_RELIABLE : RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT;
-  qos.durability = parts[1] ==
-    "transient_local" ? RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL :
-    RMW_QOS_POLICY_DURABILITY_VOLATILE;
   const std::vector<std::string> history_parts = split_keyexpr(parts[2], QOS_HISTORY_DELIMITER);
   if (history_parts.size() < 2) {
     return std::nullopt;
   }
-  qos.history = history_parts[0] ==
-    "keep_all" ? RMW_QOS_POLICY_HISTORY_KEEP_ALL : RMW_QOS_POLICY_HISTORY_KEEP_LAST;
+  sscanf(parts[0].c_str(), "%zu", &qos.reliability);
+  sscanf(parts[1].c_str(), "%zu", &qos.durability);
+  sscanf(history_parts[0].c_str(), "%zu", &qos.history);
   sscanf(history_parts[1].c_str(), "%zu", &qos.depth);
 
   return qos;
