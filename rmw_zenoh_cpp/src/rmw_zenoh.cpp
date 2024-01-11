@@ -572,8 +572,6 @@ rmw_create_publisher(
       allocator->deallocate(const_cast<char *>(rmw_publisher->topic_name), allocator->state);
     });
 
-  // TODO(yadunund): Parse adapted_qos_profile and publisher_options to generate
-  // a z_publisher_put_options struct instead of passing NULL to this function.
   z_owned_keyexpr_t keyexpr = ros_topic_name_to_zenoh_key(
     topic_name, node->context->actual_domain_id, allocator);
   auto always_free_ros_keyexpr = rcpputils::make_scope_exit(
@@ -954,11 +952,23 @@ rmw_publisher_count_matched_subscriptions(
   const rmw_publisher_t * publisher,
   size_t * subscription_count)
 {
-  static_cast<void>(publisher);
-  static_cast<void>(subscription_count);
-  // TODO(yadunund): Fixme.
-  *subscription_count = 0;
-  return RMW_RET_OK;
+  RMW_CHECK_ARGUMENT_FOR_NULL(publisher, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(publisher->data, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    publisher,
+    publisher->implementation_identifier,
+    rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_ARGUMENT_FOR_NULL(subscription_count, RMW_RET_INVALID_ARGUMENT);
+
+  rmw_publisher_data_t * pub_data = static_cast<rmw_publisher_data_t *>(publisher->data);
+  RMW_CHECK_ARGUMENT_FOR_NULL(pub_data, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(pub_data->context, RMW_RET_INVALID_ARGUMENT);
+  rmw_context_impl_t * context_impl = static_cast<rmw_context_impl_t *>(pub_data->context->impl);
+  RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
+
+  return context_impl->graph_cache.publisher_count_matched_subscriptions(
+    publisher, subscription_count);
 }
 
 //==============================================================================

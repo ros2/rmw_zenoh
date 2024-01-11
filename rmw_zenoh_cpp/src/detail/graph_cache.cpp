@@ -34,6 +34,7 @@
 #include "rmw/validate_node_name.h"
 
 #include "graph_cache.hpp"
+#include "rmw_data_types.hpp"
 
 ///=============================================================================
 using Entity = liveliness::Entity;
@@ -709,6 +710,26 @@ rmw_ret_t GraphCache::get_topic_names_and_types(
 
   std::lock_guard<std::mutex> lock(graph_mutex_);
   return fill_names_and_types(graph_topics_, allocator, topic_names_and_types);
+}
+
+///=============================================================================
+rmw_ret_t GraphCache::publisher_count_matched_subscriptions(
+  const rmw_publisher_t * publisher,
+  size_t * subscription_count)
+{
+  // TODO(Yadunund): Check if QoS settings also match.
+  *subscription_count = 0;
+  GraphNode::TopicMap::const_iterator topic_it = graph_topics_.find(publisher->topic_name);
+  if (topic_it != graph_topics_.end()) {
+    rmw_publisher_data_t * pub_data = static_cast<rmw_publisher_data_t *>(publisher->data);
+    GraphNode::TopicDataMap::const_iterator topic_data_it = topic_it->second.find(
+      pub_data->type_support->get_name());
+    if (topic_data_it != topic_it->second.end()) {
+      *subscription_count = topic_data_it->second->stats_.sub_count_;
+    }
+  }
+
+  return RMW_RET_OK;
 }
 
 ///=============================================================================
