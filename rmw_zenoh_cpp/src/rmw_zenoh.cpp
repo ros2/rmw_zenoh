@@ -2015,6 +2015,62 @@ rmw_send_request(
   return RMW_RET_OK;
 }
 
+static int64_t get_sequence_num_from_attachment(const z_attachment_t * const attachment)
+{
+  // Get the sequence_number out of the attachment
+  if (!z_check(*attachment)) {
+    // A valid request must have had an attachment
+    RMW_SET_ERROR_MSG("Could not get attachment from query");
+    return -1;
+  }
+
+  z_bytes_t sequence_num_index = z_attachment_get(*attachment, z_bytes_new("sequence_number"));
+  if (!z_check(sequence_num_index)) {
+    // A valid request must have had a sequence number attached
+    RMW_SET_ERROR_MSG("Could not get sequence number from query");
+    return -1;
+  }
+
+  if (sequence_num_index.len < 1) {
+    RMW_SET_ERROR_MSG("No value specified for the sequence number");
+    return -1;
+  }
+
+  if (sequence_num_index.len > 19) {
+    // The sequence number was larger than we expected
+    RMW_SET_ERROR_MSG("Sequence number too large");
+    return -1;
+  }
+
+  char sequence_num_str[20];
+
+  memcpy(sequence_num_str, sequence_num_index.start, sequence_num_index.len);
+  sequence_num_str[sequence_num_index.len] = '\0';
+
+  errno = 0;
+  char * endptr;
+  int64_t seqnum = strtol(sequence_num_str, &endptr, 10);
+  if (seqnum == 0) {
+    // This is an error regardless; the client should never send this
+    RMW_SET_ERROR_MSG("A invalid zero value sent as the sequence number");
+    return -1;
+  } else if (endptr == sequence_num_str) {
+    // No values were converted, this is an error
+    RMW_SET_ERROR_MSG("No valid numbers available in the sequence number");
+    return -1;
+  } else if (*endptr != '\0') {
+    // There was junk after the number
+    RMW_SET_ERROR_MSG("Non-numeric values in the sequence number");
+    return -1;
+  } else if (errno != 0) {
+    // Some other error occurred, which may include overflow or underflow
+    RMW_SET_ERROR_MSG("An undefined error occurred while getting the sequence number, this may be an overflow");
+    return -1;
+  }
+
+  return seqnum;
+}
+
 //==============================================================================
 /// Take an incoming ROS service response.
 rmw_ret_t
@@ -2073,34 +2129,13 @@ rmw_take_response(
     return RMW_RET_ERROR;
   }
 
+  request_header->request_id.sequence_number = get_sequence_num_from_attachment(&sample.attachment);
+  if (request_header->request_id.sequence_number < 0) {
+    // get_sequence_num_from_attachment already set an error
+    return RMW_RET_ERROR;
+  }
+
   *taken = true;
-
-  // Get the sequence_number out of the attachment
-  if (!z_check(sample.attachment)) {
-    // A valid request must have had an attachment
-    RMW_SET_ERROR_MSG("Could not get attachment from query");
-    return RMW_RET_ERROR;
-  }
-
-  z_bytes_t sequence_num_index = z_attachment_get(sample.attachment, z_bytes_new("sequence_number"));
-  if (!z_check(sequence_num_index)) {
-    // A valid request must have had a sequence number attached
-    RMW_SET_ERROR_MSG("Could not get sequence number from query");
-    return RMW_RET_ERROR;
-  }
-
-  char sequence_num_str[20];
-  if (sequence_num_index.len > 19) {
-    // The sequence number was larger than we expected
-    RMW_SET_ERROR_MSG("Sequence number too large");
-    return RMW_RET_ERROR;
-  }
-
-  memcpy(sequence_num_str, sequence_num_index.start, sequence_num_index.len);
-  sequence_num_str[sequence_num_index.len] = '\0';
-
-  // TODO(clalancette): Error checking
-  request_header->request_id.sequence_number = strtol(sequence_num_str, nullptr, 10);
 
   client_data->replies.pop_front();
   z_reply_drop(latest_reply);
@@ -2441,31 +2476,12 @@ rmw_take_request(
 
   // Get the sequence_number out of the attachment
   z_attachment_t attachment = z_query_attachment(&loaned_query);
-  if (!z_check(attachment)) {
-    // A valid request must have had an attachment
-    RMW_SET_ERROR_MSG("Could not get attachment from query");
+
+  int64_t sequence_number = get_sequence_num_from_attachment(&attachment);
+  if (sequence_number < 0) {
+    // get_sequence_number_from_attachment already set the error
     return RMW_RET_ERROR;
   }
-
-  z_bytes_t sequence_num_index = z_attachment_get(attachment, z_bytes_new("sequence_number"));
-  if (!z_check(sequence_num_index)) {
-    // A valid request must have had a sequence number attached
-    RMW_SET_ERROR_MSG("Could not get sequence number from query");
-    return RMW_RET_ERROR;
-  }
-
-  char sequence_num_str[20];
-  if (sequence_num_index.len > 19) {
-    // The sequence number was larger than we expected
-    RMW_SET_ERROR_MSG("Sequence number too large");
-    return RMW_RET_ERROR;
-  }
-
-  memcpy(sequence_num_str, sequence_num_index.start, sequence_num_index.len);
-  sequence_num_str[sequence_num_index.len] = '\0';
-
-  // TODO(clalancette): Error checking
-  int64_t sequence_number = strtol(sequence_num_str, nullptr, 10);
 
   // Add this query to the map, so that rmw_send_response can quickly look it up later
   {
