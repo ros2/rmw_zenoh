@@ -17,16 +17,28 @@
 #include <mutex>
 #include <utility>
 
+#include "rcpputils/scope_exit.hpp"
 #include "rcutils/logging_macros.h"
 
 #include "rmw_data_types.hpp"
 
 ///==============================================================================
+saved_msg_data::saved_msg_data(zc_owned_payload_t p, uint64_t recv_ts, const uint8_t pub_gid[16])
+: payload(p), recv_timestamp(recv_ts)
+{
+  memcpy(publisher_gid, pub_gid, 16);
+}
+
+//==============================================================================
 void sub_data_handler(
   const z_sample_t * sample,
   void * data)
 {
   z_owned_str_t keystr = z_keyexpr_to_string(sample->keyexpr);
+  auto drop_keystr = rcpputils::make_scope_exit(
+    [&keystr]() {
+      z_drop(z_move(keystr));
+    });
 
   auto sub_data = static_cast<rmw_subscription_data_t *>(data);
   if (sub_data == nullptr) {
@@ -67,6 +79,81 @@ void sub_data_handler(
       sub_data->condition->notify_one();
     }
   }
+}
 
-  z_drop(z_move(keystr));
+//==============================================================================
+void service_data_handler(const z_query_t * query, void * data)
+{
+  RCUTILS_LOG_INFO_NAMED(
+    "rmw_zenoh_cpp",
+    "[service_data_handler] triggered"
+  );
+  z_owned_str_t keystr = z_keyexpr_to_string(z_query_keyexpr(query));
+  auto drop_keystr = rcpputils::make_scope_exit(
+    [&keystr]() {
+      z_drop(z_move(keystr));
+    });
+
+  rmw_service_data_t * service_data = static_cast<rmw_service_data_t *>(data);
+  if (service_data == nullptr) {
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to obtain rmw_service_data_t from data for "
+      "service for %s",
+      z_loan(keystr)
+    );
+    return;
+  }
+
+  // Get the query parameters and payload
+  {
+    std::lock_guard<std::mutex> lock(service_data->query_queue_mutex);
+    service_data->query_queue.push_back(z_query_clone(query));
+  }
+  {
+    // Since we added new data, trigger the guard condition if it is available
+    std::lock_guard<std::mutex> internal_lock(service_data->internal_mutex);
+    if (service_data->condition != nullptr) {
+      service_data->condition->notify_one();
+    }
+  }
+}
+
+//==============================================================================
+void client_data_handler(z_owned_reply_t * reply, void * data)
+{
+  auto client_data = static_cast<rmw_client_data_t *>(data);
+  if (client_data == nullptr) {
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to obtain client_data_t "
+    );
+    return;
+  }
+  if (!z_reply_check(reply)) {
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "z_reply_check returned False"
+    );
+    return;
+  }
+  if (!z_reply_is_ok(reply)) {
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "z_reply_is_ok returned False"
+    );
+    return;
+  }
+  {
+    std::lock_guard<std::mutex> msg_lock(client_data->message_mutex);
+    // Take ownership of the reply.
+    client_data->replies.emplace_back(*reply);
+    *reply = z_reply_null();
+  }
+  {
+    std::lock_guard<std::mutex> internal_lock(client_data->internal_mutex);
+    if (client_data->condition != nullptr) {
+      client_data->condition->notify_one();
+    }
+  }
 }

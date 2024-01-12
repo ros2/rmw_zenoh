@@ -22,8 +22,10 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <utility>
+#include <vector>
 
 #include "rcutils/allocator.h"
 
@@ -31,6 +33,7 @@
 
 #include "graph_cache.hpp"
 #include "message_type_support.hpp"
+#include "service_type_support.hpp"
 
 /// Structs for various type erased data fields.
 
@@ -97,11 +100,7 @@ void sub_data_handler(const z_sample_t * sample, void * sub_data);
 
 struct saved_msg_data
 {
-  explicit saved_msg_data(zc_owned_payload_t p, uint64_t recv_ts, const uint8_t pub_gid[16])
-  : payload(p), recv_timestamp(recv_ts)
-  {
-    memcpy(publisher_gid, pub_gid, 16);
-  }
+  explicit saved_msg_data(zc_owned_payload_t p, uint64_t recv_ts, const uint8_t pub_gid[16]);
 
   zc_owned_payload_t payload;
   uint64_t recv_timestamp;
@@ -129,6 +128,67 @@ struct rmw_subscription_data_t
 
   std::mutex internal_mutex;
   std::condition_variable * condition{nullptr};
+};
+
+
+///==============================================================================
+
+void service_data_handler(const z_query_t * query, void * service_data);
+
+void client_data_handler(z_owned_reply_t * reply, void * client_data);
+
+///==============================================================================
+
+struct rmw_service_data_t
+{
+  std::size_t get_new_uid();
+
+  z_owned_keyexpr_t keyexpr;
+  z_owned_queryable_t qable;
+
+  const void * request_type_support_impl;
+  const void * response_type_support_impl;
+  const char * typesupport_identifier;
+  RequestTypeSupport * request_type_support;
+  ResponseTypeSupport * response_type_support;
+
+  rmw_context_t * context;
+
+  // Deque to store the queries in the order they arrive.
+  std::deque<z_owned_query_t> query_queue;
+  std::mutex query_queue_mutex;
+
+  // Map to store the sequence_number -> query_id
+  std::map<int64_t, z_owned_query_t> sequence_to_query_map;
+  std::mutex sequence_to_query_map_mutex;
+
+  std::mutex internal_mutex;
+  std::condition_variable * condition{nullptr};
+};
+
+///==============================================================================
+
+struct rmw_client_data_t
+{
+  z_owned_keyexpr_t keyexpr;
+
+  z_owned_closure_reply_t zn_closure_reply;
+
+  std::mutex message_mutex;
+  std::deque<z_owned_reply_t> replies;
+
+  const void * request_type_support_impl;
+  const void * response_type_support_impl;
+  const char * typesupport_identifier;
+  RequestTypeSupport * request_type_support;
+  ResponseTypeSupport * response_type_support;
+
+  rmw_context_t * context;
+
+  std::mutex internal_mutex;
+  std::condition_variable * condition{nullptr};
+
+  size_t sequence_number{1};
 };
 
 #endif  // DETAIL__RMW_DATA_TYPES_HPP_
