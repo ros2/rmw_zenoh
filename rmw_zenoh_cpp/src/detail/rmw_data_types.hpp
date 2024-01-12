@@ -179,8 +179,8 @@ struct rmw_client_data_t
   // Liveliness token for the client.
   zc_owned_liveliness_token_t token;
 
-  std::mutex message_mutex;
-  std::deque<z_owned_reply_t> replies;
+  std::mutex replies_mutex;
+  std::deque<std::unique_ptr<z_owned_reply_t>> replies;
 
   const void * request_type_support_impl;
   const void * response_type_support_impl;
@@ -193,6 +193,7 @@ struct rmw_client_data_t
   std::mutex internal_mutex;
   std::condition_variable * condition{nullptr};
 
+  std::mutex sequence_number_mutex;
   size_t sequence_number{1};
 };
 

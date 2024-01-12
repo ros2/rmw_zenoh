@@ -1942,8 +1942,8 @@ rmw_destroy_client(rmw_node_t * node, rmw_client_t * client)
   // CLEANUP ===================================================================
   z_drop(z_move(client_data->zn_closure_reply));
   z_drop(z_move(client_data->keyexpr));
-  for (z_owned_reply_t & reply : client_data->replies) {
-    z_reply_drop(&reply);
+  for (std::unique_ptr<z_owned_reply_t> & reply : client_data->replies) {
+    z_reply_drop(reply.get());
   }
   client_data->replies.clear();
   z_drop(z_move(client_data->token));
@@ -2046,8 +2046,10 @@ rmw_send_request(
 
   size_t data_length = ser.getSerializedDataLength();
 
-  // TODO(clalancette): Locking for multiple requests at the same time
-  *sequence_id = client_data->sequence_number++;
+  {
+    std::lock_guard<std::mutex> lock(client_data->sequence_number_mutex);
+    *sequence_id = client_data->sequence_number++;
+  }
 
   // Send request
   z_get_options_t opts = z_get_options_default();
@@ -2166,15 +2168,15 @@ rmw_take_response(
   RMW_CHECK_FOR_NULL_WITH_MSG(
     client->data, "Unable to retrieve client_data from client.", RMW_RET_INVALID_ARGUMENT);
 
-  z_owned_reply_t * latest_reply = nullptr;
+  std::unique_ptr<z_owned_reply_t> latest_reply = nullptr;
 
-  std::lock_guard<std::mutex> lock(client_data->message_mutex);
+  std::lock_guard<std::mutex> lock(client_data->replies_mutex);
   if (client_data->replies.empty()) {
     RCUTILS_LOG_ERROR_NAMED("rmw_zenoh_cpp", "[rmw_take_response] Response message is empty");
     return RMW_RET_ERROR;
   }
-  latest_reply = &client_data->replies.front();
-  z_sample_t sample = z_reply_ok(latest_reply);
+  latest_reply = std::move(client_data->replies.front());
+  z_sample_t sample = z_reply_ok(latest_reply.get());
 
   // Object that manages the raw buffer
   eprosima::fastcdr::FastBuffer fastbuffer(
@@ -2205,7 +2207,7 @@ rmw_take_response(
 
   *taken = true;
 
-  z_reply_drop(latest_reply);
+  z_reply_drop(latest_reply.get());
   client_data->replies.pop_front();
 
   return RMW_RET_OK;
@@ -2536,6 +2538,7 @@ rmw_destroy_service(rmw_node_t * node, rmw_service_t * service)
   for (std::unique_ptr<z_owned_query_t> & query : service_data->query_queue) {
     z_drop(z_move(*query.get()));
   }
+  service_data->query_queue.clear();
   z_drop(z_move(service_data->token));
 
   allocator->deallocate(service_data->request_type_support, allocator->state);

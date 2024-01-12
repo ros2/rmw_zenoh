@@ -145,9 +145,9 @@ void client_data_handler(z_owned_reply_t * reply, void * data)
     return;
   }
   {
-    std::lock_guard<std::mutex> msg_lock(client_data->message_mutex);
+    std::lock_guard<std::mutex> msg_lock(client_data->replies_mutex);
     // Take ownership of the reply.
-    client_data->replies.emplace_back(*reply);
+    client_data->replies.emplace_back(std::make_unique<z_owned_reply_t>(*reply));
     *reply = z_reply_null();
   }
   {
