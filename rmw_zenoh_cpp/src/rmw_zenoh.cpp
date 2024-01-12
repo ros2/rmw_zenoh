@@ -1942,9 +1942,6 @@ rmw_destroy_client(rmw_node_t * node, rmw_client_t * client)
   // CLEANUP ===================================================================
   z_drop(z_move(client_data->zn_closure_reply));
   z_drop(z_move(client_data->keyexpr));
-  for (std::unique_ptr<z_owned_reply_t> & reply : client_data->replies) {
-    z_reply_drop(reply.get());
-  }
   client_data->replies.clear();
   z_drop(z_move(client_data->token));
 
@@ -2046,10 +2043,7 @@ rmw_send_request(
 
   size_t data_length = ser.getSerializedDataLength();
 
-  {
-    std::lock_guard<std::mutex> lock(client_data->sequence_number_mutex);
-    *sequence_id = client_data->sequence_number++;
-  }
+  *sequence_id = client_data->get_next_sequence_number();
 
   // Send request
   z_get_options_t opts = z_get_options_default();
@@ -2168,15 +2162,17 @@ rmw_take_response(
   RMW_CHECK_FOR_NULL_WITH_MSG(
     client->data, "Unable to retrieve client_data from client.", RMW_RET_INVALID_ARGUMENT);
 
-  std::unique_ptr<z_owned_reply_t> latest_reply = nullptr;
-
-  std::lock_guard<std::mutex> lock(client_data->replies_mutex);
-  if (client_data->replies.empty()) {
-    RCUTILS_LOG_ERROR_NAMED("rmw_zenoh_cpp", "[rmw_take_response] Response message is empty");
-    return RMW_RET_ERROR;
+  std::unique_ptr<ZenohReply> latest_reply = nullptr;
+  {
+    std::lock_guard<std::mutex> lock(client_data->replies_mutex);
+    if (client_data->replies.empty()) {
+      RCUTILS_LOG_ERROR_NAMED("rmw_zenoh_cpp", "[rmw_take_response] Response message is empty");
+      return RMW_RET_ERROR;
+    }
+    latest_reply = std::move(client_data->replies.front());
+    client_data->replies.pop_front();
   }
-  latest_reply = std::move(client_data->replies.front());
-  z_sample_t sample = z_reply_ok(latest_reply.get());
+  const z_sample_t sample = latest_reply->get_sample();
 
   // Object that manages the raw buffer
   eprosima::fastcdr::FastBuffer fastbuffer(
@@ -2206,9 +2202,6 @@ rmw_take_response(
   // and writer_guid
 
   *taken = true;
-
-  z_reply_drop(latest_reply.get());
-  client_data->replies.pop_front();
 
   return RMW_RET_OK;
 }
@@ -2535,9 +2528,7 @@ rmw_destroy_service(rmw_node_t * node, rmw_service_t * service)
   // CLEANUP ================================================================
   z_drop(z_move(service_data->keyexpr));
   z_drop(z_move(service_data->qable));
-  for (std::unique_ptr<z_owned_query_t> & query : service_data->query_queue) {
-    z_drop(z_move(*query.get()));
-  }
+  service_data->sequence_to_query_map.clear();
   service_data->query_queue.clear();
   z_drop(z_move(service_data->token));
 
@@ -2581,16 +2572,17 @@ rmw_take_request(
   RMW_CHECK_FOR_NULL_WITH_MSG(
     service->data, "Unable to retrieve service_data from service", RMW_RET_INVALID_ARGUMENT);
 
-  std::unique_ptr<z_owned_query_t> query;
+  std::unique_ptr<ZenohQuery> query = nullptr;
   {
     std::lock_guard<std::mutex> lock(service_data->query_queue_mutex);
     if (service_data->query_queue.empty()) {
       return RMW_RET_OK;
     }
     query = std::move(service_data->query_queue.front());
+    service_data->query_queue.pop_front();
   }
 
-  const z_query_t loaned_query = z_query_loan(query.get());
+  const z_query_t loaned_query = query->get_query();
 
   // Get the sequence_number out of the attachment
   z_attachment_t attachment = z_query_attachment(&loaned_query);
@@ -2639,8 +2631,6 @@ rmw_take_request(
   // TODO(clalancette): We also need to fill in writer_guid, source_timestamp,
   // and received_timestamp
   request_header->request_id.sequence_number = sequence_number;
-
-  service_data->query_queue.pop_front();
 
   *taken = true;
 
@@ -2720,7 +2710,7 @@ rmw_send_response(
     RMW_SET_ERROR_MSG("Unable to find taken request. Report this bug.");
     return RMW_RET_ERROR;
   }
-  const z_query_t loaned_query = z_query_loan(query_it->second.get());
+  const z_query_t loaned_query = query_it->second->get_query();
   z_query_reply_options_t options = z_query_reply_options_default();
 
   // TODO(clalancette): We also need to fill in and send the writer_guid
@@ -2741,7 +2731,6 @@ rmw_send_response(
     &loaned_query, z_loan(service_data->keyexpr), reinterpret_cast<const uint8_t *>(
       response_bytes), data_length, &options);
 
-  z_drop(z_move(*query_it->second.get()));
   service_data->sequence_to_query_map.erase(query_it);
   return RMW_RET_OK;
 }

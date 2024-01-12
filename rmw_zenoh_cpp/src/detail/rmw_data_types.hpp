@@ -139,10 +139,21 @@ void client_data_handler(z_owned_reply_t * reply, void * client_data);
 
 ///==============================================================================
 
+class ZenohQuery final
+{
+public:
+  ZenohQuery(const z_query_t * query);
+
+  ~ZenohQuery();
+
+  const z_query_t get_query() const;
+
+private:
+  z_owned_query_t query_;
+};
+
 struct rmw_service_data_t
 {
-  std::size_t get_new_uid();
-
   z_owned_keyexpr_t keyexpr;
   z_owned_queryable_t qable;
 
@@ -158,11 +169,11 @@ struct rmw_service_data_t
   rmw_context_t * context;
 
   // Deque to store the queries in the order they arrive.
-  std::deque<std::unique_ptr<z_owned_query_t>> query_queue;
+  std::deque<std::unique_ptr<ZenohQuery>> query_queue;
   std::mutex query_queue_mutex;
 
   // Map to store the sequence_number -> query_id
-  std::unordered_map<int64_t, std::unique_ptr<z_owned_query_t>> sequence_to_query_map;
+  std::unordered_map<int64_t, std::unique_ptr<ZenohQuery>> sequence_to_query_map;
   std::mutex sequence_to_query_map_mutex;
 
   std::mutex internal_mutex;
@@ -170,6 +181,19 @@ struct rmw_service_data_t
 };
 
 ///==============================================================================
+
+class ZenohReply final
+{
+public:
+  ZenohReply(const z_owned_reply_t * reply);
+
+  ~ZenohReply();
+
+  const z_sample_t get_sample() const;
+
+private:
+  z_owned_reply_t reply_;
+};
 
 struct rmw_client_data_t
 {
@@ -180,7 +204,7 @@ struct rmw_client_data_t
   zc_owned_liveliness_token_t token;
 
   std::mutex replies_mutex;
-  std::deque<std::unique_ptr<z_owned_reply_t>> replies;
+  std::deque<std::unique_ptr<ZenohReply>> replies;
 
   const void * request_type_support_impl;
   const void * response_type_support_impl;
@@ -193,6 +217,7 @@ struct rmw_client_data_t
   std::mutex internal_mutex;
   std::condition_variable * condition{nullptr};
 
+  size_t get_next_sequence_number();
   std::mutex sequence_number_mutex;
   size_t sequence_number{1};
 };
