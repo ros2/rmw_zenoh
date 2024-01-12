@@ -158,11 +158,11 @@ struct rmw_service_data_t
   rmw_context_t * context;
 
   // Deque to store the queries in the order they arrive.
-  std::deque<z_owned_query_t> query_queue;
+  std::deque<std::unique_ptr<z_owned_query_t>> query_queue;
   std::mutex query_queue_mutex;
 
   // Map to store the sequence_number -> query_id
-  std::map<int64_t, z_owned_query_t> sequence_to_query_map;
+  std::unordered_map<int64_t, std::unique_ptr<z_owned_query_t>> sequence_to_query_map;
   std::mutex sequence_to_query_map_mutex;
 
   std::mutex internal_mutex;

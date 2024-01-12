@@ -1969,7 +1969,7 @@ static z_owned_bytes_map_t create_map_and_set_sequence_num(int64_t sequence_numb
   // The largest possible int64_t number is INT64_MAX, i.e. 9223372036854775807.
   // That is 19 characters long, plus one for the trailing \0, means we need 20 bytes.
   char seq_id_str[20];
-  if (rcutils_snprintf(seq_id_str, 20, "%" PRId64, sequence_number) < 0) {
+  if (rcutils_snprintf(seq_id_str, sizeof(seq_id_str), "%" PRId64, sequence_number) < 0) {
     RMW_SET_ERROR_MSG("failed to print sequence_number into buffer");
     return z_bytes_map_null();
   }
@@ -2204,8 +2204,8 @@ rmw_take_response(
 
   *taken = true;
 
-  client_data->replies.pop_front();
   z_reply_drop(latest_reply);
+  client_data->replies.pop_front();
 
   return RMW_RET_OK;
 }
@@ -2532,8 +2532,8 @@ rmw_destroy_service(rmw_node_t * node, rmw_service_t * service)
   // CLEANUP ================================================================
   z_drop(z_move(service_data->keyexpr));
   z_drop(z_move(service_data->qable));
-  for (z_owned_query_t & query : service_data->query_queue) {
-    z_drop(z_move(query));
+  for (std::unique_ptr<z_owned_query_t> & query : service_data->query_queue) {
+    z_drop(z_move(*query.get()));
   }
   z_drop(z_move(service_data->token));
 
@@ -2577,16 +2577,16 @@ rmw_take_request(
   RMW_CHECK_FOR_NULL_WITH_MSG(
     service->data, "Unable to retrieve service_data from service", RMW_RET_INVALID_ARGUMENT);
 
-  z_owned_query_t query;
+  std::unique_ptr<z_owned_query_t> query;
   {
     std::lock_guard<std::mutex> lock(service_data->query_queue_mutex);
     if (service_data->query_queue.empty()) {
       return RMW_RET_OK;
     }
-    query = service_data->query_queue.front();
+    query = std::move(service_data->query_queue.front());
   }
 
-  const z_query_t loaned_query = z_query_loan(&query);
+  const z_query_t loaned_query = z_query_loan(query.get());
 
   // Get the sequence_number out of the attachment
   z_attachment_t attachment = z_query_attachment(&loaned_query);
@@ -2595,18 +2595,6 @@ rmw_take_request(
   if (sequence_number < 0) {
     // get_sequence_number_from_attachment already set the error
     return RMW_RET_ERROR;
-  }
-
-  // Add this query to the map, so that rmw_send_response can quickly look it up later
-  {
-    std::lock_guard<std::mutex> lock(service_data->sequence_to_query_map_mutex);
-    if (service_data->sequence_to_query_map.find(sequence_number) !=
-      service_data->sequence_to_query_map.end())
-    {
-      RMW_SET_ERROR_MSG("duplicate sequence number in the map");
-      return RMW_RET_ERROR;
-    }
-    service_data->sequence_to_query_map.emplace(std::pair(sequence_number, query));
   }
 
   // DESERIALIZE MESSAGE ========================================================
@@ -2629,6 +2617,18 @@ rmw_take_request(
   {
     RMW_SET_ERROR_MSG("could not deserialize ROS message");
     return RMW_RET_ERROR;
+  }
+
+  // Add this query to the map, so that rmw_send_response can quickly look it up later
+  {
+    std::lock_guard<std::mutex> lock(service_data->sequence_to_query_map_mutex);
+    if (service_data->sequence_to_query_map.find(sequence_number) !=
+      service_data->sequence_to_query_map.end())
+    {
+      RMW_SET_ERROR_MSG("duplicate sequence number in the map");
+      return RMW_RET_ERROR;
+    }
+    service_data->sequence_to_query_map.emplace(std::pair(sequence_number, std::move(query)));
   }
 
   // Fill in the request header.
@@ -2716,7 +2716,7 @@ rmw_send_response(
     RMW_SET_ERROR_MSG("Unable to find taken request. Report this bug.");
     return RMW_RET_ERROR;
   }
-  const z_query_t loaned_query = z_query_loan(&query_it->second);
+  const z_query_t loaned_query = z_query_loan(query_it->second.get());
   z_query_reply_options_t options = z_query_reply_options_default();
 
   // TODO(clalancette): We also need to fill in and send the writer_guid
@@ -2737,7 +2737,7 @@ rmw_send_response(
     &loaned_query, z_loan(service_data->keyexpr), reinterpret_cast<const uint8_t *>(
       response_bytes), data_length, &options);
 
-  z_drop(z_move(query_it->second));
+  z_drop(z_move(*query_it->second.get()));
   service_data->sequence_to_query_map.erase(query_it);
   return RMW_RET_OK;
 }
@@ -2996,7 +2996,6 @@ rmw_wait(
       }
     }
   }
-
 
   if (services) {
     // Go through each of the services and attach the wait set condition variable to them.

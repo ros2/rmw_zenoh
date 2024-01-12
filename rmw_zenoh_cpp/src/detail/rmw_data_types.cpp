@@ -108,7 +108,7 @@ void service_data_handler(const z_query_t * query, void * data)
   // Get the query parameters and payload
   {
     std::lock_guard<std::mutex> lock(service_data->query_queue_mutex);
-    service_data->query_queue.push_back(z_query_clone(query));
+    service_data->query_queue.push_back(std::make_unique<z_owned_query_t>(z_query_clone(query)));
   }
   {
     // Since we added new data, trigger the guard condition if it is available
