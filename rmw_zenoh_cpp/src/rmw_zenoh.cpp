@@ -2080,7 +2080,8 @@ static int64_t get_sequence_num_from_attachment(const z_attachment_t * const att
     return -1;
   } else if (errno != 0) {
     // Some other error occurred, which may include overflow or underflow
-    RMW_SET_ERROR_MSG("An undefined error occurred while getting the sequence number, this may be an overflow");
+    RMW_SET_ERROR_MSG(
+      "An undefined error occurred while getting the sequence number, this may be an overflow");
     return -1;
   }
 
@@ -2505,7 +2506,9 @@ rmw_take_request(
   // Add this query to the map, so that rmw_send_response can quickly look it up later
   {
     std::lock_guard<std::mutex> lock(service_data->sequence_to_query_map_mutex);
-    if (service_data->sequence_to_query_map.find(sequence_number) != service_data->sequence_to_query_map.end()) {
+    if (service_data->sequence_to_query_map.find(sequence_number) !=
+      service_data->sequence_to_query_map.end())
+    {
       RMW_SET_ERROR_MSG("duplicate sequence number in the map");
       return RMW_RET_ERROR;
     }
