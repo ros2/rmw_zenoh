@@ -86,6 +86,31 @@ static const std::unordered_map<std::string, EntityType> str_to_entity = {
   {CLI_STR, EntityType::Client}
 };
 
+static const std::unordered_map<std::string, rmw_qos_history_policy_e> str_to_qos_history = {
+  {std::to_string(RMW_QOS_POLICY_HISTORY_SYSTEM_DEFAULT), RMW_QOS_POLICY_HISTORY_SYSTEM_DEFAULT},
+  {std::to_string(RMW_QOS_POLICY_HISTORY_KEEP_LAST), RMW_QOS_POLICY_HISTORY_KEEP_LAST},
+  {std::to_string(RMW_QOS_POLICY_HISTORY_KEEP_ALL), RMW_QOS_POLICY_HISTORY_KEEP_ALL},
+  {std::to_string(RMW_QOS_POLICY_HISTORY_UNKNOWN), RMW_QOS_POLICY_HISTORY_UNKNOWN}
+};
+
+static const std::unordered_map<std::string,
+  rmw_qos_reliability_policy_e> str_to_qos_reliability = {
+  {std::to_string(RMW_QOS_POLICY_RELIABILITY_SYSTEM_DEFAULT),
+    RMW_QOS_POLICY_RELIABILITY_SYSTEM_DEFAULT},
+  {std::to_string(RMW_QOS_POLICY_RELIABILITY_RELIABLE), RMW_QOS_POLICY_RELIABILITY_RELIABLE},
+  {std::to_string(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT), RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT},
+  {std::to_string(RMW_QOS_POLICY_RELIABILITY_UNKNOWN), RMW_QOS_POLICY_RELIABILITY_UNKNOWN}
+};
+
+static const std::unordered_map<std::string, rmw_qos_durability_policy_e> str_to_qos_durability = {
+  {std::to_string(RMW_QOS_POLICY_DURABILITY_SYSTEM_DEFAULT),
+    RMW_QOS_POLICY_DURABILITY_SYSTEM_DEFAULT},
+  {std::to_string(RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL),
+    RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL},
+  {std::to_string(RMW_QOS_POLICY_DURABILITY_VOLATILE), RMW_QOS_POLICY_DURABILITY_VOLATILE},
+  {std::to_string(RMW_QOS_POLICY_DURABILITY_UNKNOWN), RMW_QOS_POLICY_DURABILITY_UNKNOWN}
+};
+
 std::string zid_to_str(z_id_t id)
 {
   std::stringstream ss;
@@ -163,11 +188,23 @@ std::optional<rmw_qos_profile_t> keyexpr_to_qos(const std::string & keyexpr)
   if (history_parts.size() < 2) {
     return std::nullopt;
   }
-  sscanf(parts[0].c_str(), "%zu", &qos.reliability);
-  sscanf(parts[1].c_str(), "%zu", &qos.durability);
-  sscanf(history_parts[0].c_str(), "%zu", &qos.history);
+
+  try {
+    qos.history = str_to_qos_history.at(history_parts[0]);
+    qos.reliability = str_to_qos_reliability.at(parts[0]);
+    qos.durability = str_to_qos_durability.at(parts[1]);
+  } catch (const std::exception & e) {
+    return std::nullopt;
+  }
   sscanf(history_parts[1].c_str(), "%zu", &qos.depth);
 
+  // Liveliness is always automatic given liveliness tokens.
+  qos.liveliness = RMW_QOS_POLICY_LIVELINESS_AUTOMATIC;
+  qos.liveliness_lease_duration = RMW_QOS_LIVELINESS_LEASE_DURATION_DEFAULT;
+
+  // TODO(Yadunund): Update once we support these settings.
+  qos.deadline = RMW_QOS_DEADLINE_DEFAULT;
+  qos.lifespan = RMW_QOS_LIFESPAN_DEFAULT;
   return qos;
 }
 
