@@ -16,6 +16,8 @@
 #include "rmw/types.h"
 #include "rmw/qos_profiles.h"
 
+#include "rmw_dds_common/qos.hpp"
+
 extern "C"
 {
 rmw_ret_t
@@ -26,28 +28,14 @@ rmw_qos_profile_check_compatible(
   char * reason,
   size_t reason_size)
 {
-  if (!compatibility) {
-    RMW_SET_ERROR_MSG("compatibility parameter is null");
-    return RMW_RET_INVALID_ARGUMENT;
-  }
 
-  if (!reason && reason_size != 0u) {
-    RMW_SET_ERROR_MSG("reason parameter is null, but reason_size parameter is not zero");
-    return RMW_RET_INVALID_ARGUMENT;
-  }
-
-  // Presume profiles are compatible until proven otherwise
-  *compatibility = RMW_QOS_COMPATIBILITY_OK;
-
-  // Initialize reason buffer
-  if (reason && reason_size != 0u) {
-    reason[0] = '\0';
-  }
-
-  // TODO(clalancette): check compatibility in Zenoh QOS profiles.
-  (void)publisher_profile;
-  (void)subscription_profile;
-
-  return RMW_RET_OK;
+  // In Zenoh, publishers do not have any reliability settings.
+  // A publisher and subscription are only incompatible if the durability of the publisher is
+  // TRANSIENT_LOCAL but that of the subscription is not. In such a scenario, a late-joining
+  // subscription can fail to receive messages so we flag it accordingly.
+  // However, we can reuse the qos_profile_check_compatible() method from rmw_dds_common
+  // since it largely applies in rmw_zenoh.
+  return rmw_dds_common::qos_profile_check_compatible(
+    publisher_profile, subscription_profile, compatibility, reason, reason_size);
 }
 }  // extern "C"
