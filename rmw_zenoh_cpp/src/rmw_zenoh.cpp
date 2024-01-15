@@ -2064,7 +2064,10 @@ rmw_send_request(
 
   opts.attachment = z_bytes_map_as_attachment(&map);
 
-  opts.target = Z_QUERY_TARGET_ALL;
+  opts.target = Z_QUERY_TARGET_ALL_COMPLETE;
+  // Latest consolidation guarantees unicity of replies for the same key expression. It optimizes bandwidth.
+  // Default is None which imples replies may come in any order and any number.
+  opts.consolidation = z_query_consolidation_latest();
   opts.value.payload = z_bytes_t{data_length, reinterpret_cast<const uint8_t *>(request_bytes)};
   opts.value.encoding = z_encoding(Z_ENCODING_PREFIX_EMPTY, NULL);
   client_data->zn_closure_reply = z_closure(client_data_handler, nullptr, client_data);
@@ -2418,12 +2421,14 @@ rmw_create_service(
   }
 
   z_owned_closure_query_t callback = z_closure(service_data_handler, nullptr, service_data);
-
+  // Configure the queryable to process complete queries.
+  z_queryable_options_t qable_options = z_queryable_options_default();
+  qable_options.complete = true;
   service_data->qable = z_declare_queryable(
     z_loan(context_impl->session),
     z_loan(service_data->keyexpr),
     z_move(callback),
-    nullptr);
+    &qable_options);
 
   if (!z_check(service_data->qable)) {
     RMW_SET_ERROR_MSG("unable to create zenoh queryable");
