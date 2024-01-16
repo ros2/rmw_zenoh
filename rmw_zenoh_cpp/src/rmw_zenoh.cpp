@@ -1483,6 +1483,10 @@ static rmw_ret_t __rmw_take(
   auto sub_data = static_cast<rmw_subscription_data_t *>(subscription->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
 
+  if (sub_data->context->impl->is_shutdown) {
+    return RMW_RET_OK;
+  }
+
   // RETRIEVE SERIALIZED MESSAGE ===============================================
 
   std::unique_ptr<saved_msg_data> msg_data;
