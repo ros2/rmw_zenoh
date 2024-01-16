@@ -47,11 +47,6 @@ static void graph_sub_data_handler(
 {
   (void)data;
   z_owned_str_t keystr = z_keyexpr_to_string(sample->keyexpr);
-  RCUTILS_LOG_WARN_NAMED(
-    "rmw_zenoh_cpp",
-    "[graph_sub_data_handler] Received key '%s'",
-    z_loan(keystr)
-  );
 
   // Get the context impl from data.
   rmw_context_impl_s * context_impl = static_cast<rmw_context_impl_s *>(
@@ -251,11 +246,7 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   const std::string liveliness_str = liveliness::subscription_token(context->actual_domain_id);
 
   // Query router/liveliness participants to get graph information before this session was started.
-  RCUTILS_LOG_WARN_NAMED(
-    "rmw_zenoh_cpp",
-    "Sending Query '%s' to fetch discovery data...",
-    liveliness_str.c_str()
-  );
+
   // We create a blocking channel that is unbounded, ie. `bound` = 0, to receive
   // replies for the zc_liveliness_get() call. This is necessary as if the `bound`
   // is too low, the channel may starve the zenoh executor of its threads which
@@ -276,9 +267,6 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
     if (z_reply_is_ok(&reply)) {
       z_sample_t sample = z_reply_ok(&reply);
       z_owned_str_t keystr = z_keyexpr_to_string(sample.keyexpr);
-      printf(
-        ">> [discovery] Received ('%s': '%.*s')\n", z_loan(keystr),
-        static_cast<int>(sample.payload.len), sample.payload.start);
       context->impl->graph_cache.parse_put(z_loan(keystr));
       z_drop(z_move(keystr));
     } else {
@@ -289,11 +277,6 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   z_drop(z_move(channel));
 
   // TODO(Yadunund): Switch this to a liveliness subscriptions once the API is available.
-  RCUTILS_LOG_WARN_NAMED(
-    "rmw_zenoh_cpp",
-    "Setting up liveliness subscription on key: %s",
-    liveliness_str.c_str()
-  );
 
   // Uncomment and rely on #if #endif blocks to enable this feature when building with
   // zenoh-pico since liveliness is only available in zenoh-c.

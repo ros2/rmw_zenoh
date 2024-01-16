@@ -1679,11 +1679,6 @@ rmw_create_client(
   const char * service_name,
   const rmw_qos_profile_t * qos_profile)
 {
-  RCUTILS_LOG_INFO_NAMED(
-    "rmw_zenoh_common_cpp",
-    "[rmw_create_client] %s with queue of depth %ld",
-    service_name,
-    qos_profile->depth);
   RMW_CHECK_ARGUMENT_FOR_NULL(node, nullptr);
 
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
@@ -1991,8 +1986,6 @@ rmw_send_request(
   const void * ros_request,
   int64_t * sequence_id)
 {
-  RCUTILS_LOG_INFO_NAMED(
-    "rmw_zenoh_cpp", "[rmw_send_request]");
   RMW_CHECK_ARGUMENT_FOR_NULL(client, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(client->data, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(ros_request, RMW_RET_INVALID_ARGUMENT);
@@ -2152,7 +2145,6 @@ rmw_take_response(
   bool * taken)
 {
   *taken = false;
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "[rmw_take_response]");
 
   RMW_CHECK_ARGUMENT_FOR_NULL(client, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(client->data, RMW_RET_INVALID_ARGUMENT);
@@ -2254,11 +2246,6 @@ rmw_create_service(
   const char * service_name,
   const rmw_qos_profile_t * qos_profiles)
 {
-  RCUTILS_LOG_INFO_NAMED(
-    "rmw_zenoh_cpp",
-    "[rmw_create_service] %s",
-    service_name);
-
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(node, nullptr);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
@@ -2565,7 +2552,6 @@ rmw_take_request(
   bool * taken)
 {
   *taken = false;
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "[rmw_take_request]");
 
   RMW_CHECK_ARGUMENT_FOR_NULL(service, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(service->data, RMW_RET_INVALID_ARGUMENT);
@@ -2658,9 +2644,6 @@ rmw_send_response(
   rmw_request_id_t * request_header,
   void * ros_response)
 {
-  RCUTILS_LOG_INFO_NAMED(
-    "rmw_zenoh_cpp", "[rmw_send_response]");
-
   RMW_CHECK_ARGUMENT_FOR_NULL(service, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(service->data, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(request_header, RMW_RET_INVALID_ARGUMENT);
@@ -2948,29 +2931,13 @@ rmw_wait(
   rmw_wait_set_t * wait_set,
   const rmw_time_t * wait_timeout)
 {
+  static_cast<void>(events);
+
   RMW_CHECK_ARGUMENT_FOR_NULL(wait_set, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     wait set handle,
     wait_set->implementation_identifier, rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
-
-  // TODO(yadunund): Switch to debug log level.
-  RCUTILS_LOG_WARN_NAMED(
-    "rmw_zenoh_cpp",
-    "[rmw_wait] %ld subscriptions, %ld services, %ld clients, %ld events, %ld guard conditions",
-    subscriptions->subscriber_count,
-    services->service_count,
-    clients->client_count,
-    events->event_count,
-    guard_conditions->guard_condition_count);
-
-  // TODO(yadunund): Switch to debug log level.
-  if (wait_timeout) {
-    RCUTILS_LOG_WARN_NAMED(
-      "rmw_zenoh_common_cpp", "[rmw_wait] TIMEOUT: %ld s %ld ns",
-      wait_timeout->sec,
-      wait_timeout->nsec);
-  }
 
   auto wait_set_data = static_cast<rmw_wait_set_data_t *>(wait_set->data);
   RMW_CHECK_FOR_NULL_WITH_MSG(
@@ -3099,7 +3066,6 @@ rmw_wait(
       }
     }
   }
-
 
   return RMW_RET_OK;
 }

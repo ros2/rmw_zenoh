@@ -101,10 +101,6 @@ const z_query_t ZenohQuery::get_query() const
 //==============================================================================
 void service_data_handler(const z_query_t * query, void * data)
 {
-  RCUTILS_LOG_INFO_NAMED(
-    "rmw_zenoh_cpp",
-    "[service_data_handler] triggered"
-  );
   z_owned_str_t keystr = z_keyexpr_to_string(z_query_keyexpr(query));
   auto drop_keystr = rcpputils::make_scope_exit(
     [&keystr]() {

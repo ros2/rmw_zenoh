@@ -172,15 +172,6 @@ void GraphCache::parse_put(const std::string & keyexpr)
           topic_data_insertion.first->second->stats_.sub_count_ += sub_count;
         }
       }
-
-      RCUTILS_LOG_INFO_NAMED(
-        "rmw_zenoh_cpp",
-        "Added %s on topic %s with type %s and qos %s to node /%s.",
-        entity_desc.c_str(),
-        topic_info.name_.c_str(),
-        topic_info.type_.c_str(),
-        topic_info.qos_.c_str(),
-        graph_node.name_.c_str());
     };
 
   // Helper lambda to convert an Entity into a GraphNode.
@@ -213,10 +204,6 @@ void GraphCache::parse_put(const std::string & keyexpr)
     NodeMap node_map = {
       {entity.node_name(), make_graph_node(entity, *this)}};
     graph_.emplace(std::make_pair(entity.node_namespace(), std::move(node_map)));
-    RCUTILS_LOG_WARN_NAMED(
-      "rmw_zenoh_cpp", "Added node /%s to a new namespace %s in the graph.",
-      entity.node_name().c_str(),
-      entity.node_namespace().c_str());
     return;
   }
 
@@ -238,14 +225,7 @@ void GraphCache::parse_put(const std::string & keyexpr)
     // name but unique id.
     NodeMap::iterator insertion_it =
       ns_it->second.insert(std::make_pair(entity.node_name(), make_graph_node(entity, *this)));
-    if (insertion_it != ns_it->second.end()) {
-      RCUTILS_LOG_INFO_NAMED(
-        "rmw_zenoh_cpp",
-        "Added a new node /%s with id %s to an existing namespace %s in the graph.",
-        entity.node_name().c_str(),
-        entity.id().c_str(),
-        entity.node_namespace().c_str());
-    } else {
+    if (insertion_it == ns_it->second.end()) {
       RCUTILS_LOG_ERROR_NAMED(
         "rmw_zenoh_cpp",
         "Unable to add a new node /%s with id %s an "
@@ -409,15 +389,6 @@ void GraphCache::parse_del(const std::string & keyexpr)
 
       // Bookkeeping: Update graph_topic_ which keeps track of topics across all nodes in the graph.
       update_graph_topics(topic_info, entity.type(), pub_count, sub_count, graph_cache);
-
-      RCUTILS_LOG_INFO_NAMED(
-        "rmw_zenoh_cpp",
-        "Removed %s on topic %s with type %s and qos %s to node /%s.",
-        entity_desc.c_str(),
-        topic_info.name_.c_str(),
-        topic_info.type_.c_str(),
-        topic_info.qos_.c_str(),
-        graph_node.name_.c_str());
     };
 
   // Lock the graph mutex before accessing the graph.
@@ -484,11 +455,6 @@ void GraphCache::parse_del(const std::string & keyexpr)
       remove_topics(graph_node->clients_, EntityType::Client, *this);
     }
     ns_it->second.erase(node_it);
-    RCUTILS_LOG_WARN_NAMED(
-      "rmw_zenoh_cpp",
-      "Removed node /%s from the graph.",
-      entity.node_name().c_str()
-    );
     return;
   }
 
