@@ -1965,6 +1965,10 @@ static z_owned_bytes_map_t create_map_and_set_sequence_num(int64_t sequence_numb
     RMW_SET_ERROR_MSG("failed to allocate map for sequence number");
     return z_bytes_map_null();
   }
+  auto free_attachment_map = rcpputils::make_scope_exit(
+    [&map]() {
+      z_bytes_map_drop(z_move(map));
+    });
 
   // The largest possible int64_t number is INT64_MAX, i.e. 9223372036854775807.
   // That is 19 characters long, plus one for the trailing \0, means we need 20 bytes.
@@ -1974,6 +1978,17 @@ static z_owned_bytes_map_t create_map_and_set_sequence_num(int64_t sequence_numb
     return z_bytes_map_null();
   }
   z_bytes_map_insert_by_copy(&map, z_bytes_new("sequence_number"), z_bytes_new(seq_id_str));
+
+  auto now = std::chrono::system_clock::now().time_since_epoch();
+  auto now_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now);
+  char source_ts_str[20];
+  if (rcutils_snprintf(source_ts_str, sizeof(source_ts_str), "%" PRId64, now_ns.count()) < 0) {
+    RMW_SET_ERROR_MSG("failed to print sequence_number into buffer");
+    return z_bytes_map_null();
+  }
+  z_bytes_map_insert_by_copy(&map, z_bytes_new("source_timestamp"), z_bytes_new(source_ts_str));
+
+  free_attachment_map.cancel();
 
   return map;
 }
