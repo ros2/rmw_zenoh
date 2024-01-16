@@ -14,14 +14,16 @@
 
 #include "detail/rmw_data_types.hpp"
 
+#include "rcutils/allocator.h"
+
 #include "rmw/error_handling.h"
 #include "rmw/get_topic_names_and_types.h"
+#include "rmw/types.h"
 
 extern "C"
 {
 ///==============================================================================
 /// Return all topic names and types in the ROS graph.
-// TODO(yadunund): Fix implementation once discovery information can be cached.
 rmw_ret_t
 rmw_get_topic_names_and_types(
   const rmw_node_t * node,

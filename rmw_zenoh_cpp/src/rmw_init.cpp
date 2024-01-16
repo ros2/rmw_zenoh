@@ -15,6 +15,7 @@
 #include <zenoh.h>
 
 #include <new>
+#include <string>
 
 #include "detail/guard_condition.hpp"
 #include "detail/identifier.hpp"

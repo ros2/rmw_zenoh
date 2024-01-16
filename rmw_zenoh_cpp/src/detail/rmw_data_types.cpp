@@ -14,6 +14,7 @@
 
 #include <zenoh.h>
 
+#include <cstring>
 #include <mutex>
 #include <optional>
 #include <utility>
