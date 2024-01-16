@@ -2091,63 +2091,62 @@ rmw_send_request(
   return RMW_RET_OK;
 }
 
-static int64_t get_sequence_num_from_attachment(const z_attachment_t * const attachment)
+static int64_t get_int64_from_attachment(
+  const z_attachment_t * const attachment, const std::string & name)
 {
-  // Get the sequence_number out of the attachment
   if (!z_check(*attachment)) {
     // A valid request must have had an attachment
     RMW_SET_ERROR_MSG("Could not get attachment from query");
     return -1;
   }
 
-  z_bytes_t sequence_num_index = z_attachment_get(*attachment, z_bytes_new("sequence_number"));
-  if (!z_check(sequence_num_index)) {
-    // A valid request must have had a sequence number attached
-    RMW_SET_ERROR_MSG("Could not get sequence number from query");
+  z_bytes_t index = z_attachment_get(*attachment, z_bytes_new(name.c_str()));
+  if (!z_check(index)) {
+    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("Could not get %s from attachment", name.c_str());
     return -1;
   }
 
-  if (sequence_num_index.len < 1) {
-    RMW_SET_ERROR_MSG("No value specified for the sequence number");
+  if (index.len < 1) {
+    RMW_SET_ERROR_MSG("no value specified");
     return -1;
   }
 
-  if (sequence_num_index.len > 19) {
-    // The sequence number was larger than we expected
-    RMW_SET_ERROR_MSG("Sequence number too large");
+  if (index.len > 19) {
+    // The number was larger than we expected
+    RMW_SET_ERROR_MSG("number too large");
     return -1;
   }
 
   // The largest possible int64_t number is INT64_MAX, i.e. 9223372036854775807.
   // That is 19 characters long, plus one for the trailing \0, means we need 20 bytes.
-  char sequence_num_str[20];
+  char int64_str[20];
 
-  memcpy(sequence_num_str, sequence_num_index.start, sequence_num_index.len);
-  sequence_num_str[sequence_num_index.len] = '\0';
+  memcpy(int64_str, index.start, index.len);
+  int64_str[index.len] = '\0';
 
   errno = 0;
   char * endptr;
-  int64_t seqnum = strtol(sequence_num_str, &endptr, 10);
-  if (seqnum == 0) {
+  int64_t num = strtol(int64_str, &endptr, 10);
+  if (num == 0) {
     // This is an error regardless; the client should never send this
-    RMW_SET_ERROR_MSG("A invalid zero value sent as the sequence number");
+    RMW_SET_ERROR_MSG("a invalid zero value sent");
     return -1;
-  } else if (endptr == sequence_num_str) {
+  } else if (endptr == int64_str) {
     // No values were converted, this is an error
-    RMW_SET_ERROR_MSG("No valid numbers available in the sequence number");
+    RMW_SET_ERROR_MSG("no valid numbers available");
     return -1;
   } else if (*endptr != '\0') {
     // There was junk after the number
-    RMW_SET_ERROR_MSG("Non-numeric values in the sequence number");
+    RMW_SET_ERROR_MSG("non-numeric values");
     return -1;
   } else if (errno != 0) {
     // Some other error occurred, which may include overflow or underflow
     RMW_SET_ERROR_MSG(
-      "An undefined error occurred while getting the sequence number, this may be an overflow");
+      "an undefined error occurred while getting the number, this may be an overflow");
     return -1;
   }
 
-  return seqnum;
+  return num;
 }
 
 //==============================================================================
@@ -2212,14 +2211,23 @@ rmw_take_response(
     return RMW_RET_ERROR;
   }
 
+  // Fill in the request_header
+
   request_header->request_id.sequence_number =
-    get_sequence_num_from_attachment(&sample->attachment);
+    get_int64_from_attachment(&sample->attachment, "sequence_number");
   if (request_header->request_id.sequence_number < 0) {
-    // get_sequence_num_from_attachment already set an error
+    // get_int64_from_attachment already set an error
     return RMW_RET_ERROR;
   }
-  // TODO(clalancette): We also need to fill in the source_timestamp, received_timestamp,
-  // and writer_guid
+
+  request_header->source_timestamp =
+    get_int64_from_attachment(&sample->attachment, "source_timestamp");
+  if (request_header->source_timestamp < 0) {
+    // get_int64_from_attachment already set an error
+    return RMW_RET_ERROR;
+  }
+
+  // TODO(clalancette): We also need to fill in the received_timestamp and writer_guid
 
   *taken = true;
 
@@ -2598,15 +2606,6 @@ rmw_take_request(
 
   const z_query_t loaned_query = query->get_query();
 
-  // Get the sequence_number out of the attachment
-  z_attachment_t attachment = z_query_attachment(&loaned_query);
-
-  int64_t sequence_number = get_sequence_num_from_attachment(&attachment);
-  if (sequence_number < 0) {
-    // get_sequence_number_from_attachment already set the error
-    return RMW_RET_ERROR;
-  }
-
   // DESERIALIZE MESSAGE ========================================================
   z_value_t payload_value = z_query_value(&loaned_query);
 
@@ -2629,22 +2628,38 @@ rmw_take_request(
     return RMW_RET_ERROR;
   }
 
+  // Fill in the request header.
+
+  // Get the sequence_number out of the attachment
+  z_attachment_t attachment = z_query_attachment(&loaned_query);
+
+  request_header->request_id.sequence_number =
+    get_int64_from_attachment(&attachment, "sequence_number");
+  if (request_header->request_id.sequence_number < 0) {
+    // get_int64_from_attachment already set the error
+    return RMW_RET_ERROR;
+  }
+
+  request_header->source_timestamp = get_int64_from_attachment(&attachment, "source_timestamp");
+  if (request_header->source_timestamp < 0) {
+    // get_int64_from_attachment already set the error
+    return RMW_RET_ERROR;
+  }
+
+  // TODO(clalancette): We also need to fill in writer_guid and received_timestamp
+
   // Add this query to the map, so that rmw_send_response can quickly look it up later
   {
     std::lock_guard<std::mutex> lock(service_data->sequence_to_query_map_mutex);
-    if (service_data->sequence_to_query_map.find(sequence_number) !=
+    if (service_data->sequence_to_query_map.find(request_header->request_id.sequence_number) !=
       service_data->sequence_to_query_map.end())
     {
       RMW_SET_ERROR_MSG("duplicate sequence number in the map");
       return RMW_RET_ERROR;
     }
-    service_data->sequence_to_query_map.emplace(std::pair(sequence_number, std::move(query)));
+    service_data->sequence_to_query_map.emplace(
+      std::pair(request_header->request_id.sequence_number, std::move(query)));
   }
-
-  // Fill in the request header.
-  // TODO(clalancette): We also need to fill in writer_guid, source_timestamp,
-  // and received_timestamp
-  request_header->request_id.sequence_number = sequence_number;
 
   *taken = true;
 

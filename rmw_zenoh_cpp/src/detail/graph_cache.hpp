@@ -61,7 +61,6 @@ struct TopicData
 using TopicDataPtr = std::shared_ptr<TopicData>;
 
 ///=============================================================================
-// TODO(Yadunund): Expand to services and clients.
 struct GraphNode
 {
   std::string id_;
