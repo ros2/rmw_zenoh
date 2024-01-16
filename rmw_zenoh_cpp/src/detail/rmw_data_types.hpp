@@ -21,6 +21,7 @@
 #include <deque>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -189,7 +190,7 @@ public:
 
   ~ZenohReply();
 
-  const z_sample_t get_sample() const;
+  std::optional<z_sample_t> get_sample() const;
 
 private:
   z_owned_reply_t reply_;

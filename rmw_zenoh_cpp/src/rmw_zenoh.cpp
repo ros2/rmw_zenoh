@@ -19,9 +19,13 @@
 
 #include <chrono>
 #include <cinttypes>
+#include <memory>
 #include <mutex>
 #include <new>
+#include <optional>
 #include <sstream>
+#include <string>
+#include <utility>
 
 #include "detail/guard_condition.hpp"
 #include "detail/graph_cache.hpp"
@@ -2176,12 +2180,16 @@ rmw_take_response(
     latest_reply = std::move(client_data->replies.front());
     client_data->replies.pop_front();
   }
-  const z_sample_t sample = latest_reply->get_sample();
+  std::optional<z_sample_t> sample = latest_reply->get_sample();
+  if (!sample) {
+    RMW_SET_ERROR_MSG("invalid reply sample");
+    return RMW_RET_ERROR;
+  }
 
   // Object that manages the raw buffer
   eprosima::fastcdr::FastBuffer fastbuffer(
-    reinterpret_cast<char *>(const_cast<uint8_t *>(sample.payload.start)),
-    sample.payload.len);
+    reinterpret_cast<char *>(const_cast<uint8_t *>(sample->payload.start)),
+    sample->payload.len);
 
   // Object that serializes the data
   eprosima::fastcdr::Cdr deser(
@@ -2197,7 +2205,8 @@ rmw_take_response(
     return RMW_RET_ERROR;
   }
 
-  request_header->request_id.sequence_number = get_sequence_num_from_attachment(&sample.attachment);
+  request_header->request_id.sequence_number =
+    get_sequence_num_from_attachment(&sample->attachment);
   if (request_header->request_id.sequence_number < 0) {
     // get_sequence_num_from_attachment already set an error
     return RMW_RET_ERROR;

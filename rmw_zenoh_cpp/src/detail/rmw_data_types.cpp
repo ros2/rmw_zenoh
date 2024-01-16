@@ -15,6 +15,7 @@
 #include <zenoh.h>
 
 #include <mutex>
+#include <optional>
 #include <utility>
 
 #include "rcpputils/scope_exit.hpp"
@@ -144,9 +145,13 @@ ZenohReply::~ZenohReply()
   z_reply_drop(z_move(reply_));
 }
 
-const z_sample_t ZenohReply::get_sample() const
+std::optional<z_sample_t> ZenohReply::get_sample() const
 {
-  return z_reply_ok(&reply_);
+  if (z_reply_is_ok(&reply_)) {
+    return z_reply_ok(&reply_);
+  }
+
+  return std::nullopt;
 }
 
 size_t rmw_client_data_t::get_next_sequence_number()
