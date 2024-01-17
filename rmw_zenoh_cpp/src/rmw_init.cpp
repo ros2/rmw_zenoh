@@ -358,6 +358,7 @@ rmw_shutdown(rmw_context_t * context)
   allocator->deallocate(context->impl->graph_guard_condition, allocator->state);
 
   context->impl->is_shutdown = true;
+
   return RMW_RET_OK;
 }
 
@@ -381,10 +382,13 @@ rmw_context_fini(rmw_context_t * context)
     return RMW_RET_INVALID_ARGUMENT;
   }
 
-  rmw_ret_t ret = rmw_init_options_fini(&context->options);
-
   RMW_TRY_DESTRUCTOR(context->impl->~rmw_context_impl_t(), rmw_context_impl_t, );
-  // context->impl will be deallocated by rcl
+
+  const rcutils_allocator_t * allocator = &context->options.allocator;
+
+  allocator->deallocate(context->impl, allocator->state);
+
+  rmw_ret_t ret = rmw_init_options_fini(&context->options);
 
   *context = rmw_get_zero_initialized_context();
 

@@ -1912,11 +1912,11 @@ rmw_create_client(
 
   free_rmw_client.cancel();
   free_client_data.cancel();
-  free_request_type_support.cancel();
   destruct_request_type_support.cancel();
+  free_request_type_support.cancel();
+  destruct_response_type_support.cancel();
   free_response_type_support.cancel();
   destruct_client_data.cancel();
-  destruct_response_type_support.cancel();
   free_service_name.cancel();
   free_ros_keyexpr.cancel();
 
@@ -1957,8 +1957,15 @@ rmw_destroy_client(rmw_node_t * node, rmw_client_t * client)
   client_data->replies.clear();
   z_drop(z_move(client_data->token));
 
+  RMW_TRY_DESTRUCTOR(
+    client_data->request_type_support->~RequestTypeSupport(), RequestTypeSupport, );
   allocator->deallocate(client_data->request_type_support, allocator->state);
+
+  RMW_TRY_DESTRUCTOR(
+    client_data->response_type_support->~ResponseTypeSupport(), ResponseTypeSupport, );
   allocator->deallocate(client_data->response_type_support, allocator->state);
+  RMW_TRY_DESTRUCTOR(client_data->~rmw_client_data_t(), rmw_client_data_t, );
+
   allocator->deallocate(client->data, allocator->state);
 
   allocator->deallocate(const_cast<char *>(client->service_name), allocator->state);
@@ -2564,8 +2571,15 @@ rmw_destroy_service(rmw_node_t * node, rmw_service_t * service)
   service_data->query_queue.clear();
   z_drop(z_move(service_data->token));
 
+  RMW_TRY_DESTRUCTOR(
+    service_data->request_type_support->~RequestTypeSupport(), RequestTypeSupport, );
   allocator->deallocate(service_data->request_type_support, allocator->state);
+
+  RMW_TRY_DESTRUCTOR(
+    service_data->response_type_support->~ResponseTypeSupport(), ResponseTypeSupport, );
   allocator->deallocate(service_data->response_type_support, allocator->state);
+
+  RMW_TRY_DESTRUCTOR(service_data->~rmw_service_data_t(), rmw_service_data_t, );
   allocator->deallocate(service->data, allocator->state);
 
   allocator->deallocate(const_cast<char *>(service->service_name), allocator->state);
