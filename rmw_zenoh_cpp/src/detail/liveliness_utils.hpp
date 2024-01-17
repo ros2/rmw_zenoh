@@ -133,7 +133,7 @@ public:
     const std::string & token);
 };
 
-/// Replace "/" instances with "§".
+/// Replace "/" instances with "%".
 std::string mangle_name(const std::string & input);
 
 /// Replace "%" instances with "/".
