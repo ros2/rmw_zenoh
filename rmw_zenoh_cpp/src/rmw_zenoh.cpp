@@ -2243,6 +2243,10 @@ rmw_take_response(
     return RMW_RET_ERROR;
   }
 
+  auto now = std::chrono::system_clock::now().time_since_epoch();
+  auto now_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now);
+  request_header->received_timestamp = now_ns.count();
+
   // TODO(clalancette): We also need to fill in the received_timestamp and writer_guid
 
   *taken = true;
@@ -2669,7 +2673,9 @@ rmw_take_request(
     return RMW_RET_ERROR;
   }
 
-  // TODO(clalancette): We also need to fill in writer_guid and received_timestamp
+  auto now = std::chrono::system_clock::now().time_since_epoch();
+  auto now_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now);
+  request_header->received_timestamp = now_ns.count();
 
   // Add this query to the map, so that rmw_send_response can quickly look it up later
   {
