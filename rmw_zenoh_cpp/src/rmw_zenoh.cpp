@@ -525,6 +525,13 @@ rmw_create_publisher(
       allocator->deallocate(publisher_data, allocator->state);
     });
 
+  RMW_TRY_PLACEMENT_NEW(publisher_data, publisher_data, return nullptr, rmw_publisher_data_t);
+  auto destruct_publisher_data = rcpputils::make_scope_exit(
+    [publisher_data]() {
+      RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(
+        publisher_data->~rmw_publisher_data_t(), rmw_publisher_data_t);
+    });
+
   publisher_data->typesupport_identifier = type_support->typesupport_identifier;
   publisher_data->type_support_impl = type_support->data;
   auto callbacks = static_cast<const message_type_support_callbacks_t *>(type_support->data);
@@ -654,6 +661,7 @@ rmw_create_publisher(
   free_topic_name.cancel();
   destruct_msg_type_support.cancel();
   free_type_support.cancel();
+  destruct_publisher_data.cancel();
   free_publisher_data.cancel();
   free_rmw_publisher.cancel();
 
@@ -711,6 +719,7 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
       RMW_SET_ERROR_MSG("failed to undeclare pub");
       ret = RMW_RET_ERROR;
     }
+    RMW_TRY_DESTRUCTOR(publisher_data->~rmw_publisher_data_t(), rmw_publisher_data_t, );
     allocator->deallocate(publisher_data, allocator->state);
   }
   allocator->deallocate(const_cast<char *>(publisher->topic_name), allocator->state);
