@@ -19,10 +19,12 @@
 
 #include <chrono>
 #include <cinttypes>
+#include <limits>
 #include <memory>
 #include <mutex>
 #include <new>
 #include <optional>
+#include <random>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -1679,6 +1681,18 @@ rmw_return_loaned_message_from_subscription(
   return RMW_RET_UNSUPPORTED;
 }
 
+static void generate_random_guid(uint8_t guid[RMW_GID_STORAGE_SIZE])
+{
+  std::random_device dev;
+  std::mt19937 rng(dev());
+  std::uniform_int_distribution<std::mt19937::result_type> dist(
+    std::numeric_limits<unsigned char>::min(), std::numeric_limits<unsigned char>::max());
+
+  for (size_t i = 0; i < RMW_GID_STORAGE_SIZE; ++i) {
+    guid[i] = dist(rng);
+  }
+}
+
 //==============================================================================
 /// Create a service client that can send requests to and receive replies from a service server.
 rmw_client_t *
@@ -1771,6 +1785,8 @@ rmw_create_client(
         client_data->~rmw_client_data_t(),
         rmw_client_data_t);
     });
+
+  generate_random_guid(client_data->client_guid);
 
   // Obtain the type support
   const rosidl_service_type_support_t * type_support = find_service_type_support(type_supports);
@@ -1974,7 +1990,8 @@ rmw_destroy_client(rmw_node_t * node, rmw_client_t * client)
   return RMW_RET_OK;
 }
 
-static z_owned_bytes_map_t create_map_and_set_sequence_num(int64_t sequence_number)
+static z_owned_bytes_map_t create_map_and_set_sequence_num(
+  int64_t sequence_number, uint8_t guid[RMW_GID_STORAGE_SIZE])
 {
   z_owned_bytes_map_t map = z_bytes_map_new();
   if (!z_check(map)) {
@@ -2003,6 +2020,15 @@ static z_owned_bytes_map_t create_map_and_set_sequence_num(int64_t sequence_numb
     return z_bytes_map_null();
   }
   z_bytes_map_insert_by_copy(&map, z_bytes_new("source_timestamp"), z_bytes_new(source_ts_str));
+
+  z_bytes_t guid_bytes;
+  guid_bytes.len = RMW_GID_STORAGE_SIZE;
+  guid_bytes.start = static_cast<uint8_t *>(malloc(RMW_GID_STORAGE_SIZE));
+  memcpy(static_cast<void *>(const_cast<uint8_t *>(guid_bytes.start)), guid, RMW_GID_STORAGE_SIZE);
+
+  z_bytes_map_insert_by_copy(&map, z_bytes_new("client_guid"), guid_bytes);
+
+  free(const_cast<uint8_t *>(guid_bytes.start));
 
   free_attachment_map.cancel();
 
@@ -2080,7 +2106,7 @@ rmw_send_request(
   // Send request
   z_get_options_t opts = z_get_options_default();
 
-  z_owned_bytes_map_t map = create_map_and_set_sequence_num(*sequence_id);
+  z_owned_bytes_map_t map = create_map_and_set_sequence_num(*sequence_id, client_data->client_guid);
   if (!z_check(map)) {
     // create_map_and_set_sequence_num already set the error
     return RMW_RET_ERROR;
@@ -2165,6 +2191,30 @@ static int64_t get_int64_from_attachment(
   return num;
 }
 
+static bool get_client_guid_from_attachment(
+  const z_attachment_t * const attachment, uint8_t guid[RMW_GID_STORAGE_SIZE])
+{
+  if (!z_check(*attachment)) {
+    RMW_SET_ERROR_MSG("Could not get client_guid from attachment");
+    return false;
+  }
+
+  z_bytes_t index = z_attachment_get(*attachment, z_bytes_new("client_guid"));
+  if (!z_check(index)) {
+    RMW_SET_ERROR_MSG("Could not get client_guid from attachment");
+    return false;
+  }
+
+  if (index.len != RMW_GID_STORAGE_SIZE) {
+    RMW_SET_ERROR_MSG("Invalid size for GUID storage");
+    return false;
+  }
+
+  memcpy(guid, index.start, index.len);
+
+  return true;
+}
+
 //==============================================================================
 /// Take an incoming ROS service response.
 rmw_ret_t
@@ -2243,11 +2293,16 @@ rmw_take_response(
     return RMW_RET_ERROR;
   }
 
+  if (!get_client_guid_from_attachment(
+      &sample->attachment, request_header->request_id.writer_guid))
+  {
+    // get_client_guid_from_attachment already set an error
+    return RMW_RET_ERROR;
+  }
+
   auto now = std::chrono::system_clock::now().time_since_epoch();
   auto now_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now);
   request_header->received_timestamp = now_ns.count();
-
-  // TODO(clalancette): We also need to fill in the received_timestamp and writer_guid
 
   *taken = true;
 
@@ -2673,6 +2728,11 @@ rmw_take_request(
     return RMW_RET_ERROR;
   }
 
+  if (!get_client_guid_from_attachment(&attachment, request_header->request_id.writer_guid)) {
+    // get_client_guid_from_attachment already set an error
+    return RMW_RET_ERROR;
+  }
+
   auto now = std::chrono::system_clock::now().time_since_epoch();
   auto now_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now);
   request_header->received_timestamp = now_ns.count();
@@ -2768,8 +2828,8 @@ rmw_send_response(
   const z_query_t loaned_query = query_it->second->get_query();
   z_query_reply_options_t options = z_query_reply_options_default();
 
-  // TODO(clalancette): We also need to fill in and send the writer_guid
-  z_owned_bytes_map_t map = create_map_and_set_sequence_num(request_header->sequence_number);
+  z_owned_bytes_map_t map = create_map_and_set_sequence_num(
+    request_header->sequence_number, request_header->writer_guid);
   if (!z_check(map)) {
     // create_map_and_set_sequence_num already set the error
     return RMW_RET_ERROR;

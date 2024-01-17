@@ -218,6 +218,8 @@ struct rmw_client_data_t
   std::mutex internal_mutex;
   std::condition_variable * condition{nullptr};
 
+  uint8_t client_guid[RMW_GID_STORAGE_SIZE];
+
   size_t get_next_sequence_number();
   std::mutex sequence_number_mutex;
   size_t sequence_number{1};
