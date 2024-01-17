@@ -1475,8 +1475,7 @@ static rmw_ret_t __rmw_take(
   const rmw_subscription_t * subscription,
   void * ros_message,
   bool * taken,
-  rmw_message_info_t * message_info,
-  rmw_subscription_allocation_t * allocation)
+  rmw_message_info_t * message_info)
 {
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription->topic_name, RMW_RET_ERROR);
@@ -1488,8 +1487,6 @@ static rmw_ret_t __rmw_take(
     subscription handle,
     subscription->implementation_identifier, rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
-
-  static_cast<void>(allocation);
 
   *taken = false;
 
@@ -1561,9 +1558,11 @@ rmw_take(
   bool * taken,
   rmw_subscription_allocation_t * allocation)
 {
+  static_cast<void>(allocation);
+
   rmw_message_info_t dummy_msg_info;
 
-  return __rmw_take(subscription, ros_message, taken, &dummy_msg_info, allocation);
+  return __rmw_take(subscription, ros_message, taken, &dummy_msg_info);
 }
 
 //==============================================================================
@@ -1576,7 +1575,8 @@ rmw_take_with_info(
   rmw_message_info_t * message_info,
   rmw_subscription_allocation_t * allocation)
 {
-  return __rmw_take(subscription, ros_message, taken, message_info, allocation);
+  static_cast<void>(allocation);
+  return __rmw_take(subscription, ros_message, taken, message_info);
 }
 
 //==============================================================================
