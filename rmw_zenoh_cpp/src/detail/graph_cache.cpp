@@ -68,9 +68,16 @@ void GraphCache::parse_put(const std::string & keyexpr)
   // Helper lambda to append pub/subs to the GraphNode.
   // We capture by reference to update graph_topics_
   auto add_topic_data =
-    [this](const Entity & entity, GraphNode & graph_node) -> void
+    [](const Entity & entity, GraphNode & graph_node, GraphCache & graph_cache) -> void
     {
-      if (entity.type() != EntityType::Publisher && entity.type() != EntityType::Subscription) {
+      if (entity.type() != EntityType::Publisher &&
+        entity.type() != EntityType::Subscription &&
+        entity.type() != EntityType::Service &&
+        entity.type() != EntityType::Client)
+      {
+        RCUTILS_LOG_WARN_NAMED(
+          "rmw_zenoh_cpp",
+          "add_topic_data() for invalid EntityType. Report this.");
         return;
       }
 
@@ -84,12 +91,32 @@ void GraphCache::parse_put(const std::string & keyexpr)
       }
 
       const liveliness::TopicInfo topic_info = entity.topic_info().value();
-      GraphNode::TopicMap & topic_map = entity.type() ==
-        EntityType::Publisher ? graph_node.pubs_ : graph_node.subs_;
-      const std::string entity_desc = entity.type() ==
-        EntityType::Publisher ? "publisher" : "subscription";
-      const std::size_t pub_count = entity.type() == EntityType::Publisher ? 1 : 0;
+      std::string entity_desc = "";
+      GraphNode::TopicMap & topic_map =
+        [](const Entity & entity, GraphNode & graph_node,
+          std::string & entity_desc) -> GraphNode::TopicMap &
+        {
+          if (entity.type() == EntityType::Publisher) {
+            entity_desc = "publisher";
+            return graph_node.pubs_;
+          } else if (entity.type() == EntityType::Subscription) {
+            entity_desc = "subscription";
+            return graph_node.subs_;
+          } else if (entity.type() == EntityType::Service) {
+            entity_desc = "service";
+            return graph_node.services_;
+
+          } else {
+            entity_desc = "client";
+            return graph_node.clients_;
+          }
+        }(entity, graph_node, entity_desc);
+      // For the sake of reusing data structures and lookup functions, we treat publishers and clients are equivalent.
+      // Similarly, subscriptions and services are equivalent.
+      const std::size_t pub_count = entity.type() == EntityType::Publisher ||
+        entity.type() == EntityType::Client ? 1 : 0;
       const std::size_t sub_count = !pub_count;
+
       TopicDataPtr graph_topic_data = std::make_shared<TopicData>(
         topic_info,
         TopicStats{pub_count, sub_count});
@@ -115,14 +142,18 @@ void GraphCache::parse_put(const std::string & keyexpr)
       }
 
       // Bookkeeping: Update graph_topics_ which keeps track of topics across all nodes in the graph
-      GraphNode::TopicMap::iterator cache_topic_it = graph_topics_.find(topic_info.name_);
-      if (cache_topic_it == graph_topics_.end()) {
+      GraphNode::TopicMap & graph_endpoints =
+        entity.type() == EntityType::Publisher || entity.type() == EntityType::Subscription ?
+        graph_cache.graph_topics_ :
+        graph_cache.graph_services_;
+      GraphNode::TopicMap::iterator cache_topic_it = graph_endpoints.find(topic_info.name_);
+      if (cache_topic_it == graph_endpoints.end()) {
         // First time this topic name is added to the graph.
         std::shared_ptr<TopicData> topic_data_ptr = std::make_shared<TopicData>(
           topic_info,
           TopicStats{pub_count, sub_count}
         );
-        graph_topics_[topic_info.name_] = GraphNode::TopicDataMap{
+        graph_endpoints[topic_info.name_] = GraphNode::TopicDataMap{
           {topic_info.type_, topic_data_ptr}
         };
       } else {
@@ -153,8 +184,9 @@ void GraphCache::parse_put(const std::string & keyexpr)
     };
 
   // Helper lambda to convert an Entity into a GraphNode.
+  // Note: this will update bookkeeping variables in GraphCache.
   auto make_graph_node =
-    [&](const Entity & entity) -> std::shared_ptr<GraphNode>
+    [&add_topic_data](const Entity & entity, GraphCache & graph_cache) -> std::shared_ptr<GraphNode>
     {
       auto graph_node = std::make_shared<GraphNode>();
       graph_node->id_ = entity.id();
@@ -166,8 +198,8 @@ void GraphCache::parse_put(const std::string & keyexpr)
         // Token was for a node.
         return graph_node;
       }
-      // Add pub/sub entries.
-      add_topic_data(entity, *graph_node);
+      // Add endpoint entries.
+      add_topic_data(entity, *graph_node, graph_cache);
 
       return graph_node;
     };
@@ -179,7 +211,7 @@ void GraphCache::parse_put(const std::string & keyexpr)
   NamespaceMap::iterator ns_it = graph_.find(entity.node_namespace());
   if (ns_it == graph_.end()) {
     NodeMap node_map = {
-      {entity.node_name(), make_graph_node(entity)}};
+      {entity.node_name(), make_graph_node(entity, *this)}};
     graph_.emplace(std::make_pair(entity.node_namespace(), std::move(node_map)));
     RCUTILS_LOG_WARN_NAMED(
       "rmw_zenoh_cpp", "Added node /%s to a new namespace %s in the graph.",
@@ -205,7 +237,7 @@ void GraphCache::parse_put(const std::string & keyexpr)
     // Either the first time a node with this name is added or with an existing
     // name but unique id.
     NodeMap::iterator insertion_it =
-      ns_it->second.insert(std::make_pair(entity.node_name(), make_graph_node(entity)));
+      ns_it->second.insert(std::make_pair(entity.node_name(), make_graph_node(entity, *this)));
     if (insertion_it != ns_it->second.end()) {
       RCUTILS_LOG_INFO_NAMED(
         "rmw_zenoh_cpp",
@@ -242,7 +274,7 @@ void GraphCache::parse_put(const std::string & keyexpr)
   }
 
   // Update the graph based on the entity.
-  add_topic_data(entity, *(node_it->second));
+  add_topic_data(entity, *(node_it->second), *this);
 }
 
 ///=============================================================================
@@ -257,15 +289,19 @@ void GraphCache::parse_del(const std::string & keyexpr)
 
   // Helper lambda to update graph_topics_.
   auto update_graph_topics =
-    [&](const liveliness::TopicInfo topic_info, std::size_t pub_count,
-      std::size_t sub_count) -> void
+    [](const liveliness::TopicInfo topic_info, const EntityType entity_type, std::size_t pub_count,
+      std::size_t sub_count, GraphCache & graph_cache) -> void
     {
+      GraphNode::TopicMap & graph_endpoints =
+        entity_type == EntityType::Publisher || entity_type == EntityType::Subscription ?
+        graph_cache.graph_topics_ :
+        graph_cache.graph_services_;
       GraphNode::TopicMap::iterator cache_topic_it =
-        graph_topics_.find(topic_info.name_);
-      if (cache_topic_it == graph_topics_.end()) {
+        graph_endpoints.find(topic_info.name_);
+      if (cache_topic_it == graph_endpoints.end()) {
         // This should not happen.
         RCUTILS_LOG_ERROR_NAMED(
-          "rmw_zenoh_cpp", "topic_key %s not found in graph_topics_. Report this.",
+          "rmw_zenoh_cpp", "topic_key %s not found in graph_endpoints. Report this.",
           topic_info.name_.c_str());
       } else {
         GraphNode::TopicDataMap::iterator cache_topic_data_it =
@@ -281,7 +317,7 @@ void GraphCache::parse_del(const std::string & keyexpr)
           }
           // If the topic does not have any TopicData entries, erase the topic from the map.
           if (cache_topic_it->second.empty()) {
-            graph_topics_.erase(cache_topic_it);
+            graph_endpoints.erase(cache_topic_it);
           }
         }
       }
@@ -290,9 +326,17 @@ void GraphCache::parse_del(const std::string & keyexpr)
   // Helper lambda to append pub/subs to the GraphNode.
   // We capture by reference to update caches like graph_topics_ if update_cache is true.
   auto remove_topic_data =
-    [&](const Entity & entity, GraphNode & graph_node) -> void
+    [&update_graph_topics](const Entity & entity, GraphNode & graph_node,
+      GraphCache & graph_cache) -> void
     {
-      if (entity.type() != EntityType::Publisher && entity.type() != EntityType::Subscription) {
+      if (entity.type() != EntityType::Publisher &&
+        entity.type() != EntityType::Subscription &&
+        entity.type() != EntityType::Service &&
+        entity.type() != EntityType::Client)
+      {
+        RCUTILS_LOG_WARN_NAMED(
+          "rmw_zenoh_cpp",
+          "remove_topic_data() for invalid EntityType. Report this.");
         return;
       }
 
@@ -304,13 +348,31 @@ void GraphCache::parse_del(const std::string & keyexpr)
           "remove_topic_data() called without valid TopicInfo. Report this.");
         return;
       }
-
       const liveliness::TopicInfo topic_info = entity.topic_info().value();
-      GraphNode::TopicMap & topic_map = entity.type() ==
-        EntityType::Publisher ? graph_node.pubs_ : graph_node.subs_;
-      const std::string entity_desc = entity.type() ==
-        EntityType::Publisher ? "publisher" : "subscription";
-      const std::size_t pub_count = entity.type() == EntityType::Publisher ? 1 : 0;
+      std::string entity_desc = "";
+      GraphNode::TopicMap & topic_map =
+        [](const Entity & entity, GraphNode & graph_node,
+          std::string & entity_desc) -> GraphNode::TopicMap &
+        {
+          if (entity.type() == EntityType::Publisher) {
+            entity_desc = "publisher";
+            return graph_node.pubs_;
+          } else if (entity.type() == EntityType::Subscription) {
+            entity_desc = "subscription";
+            return graph_node.subs_;
+          } else if (entity.type() == EntityType::Service) {
+            entity_desc = "service";
+            return graph_node.services_;
+
+          } else {
+            entity_desc = "client";
+            return graph_node.clients_;
+          }
+        }(entity, graph_node, entity_desc);
+      // For the sake of reusing data structures and lookup functions, we treat publishers and clients are equivalent.
+      // Similarly, subscriptions and services are equivalent.
+      const std::size_t pub_count = entity.type() == EntityType::Publisher ||
+        entity.type() == EntityType::Client ? 1 : 0;
       const std::size_t sub_count = !pub_count;
 
       GraphNode::TopicMap::iterator topic_it = topic_map.find(topic_info.name_);
@@ -346,7 +408,7 @@ void GraphCache::parse_del(const std::string & keyexpr)
       }
 
       // Bookkeeping: Update graph_topic_ which keeps track of topics across all nodes in the graph.
-      update_graph_topics(topic_info, pub_count, sub_count);
+      update_graph_topics(topic_info, entity.type(), pub_count, sub_count, graph_cache);
 
       RCUTILS_LOG_INFO_NAMED(
         "rmw_zenoh_cpp",
@@ -401,19 +463,25 @@ void GraphCache::parse_del(const std::string & keyexpr)
         entity.node_name().c_str()
       );
       auto remove_topics =
-        [&](const GraphNode::TopicMap & topic_map, const EntityType & entity_type) -> void {
-          std::size_t pub_count = entity_type == EntityType::Publisher ? 1 : 0;
+        [&update_graph_topics](const GraphNode::TopicMap & topic_map,
+          const EntityType & entity_type, GraphCache & graph_cache) -> void {
+          std::size_t pub_count = entity_type == EntityType::Publisher ||
+            entity_type == EntityType::Client ? 1 : 0;
           std::size_t sub_count = !pub_count;
           for (auto topic_it = topic_map.begin(); topic_it != topic_map.end(); ++topic_it) {
             for (auto type_it = topic_it->second.begin(); type_it != topic_it->second.end();
               ++type_it)
             {
-              update_graph_topics(type_it->second->info_, pub_count, sub_count);
+              update_graph_topics(
+                type_it->second->info_, entity_type, pub_count, sub_count,
+                graph_cache);
             }
           }
         };
-      remove_topics(graph_node->pubs_, EntityType::Publisher);
-      remove_topics(graph_node->subs_, EntityType::Subscription);
+      remove_topics(graph_node->pubs_, EntityType::Publisher, *this);
+      remove_topics(graph_node->subs_, EntityType::Subscription, *this);
+      remove_topics(graph_node->services_, EntityType::Service, *this);
+      remove_topics(graph_node->clients_, EntityType::Client, *this);
     }
     ns_it->second.erase(node_it);
     RCUTILS_LOG_WARN_NAMED(
@@ -433,7 +501,7 @@ void GraphCache::parse_del(const std::string & keyexpr)
   }
 
   // Update the graph based on the entity.
-  remove_topic_data(entity, *(node_it->second));
+  remove_topic_data(entity, *(node_it->second), *this);
 }
 
 ///=============================================================================
@@ -646,6 +714,18 @@ rmw_ret_t GraphCache::get_topic_names_and_types(
 }
 
 ///=============================================================================
+rmw_ret_t GraphCache::get_service_names_and_types(
+  rcutils_allocator_t * allocator,
+  rmw_names_and_types_t * service_names_and_types) const
+{
+  RCUTILS_CHECK_ALLOCATOR_WITH_MSG(
+    allocator, "get_node_names allocator is not valid", return RMW_RET_INVALID_ARGUMENT);
+
+  std::lock_guard<std::mutex> lock(graph_mutex_);
+  return fill_names_and_types(graph_services_, allocator, service_names_and_types);
+}
+
+///=============================================================================
 rmw_ret_t GraphCache::count_publishers(
   const char * topic_name,
   size_t * count) const
@@ -673,6 +753,40 @@ rmw_ret_t GraphCache::count_subscriptions(
     for (const std::pair<const std::string, TopicDataPtr> & it : graph_topics_.at(topic_name)) {
       // Iterate through all the types and increment count.
       *count += it.second->stats_.sub_count_;
+    }
+  }
+
+  return RMW_RET_OK;
+}
+
+///=============================================================================
+rmw_ret_t GraphCache::count_services(
+  const char * service_name,
+  size_t * count) const
+{
+  *count = 0;
+  std::lock_guard<std::mutex> lock(graph_mutex_);
+  if (graph_services_.count(service_name) != 0) {
+    for (const std::pair<const std::string, TopicDataPtr> & it : graph_services_.at(service_name)) {
+      // Iterate through all the types and increment count.
+      *count += it.second->stats_.sub_count_;
+    }
+  }
+
+  return RMW_RET_OK;
+}
+
+///=============================================================================
+rmw_ret_t GraphCache::count_clients(
+  const char * service_name,
+  size_t * count) const
+{
+  *count = 0;
+  std::lock_guard<std::mutex> lock(graph_mutex_);
+  if (graph_services_.count(service_name) != 0) {
+    for (const std::pair<const std::string, TopicDataPtr> & it : graph_services_.at(service_name)) {
+      // Iterate through all the types and increment count.
+      *count += it.second->stats_.pub_count_;
     }
   }
 
@@ -737,6 +851,10 @@ rmw_ret_t GraphCache::get_entity_names_and_types_by_node(
     return fill_names_and_types(node_it->second->pubs_, allocator, names_and_types);
   } else if (entity_type == EntityType::Subscription) {
     return fill_names_and_types(node_it->second->subs_, allocator, names_and_types);
+  } else if (entity_type == EntityType::Service) {
+    return fill_names_and_types(node_it->second->services_, allocator, names_and_types);
+  } else if (entity_type == EntityType::Client) {
+    return fill_names_and_types(node_it->second->clients_, allocator, names_and_types);
   } else {
     return RMW_RET_OK;
   }
@@ -786,7 +904,6 @@ rmw_ret_t GraphCache::get_entities_info_by_topic(
       }
     }
   }
-
 
   rmw_ret_t ret = rmw_topic_endpoint_info_array_init_with_size(
     endpoints_info,
@@ -849,5 +966,24 @@ rmw_ret_t GraphCache::get_entities_info_by_topic(
   }
 
   cleanup_endpoints_info.cancel();
+  return RMW_RET_OK;
+}
+
+///=============================================================================
+rmw_ret_t GraphCache::service_server_is_available(
+  const char * service_name,
+  const char * service_type,
+  bool * is_available)
+{
+  *is_available = false;
+  std::lock_guard<std::mutex> lock(graph_mutex_);
+  GraphNode::TopicMap::iterator service_it = graph_services_.find(service_name);
+  if (service_it != graph_services_.end()) {
+    GraphNode::TopicDataMap::iterator type_it = service_it->second.find(service_type);
+    if (type_it != service_it->second.end()) {
+      *is_available = true;
+    }
+  }
+
   return RMW_RET_OK;
 }

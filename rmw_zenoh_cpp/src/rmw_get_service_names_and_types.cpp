@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "detail/rmw_data_types.hpp"
 
+#include "rmw/error_handling.h"
 #include "rmw/get_service_names_and_types.h"
 
 extern "C"
@@ -25,9 +27,13 @@ rmw_get_service_names_and_types(
   rcutils_allocator_t * allocator,
   rmw_names_and_types_t * service_names_and_types)
 {
-  static_cast<void>(node);
-  static_cast<void>(allocator);
-  static_cast<void>(service_names_and_types);
-  return RMW_RET_UNSUPPORTED;
+  RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->context, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(allocator, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(service_names_and_types, RMW_RET_INVALID_ARGUMENT);
+
+  return node->context->impl->graph_cache.get_service_names_and_types(
+    allocator, service_names_and_types);
 }
 }  // extern "C"

@@ -34,9 +34,14 @@
 
 
 ///=============================================================================
+// TODO(Yadunund): Since we reuse pub_count_ and sub_count_ for pub/sub and
+// service/client consider more general names for these fields.
 struct TopicStats
 {
+  // The count of publishers or clients.
   std::size_t pub_count_;
+
+  // The count of subscriptions or services.
   std::size_t sub_count_;
 
   // Constructor which initializes counters to 0.
@@ -69,8 +74,15 @@ struct GraphNode
   using TopicDataMap = std::unordered_map<std::string, TopicDataPtr>;
   // Map topic name to TopicDataMap
   using TopicMap = std::unordered_map<std::string, TopicDataMap>;
+
+  // Entries for pub/sub.
   TopicMap pubs_ = {};
   TopicMap subs_ = {};
+
+  // Entires for service/client.
+  TopicMap clients_ = {};
+  TopicMap services_ = {};
+
 };
 using GraphNodePtr = std::shared_ptr<GraphNode>;
 
@@ -94,12 +106,24 @@ public:
     bool no_demangle,
     rmw_names_and_types_t * topic_names_and_types) const;
 
+  rmw_ret_t get_service_names_and_types(
+    rcutils_allocator_t * allocator,
+    rmw_names_and_types_t * service_names_and_types) const;
+
   rmw_ret_t count_publishers(
     const char * topic_name,
     size_t * count) const;
 
   rmw_ret_t count_subscriptions(
     const char * topic_name,
+    size_t * count) const;
+
+  rmw_ret_t count_services(
+    const char * service_name,
+    size_t * count) const;
+
+  rmw_ret_t count_clients(
+    const char * service_name,
     size_t * count) const;
 
   rmw_ret_t get_entity_names_and_types_by_node(
@@ -116,6 +140,11 @@ public:
     const char * topic_name,
     bool no_demangle,
     rmw_topic_endpoint_info_array_t * endpoints_info) const;
+
+  rmw_ret_t service_server_is_available(
+    const char * service_name,
+    const char * service_type,
+    bool * is_available);
 
 private:
   /*
@@ -146,8 +175,10 @@ private:
   // Map namespace to a map of <node_name, GraphNodePtr>.
   NamespaceMap graph_ = {};
 
-  // Optimize topic lookups across the graph.
+  // Optimize pub/sub lookups across the graph.
   GraphNode::TopicMap graph_topics_ = {};
+  // Optimize service/client lookups across the graph.
+  GraphNode::TopicMap graph_services_ = {};
 
   mutable std::mutex graph_mutex_;
 };

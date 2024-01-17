@@ -1851,6 +1851,51 @@ rmw_create_client(
     return nullptr;
   }
 
+  // Note: Service request/response types will contain a suffix Request_ or Response_.
+  // We remove the suffix when appending the type to the liveliness tokens for
+  // better reusability within GraphCache.
+  std::string service_type = client_data->request_type_support->get_name();
+  size_t suffix_substring_position = service_type.find("Request_");
+  if (std::string::npos != suffix_substring_position) {
+    service_type = service_type.substr(0, suffix_substring_position);
+  } else {
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unexpected type %s for client %s. Report this bug",
+      service_type.c_str(), rmw_client->service_name);
+    return nullptr;
+  }
+  const auto liveliness_entity = liveliness::Entity::make(
+    z_info_zid(z_loan(node->context->impl->session)),
+    liveliness::EntityType::Client,
+    liveliness::NodeInfo{node->context->actual_domain_id, node->namespace_, node->name, ""},
+    liveliness::TopicInfo{rmw_client->service_name,
+      std::move(service_type), "reliable"}
+  );
+  if (!liveliness_entity.has_value()) {
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to generate keyexpr for liveliness token for the client.");
+    return nullptr;
+  }
+  client_data->token = zc_liveliness_declare_token(
+    z_loan(node->context->impl->session),
+    z_keyexpr(liveliness_entity->keyexpr().c_str()),
+    NULL
+  );
+  auto free_token = rcpputils::make_scope_exit(
+    [client_data]() {
+      if (client_data != nullptr) {
+        z_drop(z_move(client_data->token));
+      }
+    });
+  if (!z_check(client_data->token)) {
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to create liveliness token for the client.");
+    return nullptr;
+  }
+
   rmw_client->data = client_data;
 
   free_rmw_client.cancel();
@@ -1901,6 +1946,7 @@ rmw_destroy_client(rmw_node_t * node, rmw_client_t * client)
     z_reply_drop(&reply);
   }
   client_data->replies.clear();
+  z_drop(z_move(client_data->token));
 
   allocator->deallocate(client_data->request_type_support, allocator->state);
   allocator->deallocate(client_data->response_type_support, allocator->state);
@@ -2018,7 +2064,10 @@ rmw_send_request(
 
   opts.attachment = z_bytes_map_as_attachment(&map);
 
-  opts.target = Z_QUERY_TARGET_ALL;
+  opts.target = Z_QUERY_TARGET_ALL_COMPLETE;
+  // Latest consolidation guarantees unicity of replies for the same key expression. It optimizes bandwidth.
+  // Default is None which imples replies may come in any order and any number.
+  opts.consolidation = z_query_consolidation_latest();
   opts.value.payload = z_bytes_t{data_length, reinterpret_cast<const uint8_t *>(request_bytes)};
   opts.value.encoding = z_encoding(Z_ENCODING_PREFIX_EMPTY, NULL);
   client_data->zn_closure_reply = z_closure(client_data_handler, nullptr, client_data);
@@ -2372,12 +2421,14 @@ rmw_create_service(
   }
 
   z_owned_closure_query_t callback = z_closure(service_data_handler, nullptr, service_data);
-
+  // Configure the queryable to process complete queries.
+  z_queryable_options_t qable_options = z_queryable_options_default();
+  qable_options.complete = true;
   service_data->qable = z_declare_queryable(
     z_loan(context_impl->session),
     z_loan(service_data->keyexpr),
     z_move(callback),
-    nullptr);
+    &qable_options);
 
   if (!z_check(service_data->qable)) {
     RMW_SET_ERROR_MSG("unable to create zenoh queryable");
@@ -2388,7 +2439,50 @@ rmw_create_service(
       z_undeclare_queryable(z_move(service_data->qable));
     });
 
-  // TODO(francocipollone): Update graph cache.
+  // Note: Service request/response types will contain a suffix Request_ or Response_.
+  // We remove the suffix when appending the type to the liveliness tokens for
+  // better reusability within GraphCache.
+  std::string service_type = service_data->response_type_support->get_name();
+  size_t suffix_substring_position = service_type.find("Response_");
+  if (std::string::npos != suffix_substring_position) {
+    service_type = service_type.substr(0, suffix_substring_position);
+  } else {
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unexpected type %s for service %s. Report this bug",
+      service_type.c_str(), rmw_service->service_name);
+    return nullptr;
+  }
+  const auto liveliness_entity = liveliness::Entity::make(
+    z_info_zid(z_loan(node->context->impl->session)),
+    liveliness::EntityType::Service,
+    liveliness::NodeInfo{node->context->actual_domain_id, node->namespace_, node->name, ""},
+    liveliness::TopicInfo{rmw_service->service_name,
+      std::move(service_type), "reliable"}
+  );
+  if (!liveliness_entity.has_value()) {
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to generate keyexpr for liveliness token for the service.");
+    return nullptr;
+  }
+  service_data->token = zc_liveliness_declare_token(
+    z_loan(node->context->impl->session),
+    z_keyexpr(liveliness_entity->keyexpr().c_str()),
+    NULL
+  );
+  auto free_token = rcpputils::make_scope_exit(
+    [service_data]() {
+      if (service_data != nullptr) {
+        z_drop(z_move(service_data->token));
+      }
+    });
+  if (!z_check(service_data->token)) {
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to create liveliness token for the service.");
+    return nullptr;
+  }
 
   rmw_service->data = service_data;
 
@@ -2402,6 +2496,8 @@ rmw_create_service(
   free_response_type_support.cancel();
   free_ros_keyexpr.cancel();
   undeclare_z_queryable.cancel();
+  free_token.cancel();
+
   return rmw_service;
 }
 
@@ -2439,8 +2535,7 @@ rmw_destroy_service(rmw_node_t * node, rmw_service_t * service)
   for (z_owned_query_t & query : service_data->query_queue) {
     z_drop(z_move(query));
   }
-  service_data->query_queue.clear();
-  service_data->sequence_to_query_map.clear();
+  z_drop(z_move(service_data->token));
 
   allocator->deallocate(service_data->request_type_support, allocator->state);
   allocator->deallocate(service_data->response_type_support, allocator->state);
@@ -2449,7 +2544,6 @@ rmw_destroy_service(rmw_node_t * node, rmw_service_t * service)
   allocator->deallocate(const_cast<char *>(service->service_name), allocator->state);
   allocator->deallocate(service, allocator->state);
 
-  // TODO(francocipollone): Update graph cache.
   return RMW_RET_OK;
 }
 
@@ -3117,10 +3211,26 @@ rmw_count_clients(
   const char * service_name,
   size_t * count)
 {
-  static_cast<void>(node);
-  static_cast<void>(service_name);
-  static_cast<void>(count);
-  return RMW_RET_UNSUPPORTED;
+  RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    node,
+    node->implementation_identifier,
+    rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_ARGUMENT_FOR_NULL(service_name, RMW_RET_INVALID_ARGUMENT);
+  int validation_result = RMW_TOPIC_VALID;
+  rmw_ret_t ret = rmw_validate_full_topic_name(service_name, &validation_result, nullptr);
+  if (RMW_RET_OK != ret) {
+    return ret;
+  }
+  if (RMW_TOPIC_VALID != validation_result) {
+    const char * reason = rmw_full_topic_name_validation_result_string(validation_result);
+    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("topic_name argument is invalid: %s", reason);
+    return RMW_RET_INVALID_ARGUMENT;
+  }
+  RMW_CHECK_ARGUMENT_FOR_NULL(count, RMW_RET_INVALID_ARGUMENT);
+
+  return node->context->impl->graph_cache.count_clients(service_name, count);
 }
 
 //==============================================================================
@@ -3131,10 +3241,26 @@ rmw_count_services(
   const char * service_name,
   size_t * count)
 {
-  static_cast<void>(node);
-  static_cast<void>(service_name);
-  static_cast<void>(count);
-  return RMW_RET_UNSUPPORTED;
+  RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    node,
+    node->implementation_identifier,
+    rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_ARGUMENT_FOR_NULL(service_name, RMW_RET_INVALID_ARGUMENT);
+  int validation_result = RMW_TOPIC_VALID;
+  rmw_ret_t ret = rmw_validate_full_topic_name(service_name, &validation_result, nullptr);
+  if (RMW_RET_OK != ret) {
+    return ret;
+  }
+  if (RMW_TOPIC_VALID != validation_result) {
+    const char * reason = rmw_full_topic_name_validation_result_string(validation_result);
+    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("topic_name argument is invalid: %s", reason);
+    return RMW_RET_INVALID_ARGUMENT;
+  }
+  RMW_CHECK_ARGUMENT_FOR_NULL(count, RMW_RET_INVALID_ARGUMENT);
+
+  return node->context->impl->graph_cache.count_services(service_name, count);
 }
 
 //==============================================================================
@@ -3177,12 +3303,37 @@ rmw_service_server_is_available(
   const rmw_client_t * client,
   bool * is_available)
 {
-  // TODO(francocipollone): Provide a proper implementation.
-  //                        We need graph cache information for this.
-  *is_available = true;
-  static_cast<void>(node);
-  static_cast<void>(client);
-  return RMW_RET_OK;
+  RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    node,
+    node->implementation_identifier,
+    rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_ARGUMENT_FOR_NULL(client, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(client->data, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(is_available, RMW_RET_INVALID_ARGUMENT);
+
+  rmw_client_data_t * client_data = static_cast<rmw_client_data_t *>(client->data);
+  if (client_data == nullptr) {
+    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
+      "Unable to retreive client_data from client for service %s", client->service_name);
+    return RMW_RET_INVALID_ARGUMENT;
+  }
+
+  std::string service_type = client_data->request_type_support->get_name();
+  size_t suffix_substring_position = service_type.find("Request_");
+  if (std::string::npos != suffix_substring_position) {
+    service_type = service_type.substr(0, suffix_substring_position);
+  } else {
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unexpected type %s for client %s. Report this bug",
+      service_type.c_str(), client->service_name);
+    return RMW_RET_INVALID_ARGUMENT;
+  }
+
+  return node->context->impl->graph_cache.service_server_is_available(
+    client->service_name, service_type.c_str(), is_available);
 }
 
 //==============================================================================
