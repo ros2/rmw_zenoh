@@ -110,6 +110,10 @@ public:
     const rmw_publisher_t * publisher,
     size_t * subscription_count);
 
+  rmw_ret_t subscription_count_matched_publishers(
+    const rmw_subscription_t * subscription,
+    size_t * publisher_count);
+
   rmw_ret_t get_service_names_and_types(
     rcutils_allocator_t * allocator,
     rmw_names_and_types_t * service_names_and_types) const;

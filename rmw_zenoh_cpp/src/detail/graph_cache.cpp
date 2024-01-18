@@ -733,6 +733,26 @@ rmw_ret_t GraphCache::publisher_count_matched_subscriptions(
 }
 
 ///=============================================================================
+rmw_ret_t GraphCache::subscription_count_matched_publishers(
+  const rmw_subscription_t * subscription,
+  size_t * publisher_count)
+{
+  // TODO(Yadunund): Check if QoS settings also match.
+  *publisher_count = 0;
+  GraphNode::TopicMap::const_iterator topic_it = graph_topics_.find(subscription->topic_name);
+  if (topic_it != graph_topics_.end()) {
+    rmw_subscription_data_t * sub_data = static_cast<rmw_subscription_data_t *>(subscription->data);
+    GraphNode::TopicDataMap::const_iterator topic_data_it = topic_it->second.find(
+      sub_data->type_support->get_name());
+    if (topic_data_it != topic_it->second.end()) {
+      *publisher_count = topic_data_it->second->stats_.pub_count_;
+    }
+  }
+
+  return RMW_RET_OK;
+}
+
+///=============================================================================
 rmw_ret_t GraphCache::get_service_names_and_types(
   rcutils_allocator_t * allocator,
   rmw_names_and_types_t * service_names_and_types) const

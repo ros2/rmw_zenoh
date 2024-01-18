@@ -1518,12 +1518,23 @@ rmw_subscription_count_matched_publishers(
   const rmw_subscription_t * subscription,
   size_t * publisher_count)
 {
-  static_cast<void>(subscription);
+  RMW_CHECK_ARGUMENT_FOR_NULL(subscription, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(subscription->data, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    subscription,
+    subscription->implementation_identifier,
+    rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_ARGUMENT_FOR_NULL(publisher_count, RMW_RET_INVALID_ARGUMENT);
 
-  // TODO(clalancette): implement
-  *publisher_count = 0;
+  rmw_subscription_data_t * sub_data = static_cast<rmw_subscription_data_t *>(subscription->data);
+  RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(sub_data->context, RMW_RET_INVALID_ARGUMENT);
+  rmw_context_impl_t * context_impl = static_cast<rmw_context_impl_t *>(sub_data->context->impl);
+  RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
 
-  return RMW_RET_UNSUPPORTED;
+  return context_impl->graph_cache.subscription_count_matched_publishers(
+    subscription, publisher_count);
 }
 
 //==============================================================================
