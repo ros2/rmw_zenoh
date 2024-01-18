@@ -255,12 +255,12 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
     "Sending Query '%s' to fetch discovery data...",
     liveliness_str.c_str()
   );
-  // We create a blocking channel that is unbounded, ie. `bound` = 0, to receive
+  // We create a non-blocking channel that is unbounded, ie. `bound` = 0, to receive
   // replies for the zc_liveliness_get() call. This is necessary as if the `bound`
   // is too low, the channel may starve the zenoh executor of its threads which
   // would lead to deadlocks when trying to receive replies and block the
   // execution here.
-  z_owned_reply_channel_t channel = zc_reply_fifo_new(0);
+  z_owned_reply_channel_t channel = zc_reply_non_blocking_fifo_new(0);
   zc_liveliness_get(
     z_loan(context->impl->session), z_keyexpr(liveliness_str.c_str()),
     z_move(channel.send), NULL);
@@ -271,7 +271,12 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   //   z_loan(context->impl->session), z_keyexpr(liveliness_str.c_str()), "", z_move(channel.send),
   //   &opts);      // here, the send is moved and will be dropped by zenoh when adequate
   z_owned_reply_t reply = z_reply_null();
-  for (z_call(channel.recv, &reply); z_check(reply); z_call(channel.recv, &reply)) {
+  for (bool call_success = z_call(channel.recv, &reply); !call_success || z_check(reply);
+    call_success = z_call(channel.recv, &reply))
+  {
+    if (!call_success) {
+      continue;
+    }
     if (z_reply_is_ok(&reply)) {
       z_sample_t sample = z_reply_ok(&reply);
       z_owned_str_t keystr = z_keyexpr_to_string(sample.keyexpr);
