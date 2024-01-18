@@ -606,15 +606,15 @@ rmw_create_publisher(
       z_loan(keyexpr),
       &pub_cache_opts
     );
-    if (!z_check(publisher_data->pub_cache)) {
+    if (!publisher_data->pub_cache.has_value() || !z_check(publisher_data->pub_cache.value())) {
       RMW_SET_ERROR_MSG("unable to create zenoh publisher cache");
       return nullptr;
     }
   }
   auto undeclare_z_publisher_cache = rcpputils::make_scope_exit(
     [publisher_data]() {
-      if (publisher_data) {
-        z_drop(z_move(publisher_data->pub_cache));
+      if (publisher_data && publisher_data->pub_cache.has_value()) {
+        z_drop(z_move(publisher_data->pub_cache.value()));
       }
     });
 
@@ -747,9 +747,9 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
     //   return RMW_RET_ERROR;
     // }
     z_drop(z_move(publisher_data->token));
-    publisher_data->pub_cache = ze_publication_cache_null();
-    z_drop(z_move(publisher_data->pub_cache));
-
+    if (publisher_data->pub_cache.has_value()) {
+      z_drop(z_move(publisher_data->pub_cache.value()));
+    }
     RMW_TRY_DESTRUCTOR(publisher_data->type_support->~MessageTypeSupport(), MessageTypeSupport, );
     allocator->deallocate(publisher_data->type_support, allocator->state);
     if (z_undeclare_publisher(z_move(publisher_data->pub))) {
@@ -1365,6 +1365,15 @@ rmw_create_subscription(
 
   if (sub_data->adapted_qos_profile.durability == RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL) {
     ze_querying_subscriber_options_t sub_options = ze_querying_subscriber_options_default();
+    // TODO(Yadunund): We need the query_target to be ALL_COMPLETE but the PubCache created
+    // does not setup a queryable that is complete. Once zettascale exposes that API,
+    // uncomment below.
+    // sub_options.query_target = Z_QUERY_TARGET_ALL_COMPLETE;
+    sub_options.query_target = Z_QUERY_TARGET_ALL;
+    // We set consolidation to none as we need to receive transient local messages
+    // from a number of publishers. Eg: To receive TF data published over /tf_static
+    // by various publishers.
+    sub_options.query_consolidation = z_query_consolidation_none();
     if (sub_data->adapted_qos_profile.reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE) {
       sub_options.reliability = Z_RELIABILITY_RELIABLE;
     }

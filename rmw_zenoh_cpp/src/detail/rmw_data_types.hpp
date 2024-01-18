@@ -75,7 +75,7 @@ struct rmw_publisher_data_t
   z_owned_publisher_t pub;
 
   // Optional publication cache when durability is transient_local.
-  ze_owned_publication_cache_t pub_cache;
+  std::optional<ze_owned_publication_cache_t> pub_cache;
 
   // Store the actual QoS profile used to configure this publisher.
   rmw_qos_profile_t adapted_qos_profile;
