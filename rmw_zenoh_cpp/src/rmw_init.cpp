@@ -351,6 +351,15 @@ rmw_shutdown(rmw_context_t * context)
     rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
+  context->impl->shm_manager = zc_shm_manager_null();
+  z_drop(z_move(context->impl->shm_manager));
+  z_undeclare_subscriber(z_move(context->impl->graph_subscriber));
+  // Close the zenoh session
+  if (z_close(z_move(context->impl->session)) < 0) {
+    RMW_SET_ERROR_MSG("Error while closing zenoh session");
+    return RMW_RET_ERROR;
+  }
+
   context->impl->is_shutdown = true;
   return RMW_RET_OK;
 }
@@ -375,20 +384,7 @@ rmw_context_fini(rmw_context_t * context)
     return RMW_RET_INVALID_ARGUMENT;
   }
 
-  // We destroy zenoh artifacts here instead of rmw_shutdown() as
-  // rmw_shutdown() is invoked before rmw_destroy_node() however we still need the session
-  // alive for the latter.
-  // TODO(Yadunund): Check if this is a bug in rmw.
-  z_undeclare_subscriber(z_move(context->impl->graph_subscriber));
-  // Close the zenoh session
-  if (z_close(z_move(context->impl->session)) < 0) {
-    RMW_SET_ERROR_MSG("Error while closing zenoh session");
-    return RMW_RET_ERROR;
-  }
-
   const rcutils_allocator_t * allocator = &context->options.allocator;
-
-  z_drop(z_move(context->impl->shm_manager));
 
   RMW_TRY_DESTRUCTOR(
     static_cast<GuardCondition *>(context->impl->graph_guard_condition->data)->~GuardCondition(),
