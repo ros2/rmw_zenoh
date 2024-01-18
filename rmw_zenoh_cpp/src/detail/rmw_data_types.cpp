@@ -65,12 +65,12 @@ void sub_data_handler(
         sub_data->queue_depth,
         z_loan(keystr));
 
-      std::unique_ptr<saved_msg_data> old = std::move(sub_data->message_queue.back());
+      std::unique_ptr<saved_msg_data> old = std::move(sub_data->message_queue.front());
       z_drop(&old->payload);
-      sub_data->message_queue.pop_back();
+      sub_data->message_queue.pop_front();
     }
 
-    sub_data->message_queue.emplace_front(
+    sub_data->message_queue.emplace_back(
       std::make_unique<saved_msg_data>(
         zc_sample_payload_rcinc(sample),
         sample->timestamp.time, sample->timestamp.id.id));

@@ -1510,9 +1510,8 @@ static rmw_ret_t __rmw_take(
       return RMW_RET_OK;
     }
 
-    // NOTE(CH3): Potential place to handle "QoS" (e.g. could pop from back so it is LIFO)
-    msg_data = std::move(sub_data->message_queue.back());
-    sub_data->message_queue.pop_back();
+    msg_data = std::move(sub_data->message_queue.front());
+    sub_data->message_queue.pop_front();
   }
 
   // Object that manages the raw buffer
