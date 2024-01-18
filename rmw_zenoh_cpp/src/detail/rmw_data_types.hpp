@@ -77,6 +77,9 @@ struct rmw_publisher_data_t
   // Optional publication cache when durability is transient_local.
   ze_owned_publication_cache_t pub_cache;
 
+  // Store the actual QoS profile used to configure this publisher.
+  rmw_qos_profile_t adapted_qos_profile;
+
   // Liveliness token for the publisher.
   zc_owned_liveliness_token_t token;
 
@@ -117,6 +120,9 @@ struct rmw_subscription_data_t
   // An owned subscriber or querying_subscriber depending on the QoS settings.
   std::variant<z_owned_subscriber_t, ze_owned_querying_subscriber_t> sub;
 
+  // Store the actual QoS profile used to configure this subscription.
+  rmw_qos_profile_t adapted_qos_profile;
+
   // Liveliness token for the subscription.
   zc_owned_liveliness_token_t token;
 
@@ -127,9 +133,6 @@ struct rmw_subscription_data_t
 
   std::deque<std::unique_ptr<saved_msg_data>> message_queue;
   std::mutex message_queue_mutex;
-
-  size_t queue_depth;
-  bool reliable;
 
   std::mutex internal_mutex;
   std::condition_variable * condition{nullptr};
@@ -150,6 +153,10 @@ struct rmw_service_data_t
 
   z_owned_keyexpr_t keyexpr;
   z_owned_queryable_t qable;
+
+  // Store the actual QoS profile used to configure this service.
+  // The QoS is reused for getting requests and sending responses.
+  rmw_qos_profile_t adapted_qos_profile;
 
   // Liveliness token for the service.
   zc_owned_liveliness_token_t token;
@@ -180,6 +187,10 @@ struct rmw_client_data_t
 {
   z_owned_keyexpr_t keyexpr;
   z_owned_closure_reply_t zn_closure_reply;
+
+  // Store the actual QoS profile used to configure this client.
+  // The QoS is reused for sending requests and getting responses.
+  rmw_qos_profile_t adapted_qos_profile;
 
   // Liveliness token for the client.
   zc_owned_liveliness_token_t token;

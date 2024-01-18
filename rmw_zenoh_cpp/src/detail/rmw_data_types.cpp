@@ -54,13 +54,13 @@ void sub_data_handler(
   {
     std::lock_guard<std::mutex> lock(sub_data->message_queue_mutex);
 
-    if (sub_data->message_queue.size() >= sub_data->queue_depth) {
+    if (sub_data->message_queue.size() >= sub_data->adapted_qos_profile.depth) {
       // Log warning if message is discarded due to hitting the queue depth
       RCUTILS_LOG_WARN_NAMED(
         "rmw_zenoh_cpp",
         "Message queue depth of %ld reached, discarding oldest message "
         "for subscription for %s",
-        sub_data->queue_depth,
+        sub_data->adapted_qos_profile.depth,
         z_loan(keystr));
 
       std::unique_ptr<saved_msg_data> old = std::move(sub_data->message_queue.back());
