@@ -82,7 +82,6 @@ struct GraphNode
   // Entires for service/client.
   TopicMap clients_ = {};
   TopicMap services_ = {};
-
 };
 using GraphNodePtr = std::shared_ptr<GraphNode>;
 

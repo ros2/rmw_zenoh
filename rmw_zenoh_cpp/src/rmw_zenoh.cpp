@@ -2065,8 +2065,9 @@ rmw_send_request(
   opts.attachment = z_bytes_map_as_attachment(&map);
 
   opts.target = Z_QUERY_TARGET_ALL_COMPLETE;
-  // Latest consolidation guarantees unicity of replies for the same key expression. It optimizes bandwidth.
-  // Default is None which imples replies may come in any order and any number.
+  // Latest consolidation guarantees unicity of replies for the same key expression,
+  // which optimizes bandwidth. The default is "None", which imples replies may come in any order
+  // and any number.
   opts.consolidation = z_query_consolidation_latest();
   opts.value.payload = z_bytes_t{data_length, reinterpret_cast<const uint8_t *>(request_bytes)};
   opts.value.encoding = z_encoding(Z_ENCODING_PREFIX_EMPTY, NULL);
