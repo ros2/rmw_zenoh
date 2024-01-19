@@ -17,8 +17,11 @@
 #include "detail/liveliness_utils.hpp"
 #include "detail/rmw_data_types.hpp"
 
+#include "rcutils/allocator.h"
+
 #include "rmw/get_topic_endpoint_info.h"
 #include "rmw/impl/cpp/macros.hpp"
+#include "rmw/types.h"
 
 extern "C"
 {

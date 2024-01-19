@@ -14,7 +14,9 @@
 
 #include <zenoh.h>
 
+#include <cstring>
 #include <mutex>
+#include <optional>
 #include <utility>
 
 #include "rcpputils/scope_exit.hpp"
@@ -63,12 +65,12 @@ void sub_data_handler(
         sub_data->queue_depth,
         z_loan(keystr));
 
-      std::unique_ptr<saved_msg_data> old = std::move(sub_data->message_queue.back());
+      std::unique_ptr<saved_msg_data> old = std::move(sub_data->message_queue.front());
       z_drop(&old->payload);
-      sub_data->message_queue.pop_back();
+      sub_data->message_queue.pop_front();
     }
 
-    sub_data->message_queue.emplace_front(
+    sub_data->message_queue.emplace_back(
       std::make_unique<saved_msg_data>(
         zc_sample_payload_rcinc(sample),
         sample->timestamp.time, sample->timestamp.id.id));
@@ -81,13 +83,24 @@ void sub_data_handler(
   }
 }
 
+ZenohQuery::ZenohQuery(const z_query_t * query)
+{
+  query_ = z_query_clone(query);
+}
+
+ZenohQuery::~ZenohQuery()
+{
+  z_drop(z_move(query_));
+}
+
+const z_query_t ZenohQuery::get_query() const
+{
+  return z_query_loan(&query_);
+}
+
 //==============================================================================
 void service_data_handler(const z_query_t * query, void * data)
 {
-  RCUTILS_LOG_INFO_NAMED(
-    "rmw_zenoh_cpp",
-    "[service_data_handler] triggered"
-  );
   z_owned_str_t keystr = z_keyexpr_to_string(z_query_keyexpr(query));
   auto drop_keystr = rcpputils::make_scope_exit(
     [&keystr]() {
@@ -108,7 +121,7 @@ void service_data_handler(const z_query_t * query, void * data)
   // Get the query parameters and payload
   {
     std::lock_guard<std::mutex> lock(service_data->query_queue_mutex);
-    service_data->query_queue.push_back(z_query_clone(query));
+    service_data->query_queue.emplace_back(std::make_unique<ZenohQuery>(query));
   }
   {
     // Since we added new data, trigger the guard condition if it is available
@@ -117,6 +130,31 @@ void service_data_handler(const z_query_t * query, void * data)
       service_data->condition->notify_one();
     }
   }
+}
+
+ZenohReply::ZenohReply(const z_owned_reply_t * reply)
+{
+  reply_ = *reply;
+}
+
+ZenohReply::~ZenohReply()
+{
+  z_reply_drop(z_move(reply_));
+}
+
+std::optional<z_sample_t> ZenohReply::get_sample() const
+{
+  if (z_reply_is_ok(&reply_)) {
+    return z_reply_ok(&reply_);
+  }
+
+  return std::nullopt;
+}
+
+size_t rmw_client_data_t::get_next_sequence_number()
+{
+  std::lock_guard<std::mutex> lock(sequence_number_mutex);
+  return sequence_number++;
 }
 
 //==============================================================================
@@ -145,9 +183,9 @@ void client_data_handler(z_owned_reply_t * reply, void * data)
     return;
   }
   {
-    std::lock_guard<std::mutex> msg_lock(client_data->message_mutex);
+    std::lock_guard<std::mutex> msg_lock(client_data->replies_mutex);
     // Take ownership of the reply.
-    client_data->replies.emplace_back(*reply);
+    client_data->replies.emplace_back(std::make_unique<ZenohReply>(reply));
     *reply = z_reply_null();
   }
   {

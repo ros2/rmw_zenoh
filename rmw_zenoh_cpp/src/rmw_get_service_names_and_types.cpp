@@ -14,8 +14,11 @@
 
 #include "detail/rmw_data_types.hpp"
 
+#include "rcutils/allocator.h"
+
 #include "rmw/error_handling.h"
 #include "rmw/get_service_names_and_types.h"
+#include "rmw/types.h"
 
 extern "C"
 {
