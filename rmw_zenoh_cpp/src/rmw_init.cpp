@@ -195,14 +195,18 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
       z_loan(context->impl->session),
       idstr,
       SHM_BUFFER_SIZE_MB * 1024 * 1024);
-    if (!zc_shm_manager_check(&context->impl->shm_manager)) {
+    if (!context->impl->shm_manager.has_value() ||
+      !zc_shm_manager_check(&context->impl->shm_manager.value()))
+    {
       RMW_SET_ERROR_MSG("Unable to create shm manager.");
       return RMW_RET_ERROR;
     }
   }
   auto free_shm_manager = rcpputils::make_scope_exit(
     [context]() {
-      z_drop(z_move(context->impl->shm_manager));
+      if (context->impl->shm_manager.has_value()) {
+        z_drop(z_move(context->impl->shm_manager.value()));
+      }
     });
 
   // Initialize the guard condition.
@@ -341,6 +345,9 @@ rmw_shutdown(rmw_context_t * context)
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   z_undeclare_subscriber(z_move(context->impl->graph_subscriber));
+  if (context->impl->shm_manager.has_value()) {
+    z_drop(z_move(context->impl->shm_manager.value()));
+  }
   // Close the zenoh session
   if (z_close(z_move(context->impl->session)) < 0) {
     RMW_SET_ERROR_MSG("Error while closing zenoh session");
@@ -348,8 +355,6 @@ rmw_shutdown(rmw_context_t * context)
   }
 
   const rcutils_allocator_t * allocator = &context->options.allocator;
-
-  z_drop(z_move(context->impl->shm_manager));
 
   RMW_TRY_DESTRUCTOR(
     static_cast<GuardCondition *>(context->impl->graph_guard_condition->data)->~GuardCondition(),

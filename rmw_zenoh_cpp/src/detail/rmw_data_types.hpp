@@ -45,8 +45,9 @@ struct rmw_context_impl_s
   // An owned session.
   z_owned_session_t session;
 
-  // The SHM manager.
-  zc_owned_shm_manager_t shm_manager;
+  // An optional SHM manager that is initialized of SHM is enabled in the
+  // zenoh session config.
+  std::optional<zc_owned_shm_manager_t> shm_manager;
 
   z_owned_subscriber_t graph_subscriber;
 

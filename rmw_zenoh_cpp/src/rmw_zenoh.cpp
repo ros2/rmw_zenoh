@@ -878,13 +878,15 @@ rmw_publish(
 
   zc_owned_shmbuf_t shmbuf;
   // Get memory from SHM buffer if available.
-  if (zc_shm_manager_check(&publisher_data->context->impl->shm_manager)) {
+  if (publisher_data->context->impl->shm_manager.has_value() &&
+    zc_shm_manager_check(&publisher_data->context->impl->shm_manager.value()))
+  {
     shmbuf = zc_shm_alloc(
-      &publisher_data->context->impl->shm_manager,
+      &publisher_data->context->impl->shm_manager.value(),
       max_data_length);
     if (!z_check(shmbuf)) {
-      zc_shm_gc(&publisher_data->context->impl->shm_manager);
-      shmbuf = zc_shm_alloc(&publisher_data->context->impl->shm_manager, max_data_length);
+      zc_shm_gc(&publisher_data->context->impl->shm_manager.value());
+      shmbuf = zc_shm_alloc(&publisher_data->context->impl->shm_manager.value(), max_data_length);
       if (!z_check(shmbuf)) {
         // TODO(Yadunund): Should we revert to regular allocation and not return an error?
         RMW_SET_ERROR_MSG("Failed to allocate a SHM buffer, even after GCing");
