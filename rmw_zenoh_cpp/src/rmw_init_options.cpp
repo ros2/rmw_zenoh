@@ -17,7 +17,7 @@
 #include "detail/identifier.hpp"
 #include "detail/rmw_init_options_impl.hpp"
 
-
+#include "rcutils/allocator.h"
 #include "rcutils/strdup.h"
 #include "rcutils/types.h"
 

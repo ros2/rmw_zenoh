@@ -56,15 +56,12 @@ rmw_ret_t zenoh_router_check(z_session_t session)
   // Define callback
   auto callback = [](const struct z_id_t * id, void * ctx) {
       const std::string id_str = zid_to_str(*id);
-      RCUTILS_LOG_INFO_NAMED(
-        "ZenohRouterCheck",
-        "A Zenoh router connected to the session with id '%s'", id_str.c_str());
       // Note: Callback is guaranteed to never be called
       // concurrently according to z_info_routers_zid docstring
       (*(static_cast<int *>(ctx)))++;
     };
 
-  rmw_ret_t ret;
+  rmw_ret_t ret = RMW_RET_OK;
   z_owned_closure_zid_t router_callback = z_closure(callback, nullptr /* drop */, &context);
   if (z_info_routers_zid(session, z_move(router_callback))) {
     RCUTILS_LOG_ERROR_NAMED(
@@ -77,11 +74,6 @@ rmw_ret_t zenoh_router_check(z_session_t session)
         "ZenohRouterCheck",
         "No Zenoh router connected to the session");
       ret = RMW_RET_ERROR;
-    } else {
-      RCUTILS_LOG_INFO_NAMED(
-        "ZenohRouterCheck",
-        "There are %d Zenoh routers connected to the session", context);
-      ret = RMW_RET_OK;
     }
   }
 

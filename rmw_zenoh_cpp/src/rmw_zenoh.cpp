@@ -19,9 +19,15 @@
 
 #include <chrono>
 #include <cinttypes>
+#include <limits>
+#include <memory>
 #include <mutex>
 #include <new>
+#include <optional>
+#include <random>
 #include <sstream>
+#include <string>
+#include <utility>
 
 #include "detail/guard_condition.hpp"
 #include "detail/graph_cache.hpp"
@@ -455,12 +461,6 @@ rmw_create_publisher(
       return nullptr;
     }
   }
-
-  RCUTILS_LOG_INFO_NAMED(
-    "rmw_zenoh_cpp",
-    "[rmw_create_publisher] %s",
-    topic_name);
-
   RMW_CHECK_ARGUMENT_FOR_NULL(publisher_options, nullptr);
   if (publisher_options->require_unique_network_flow_endpoints ==
     RMW_UNIQUE_NETWORK_FLOW_ENDPOINTS_STRICTLY_REQUIRED)
@@ -523,11 +523,10 @@ rmw_create_publisher(
     });
 
   RMW_TRY_PLACEMENT_NEW(publisher_data, publisher_data, return nullptr, rmw_publisher_data_t);
-  auto destruct_pub_data = rcpputils::make_scope_exit(
+  auto destruct_publisher_data = rcpputils::make_scope_exit(
     [publisher_data]() {
       RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(
-        publisher_data->~rmw_publisher_data_t(),
-        rmw_publisher_data_t);
+        publisher_data->~rmw_publisher_data_t(), rmw_publisher_data_t);
     });
 
   // Adapt any 'best available' QoS options
@@ -694,9 +693,9 @@ rmw_create_publisher(
   undeclare_z_publisher_cache.cancel();
   undeclare_z_publisher.cancel();
   free_topic_name.cancel();
-  destruct_pub_data.cancel();
   destruct_msg_type_support.cancel();
   free_type_support.cancel();
+  destruct_publisher_data.cancel();
   free_publisher_data.cancel();
   free_rmw_publisher.cancel();
 
@@ -1209,11 +1208,6 @@ rmw_create_subscription(
   RMW_CHECK_ARGUMENT_FOR_NULL(qos_profile, nullptr);
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription_options, nullptr);
 
-  RCUTILS_LOG_INFO_NAMED(
-    "rmw_zenoh_cpp",
-    "[rmw_create_subscription] %s",
-    topic_name);
-
   const rosidl_message_type_support_t * type_support = find_message_type_support(type_supports);
   if (type_support == nullptr) {
     // error was already set by find_message_type_support
@@ -1598,8 +1592,7 @@ static rmw_ret_t __rmw_take(
   const rmw_subscription_t * subscription,
   void * ros_message,
   bool * taken,
-  rmw_message_info_t * message_info,
-  rmw_subscription_allocation_t * allocation)
+  rmw_message_info_t * message_info)
 {
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription->topic_name, RMW_RET_ERROR);
@@ -1612,12 +1605,14 @@ static rmw_ret_t __rmw_take(
     subscription->implementation_identifier, rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
-  static_cast<void>(allocation);
-
   *taken = false;
 
   auto sub_data = static_cast<rmw_subscription_data_t *>(subscription->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
+
+  if (sub_data->context->impl->is_shutdown) {
+    return RMW_RET_OK;
+  }
 
   // RETRIEVE SERIALIZED MESSAGE ===============================================
 
@@ -1630,9 +1625,8 @@ static rmw_ret_t __rmw_take(
       return RMW_RET_OK;
     }
 
-    // NOTE(CH3): Potential place to handle "QoS" (e.g. could pop from back so it is LIFO)
-    msg_data = std::move(sub_data->message_queue.back());
-    sub_data->message_queue.pop_back();
+    msg_data = std::move(sub_data->message_queue.front());
+    sub_data->message_queue.pop_front();
   }
 
   // Object that manages the raw buffer
@@ -1680,9 +1674,11 @@ rmw_take(
   bool * taken,
   rmw_subscription_allocation_t * allocation)
 {
+  static_cast<void>(allocation);
+
   rmw_message_info_t dummy_msg_info;
 
-  return __rmw_take(subscription, ros_message, taken, &dummy_msg_info, allocation);
+  return __rmw_take(subscription, ros_message, taken, &dummy_msg_info);
 }
 
 //==============================================================================
@@ -1695,7 +1691,8 @@ rmw_take_with_info(
   rmw_message_info_t * message_info,
   rmw_subscription_allocation_t * allocation)
 {
-  return __rmw_take(subscription, ros_message, taken, message_info, allocation);
+  static_cast<void>(allocation);
+  return __rmw_take(subscription, ros_message, taken, message_info);
 }
 
 //==============================================================================
@@ -1798,6 +1795,18 @@ rmw_return_loaned_message_from_subscription(
   return RMW_RET_UNSUPPORTED;
 }
 
+static void generate_random_guid(uint8_t guid[RMW_GID_STORAGE_SIZE])
+{
+  std::random_device dev;
+  std::mt19937 rng(dev());
+  std::uniform_int_distribution<std::mt19937::result_type> dist(
+    std::numeric_limits<unsigned char>::min(), std::numeric_limits<unsigned char>::max());
+
+  for (size_t i = 0; i < RMW_GID_STORAGE_SIZE; ++i) {
+    guid[i] = dist(rng);
+  }
+}
+
 //==============================================================================
 /// Create a service client that can send requests to and receive replies from a service server.
 rmw_client_t *
@@ -1807,11 +1816,6 @@ rmw_create_client(
   const char * service_name,
   const rmw_qos_profile_t * qos_profile)
 {
-  RCUTILS_LOG_INFO_NAMED(
-    "rmw_zenoh_common_cpp",
-    "[rmw_create_client] %s with queue of depth %ld",
-    service_name,
-    qos_profile->depth);
   RMW_CHECK_ARGUMENT_FOR_NULL(node, nullptr);
 
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
@@ -1896,9 +1900,7 @@ rmw_create_client(
         rmw_client_data_t);
     });
 
-  // Adapt any 'best available' QoS options
-  client_data->adapted_qos_profile =
-    rmw_dds_common::qos_profile_update_best_available_for_services(*qos_profile);
+  generate_random_guid(client_data->client_guid);
 
   // Obtain the type support
   const rosidl_service_type_support_t * type_support = find_service_type_support(type_supports);
@@ -2040,11 +2042,11 @@ rmw_create_client(
 
   free_rmw_client.cancel();
   free_client_data.cancel();
-  free_request_type_support.cancel();
   destruct_request_type_support.cancel();
+  free_request_type_support.cancel();
+  destruct_response_type_support.cancel();
   free_response_type_support.cancel();
   destruct_client_data.cancel();
-  destruct_response_type_support.cancel();
   free_service_name.cancel();
   free_ros_keyexpr.cancel();
 
@@ -2082,14 +2084,18 @@ rmw_destroy_client(rmw_node_t * node, rmw_client_t * client)
   // CLEANUP ===================================================================
   z_drop(z_move(client_data->zn_closure_reply));
   z_drop(z_move(client_data->keyexpr));
-  for (z_owned_reply_t & reply : client_data->replies) {
-    z_reply_drop(&reply);
-  }
   client_data->replies.clear();
   z_drop(z_move(client_data->token));
 
+  RMW_TRY_DESTRUCTOR(
+    client_data->request_type_support->~RequestTypeSupport(), RequestTypeSupport, );
   allocator->deallocate(client_data->request_type_support, allocator->state);
+
+  RMW_TRY_DESTRUCTOR(
+    client_data->response_type_support->~ResponseTypeSupport(), ResponseTypeSupport, );
   allocator->deallocate(client_data->response_type_support, allocator->state);
+  RMW_TRY_DESTRUCTOR(client_data->~rmw_client_data_t(), rmw_client_data_t, );
+
   allocator->deallocate(client->data, allocator->state);
 
   allocator->deallocate(const_cast<char *>(client->service_name), allocator->state);
@@ -2098,22 +2104,47 @@ rmw_destroy_client(rmw_node_t * node, rmw_client_t * client)
   return RMW_RET_OK;
 }
 
-static z_owned_bytes_map_t create_map_and_set_sequence_num(int64_t sequence_number)
+static z_owned_bytes_map_t create_map_and_set_sequence_num(
+  int64_t sequence_number, uint8_t guid[RMW_GID_STORAGE_SIZE])
 {
   z_owned_bytes_map_t map = z_bytes_map_new();
   if (!z_check(map)) {
     RMW_SET_ERROR_MSG("failed to allocate map for sequence number");
     return z_bytes_map_null();
   }
+  auto free_attachment_map = rcpputils::make_scope_exit(
+    [&map]() {
+      z_bytes_map_drop(z_move(map));
+    });
 
   // The largest possible int64_t number is INT64_MAX, i.e. 9223372036854775807.
   // That is 19 characters long, plus one for the trailing \0, means we need 20 bytes.
   char seq_id_str[20];
-  if (rcutils_snprintf(seq_id_str, 20, "%" PRId64, sequence_number) < 0) {
+  if (rcutils_snprintf(seq_id_str, sizeof(seq_id_str), "%" PRId64, sequence_number) < 0) {
     RMW_SET_ERROR_MSG("failed to print sequence_number into buffer");
     return z_bytes_map_null();
   }
   z_bytes_map_insert_by_copy(&map, z_bytes_new("sequence_number"), z_bytes_new(seq_id_str));
+
+  auto now = std::chrono::system_clock::now().time_since_epoch();
+  auto now_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now);
+  char source_ts_str[20];
+  if (rcutils_snprintf(source_ts_str, sizeof(source_ts_str), "%" PRId64, now_ns.count()) < 0) {
+    RMW_SET_ERROR_MSG("failed to print sequence_number into buffer");
+    return z_bytes_map_null();
+  }
+  z_bytes_map_insert_by_copy(&map, z_bytes_new("source_timestamp"), z_bytes_new(source_ts_str));
+
+  z_bytes_t guid_bytes;
+  guid_bytes.len = RMW_GID_STORAGE_SIZE;
+  guid_bytes.start = static_cast<uint8_t *>(malloc(RMW_GID_STORAGE_SIZE));
+  memcpy(static_cast<void *>(const_cast<uint8_t *>(guid_bytes.start)), guid, RMW_GID_STORAGE_SIZE);
+
+  z_bytes_map_insert_by_copy(&map, z_bytes_new("client_guid"), guid_bytes);
+
+  free(const_cast<uint8_t *>(guid_bytes.start));
+
+  free_attachment_map.cancel();
 
   return map;
 }
@@ -2126,8 +2157,6 @@ rmw_send_request(
   const void * ros_request,
   int64_t * sequence_id)
 {
-  RCUTILS_LOG_INFO_NAMED(
-    "rmw_zenoh_cpp", "[rmw_send_request]");
   RMW_CHECK_ARGUMENT_FOR_NULL(client, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(client->data, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(ros_request, RMW_RET_INVALID_ARGUMENT);
@@ -2186,13 +2215,12 @@ rmw_send_request(
 
   size_t data_length = ser.getSerializedDataLength();
 
-  // TODO(clalancette): Locking for multiple requests at the same time
-  *sequence_id = client_data->sequence_number++;
+  *sequence_id = client_data->get_next_sequence_number();
 
   // Send request
   z_get_options_t opts = z_get_options_default();
 
-  z_owned_bytes_map_t map = create_map_and_set_sequence_num(*sequence_id);
+  z_owned_bytes_map_t map = create_map_and_set_sequence_num(*sequence_id, client_data->client_guid);
   if (!z_check(map)) {
     // create_map_and_set_sequence_num already set the error
     return RMW_RET_ERROR;
@@ -2205,9 +2233,10 @@ rmw_send_request(
   opts.attachment = z_bytes_map_as_attachment(&map);
 
   opts.target = Z_QUERY_TARGET_ALL_COMPLETE;
-  // Latest consolidation guarantees unicity of replies for the same key expression. It optimizes bandwidth.
-  // Default is None which imples replies may come in any order and any number.
-  opts.consolidation = z_query_consolidation_default();
+  // Latest consolidation guarantees unicity of replies for the same key expression,
+  // which optimizes bandwidth. The default is "None", which imples replies may come in any order
+  // and any number.
+  opts.consolidation = z_query_consolidation_latest();
   opts.value.payload = z_bytes_t{data_length, reinterpret_cast<const uint8_t *>(request_bytes)};
   opts.value.encoding = z_encoding(Z_ENCODING_PREFIX_EMPTY, NULL);
   client_data->zn_closure_reply = z_closure(client_data_handler, nullptr, client_data);
@@ -2218,63 +2247,86 @@ rmw_send_request(
   return RMW_RET_OK;
 }
 
-static int64_t get_sequence_num_from_attachment(const z_attachment_t * const attachment)
+static int64_t get_int64_from_attachment(
+  const z_attachment_t * const attachment, const std::string & name)
 {
-  // Get the sequence_number out of the attachment
   if (!z_check(*attachment)) {
     // A valid request must have had an attachment
     RMW_SET_ERROR_MSG("Could not get attachment from query");
     return -1;
   }
 
-  z_bytes_t sequence_num_index = z_attachment_get(*attachment, z_bytes_new("sequence_number"));
-  if (!z_check(sequence_num_index)) {
-    // A valid request must have had a sequence number attached
-    RMW_SET_ERROR_MSG("Could not get sequence number from query");
+  z_bytes_t index = z_attachment_get(*attachment, z_bytes_new(name.c_str()));
+  if (!z_check(index)) {
+    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("Could not get %s from attachment", name.c_str());
     return -1;
   }
 
-  if (sequence_num_index.len < 1) {
-    RMW_SET_ERROR_MSG("No value specified for the sequence number");
+  if (index.len < 1) {
+    RMW_SET_ERROR_MSG("no value specified");
     return -1;
   }
 
-  if (sequence_num_index.len > 19) {
-    // The sequence number was larger than we expected
-    RMW_SET_ERROR_MSG("Sequence number too large");
+  if (index.len > 19) {
+    // The number was larger than we expected
+    RMW_SET_ERROR_MSG("number too large");
     return -1;
   }
 
   // The largest possible int64_t number is INT64_MAX, i.e. 9223372036854775807.
   // That is 19 characters long, plus one for the trailing \0, means we need 20 bytes.
-  char sequence_num_str[20];
+  char int64_str[20];
 
-  memcpy(sequence_num_str, sequence_num_index.start, sequence_num_index.len);
-  sequence_num_str[sequence_num_index.len] = '\0';
+  memcpy(int64_str, index.start, index.len);
+  int64_str[index.len] = '\0';
 
   errno = 0;
   char * endptr;
-  int64_t seqnum = strtol(sequence_num_str, &endptr, 10);
-  if (seqnum == 0) {
+  int64_t num = strtol(int64_str, &endptr, 10);
+  if (num == 0) {
     // This is an error regardless; the client should never send this
-    RMW_SET_ERROR_MSG("A invalid zero value sent as the sequence number");
+    RMW_SET_ERROR_MSG("a invalid zero value sent");
     return -1;
-  } else if (endptr == sequence_num_str) {
+  } else if (endptr == int64_str) {
     // No values were converted, this is an error
-    RMW_SET_ERROR_MSG("No valid numbers available in the sequence number");
+    RMW_SET_ERROR_MSG("no valid numbers available");
     return -1;
   } else if (*endptr != '\0') {
     // There was junk after the number
-    RMW_SET_ERROR_MSG("Non-numeric values in the sequence number");
+    RMW_SET_ERROR_MSG("non-numeric values");
     return -1;
   } else if (errno != 0) {
     // Some other error occurred, which may include overflow or underflow
     RMW_SET_ERROR_MSG(
-      "An undefined error occurred while getting the sequence number, this may be an overflow");
+      "an undefined error occurred while getting the number, this may be an overflow");
     return -1;
   }
 
-  return seqnum;
+  return num;
+}
+
+static bool get_client_guid_from_attachment(
+  const z_attachment_t * const attachment, uint8_t guid[RMW_GID_STORAGE_SIZE])
+{
+  if (!z_check(*attachment)) {
+    RMW_SET_ERROR_MSG("Could not get client_guid from attachment");
+    return false;
+  }
+
+  z_bytes_t index = z_attachment_get(*attachment, z_bytes_new("client_guid"));
+  if (!z_check(index)) {
+    RMW_SET_ERROR_MSG("Could not get client_guid from attachment");
+    return false;
+  }
+
+  if (index.len != RMW_GID_STORAGE_SIZE) {
+    RMW_SET_ERROR_MSG("Invalid size for GUID storage");
+    return false;
+  }
+
+  memcpy(guid, index.start, index.len);
+
+  return true;
 }
 
 //==============================================================================
@@ -2287,7 +2339,6 @@ rmw_take_response(
   bool * taken)
 {
   *taken = false;
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "[rmw_take_response]");
 
   RMW_CHECK_ARGUMENT_FOR_NULL(client, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(client->data, RMW_RET_INVALID_ARGUMENT);
@@ -2305,20 +2356,26 @@ rmw_take_response(
   RMW_CHECK_FOR_NULL_WITH_MSG(
     client->data, "Unable to retrieve client_data from client.", RMW_RET_INVALID_ARGUMENT);
 
-  z_owned_reply_t * latest_reply = nullptr;
-
-  std::lock_guard<std::mutex> lock(client_data->message_mutex);
-  if (client_data->replies.empty()) {
-    RCUTILS_LOG_ERROR_NAMED("rmw_zenoh_cpp", "[rmw_take_response] Response message is empty");
+  std::unique_ptr<ZenohReply> latest_reply = nullptr;
+  {
+    std::lock_guard<std::mutex> lock(client_data->replies_mutex);
+    if (client_data->replies.empty()) {
+      RCUTILS_LOG_ERROR_NAMED("rmw_zenoh_cpp", "[rmw_take_response] Response message is empty");
+      return RMW_RET_ERROR;
+    }
+    latest_reply = std::move(client_data->replies.front());
+    client_data->replies.pop_front();
+  }
+  std::optional<z_sample_t> sample = latest_reply->get_sample();
+  if (!sample) {
+    RMW_SET_ERROR_MSG("invalid reply sample");
     return RMW_RET_ERROR;
   }
-  latest_reply = &client_data->replies.front();
-  z_sample_t sample = z_reply_ok(latest_reply);
 
   // Object that manages the raw buffer
   eprosima::fastcdr::FastBuffer fastbuffer(
-    reinterpret_cast<char *>(const_cast<uint8_t *>(sample.payload.start)),
-    sample.payload.len);
+    reinterpret_cast<char *>(const_cast<uint8_t *>(sample->payload.start)),
+    sample->payload.len);
 
   // Object that serializes the data
   eprosima::fastcdr::Cdr deser(
@@ -2334,18 +2391,34 @@ rmw_take_response(
     return RMW_RET_ERROR;
   }
 
-  request_header->request_id.sequence_number = get_sequence_num_from_attachment(&sample.attachment);
+  // Fill in the request_header
+
+  request_header->request_id.sequence_number =
+    get_int64_from_attachment(&sample->attachment, "sequence_number");
   if (request_header->request_id.sequence_number < 0) {
-    // get_sequence_num_from_attachment already set an error
+    // get_int64_from_attachment already set an error
     return RMW_RET_ERROR;
   }
-  // TODO(clalancette): We also need to fill in the source_timestamp, received_timestamp,
-  // and writer_guid
+
+  request_header->source_timestamp =
+    get_int64_from_attachment(&sample->attachment, "source_timestamp");
+  if (request_header->source_timestamp < 0) {
+    // get_int64_from_attachment already set an error
+    return RMW_RET_ERROR;
+  }
+
+  if (!get_client_guid_from_attachment(
+      &sample->attachment, request_header->request_id.writer_guid))
+  {
+    // get_client_guid_from_attachment already set an error
+    return RMW_RET_ERROR;
+  }
+
+  auto now = std::chrono::system_clock::now().time_since_epoch();
+  auto now_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now);
+  request_header->received_timestamp = now_ns.count();
 
   *taken = true;
-
-  client_data->replies.pop_front();
-  z_reply_drop(latest_reply);
 
   return RMW_RET_OK;
 }
@@ -2392,11 +2465,6 @@ rmw_create_service(
   const char * service_name,
   const rmw_qos_profile_t * qos_profiles)
 {
-  RCUTILS_LOG_INFO_NAMED(
-    "rmw_zenoh_cpp",
-    "[rmw_create_service] %s",
-    service_name);
-
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(node, nullptr);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
@@ -2684,13 +2752,19 @@ rmw_destroy_service(rmw_node_t * node, rmw_service_t * service)
   // CLEANUP ================================================================
   z_drop(z_move(service_data->keyexpr));
   z_drop(z_move(service_data->qable));
-  for (z_owned_query_t & query : service_data->query_queue) {
-    z_drop(z_move(query));
-  }
+  service_data->sequence_to_query_map.clear();
+  service_data->query_queue.clear();
   z_drop(z_move(service_data->token));
 
+  RMW_TRY_DESTRUCTOR(
+    service_data->request_type_support->~RequestTypeSupport(), RequestTypeSupport, );
   allocator->deallocate(service_data->request_type_support, allocator->state);
+
+  RMW_TRY_DESTRUCTOR(
+    service_data->response_type_support->~ResponseTypeSupport(), ResponseTypeSupport, );
   allocator->deallocate(service_data->response_type_support, allocator->state);
+
+  RMW_TRY_DESTRUCTOR(service_data->~rmw_service_data_t(), rmw_service_data_t, );
   allocator->deallocate(service->data, allocator->state);
 
   allocator->deallocate(const_cast<char *>(service->service_name), allocator->state);
@@ -2709,7 +2783,6 @@ rmw_take_request(
   bool * taken)
 {
   *taken = false;
-  RCUTILS_LOG_INFO_NAMED("rmw_zenoh_cpp", "[rmw_take_request]");
 
   RMW_CHECK_ARGUMENT_FOR_NULL(service, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(service->data, RMW_RET_INVALID_ARGUMENT);
@@ -2729,37 +2802,17 @@ rmw_take_request(
   RMW_CHECK_FOR_NULL_WITH_MSG(
     service->data, "Unable to retrieve service_data from service", RMW_RET_INVALID_ARGUMENT);
 
-  z_owned_query_t query;
+  std::unique_ptr<ZenohQuery> query = nullptr;
   {
     std::lock_guard<std::mutex> lock(service_data->query_queue_mutex);
     if (service_data->query_queue.empty()) {
       return RMW_RET_OK;
     }
-    query = service_data->query_queue.front();
+    query = std::move(service_data->query_queue.front());
+    service_data->query_queue.pop_front();
   }
 
-  const z_query_t loaned_query = z_query_loan(&query);
-
-  // Get the sequence_number out of the attachment
-  z_attachment_t attachment = z_query_attachment(&loaned_query);
-
-  int64_t sequence_number = get_sequence_num_from_attachment(&attachment);
-  if (sequence_number < 0) {
-    // get_sequence_number_from_attachment already set the error
-    return RMW_RET_ERROR;
-  }
-
-  // Add this query to the map, so that rmw_send_response can quickly look it up later
-  {
-    std::lock_guard<std::mutex> lock(service_data->sequence_to_query_map_mutex);
-    if (service_data->sequence_to_query_map.find(sequence_number) !=
-      service_data->sequence_to_query_map.end())
-    {
-      RMW_SET_ERROR_MSG("duplicate sequence number in the map");
-      return RMW_RET_ERROR;
-    }
-    service_data->sequence_to_query_map.emplace(std::pair(sequence_number, query));
-  }
+  const z_query_t loaned_query = query->get_query();
 
   // DESERIALIZE MESSAGE ========================================================
   z_value_t payload_value = z_query_value(&loaned_query);
@@ -2784,11 +2837,44 @@ rmw_take_request(
   }
 
   // Fill in the request header.
-  // TODO(clalancette): We also need to fill in writer_guid, source_timestamp,
-  // and received_timestamp
-  request_header->request_id.sequence_number = sequence_number;
 
-  service_data->query_queue.pop_front();
+  // Get the sequence_number out of the attachment
+  z_attachment_t attachment = z_query_attachment(&loaned_query);
+
+  request_header->request_id.sequence_number =
+    get_int64_from_attachment(&attachment, "sequence_number");
+  if (request_header->request_id.sequence_number < 0) {
+    // get_int64_from_attachment already set the error
+    return RMW_RET_ERROR;
+  }
+
+  request_header->source_timestamp = get_int64_from_attachment(&attachment, "source_timestamp");
+  if (request_header->source_timestamp < 0) {
+    // get_int64_from_attachment already set the error
+    return RMW_RET_ERROR;
+  }
+
+  if (!get_client_guid_from_attachment(&attachment, request_header->request_id.writer_guid)) {
+    // get_client_guid_from_attachment already set an error
+    return RMW_RET_ERROR;
+  }
+
+  auto now = std::chrono::system_clock::now().time_since_epoch();
+  auto now_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now);
+  request_header->received_timestamp = now_ns.count();
+
+  // Add this query to the map, so that rmw_send_response can quickly look it up later
+  {
+    std::lock_guard<std::mutex> lock(service_data->sequence_to_query_map_mutex);
+    if (service_data->sequence_to_query_map.find(request_header->request_id.sequence_number) !=
+      service_data->sequence_to_query_map.end())
+    {
+      RMW_SET_ERROR_MSG("duplicate sequence number in the map");
+      return RMW_RET_ERROR;
+    }
+    service_data->sequence_to_query_map.emplace(
+      std::pair(request_header->request_id.sequence_number, std::move(query)));
+  }
 
   *taken = true;
 
@@ -2803,9 +2889,6 @@ rmw_send_response(
   rmw_request_id_t * request_header,
   void * ros_response)
 {
-  RCUTILS_LOG_INFO_NAMED(
-    "rmw_zenoh_cpp", "[rmw_send_response]");
-
   RMW_CHECK_ARGUMENT_FOR_NULL(service, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(service->data, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(request_header, RMW_RET_INVALID_ARGUMENT);
@@ -2868,11 +2951,11 @@ rmw_send_response(
     RMW_SET_ERROR_MSG("Unable to find taken request. Report this bug.");
     return RMW_RET_ERROR;
   }
-  const z_query_t loaned_query = z_query_loan(&query_it->second);
+  const z_query_t loaned_query = query_it->second->get_query();
   z_query_reply_options_t options = z_query_reply_options_default();
 
-  // TODO(clalancette): We also need to fill in and send the writer_guid
-  z_owned_bytes_map_t map = create_map_and_set_sequence_num(request_header->sequence_number);
+  z_owned_bytes_map_t map = create_map_and_set_sequence_num(
+    request_header->sequence_number, request_header->writer_guid);
   if (!z_check(map)) {
     // create_map_and_set_sequence_num already set the error
     return RMW_RET_ERROR;
@@ -2889,7 +2972,6 @@ rmw_send_response(
     &loaned_query, z_loan(service_data->keyexpr), reinterpret_cast<const uint8_t *>(
       response_bytes), data_length, &options);
 
-  z_drop(z_move(query_it->second));
   service_data->sequence_to_query_map.erase(query_it);
   return RMW_RET_OK;
 }
@@ -3089,6 +3171,65 @@ rmw_destroy_wait_set(rmw_wait_set_t * wait_set)
   return RMW_RET_OK;
 }
 
+static bool has_triggered_condition(
+  rmw_subscriptions_t * subscriptions,
+  rmw_guard_conditions_t * guard_conditions,
+  rmw_services_t * services,
+  rmw_clients_t * clients,
+  rmw_events_t * events)
+{
+  static_cast<void>(events);
+
+  if (guard_conditions) {
+    for (size_t i = 0; i < guard_conditions->guard_condition_count; ++i) {
+      GuardCondition * gc = static_cast<GuardCondition *>(guard_conditions->guard_conditions[i]);
+      if (gc != nullptr && gc->has_triggered()) {
+        return true;
+      }
+    }
+  }
+
+  // TODO(clalancette): Deal with events
+
+  if (subscriptions) {
+    for (size_t i = 0; i < subscriptions->subscriber_count; ++i) {
+      auto sub_data = static_cast<rmw_subscription_data_t *>(subscriptions->subscribers[i]);
+      if (sub_data != nullptr) {
+        std::lock_guard<std::mutex> internal_lock(sub_data->internal_mutex);
+        if (!sub_data->message_queue.empty()) {
+          return true;
+        }
+      }
+    }
+  }
+
+  if (services) {
+    for (size_t i = 0; i < services->service_count; ++i) {
+      auto serv_data = static_cast<rmw_service_data_t *>(services->services[i]);
+      if (serv_data != nullptr) {
+        std::lock_guard<std::mutex> internal_lock(serv_data->internal_mutex);
+        if (!serv_data->query_queue.empty()) {
+          return true;
+        }
+      }
+    }
+  }
+
+  if (clients) {
+    for (size_t i = 0; i < clients->client_count; ++i) {
+      rmw_client_data_t * client_data = static_cast<rmw_client_data_t *>(clients->clients[i]);
+      if (client_data != nullptr) {
+        std::lock_guard<std::mutex> internal_lock(client_data->internal_mutex);
+        if (!client_data->replies.empty()) {
+          return true;
+        }
+      }
+    }
+  }
+
+  return false;
+}
+
 //==============================================================================
 /// Waits on sets of different entities and returns when one is ready.
 rmw_ret_t
@@ -3107,89 +3248,96 @@ rmw_wait(
     wait_set->implementation_identifier, rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
-  // TODO(yadunund): Switch to debug log level.
-  RCUTILS_LOG_DEBUG_NAMED(
-    "rmw_zenoh_cpp",
-    "[rmw_wait] %ld subscriptions, %ld services, %ld clients, %ld events, %ld guard conditions",
-    subscriptions->subscriber_count,
-    services->service_count,
-    clients->client_count,
-    events->event_count,
-    guard_conditions->guard_condition_count);
-
-  // TODO(yadunund): Switch to debug log level.
-  if (wait_timeout) {
-    RCUTILS_LOG_DEBUG_NAMED(
-      "rmw_zenoh_common_cpp", "[rmw_wait] TIMEOUT: %ld s %ld ns",
-      wait_timeout->sec,
-      wait_timeout->nsec);
-  }
-
   auto wait_set_data = static_cast<rmw_wait_set_data_t *>(wait_set->data);
   RMW_CHECK_FOR_NULL_WITH_MSG(
     wait_set_data,
     "waitset data struct is null",
     return RMW_RET_ERROR);
 
-  if (guard_conditions) {
-    // Go through each of the guard conditions, and attach the wait set condition variable to them.
-    // That way they can wake it up if they are triggered while we are waiting.
-    for (size_t i = 0; i < guard_conditions->guard_condition_count; ++i) {
-      // This is hard to track down, but each of the (void *) pointers in
-      // guard_conditions->guard_conditions points to the data field of the related
-      // rmw_guard_condition_t.  So we can directly cast it to GuardCondition.
-      GuardCondition * gc = static_cast<GuardCondition *>(guard_conditions->guard_conditions[i]);
-      if (gc != nullptr) {
-        gc->attach_condition(&wait_set_data->condition_variable);
+  // rmw_wait should return *all* entities that have data available, and let the caller decide
+  // how to handle them.
+  //
+  // If there is no data currently available in any of the entities we were told to wait on, we
+  // we attach a context-global condition variable to each entity, calculate a timeout based on
+  // wait_timeout, and then sleep on the condition variable.  If any of the entities has an event
+  // during that time, it will wake up from that sleep.
+  //
+  // If there is data currently available in one or more of the entities, then we'll skip attaching
+  // the condition variable, and skip the sleep, and instead just go to the last part.
+  //
+  // In the last part, we check every entity and see if there are conditions that make it ready.
+  // If that entity is not ready, then we set the pointer to it to nullptr in the wait set, which
+  // signals to the upper layers that it isn't ready.  If something is ready, then we leave it as
+  // a valid pointer.
+
+  bool skip_wait = has_triggered_condition(
+    subscriptions, guard_conditions, services, clients, events);
+  bool wait_result = true;
+
+  if (!skip_wait) {
+    if (guard_conditions) {
+      // Attach the wait set condition variable to each guard condition.
+      // That way they can wake it up if they are triggered while we are waiting.
+      for (size_t i = 0; i < guard_conditions->guard_condition_count; ++i) {
+        // This is hard to track down, but each of the (void *) pointers in
+        // guard_conditions->guard_conditions points to the data field of the related
+        // rmw_guard_condition_t.  So we can directly cast it to GuardCondition.
+        GuardCondition * gc = static_cast<GuardCondition *>(guard_conditions->guard_conditions[i]);
+        if (gc != nullptr) {
+          gc->attach_condition(&wait_set_data->condition_variable);
+        }
       }
     }
-  }
 
-  if (subscriptions) {
-    // Go through each of the subscriptions and attach the wait set condition variable to them.
-    // That way they can wake it up if they are triggered while we are waiting.
-    for (size_t i = 0; i < subscriptions->subscriber_count; ++i) {
-      auto sub_data = static_cast<rmw_subscription_data_t *>(subscriptions->subscribers[i]);
-      if (sub_data != nullptr) {
-        sub_data->condition = &wait_set_data->condition_variable;
+    if (subscriptions) {
+      // Attach the wait set condition variable to each subscription.
+      // That way they can wake it up if they are triggered while we are waiting.
+      for (size_t i = 0; i < subscriptions->subscriber_count; ++i) {
+        auto sub_data = static_cast<rmw_subscription_data_t *>(subscriptions->subscribers[i]);
+        if (sub_data != nullptr) {
+          std::lock_guard<std::mutex> internal_lock(sub_data->internal_mutex);
+          sub_data->condition = &wait_set_data->condition_variable;
+        }
       }
     }
-  }
 
-
-  if (services) {
-    // Go through each of the services and attach the wait set condition variable to them.
-    // That way they can wake it up if they are triggered while we are waiting.
-    for (size_t i = 0; i < services->service_count; ++i) {
-      auto serv_data = static_cast<rmw_service_data_t *>(services->services[i]);
-      if (serv_data != nullptr) {
-        serv_data->condition = &wait_set_data->condition_variable;
+    if (services) {
+      // Attach the wait set condition variable to each service.
+      // That way they can wake it up if they are triggered while we are waiting.
+      for (size_t i = 0; i < services->service_count; ++i) {
+        auto serv_data = static_cast<rmw_service_data_t *>(services->services[i]);
+        if (serv_data != nullptr) {
+          std::lock_guard<std::mutex> internal_lock(serv_data->internal_mutex);
+          serv_data->condition = &wait_set_data->condition_variable;
+        }
       }
     }
-  }
 
-  if (clients) {
-    // Go through each of the clients and attach the wait set condition variable to them.
-    // That way they can wake it up if they are triggered while we are waiting.
-    for (size_t i = 0; i < clients->client_count; ++i) {
-      rmw_client_data_t * client_data = static_cast<rmw_client_data_t *>(clients->clients[i]);
-      if (client_data != nullptr) {
-        client_data->condition = &wait_set_data->condition_variable;
+    if (clients) {
+      // Attach the wait set condition variable to each client.
+      // That way they can wake it up if they are triggered while we are waiting.
+      for (size_t i = 0; i < clients->client_count; ++i) {
+        rmw_client_data_t * client_data = static_cast<rmw_client_data_t *>(clients->clients[i]);
+        if (client_data != nullptr) {
+          std::lock_guard<std::mutex> internal_lock(client_data->internal_mutex);
+          client_data->condition = &wait_set_data->condition_variable;
+        }
       }
     }
-  }
 
-  std::unique_lock<std::mutex> lock(wait_set_data->condition_mutex);
+    std::unique_lock<std::mutex> lock(wait_set_data->condition_mutex);
 
-  // According to the RMW documentation, if wait_timeout is NULL that means
-  // "wait forever", if it specified by 0 it means "never wait", and if it is anything else wait
-  // for that amount of time.
-  if (wait_timeout == nullptr) {
-    wait_set_data->condition_variable.wait(lock);
-  } else {
-    if (wait_timeout->sec != 0 || wait_timeout->nsec != 0) {
-      wait_set_data->condition_variable.wait_for(
-        lock, std::chrono::nanoseconds(wait_timeout->nsec + RCUTILS_S_TO_NS(wait_timeout->sec)));
+    // According to the RMW documentation, if wait_timeout is NULL that means
+    // "wait forever", if it specified by 0 it means "never wait", and if it is anything else wait
+    // for that amount of time.
+    if (wait_timeout == nullptr) {
+      wait_set_data->condition_variable.wait(lock);
+    } else {
+      if (wait_timeout->sec != 0 || wait_timeout->nsec != 0) {
+        std::cv_status wait_status = wait_set_data->condition_variable.wait_for(
+          lock, std::chrono::nanoseconds(wait_timeout->nsec + RCUTILS_S_TO_NS(wait_timeout->sec)));
+        wait_result = wait_status == std::cv_status::no_timeout;
+      }
     }
   }
 
@@ -3213,6 +3361,7 @@ rmw_wait(
     for (size_t i = 0; i < subscriptions->subscriber_count; ++i) {
       auto sub_data = static_cast<rmw_subscription_data_t *>(subscriptions->subscribers[i]);
       if (sub_data != nullptr) {
+        std::lock_guard<std::mutex> internal_lock(sub_data->internal_mutex);
         sub_data->condition = nullptr;
         // According to the documentation for rmw_wait in rmw.h, entries in the
         // array that have *not* been triggered should be set to NULL
@@ -3229,6 +3378,7 @@ rmw_wait(
     for (size_t i = 0; i < services->service_count; ++i) {
       auto serv_data = static_cast<rmw_service_data_t *>(services->services[i]);
       if (serv_data != nullptr) {
+        std::lock_guard<std::mutex> internal_lock(serv_data->internal_mutex);
         serv_data->condition = nullptr;
         if (serv_data->query_queue.empty()) {
           // Setting to nullptr lets rcl know that this service is not ready
@@ -3243,6 +3393,7 @@ rmw_wait(
     for (size_t i = 0; i < clients->client_count; ++i) {
       rmw_client_data_t * client_data = static_cast<rmw_client_data_t *>(clients->clients[i]);
       if (client_data != nullptr) {
+        std::lock_guard<std::mutex> internal_lock(client_data->internal_mutex);
         client_data->condition = nullptr;
         // According to the documentation for rmw_wait in rmw.h, entries in the
         // array that have *not* been triggered should be set to NULL
@@ -3254,8 +3405,7 @@ rmw_wait(
     }
   }
 
-
-  return RMW_RET_OK;
+  return (skip_wait || wait_result) ? RMW_RET_OK : RMW_RET_TIMEOUT;
 }
 
 //==============================================================================

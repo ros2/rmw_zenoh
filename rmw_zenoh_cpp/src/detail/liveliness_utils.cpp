@@ -434,7 +434,7 @@ bool PublishToken::put(
     RCUTILS_SET_ERROR_MSG("invalid keyexpression generation for liveliness publication.");
     return false;
   }
-  RCUTILS_LOG_WARN_NAMED("rmw_zenoh_cpp", "Sending PUT on %s", token.c_str());
+
   z_put_options_t options = z_put_options_default();
   options.encoding = z_encoding(Z_ENCODING_PREFIX_EMPTY, NULL);
   if (z_put(z_loan(*session), z_keyexpr(token.c_str()), nullptr, 0, &options) < 0) {
@@ -465,7 +465,7 @@ bool PublishToken::del(
     RCUTILS_SET_ERROR_MSG("invalid key-expression generation for liveliness publication.");
     return false;
   }
-  RCUTILS_LOG_WARN_NAMED("rmw_zenoh_cpp", "Sending DELETE on %s", token.c_str());
+
   const z_delete_options_t options = z_delete_options_default();
   if (z_delete(z_loan(*session), z_loan(keyexpr), &options) < 0) {
     RCUTILS_SET_ERROR_MSG("failed to delete liveliness key");

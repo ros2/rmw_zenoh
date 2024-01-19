@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "rcutils/allocator.h"
+
 #include "rmw/get_network_flow_endpoints.h"
+#include "rmw/types.h"
 
 extern "C"
 {

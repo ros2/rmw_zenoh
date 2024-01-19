@@ -16,6 +16,7 @@
 
 #include "rmw/error_handling.h"
 #include "rmw/event.h"
+#include "rmw/types.h"
 
 #include "detail/identifier.hpp"
 

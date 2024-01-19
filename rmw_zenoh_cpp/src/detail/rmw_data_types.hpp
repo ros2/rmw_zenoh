@@ -21,6 +21,7 @@
 #include <deque>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -147,10 +148,21 @@ void client_data_handler(z_owned_reply_t * reply, void * client_data);
 
 ///==============================================================================
 
+class ZenohQuery final
+{
+public:
+  ZenohQuery(const z_query_t * query);
+
+  ~ZenohQuery();
+
+  const z_query_t get_query() const;
+
+private:
+  z_owned_query_t query_;
+};
+
 struct rmw_service_data_t
 {
-  std::size_t get_new_uid();
-
   z_owned_keyexpr_t keyexpr;
   z_owned_queryable_t qable;
 
@@ -170,11 +182,11 @@ struct rmw_service_data_t
   rmw_context_t * context;
 
   // Deque to store the queries in the order they arrive.
-  std::deque<z_owned_query_t> query_queue;
+  std::deque<std::unique_ptr<ZenohQuery>> query_queue;
   std::mutex query_queue_mutex;
 
   // Map to store the sequence_number -> query_id
-  std::map<int64_t, z_owned_query_t> sequence_to_query_map;
+  std::unordered_map<int64_t, std::unique_ptr<ZenohQuery>> sequence_to_query_map;
   std::mutex sequence_to_query_map_mutex;
 
   std::mutex internal_mutex;
@@ -182,6 +194,19 @@ struct rmw_service_data_t
 };
 
 ///==============================================================================
+
+class ZenohReply final
+{
+public:
+  ZenohReply(const z_owned_reply_t * reply);
+
+  ~ZenohReply();
+
+  std::optional<z_sample_t> get_sample() const;
+
+private:
+  z_owned_reply_t reply_;
+};
 
 struct rmw_client_data_t
 {
@@ -195,8 +220,8 @@ struct rmw_client_data_t
   // Liveliness token for the client.
   zc_owned_liveliness_token_t token;
 
-  std::mutex message_mutex;
-  std::deque<z_owned_reply_t> replies;
+  std::mutex replies_mutex;
+  std::deque<std::unique_ptr<ZenohReply>> replies;
 
   const void * request_type_support_impl;
   const void * response_type_support_impl;
@@ -209,6 +234,10 @@ struct rmw_client_data_t
   std::mutex internal_mutex;
   std::condition_variable * condition{nullptr};
 
+  uint8_t client_guid[RMW_GID_STORAGE_SIZE];
+
+  size_t get_next_sequence_number();
+  std::mutex sequence_number_mutex;
   size_t sequence_number{1};
 };
 
