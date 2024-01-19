@@ -58,7 +58,7 @@ void sub_data_handler(
 
     if (sub_data->message_queue.size() >= sub_data->adapted_qos_profile.depth) {
       // Log warning if message is discarded due to hitting the queue depth
-      RCUTILS_LOG_WARN_NAMED(
+      RCUTILS_LOG_DEBUG_NAMED(
         "rmw_zenoh_cpp",
         "Message queue depth of %ld reached, discarding oldest message "
         "for subscription for %s",

@@ -619,12 +619,11 @@ rmw_create_publisher(
 
   // Set congestion_control to BLOCK if appropriate.
   z_publisher_options_t opts = z_publisher_options_default();
+  opts.congestion_control = Z_CONGESTION_CONTROL_DROP;
   if (publisher_data->adapted_qos_profile.history == RMW_QOS_POLICY_HISTORY_KEEP_ALL &&
     publisher_data->adapted_qos_profile.reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE)
   {
     opts.congestion_control = Z_CONGESTION_CONTROL_BLOCK;
-  } else {
-    opts.congestion_control = Z_CONGESTION_CONTROL_DROP;
   }
   // TODO(clalancette): What happens if the key name is a valid but empty string?
   publisher_data->pub = z_declare_publisher(
@@ -1383,7 +1382,6 @@ rmw_create_subscription(
       RMW_SET_ERROR_MSG("unable to create zenoh subscription");
       return nullptr;
     }
-    printf("Created querying sub %s\n", owned_key_str._cstr);
   }
   // Create a regular subscriber for all other durability settings.
   else {
@@ -1401,7 +1399,6 @@ rmw_create_subscription(
       RMW_SET_ERROR_MSG("unable to create zenoh subscription");
       return nullptr;
     }
-    printf("Created regular sub %s\n", owned_key_str._cstr);
   }
 
   auto undeclare_z_sub = rcpputils::make_scope_exit(
