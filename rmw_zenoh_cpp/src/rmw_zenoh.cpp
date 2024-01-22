@@ -1501,17 +1501,10 @@ static rmw_ret_t __rmw_take(
 
   // RETRIEVE SERIALIZED MESSAGE ===============================================
 
-  std::unique_ptr<saved_msg_data> msg_data;
-  {
-    std::lock_guard<std::mutex> lock(sub_data->message_queue_mutex);
-
-    if (sub_data->message_queue.empty()) {
-      // This tells rcl that the check for a new message was done, but no messages have come in yet.
-      return RMW_RET_OK;
-    }
-
-    msg_data = std::move(sub_data->message_queue.front());
-    sub_data->message_queue.pop_front();
+  std::unique_ptr<saved_msg_data> msg_data = sub_data->pop_next_message();
+  if (msg_data == nullptr) {
+    // This tells rcl that the check for a new message was done, but no messages have come in yet.
+    return RMW_RET_OK;
   }
 
   // Object that manages the raw buffer
@@ -3061,8 +3054,7 @@ static bool has_triggered_condition(
     for (size_t i = 0; i < subscriptions->subscriber_count; ++i) {
       auto sub_data = static_cast<rmw_subscription_data_t *>(subscriptions->subscribers[i]);
       if (sub_data != nullptr) {
-        std::lock_guard<std::mutex> internal_lock(sub_data->internal_mutex);
-        if (!sub_data->message_queue.empty()) {
+        if (!sub_data->message_queue_is_empty()) {
           return true;
         }
       }
@@ -3161,8 +3153,7 @@ rmw_wait(
       for (size_t i = 0; i < subscriptions->subscriber_count; ++i) {
         auto sub_data = static_cast<rmw_subscription_data_t *>(subscriptions->subscribers[i]);
         if (sub_data != nullptr) {
-          std::lock_guard<std::mutex> internal_lock(sub_data->internal_mutex);
-          sub_data->condition = &wait_set_data->condition_variable;
+          sub_data->attach_condition(&wait_set_data->condition_variable);
         }
       }
     }
@@ -3227,11 +3218,10 @@ rmw_wait(
     for (size_t i = 0; i < subscriptions->subscriber_count; ++i) {
       auto sub_data = static_cast<rmw_subscription_data_t *>(subscriptions->subscribers[i]);
       if (sub_data != nullptr) {
-        std::lock_guard<std::mutex> internal_lock(sub_data->internal_mutex);
-        sub_data->condition = nullptr;
+        sub_data->detach_condition();
         // According to the documentation for rmw_wait in rmw.h, entries in the
         // array that have *not* been triggered should be set to NULL
-        if (sub_data->message_queue.empty()) {
+        if (sub_data->message_queue_is_empty()) {
           // Setting to nullptr lets rcl know that this subscription is not ready
           subscriptions->subscribers[i] = nullptr;
         }

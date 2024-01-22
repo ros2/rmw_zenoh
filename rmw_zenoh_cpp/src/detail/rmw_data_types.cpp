@@ -31,6 +31,72 @@ saved_msg_data::saved_msg_data(zc_owned_payload_t p, uint64_t recv_ts, const uin
   memcpy(publisher_gid, pub_gid, 16);
 }
 
+void rmw_subscription_data_t::attach_condition(std::condition_variable * condition_variable)
+{
+  std::lock_guard<std::mutex> lock(condition_mutex_);
+  condition_ = condition_variable;
+}
+
+void rmw_subscription_data_t::notify()
+{
+  std::lock_guard<std::mutex> lock(condition_mutex_);
+  if (condition_ != nullptr) {
+    condition_->notify_one();
+  }
+}
+
+void rmw_subscription_data_t::detach_condition()
+{
+  std::lock_guard<std::mutex> lock(condition_mutex_);
+  condition_ = nullptr;
+}
+
+bool rmw_subscription_data_t::message_queue_is_empty() const
+{
+  std::lock_guard<std::mutex> lock(message_queue_mutex_);
+  return message_queue_.empty();
+}
+
+std::unique_ptr<saved_msg_data> rmw_subscription_data_t::pop_next_message()
+{
+  std::lock_guard<std::mutex> lock(message_queue_mutex_);
+
+  if (message_queue_.empty()) {
+    // This tells rcl that the check for a new message was done, but no messages have come in yet.
+    return nullptr;
+  }
+
+  std::unique_ptr<saved_msg_data> msg_data = std::move(message_queue_.front());
+  message_queue_.pop_front();
+
+  return msg_data;
+}
+
+void rmw_subscription_data_t::add_new_message(
+  std::unique_ptr<saved_msg_data> msg, const std::string & topic_name)
+{
+  std::lock_guard<std::mutex> lock(message_queue_mutex_);
+
+  if (message_queue_.size() >= queue_depth) {
+    // Log warning if message is discarded due to hitting the queue depth
+    RCUTILS_LOG_WARN_NAMED(
+      "rmw_zenoh_cpp",
+      "Message queue depth of %ld reached, discarding oldest message "
+      "for subscription for %s",
+      queue_depth,
+      topic_name.c_str());
+
+    std::unique_ptr<saved_msg_data> old = std::move(message_queue_.front());
+    z_drop(z_move(old->payload));
+    message_queue_.pop_front();
+  }
+
+  message_queue_.emplace_back(std::move(msg));
+
+  // Since we added new data, trigger the guard condition if it is available
+  notify();
+}
+
 //==============================================================================
 void sub_data_handler(
   const z_sample_t * sample,
@@ -53,34 +119,10 @@ void sub_data_handler(
     return;
   }
 
-  {
-    std::lock_guard<std::mutex> lock(sub_data->message_queue_mutex);
-
-    if (sub_data->message_queue.size() >= sub_data->queue_depth) {
-      // Log warning if message is discarded due to hitting the queue depth
-      RCUTILS_LOG_WARN_NAMED(
-        "rmw_zenoh_cpp",
-        "Message queue depth of %ld reached, discarding oldest message "
-        "for subscription for %s",
-        sub_data->queue_depth,
-        z_loan(keystr));
-
-      std::unique_ptr<saved_msg_data> old = std::move(sub_data->message_queue.front());
-      z_drop(&old->payload);
-      sub_data->message_queue.pop_front();
-    }
-
-    sub_data->message_queue.emplace_back(
-      std::make_unique<saved_msg_data>(
-        zc_sample_payload_rcinc(sample),
-        sample->timestamp.time, sample->timestamp.id.id));
-
-    // Since we added new data, trigger the guard condition if it is available
-    std::lock_guard<std::mutex> internal_lock(sub_data->internal_mutex);
-    if (sub_data->condition != nullptr) {
-      sub_data->condition->notify_one();
-    }
-  }
+  sub_data->add_new_message(
+    std::make_unique<saved_msg_data>(
+      zc_sample_payload_rcinc(sample),
+      sample->timestamp.time, sample->timestamp.id.id), z_loan(keystr));
 }
 
 ZenohQuery::ZenohQuery(const z_query_t * query)

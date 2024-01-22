@@ -109,8 +109,9 @@ struct saved_msg_data
 };
 
 ///==============================================================================
-struct rmw_subscription_data_t
+class rmw_subscription_data_t final
 {
+public:
   z_owned_subscriber_t sub;
 
   // Liveliness token for the subscription.
@@ -121,14 +122,27 @@ struct rmw_subscription_data_t
   MessageTypeSupport * type_support;
   rmw_context_t * context;
 
-  std::deque<std::unique_ptr<saved_msg_data>> message_queue;
-  std::mutex message_queue_mutex;
-
   size_t queue_depth;
   bool reliable;
 
-  std::mutex internal_mutex;
-  std::condition_variable * condition{nullptr};
+  void attach_condition(std::condition_variable * condition_variable);
+
+  void detach_condition();
+
+  bool message_queue_is_empty() const;
+
+  std::unique_ptr<saved_msg_data> pop_next_message();
+
+  void add_new_message(std::unique_ptr<saved_msg_data> msg, const std::string & topic_name);
+
+private:
+  std::deque<std::unique_ptr<saved_msg_data>> message_queue_;
+  mutable std::mutex message_queue_mutex_;
+
+  void notify();
+
+  std::condition_variable * condition_{nullptr};
+  std::mutex condition_mutex_;
 };
 
 
