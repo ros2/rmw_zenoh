@@ -15,7 +15,8 @@ find_package(ament_cmake_vendor_package REQUIRED)
 # the zenoh session can spin via the session config as well as the ASYNC_STD_THREAD_COUNT
 # environment variable. Without this limit, applications with multiple zenoh sessions can
 # encounter system resource errors when trying to create new threads.
-# Once zenoh migrates to relying on tokio for its async runtime, we can consider
+# Once zenoh migrates to relying on tokio for its async runtime,
+# see https://github.com/eclipse-zenoh/zenoh/pull/566, we can consider
 # removing these flags since with tokio, zenoh can better manage the threads it spins
 # with the help of thread pools.
 # Note: We separate the two args needed for cargo with "$<SEMICOLON>" and not ";" as the
