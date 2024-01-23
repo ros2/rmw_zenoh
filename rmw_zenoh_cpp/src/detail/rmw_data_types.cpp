@@ -97,6 +97,81 @@ void rmw_subscription_data_t::add_new_message(
   notify();
 }
 
+bool rmw_service_data_t::query_queue_is_empty() const
+{
+  std::lock_guard<std::mutex> lock(query_queue_mutex_);
+  return query_queue_.empty();
+}
+
+void rmw_service_data_t::attach_condition(std::condition_variable * condition_variable)
+{
+  std::lock_guard<std::mutex> lock(condition_mutex_);
+  condition_ = condition_variable;
+}
+
+void rmw_service_data_t::detach_condition()
+{
+  std::lock_guard<std::mutex> lock(condition_mutex_);
+  condition_ = nullptr;
+}
+
+std::unique_ptr<ZenohQuery> rmw_service_data_t::pop_next_query()
+{
+  std::lock_guard<std::mutex> lock(query_queue_mutex_);
+  if (query_queue_.empty()) {
+    return nullptr;
+  }
+
+  std::unique_ptr<ZenohQuery> query = std::move(query_queue_.front());
+  query_queue_.pop_front();
+
+  return query;
+}
+
+void rmw_service_data_t::notify()
+{
+  std::lock_guard<std::mutex> lock(condition_mutex_);
+  if (condition_ != nullptr) {
+    condition_->notify_one();
+  }
+}
+
+void rmw_service_data_t::add_new_query(std::unique_ptr<ZenohQuery> query)
+{
+  std::lock_guard<std::mutex> lock(query_queue_mutex_);
+  query_queue_.emplace_back(std::move(query));
+
+  // Since we added new data, trigger the guard condition if it is available
+  notify();
+}
+
+bool rmw_service_data_t::add_to_query_map(
+  int64_t sequence_number, std::unique_ptr<ZenohQuery> query)
+{
+  std::lock_guard<std::mutex> lock(sequence_to_query_map_mutex_);
+  if (sequence_to_query_map_.find(sequence_number) != sequence_to_query_map_.end()) {
+    return false;
+  }
+  sequence_to_query_map_.emplace(
+    std::pair(sequence_number, std::move(query)));
+
+  return true;
+}
+
+std::unique_ptr<ZenohQuery> rmw_service_data_t::take_from_query_map(int64_t sequence_number)
+{
+  std::lock_guard<std::mutex> lock(sequence_to_query_map_mutex_);
+  auto query_it = sequence_to_query_map_.find(sequence_number);
+  if (query_it == sequence_to_query_map_.end()) {
+    return nullptr;
+  }
+
+  std::unique_ptr<ZenohQuery> query = std::move(query_it->second);
+  sequence_to_query_map_.erase(query_it);
+
+  return query;
+}
+
 //==============================================================================
 void sub_data_handler(
   const z_sample_t * sample,
@@ -160,18 +235,7 @@ void service_data_handler(const z_query_t * query, void * data)
     return;
   }
 
-  // Get the query parameters and payload
-  {
-    std::lock_guard<std::mutex> lock(service_data->query_queue_mutex);
-    service_data->query_queue.emplace_back(std::make_unique<ZenohQuery>(query));
-  }
-  {
-    // Since we added new data, trigger the guard condition if it is available
-    std::lock_guard<std::mutex> internal_lock(service_data->internal_mutex);
-    if (service_data->condition != nullptr) {
-      service_data->condition->notify_one();
-    }
-  }
+  service_data->add_new_query(std::make_unique<ZenohQuery>(query));
 }
 
 ZenohReply::ZenohReply(const z_owned_reply_t * reply)

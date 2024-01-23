@@ -2618,8 +2618,6 @@ rmw_destroy_service(rmw_node_t * node, rmw_service_t * service)
   // CLEANUP ================================================================
   z_drop(z_move(service_data->keyexpr));
   z_drop(z_move(service_data->qable));
-  service_data->sequence_to_query_map.clear();
-  service_data->query_queue.clear();
   z_drop(z_move(service_data->token));
 
   RMW_TRY_DESTRUCTOR(
@@ -2668,14 +2666,10 @@ rmw_take_request(
   RMW_CHECK_FOR_NULL_WITH_MSG(
     service->data, "Unable to retrieve service_data from service", RMW_RET_INVALID_ARGUMENT);
 
-  std::unique_ptr<ZenohQuery> query = nullptr;
-  {
-    std::lock_guard<std::mutex> lock(service_data->query_queue_mutex);
-    if (service_data->query_queue.empty()) {
-      return RMW_RET_OK;
-    }
-    query = std::move(service_data->query_queue.front());
-    service_data->query_queue.pop_front();
+  std::unique_ptr<ZenohQuery> query = service_data->pop_next_query();
+  if (query == nullptr) {
+    // This tells rcl that the check for a new message was done, but no messages have come in yet.
+    return RMW_RET_OK;
   }
 
   const z_query_t loaned_query = query->get_query();
@@ -2730,16 +2724,11 @@ rmw_take_request(
   request_header->received_timestamp = now_ns.count();
 
   // Add this query to the map, so that rmw_send_response can quickly look it up later
+  if (!service_data->add_to_query_map(
+      request_header->request_id.sequence_number, std::move(query)))
   {
-    std::lock_guard<std::mutex> lock(service_data->sequence_to_query_map_mutex);
-    if (service_data->sequence_to_query_map.find(request_header->request_id.sequence_number) !=
-      service_data->sequence_to_query_map.end())
-    {
-      RMW_SET_ERROR_MSG("duplicate sequence number in the map");
-      return RMW_RET_ERROR;
-    }
-    service_data->sequence_to_query_map.emplace(
-      std::pair(request_header->request_id.sequence_number, std::move(query)));
+    RMW_SET_ERROR_MSG("duplicate sequence number in the map");
+    return RMW_RET_ERROR;
   }
 
   *taken = true;
@@ -2811,13 +2800,14 @@ rmw_send_response(
   size_t data_length = ser.getSerializedDataLength();
 
   // Create the queryable payload
-  std::lock_guard<std::mutex> lock(service_data->sequence_to_query_map_mutex);
-  auto query_it = service_data->sequence_to_query_map.find(request_header->sequence_number);
-  if (query_it == service_data->sequence_to_query_map.end()) {
+  std::unique_ptr<ZenohQuery> query =
+    service_data->take_from_query_map(request_header->sequence_number);
+  if (query == nullptr) {
     RMW_SET_ERROR_MSG("Unable to find taken request. Report this bug.");
     return RMW_RET_ERROR;
   }
-  const z_query_t loaned_query = query_it->second->get_query();
+
+  const z_query_t loaned_query = query->get_query();
   z_query_reply_options_t options = z_query_reply_options_default();
 
   z_owned_bytes_map_t map = create_map_and_set_sequence_num(
@@ -2838,7 +2828,6 @@ rmw_send_response(
     &loaned_query, z_loan(service_data->keyexpr), reinterpret_cast<const uint8_t *>(
       response_bytes), data_length, &options);
 
-  service_data->sequence_to_query_map.erase(query_it);
   return RMW_RET_OK;
 }
 
@@ -3065,8 +3054,7 @@ static bool has_triggered_condition(
     for (size_t i = 0; i < services->service_count; ++i) {
       auto serv_data = static_cast<rmw_service_data_t *>(services->services[i]);
       if (serv_data != nullptr) {
-        std::lock_guard<std::mutex> internal_lock(serv_data->internal_mutex);
-        if (!serv_data->query_queue.empty()) {
+        if (!serv_data->query_queue_is_empty()) {
           return true;
         }
       }
@@ -3164,8 +3152,7 @@ rmw_wait(
       for (size_t i = 0; i < services->service_count; ++i) {
         auto serv_data = static_cast<rmw_service_data_t *>(services->services[i]);
         if (serv_data != nullptr) {
-          std::lock_guard<std::mutex> internal_lock(serv_data->internal_mutex);
-          serv_data->condition = &wait_set_data->condition_variable;
+          serv_data->attach_condition(&wait_set_data->condition_variable);
         }
       }
     }
@@ -3234,9 +3221,10 @@ rmw_wait(
     for (size_t i = 0; i < services->service_count; ++i) {
       auto serv_data = static_cast<rmw_service_data_t *>(services->services[i]);
       if (serv_data != nullptr) {
-        std::lock_guard<std::mutex> internal_lock(serv_data->internal_mutex);
-        serv_data->condition = nullptr;
-        if (serv_data->query_queue.empty()) {
+        serv_data->detach_condition();
+        // According to the documentation for rmw_wait in rmw.h, entries in the
+        // array that have *not* been triggered should be set to NULL
+        if (serv_data->query_queue_is_empty()) {
           // Setting to nullptr lets rcl know that this service is not ready
           services->services[i] = nullptr;
         }

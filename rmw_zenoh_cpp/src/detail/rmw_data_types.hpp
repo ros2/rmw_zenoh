@@ -167,8 +167,9 @@ private:
   z_owned_query_t query_;
 };
 
-struct rmw_service_data_t
+class rmw_service_data_t final
 {
+public:
   z_owned_keyexpr_t keyexpr;
   z_owned_queryable_t qable;
 
@@ -183,16 +184,33 @@ struct rmw_service_data_t
 
   rmw_context_t * context;
 
+  bool query_queue_is_empty() const;
+
+  void attach_condition(std::condition_variable * condition_variable);
+
+  void detach_condition();
+
+  std::unique_ptr<ZenohQuery> pop_next_query();
+
+  void add_new_query(std::unique_ptr<ZenohQuery> query);
+
+  bool add_to_query_map(int64_t sequence_number, std::unique_ptr<ZenohQuery> query);
+
+  std::unique_ptr<ZenohQuery> take_from_query_map(int64_t sequence_number);
+
+private:
+  void notify();
+
   // Deque to store the queries in the order they arrive.
-  std::deque<std::unique_ptr<ZenohQuery>> query_queue;
-  std::mutex query_queue_mutex;
+  std::deque<std::unique_ptr<ZenohQuery>> query_queue_;
+  mutable std::mutex query_queue_mutex_;
 
   // Map to store the sequence_number -> query_id
-  std::unordered_map<int64_t, std::unique_ptr<ZenohQuery>> sequence_to_query_map;
-  std::mutex sequence_to_query_map_mutex;
+  std::unordered_map<int64_t, std::unique_ptr<ZenohQuery>> sequence_to_query_map_;
+  std::mutex sequence_to_query_map_mutex_;
 
-  std::mutex internal_mutex;
-  std::condition_variable * condition{nullptr};
+  std::condition_variable * condition_{nullptr};
+  std::mutex condition_mutex_;
 };
 
 ///==============================================================================
