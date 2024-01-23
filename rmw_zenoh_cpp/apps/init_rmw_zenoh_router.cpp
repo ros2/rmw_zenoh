@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <stdlib.h>
+#include <sys/wait.h>
 
 #include <iostream>
 #include <string>
@@ -33,9 +34,15 @@ int Main(int, char **)
   // Execute zenohd command
   const std::string zenohd_cmd = "zenohd -c " + zenoh_router_config_path;
   const int ret = system(zenohd_cmd.c_str());
-  if (ret != 0) {
-    std::cerr << "Failed to run zenoh router: " << zenohd_cmd << std::endl;
+  if (ret < 0) {
+    std::cerr << "Error running zenoh router via command: " << zenohd_cmd << std::endl;
     return ret;
+  } else {
+    if (WIFEXITED(ret)) {
+      std::cout << "Zenoh router exited normally." << std::endl;
+    } else {
+      std::cout << "Zenoh router exited abnormally with error code [" << ret << "]" << std::endl;
+    }
   }
   return 0;
 }
