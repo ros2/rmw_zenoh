@@ -1282,6 +1282,10 @@ rmw_create_subscription(
     RMW_SET_ERROR_MSG("Failed to obtain adapted_qos_profile.");
     return nullptr;
   }
+  // Explicitly ensure the history depth is at least 1.
+  sub_data->adapted_qos_profile.depth = std::max(
+    static_cast<std::size_t>(1),
+    sub_data->adapted_qos_profile.depth);
 
   sub_data->typesupport_identifier = type_support->typesupport_identifier;
   sub_data->type_support_impl = type_support->data;

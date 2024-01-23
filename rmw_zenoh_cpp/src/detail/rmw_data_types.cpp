@@ -65,9 +65,15 @@ void sub_data_handler(
         sub_data->adapted_qos_profile.depth,
         z_loan(keystr));
 
-      std::unique_ptr<saved_msg_data> old = std::move(sub_data->message_queue.front());
-      z_drop(&old->payload);
-      sub_data->message_queue.pop_front();
+      // If the adapted_qos_profile.depth is 0, the std::move command below will result
+      // in UB and the z_drop will segfault. We explicitly set the depth to a minimum of 1
+      // in rmw_create_subscription() but to be safe, we only attempt to discard from the
+      // queue if it is non-empty.
+      if (!sub_data->message_queue.empty()) {
+        std::unique_ptr<saved_msg_data> old = std::move(sub_data->message_queue.front());
+        z_drop(&old->payload);
+        sub_data->message_queue.pop_front();
+      }
     }
 
     sub_data->message_queue.emplace_back(
