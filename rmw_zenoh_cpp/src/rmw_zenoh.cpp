@@ -3026,8 +3026,10 @@ static bool has_triggered_condition(
   if (guard_conditions) {
     for (size_t i = 0; i < guard_conditions->guard_condition_count; ++i) {
       GuardCondition * gc = static_cast<GuardCondition *>(guard_conditions->guard_conditions[i]);
-      if (gc != nullptr && gc->has_triggered()) {
-        return true;
+      if (gc != nullptr) {
+        if (gc->get_and_reset_trigger()) {
+          return true;
+        }
       }
     }
   }
@@ -3186,7 +3188,7 @@ rmw_wait(
         gc->detach_condition();
         // According to the documentation for rmw_wait in rmw.h, entries in the
         // array that have *not* been triggered should be set to NULL
-        if (!gc->has_triggered()) {
+        if (!gc->get_and_reset_trigger()) {
           guard_conditions->guard_conditions[i] = nullptr;
         }
       }
