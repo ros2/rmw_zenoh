@@ -1962,7 +1962,6 @@ rmw_destroy_client(rmw_node_t * node, rmw_client_t * client)
   // CLEANUP ===================================================================
   z_drop(z_move(client_data->zn_closure_reply));
   z_drop(z_move(client_data->keyexpr));
-  client_data->replies.clear();
   z_drop(z_move(client_data->token));
 
   RMW_TRY_DESTRUCTOR(
@@ -2234,16 +2233,12 @@ rmw_take_response(
   RMW_CHECK_FOR_NULL_WITH_MSG(
     client->data, "Unable to retrieve client_data from client.", RMW_RET_INVALID_ARGUMENT);
 
-  std::unique_ptr<ZenohReply> latest_reply = nullptr;
-  {
-    std::lock_guard<std::mutex> lock(client_data->replies_mutex);
-    if (client_data->replies.empty()) {
-      RCUTILS_LOG_ERROR_NAMED("rmw_zenoh_cpp", "[rmw_take_response] Response message is empty");
-      return RMW_RET_ERROR;
-    }
-    latest_reply = std::move(client_data->replies.front());
-    client_data->replies.pop_front();
+  std::unique_ptr<ZenohReply> latest_reply = client_data->pop_next_reply();
+  if (latest_reply == nullptr) {
+    // This tells rcl that the check for a new message was done, but no messages have come in yet.
+    return RMW_RET_ERROR;
   }
+
   std::optional<z_sample_t> sample = latest_reply->get_sample();
   if (!sample) {
     RMW_SET_ERROR_MSG("invalid reply sample");
@@ -3065,8 +3060,7 @@ static bool has_triggered_condition(
     for (size_t i = 0; i < clients->client_count; ++i) {
       rmw_client_data_t * client_data = static_cast<rmw_client_data_t *>(clients->clients[i]);
       if (client_data != nullptr) {
-        std::lock_guard<std::mutex> internal_lock(client_data->internal_mutex);
-        if (!client_data->replies.empty()) {
+        if (!client_data->reply_queue_is_empty()) {
           return true;
         }
       }
@@ -3163,8 +3157,7 @@ rmw_wait(
       for (size_t i = 0; i < clients->client_count; ++i) {
         rmw_client_data_t * client_data = static_cast<rmw_client_data_t *>(clients->clients[i]);
         if (client_data != nullptr) {
-          std::lock_guard<std::mutex> internal_lock(client_data->internal_mutex);
-          client_data->condition = &wait_set_data->condition_variable;
+          client_data->attach_condition(&wait_set_data->condition_variable);
         }
       }
     }
@@ -3237,11 +3230,10 @@ rmw_wait(
     for (size_t i = 0; i < clients->client_count; ++i) {
       rmw_client_data_t * client_data = static_cast<rmw_client_data_t *>(clients->clients[i]);
       if (client_data != nullptr) {
-        std::lock_guard<std::mutex> internal_lock(client_data->internal_mutex);
-        client_data->condition = nullptr;
+        client_data->detach_condition();
         // According to the documentation for rmw_wait in rmw.h, entries in the
         // array that have *not* been triggered should be set to NULL
-        if (client_data->replies.empty()) {
+        if (client_data->reply_queue_is_empty()) {
           // Setting to nullptr lets rcl know that this client is not ready
           clients->clients[i] = nullptr;
         }

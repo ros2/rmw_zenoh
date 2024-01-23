@@ -228,16 +228,14 @@ private:
   z_owned_reply_t reply_;
 };
 
-struct rmw_client_data_t
+class rmw_client_data_t final
 {
+public:
   z_owned_keyexpr_t keyexpr;
   z_owned_closure_reply_t zn_closure_reply;
 
   // Liveliness token for the client.
   zc_owned_liveliness_token_t token;
-
-  std::mutex replies_mutex;
-  std::deque<std::unique_ptr<ZenohReply>> replies;
 
   const void * request_type_support_impl;
   const void * response_type_support_impl;
@@ -247,14 +245,31 @@ struct rmw_client_data_t
 
   rmw_context_t * context;
 
-  std::mutex internal_mutex;
-  std::condition_variable * condition{nullptr};
-
   uint8_t client_guid[RMW_GID_STORAGE_SIZE];
 
   size_t get_next_sequence_number();
-  std::mutex sequence_number_mutex;
+
+  void add_new_reply(std::unique_ptr<ZenohReply> reply);
+
+  bool reply_queue_is_empty() const;
+
+  void attach_condition(std::condition_variable * condition_variable);
+
+  void detach_condition();
+
+  std::unique_ptr<ZenohReply> pop_next_reply();
+
+private:
+  void notify();
+
   size_t sequence_number{1};
+  std::mutex sequence_number_mutex;
+
+  std::condition_variable * condition_{nullptr};
+  std::mutex condition_mutex_;
+
+  std::deque<std::unique_ptr<ZenohReply>> reply_queue_;
+  mutable std::mutex reply_queue_mutex_;
 };
 
 #endif  // DETAIL__RMW_DATA_TYPES_HPP_

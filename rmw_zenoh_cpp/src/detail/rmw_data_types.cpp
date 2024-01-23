@@ -172,6 +172,55 @@ std::unique_ptr<ZenohQuery> rmw_service_data_t::take_from_query_map(int64_t sequ
   return query;
 }
 
+void rmw_client_data_t::notify()
+{
+  std::lock_guard<std::mutex> lock(condition_mutex_);
+  if (condition_ != nullptr) {
+    condition_->notify_one();
+  }
+}
+
+void rmw_client_data_t::add_new_reply(std::unique_ptr<ZenohReply> reply)
+{
+  std::lock_guard<std::mutex> lock(reply_queue_mutex_);
+  reply_queue_.emplace_back(std::move(reply));
+
+  notify();
+}
+
+bool rmw_client_data_t::reply_queue_is_empty() const
+{
+  std::lock_guard<std::mutex> lock(reply_queue_mutex_);
+
+  return reply_queue_.empty();
+}
+
+void rmw_client_data_t::attach_condition(std::condition_variable * condition_variable)
+{
+  std::lock_guard<std::mutex> lock(condition_mutex_);
+  condition_ = condition_variable;
+}
+
+void rmw_client_data_t::detach_condition()
+{
+  std::lock_guard<std::mutex> lock(condition_mutex_);
+  condition_ = nullptr;
+}
+
+std::unique_ptr<ZenohReply> rmw_client_data_t::pop_next_reply()
+{
+  std::lock_guard<std::mutex> lock(reply_queue_mutex_);
+
+  if (reply_queue_.empty()) {
+    return nullptr;
+  }
+
+  std::unique_ptr<ZenohReply> latest_reply = std::move(reply_queue_.front());
+  reply_queue_.pop_front();
+
+  return latest_reply;
+}
+
 //==============================================================================
 void sub_data_handler(
   const z_sample_t * sample,
@@ -288,16 +337,8 @@ void client_data_handler(z_owned_reply_t * reply, void * data)
     );
     return;
   }
-  {
-    std::lock_guard<std::mutex> msg_lock(client_data->replies_mutex);
-    // Take ownership of the reply.
-    client_data->replies.emplace_back(std::make_unique<ZenohReply>(reply));
-    *reply = z_reply_null();
-  }
-  {
-    std::lock_guard<std::mutex> internal_lock(client_data->internal_mutex);
-    if (client_data->condition != nullptr) {
-      client_data->condition->notify_one();
-    }
-  }
+
+  client_data->add_new_reply(std::make_unique<ZenohReply>(reply));
+  // Since we took ownership of the reply, null it out here
+  *reply = z_reply_null();
 }
