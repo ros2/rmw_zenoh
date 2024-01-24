@@ -234,7 +234,7 @@
     },
     /// Shared memory configuration
     shared_memory: {
-      enabled: true, //
+      enabled: false,
     },
     /// Access control configuration
     auth: {
