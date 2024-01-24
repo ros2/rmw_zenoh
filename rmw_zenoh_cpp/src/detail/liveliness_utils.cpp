@@ -25,6 +25,8 @@
 #include "rcpputils/scope_exit.hpp"
 #include "rcutils/logging_macros.h"
 
+#include "rmw/error_handling.h"
+
 
 namespace liveliness
 {
@@ -194,9 +196,28 @@ std::optional<rmw_qos_profile_t> keyexpr_to_qos(const std::string & keyexpr)
     qos.reliability = str_to_qos_reliability.at(parts[0]);
     qos.durability = str_to_qos_durability.at(parts[1]);
   } catch (const std::exception & e) {
+    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("Error setting QoS values from strings: %s", e.what());
     return std::nullopt;
   }
-  sscanf(history_parts[1].c_str(), "%zu", &qos.depth);
+  // Get the history depth.
+  errno = 0;
+  char * endptr;
+  int64_t num = strtol(history_parts[1].c_str(), &endptr, 10);
+  if (endptr == history_parts[1].c_str()) {
+    // No values were converted, this is an error
+    RMW_SET_ERROR_MSG("no valid numbers available");
+    return std::nullopt;
+  } else if (*endptr != '\0') {
+    // There was junk after the number
+    RMW_SET_ERROR_MSG("non-numeric values");
+    return std::nullopt;
+  } else if (errno != 0) {
+    // Some other error occurred, which may include overflow or underflow
+    RMW_SET_ERROR_MSG(
+      "an undefined error occurred while getting the number, this may be an overflow");
+    return std::nullopt;
+  }
+  qos.depth = num;
 
   // Liveliness is always automatic given liveliness tokens.
   qos.liveliness = RMW_QOS_POLICY_LIVELINESS_AUTOMATIC;
