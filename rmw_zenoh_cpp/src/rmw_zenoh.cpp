@@ -867,15 +867,20 @@ rmw_publish(
 
   // To store serialized message byte array.
   char * msg_bytes = nullptr;
-  bool from_shm = false;
+  std::optional<zc_owned_shmbuf_t> shmbuf = std::nullopt;
+  auto always_free_shmbuf = rcpputils::make_scope_exit(
+    [&shmbuf]() {
+      if (shmbuf.has_value()) {
+        zc_shmbuf_drop(&shmbuf.value());
+      }
+    });
   auto free_msg_bytes = rcpputils::make_scope_exit(
-    [msg_bytes, allocator, from_shm]() {
-      if (msg_bytes && !from_shm) {
+    [msg_bytes, allocator, &shmbuf]() {
+      if (msg_bytes && !shmbuf.has_value()) {
         allocator->deallocate(msg_bytes, allocator->state);
       }
     });
 
-  zc_owned_shmbuf_t shmbuf;
   // Get memory from SHM buffer if available.
   if (publisher_data->context->impl->shm_manager.has_value() &&
     zc_shm_manager_check(&publisher_data->context->impl->shm_manager.value()))
@@ -883,17 +888,16 @@ rmw_publish(
     shmbuf = zc_shm_alloc(
       &publisher_data->context->impl->shm_manager.value(),
       max_data_length);
-    if (!z_check(shmbuf)) {
+    if (!z_check(shmbuf.value())) {
       zc_shm_gc(&publisher_data->context->impl->shm_manager.value());
       shmbuf = zc_shm_alloc(&publisher_data->context->impl->shm_manager.value(), max_data_length);
-      if (!z_check(shmbuf)) {
+      if (!z_check(shmbuf.value())) {
         // TODO(Yadunund): Should we revert to regular allocation and not return an error?
         RMW_SET_ERROR_MSG("Failed to allocate a SHM buffer, even after GCing");
         return RMW_RET_ERROR;
       }
     }
-    msg_bytes = reinterpret_cast<char *>(zc_shmbuf_ptr(&shmbuf));
-    from_shm = true;
+    msg_bytes = reinterpret_cast<char *>(zc_shmbuf_ptr(&shmbuf.value()));
   } else {
     // Get memory from the allocator.
     msg_bytes = static_cast<char *>(allocator->allocate(max_data_length, allocator->state));
@@ -927,9 +931,9 @@ rmw_publish(
   z_publisher_put_options_t options = z_publisher_put_options_default();
   options.encoding = z_encoding(Z_ENCODING_PREFIX_EMPTY, NULL);
 
-  if (from_shm) {
-    zc_shmbuf_set_length(&shmbuf, data_length);
-    zc_owned_payload_t payload = zc_shmbuf_into_payload(z_move(shmbuf));
+  if (shmbuf.has_value()) {
+    zc_shmbuf_set_length(&shmbuf.value(), data_length);
+    zc_owned_payload_t payload = zc_shmbuf_into_payload(z_move(shmbuf.value()));
     ret = zc_publisher_put_owned(z_loan(publisher_data->pub), z_move(payload), &options);
   } else {
     // Returns 0 if success.
