@@ -109,8 +109,9 @@ struct saved_msg_data
 };
 
 ///==============================================================================
-struct rmw_subscription_data_t
+class rmw_subscription_data_t final
 {
+public:
   z_owned_subscriber_t sub;
 
   // Liveliness token for the subscription.
@@ -121,14 +122,27 @@ struct rmw_subscription_data_t
   MessageTypeSupport * type_support;
   rmw_context_t * context;
 
-  std::deque<std::unique_ptr<saved_msg_data>> message_queue;
-  std::mutex message_queue_mutex;
-
   size_t queue_depth;
   bool reliable;
 
-  std::mutex internal_mutex;
-  std::condition_variable * condition{nullptr};
+  void attach_condition(std::condition_variable * condition_variable);
+
+  void detach_condition();
+
+  bool message_queue_is_empty() const;
+
+  std::unique_ptr<saved_msg_data> pop_next_message();
+
+  void add_new_message(std::unique_ptr<saved_msg_data> msg, const std::string & topic_name);
+
+private:
+  std::deque<std::unique_ptr<saved_msg_data>> message_queue_;
+  mutable std::mutex message_queue_mutex_;
+
+  void notify();
+
+  std::condition_variable * condition_{nullptr};
+  std::mutex condition_mutex_;
 };
 
 
@@ -153,8 +167,9 @@ private:
   z_owned_query_t query_;
 };
 
-struct rmw_service_data_t
+class rmw_service_data_t final
 {
+public:
   z_owned_keyexpr_t keyexpr;
   z_owned_queryable_t qable;
 
@@ -169,16 +184,33 @@ struct rmw_service_data_t
 
   rmw_context_t * context;
 
+  bool query_queue_is_empty() const;
+
+  void attach_condition(std::condition_variable * condition_variable);
+
+  void detach_condition();
+
+  std::unique_ptr<ZenohQuery> pop_next_query();
+
+  void add_new_query(std::unique_ptr<ZenohQuery> query);
+
+  bool add_to_query_map(int64_t sequence_number, std::unique_ptr<ZenohQuery> query);
+
+  std::unique_ptr<ZenohQuery> take_from_query_map(int64_t sequence_number);
+
+private:
+  void notify();
+
   // Deque to store the queries in the order they arrive.
-  std::deque<std::unique_ptr<ZenohQuery>> query_queue;
-  std::mutex query_queue_mutex;
+  std::deque<std::unique_ptr<ZenohQuery>> query_queue_;
+  mutable std::mutex query_queue_mutex_;
 
   // Map to store the sequence_number -> query_id
-  std::unordered_map<int64_t, std::unique_ptr<ZenohQuery>> sequence_to_query_map;
-  std::mutex sequence_to_query_map_mutex;
+  std::unordered_map<int64_t, std::unique_ptr<ZenohQuery>> sequence_to_query_map_;
+  std::mutex sequence_to_query_map_mutex_;
 
-  std::mutex internal_mutex;
-  std::condition_variable * condition{nullptr};
+  std::condition_variable * condition_{nullptr};
+  std::mutex condition_mutex_;
 };
 
 ///==============================================================================
@@ -196,16 +228,14 @@ private:
   z_owned_reply_t reply_;
 };
 
-struct rmw_client_data_t
+class rmw_client_data_t final
 {
+public:
   z_owned_keyexpr_t keyexpr;
   z_owned_closure_reply_t zn_closure_reply;
 
   // Liveliness token for the client.
   zc_owned_liveliness_token_t token;
-
-  std::mutex replies_mutex;
-  std::deque<std::unique_ptr<ZenohReply>> replies;
 
   const void * request_type_support_impl;
   const void * response_type_support_impl;
@@ -215,14 +245,31 @@ struct rmw_client_data_t
 
   rmw_context_t * context;
 
-  std::mutex internal_mutex;
-  std::condition_variable * condition{nullptr};
-
   uint8_t client_guid[RMW_GID_STORAGE_SIZE];
 
   size_t get_next_sequence_number();
-  std::mutex sequence_number_mutex;
+
+  void add_new_reply(std::unique_ptr<ZenohReply> reply);
+
+  bool reply_queue_is_empty() const;
+
+  void attach_condition(std::condition_variable * condition_variable);
+
+  void detach_condition();
+
+  std::unique_ptr<ZenohReply> pop_next_reply();
+
+private:
+  void notify();
+
   size_t sequence_number{1};
+  std::mutex sequence_number_mutex;
+
+  std::condition_variable * condition_{nullptr};
+  std::mutex condition_mutex_;
+
+  std::deque<std::unique_ptr<ZenohReply>> reply_queue_;
+  mutable std::mutex reply_queue_mutex_;
 };
 
 #endif  // DETAIL__RMW_DATA_TYPES_HPP_

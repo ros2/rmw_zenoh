@@ -33,10 +33,7 @@ public:
 
   void detach_condition();
 
-  bool has_triggered() const;
-
-  // Resets has_triggered_ to false.
-  void reset_trigger();
+  bool get_and_reset_trigger();
 
 private:
   mutable std::mutex internal_mutex_;
