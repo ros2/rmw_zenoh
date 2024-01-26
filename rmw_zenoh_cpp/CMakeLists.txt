@@ -100,6 +100,7 @@ add_executable(init_rmw_zenoh_router apps/init_rmw_zenoh_router.cpp)
 target_link_libraries(init_rmw_zenoh_router
   PRIVATE
     ament_index_cpp::ament_index_cpp
+    zenohc::lib
 )
 
 install(
