@@ -251,12 +251,21 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
 
   // Query router/liveliness participants to get graph information before this session was started.
 
-  // We create a non-blocking channel that is unbounded, ie. `bound` = 0, to receive
+  // We create a blocking channel that is unbounded, ie. `bound` = 0, to receive
   // replies for the zc_liveliness_get() call. This is necessary as if the `bound`
   // is too low, the channel may starve the zenoh executor of its threads which
   // would lead to deadlocks when trying to receive replies and block the
   // execution here.
-  z_owned_reply_channel_t channel = zc_reply_non_blocking_fifo_new(0);
+  // The blocking channel will return when the sender end is closed which is
+  // the moment the query finishes.
+  // The non-blocking fifo exists only for the use case where we don't want to
+  // block the thread between responses (including the request termination response).
+  // In general, unless we want to cooperatively schedule other tasks on the same
+  // thread as reading the fifo, the blocking fifo will be more appropriate as
+  // the code will be simpler, and if we're just going to spin over the non-blocking
+  // reads until we obtain responses, we'll just be hogging CPU time by convincing
+  // the OS that we're doing actual work when it could instead park the thread.
+  z_owned_reply_channel_t channel = zc_reply_fifo_new(0);
   zc_liveliness_get(
     z_loan(context->impl->session), z_keyexpr(liveliness_str.c_str()),
     z_move(channel.send), NULL);
