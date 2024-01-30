@@ -23,6 +23,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "event.hpp"
 #include "liveliness_utils.hpp"
 
 #include "rcutils/allocator.h"

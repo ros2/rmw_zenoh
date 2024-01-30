@@ -31,6 +31,7 @@
 
 #include "rcutils/allocator.h"
 
+#include "rmw/event_callback_type.h"
 #include "rmw/rmw.h"
 
 #include "graph_cache.hpp"
@@ -39,7 +40,19 @@
 
 /// Structs for various type erased data fields.
 
-///==============================================================================
+///=============================================================================
+struct user_callback_data_t
+{
+  std::mutex mutex;
+  rmw_event_callback_t callback {nullptr};
+  const void * user_data {nullptr};
+  size_t unread_count {0};
+  rmw_event_callback_t event_callback[ZENOH_EVENT_ID_MAX + 1] {nullptr};
+  const void * event_data[ZENOH_EVENT_ID_MAX + 1] {nullptr};
+  size_t event_unread_count[ZENOH_EVENT_ID_MAX + 1] {0};
+};
+
+///=============================================================================
 struct rmw_context_impl_s
 {
   // An owned session.
@@ -61,7 +74,7 @@ struct rmw_context_impl_s
   GraphCache graph_cache;
 };
 
-///==============================================================================
+///=============================================================================
 struct rmw_node_data_t
 {
   // TODO(Yadunund): Do we need a token at the node level? Right now I have one
@@ -70,9 +83,10 @@ struct rmw_node_data_t
   zc_owned_liveliness_token_t token;
 };
 
-///==============================================================================
-struct rmw_publisher_data_t
+///=============================================================================
+class rmw_publisher_data_t
 {
+public:
   // An owned publisher.
   z_owned_publisher_t pub;
 
@@ -92,9 +106,17 @@ struct rmw_publisher_data_t
 
   // Context for memory allocation for messages.
   rmw_context_t * context;
+
+  void event_set_callback(
+    rmw_zenoh_event_type_t event_id,
+    rmw_event_callback_t callback,
+    const void * user_data);
+
+private:
+  user_callback_data_t user_callback_data_;
 };
 
-///==============================================================================
+///=============================================================================
 struct rmw_wait_set_data_t
 {
   std::condition_variable condition_variable;
@@ -103,7 +125,7 @@ struct rmw_wait_set_data_t
   rmw_context_t * context;
 };
 
-///==============================================================================
+///=============================================================================
 // z_owned_closure_sample_t
 void sub_data_handler(const z_sample_t * sample, void * sub_data);
 
@@ -116,7 +138,7 @@ struct saved_msg_data
   uint8_t publisher_gid[16];
 };
 
-///==============================================================================
+///=============================================================================
 class rmw_subscription_data_t final
 {
 public:
@@ -144,6 +166,13 @@ public:
 
   void add_new_message(std::unique_ptr<saved_msg_data> msg, const std::string & topic_name);
 
+  void set_on_new_message_callback(const void * user_data, rmw_event_callback_t callback);
+
+  void event_set_callback(
+    rmw_zenoh_event_type_t event_id,
+    rmw_event_callback_t callback,
+    const void * user_data);
+
 private:
   std::deque<std::unique_ptr<saved_msg_data>> message_queue_;
   mutable std::mutex message_queue_mutex_;
@@ -152,17 +181,18 @@ private:
 
   std::condition_variable * condition_{nullptr};
   std::mutex condition_mutex_;
+
+  user_callback_data_t user_callback_data_;
 };
 
 
-///==============================================================================
-
+///=============================================================================
 void service_data_handler(const z_query_t * query, void * service_data);
 
+///=============================================================================
 void client_data_handler(z_owned_reply_t * reply, void * client_data);
 
-///==============================================================================
-
+///=============================================================================
 class ZenohQuery final
 {
 public:
@@ -176,6 +206,7 @@ private:
   z_owned_query_t query_;
 };
 
+///=============================================================================
 class rmw_service_data_t final
 {
 public:
@@ -211,6 +242,8 @@ public:
 
   std::unique_ptr<ZenohQuery> take_from_query_map(int64_t sequence_number);
 
+  void set_on_new_request_callback(const void * user_data, rmw_event_callback_t callback);
+
 private:
   void notify();
 
@@ -224,10 +257,11 @@ private:
 
   std::condition_variable * condition_{nullptr};
   std::mutex condition_mutex_;
+
+  user_callback_data_t user_callback_data_;
 };
 
-///==============================================================================
-
+///=============================================================================
 class ZenohReply final
 {
 public:
@@ -241,6 +275,7 @@ private:
   z_owned_reply_t reply_;
 };
 
+///=============================================================================
 class rmw_client_data_t final
 {
 public:
@@ -276,6 +311,8 @@ public:
 
   std::unique_ptr<ZenohReply> pop_next_reply();
 
+  void set_on_new_response_callback(const void * user_data, rmw_event_callback_t callback);
+
 private:
   void notify();
 
@@ -287,6 +324,8 @@ private:
 
   std::deque<std::unique_ptr<ZenohReply>> reply_queue_;
   mutable std::mutex reply_queue_mutex_;
+
+  user_callback_data_t user_callback_data_;
 };
 
 #endif  // DETAIL__RMW_DATA_TYPES_HPP_

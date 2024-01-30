@@ -3185,6 +3185,17 @@ static bool has_triggered_condition(
   }
 
   // TODO(clalancette): Deal with events
+  // if (events) {
+  //   for (size_t i = 0; i < events->event_count; ++i) {
+  //     auto event = static_cast<rmw_event_t *>(events->events[i]);
+  //     auto custom_event_info = static_cast<CustomEventInfo *>(event->data);
+  //     if (custom_event_info->get_listener()->get_statuscondition().get_trigger_value() ||
+  //       custom_event_info->get_listener()->get_event_guard(event->event_type).get_trigger_value())
+  //     {
+  //       return true;
+  //     }
+  //   }
+  // }
 
   if (subscriptions) {
     for (size_t i = 0; i < subscriptions->subscriber_count; ++i) {
@@ -3313,6 +3324,17 @@ rmw_wait(
         }
       }
     }
+
+    // if (events) {
+    //   for (size_t i = 0; i < events->event_count; ++i) {
+    //     auto event = static_cast<rmw_event_t *>(events->events[i]);
+    //     auto custom_event_info = static_cast<CustomEventInfo *>(event->data);
+    //     attached_conditions.push_back(
+    //       &custom_event_info->get_listener()->get_statuscondition());
+    //     attached_conditions.push_back(
+    //       &custom_event_info->get_listener()->get_event_guard(event->event_type));
+    //   }
+    // }
 
     std::unique_lock<std::mutex> lock(wait_set_data->condition_mutex);
 
@@ -3650,10 +3672,13 @@ rmw_subscription_set_on_new_message_callback(
   rmw_event_callback_t callback,
   const void * user_data)
 {
-  static_cast<void>(subscription);
-  static_cast<void>(callback);
-  static_cast<void>(user_data);
-  return RMW_RET_UNSUPPORTED;
+  RMW_CHECK_ARGUMENT_FOR_NULL(subscription, RMW_RET_INVALID_ARGUMENT);
+  rmw_subscription_data_t * sub_data =
+    static_cast<rmw_subscription_data_t *>(subscription->data);
+  RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
+  sub_data->set_on_new_message_callback(
+    user_data, callback);
+  return RMW_RET_OK;
 }
 
 //==============================================================================
@@ -3664,10 +3689,13 @@ rmw_service_set_on_new_request_callback(
   rmw_event_callback_t callback,
   const void * user_data)
 {
-  static_cast<void>(service);
-  static_cast<void>(callback);
-  static_cast<void>(user_data);
-  return RMW_RET_UNSUPPORTED;
+  RMW_CHECK_ARGUMENT_FOR_NULL(service, RMW_RET_INVALID_ARGUMENT);
+  rmw_service_data_t * service_data =
+    static_cast<rmw_service_data_t *>(service->data);
+  RMW_CHECK_ARGUMENT_FOR_NULL(service_data, RMW_RET_INVALID_ARGUMENT);
+  service_data->set_on_new_request_callback(
+    user_data, callback);
+  return RMW_RET_OK;
 }
 
 //==============================================================================
@@ -3678,23 +3706,12 @@ rmw_client_set_on_new_response_callback(
   rmw_event_callback_t callback,
   const void * user_data)
 {
-  static_cast<void>(client);
-  static_cast<void>(callback);
-  static_cast<void>(user_data);
-  return RMW_RET_UNSUPPORTED;
-}
-
-//==============================================================================
-/// Set the callback function for the event.
-rmw_ret_t
-rmw_event_set_callback(
-  rmw_event_t * event,
-  rmw_event_callback_t callback,
-  const void * user_data)
-{
-  static_cast<void>(event);
-  static_cast<void>(callback);
-  static_cast<void>(user_data);
-  return RMW_RET_UNSUPPORTED;
+  RMW_CHECK_ARGUMENT_FOR_NULL(client, RMW_RET_INVALID_ARGUMENT);
+  rmw_client_data_t * client_data =
+    static_cast<rmw_client_data_t *>(client->data);
+  RMW_CHECK_ARGUMENT_FOR_NULL(client_data, RMW_RET_INVALID_ARGUMENT);
+  client_data->set_on_new_response_callback(
+    user_data, callback);
+  return RMW_RET_OK;
 }
 }  // extern "C"

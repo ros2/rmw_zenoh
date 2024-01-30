@@ -22,21 +22,51 @@
 #include "rcpputils/scope_exit.hpp"
 #include "rcutils/logging_macros.h"
 
+#include "rmw/error_handling.h"
+
 #include "rmw_data_types.hpp"
 
-///==============================================================================
+///=============================================================================
 saved_msg_data::saved_msg_data(zc_owned_payload_t p, uint64_t recv_ts, const uint8_t pub_gid[16])
 : payload(p), recv_timestamp(recv_ts)
 {
   memcpy(publisher_gid, pub_gid, 16);
 }
 
+///=============================================================================
+void rmw_publisher_data_t::event_set_callback(
+  rmw_zenoh_event_type_t event_id,
+  rmw_event_callback_t callback,
+  const void * user_data)
+{
+  if (event_id > ZENOH_EVENT_ID_MAX) {
+    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
+      "RMW Zenoh is not correctly configured to handle rmw_zenoh_event_type_t [%d].Report this bug.", event_id);
+    return;
+  }
+
+  std::lock_guard<std::mutex> lock(user_callback_data_.mutex);
+
+  // Set the user callback data
+  user_callback_data_.event_callback[event_id] = callback;
+  user_callback_data_.event_data[event_id] = user_data;
+
+  if (callback && user_callback_data_.event_unread_count[event_id]) {
+    // Push events happened before having assigned a callback
+    callback(user_data, user_callback_data_.event_unread_count[event_id]);
+    user_callback_data_.event_unread_count[event_id] = 0;
+  }
+  return;
+}
+
+///=============================================================================
 void rmw_subscription_data_t::attach_condition(std::condition_variable * condition_variable)
 {
   std::lock_guard<std::mutex> lock(condition_mutex_);
   condition_ = condition_variable;
 }
 
+///=============================================================================
 void rmw_subscription_data_t::notify()
 {
   std::lock_guard<std::mutex> lock(condition_mutex_);
@@ -45,18 +75,21 @@ void rmw_subscription_data_t::notify()
   }
 }
 
+///=============================================================================
 void rmw_subscription_data_t::detach_condition()
 {
   std::lock_guard<std::mutex> lock(condition_mutex_);
   condition_ = nullptr;
 }
 
+///=============================================================================
 bool rmw_subscription_data_t::message_queue_is_empty() const
 {
   std::lock_guard<std::mutex> lock(message_queue_mutex_);
   return message_queue_.empty();
 }
 
+///=============================================================================
 std::unique_ptr<saved_msg_data> rmw_subscription_data_t::pop_next_message()
 {
   std::lock_guard<std::mutex> lock(message_queue_mutex_);
@@ -72,6 +105,7 @@ std::unique_ptr<saved_msg_data> rmw_subscription_data_t::pop_next_message()
   return msg_data;
 }
 
+///=============================================================================
 void rmw_subscription_data_t::add_new_message(
   std::unique_ptr<saved_msg_data> msg, const std::string & topic_name)
 {
@@ -99,28 +133,87 @@ void rmw_subscription_data_t::add_new_message(
 
   message_queue_.emplace_back(std::move(msg));
 
+  // Trigger the user provided event callback if available.
+  std::unique_lock<std::mutex> lock_event_mutex(user_callback_data_.mutex);
+  if (user_callback_data_.callback != nullptr) {
+    user_callback_data_.callback(user_callback_data_.user_data, 1);
+  } else {
+    ++user_callback_data_.unread_count;
+  }
+  lock_event_mutex.unlock();
+
   // Since we added new data, trigger the guard condition if it is available
   notify();
 }
 
+///=============================================================================
+void rmw_subscription_data_t::set_on_new_message_callback(
+  const void * user_data, rmw_event_callback_t callback)
+{
+  std::lock_guard<std::mutex> lock_mutex(user_callback_data_.mutex);
+
+  if (callback) {
+    // Push events arrived before setting the the executor callback.
+    if (user_callback_data_.unread_count) {
+      callback(user_data, user_callback_data_.unread_count);
+      user_callback_data_.unread_count = 0;
+    }
+    user_callback_data_.user_data = user_data;
+    user_callback_data_.callback = callback;
+  } else {
+    user_callback_data_.user_data = nullptr;
+    user_callback_data_.callback = nullptr;
+  }
+}
+
+///=============================================================================
+void rmw_subscription_data_t::event_set_callback(
+  rmw_zenoh_event_type_t event_id,
+  rmw_event_callback_t callback,
+  const void * user_data)
+{
+  if (event_id > ZENOH_EVENT_ID_MAX) {
+    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
+      "RMW Zenoh is not correctly configured to handle rmw_zenoh_event_type_t [%d].Report this bug.", event_id);
+    return;
+  }
+
+  std::lock_guard<std::mutex> lock(user_callback_data_.mutex);
+
+  // Set the user callback data
+  user_callback_data_.event_callback[event_id] = callback;
+  user_callback_data_.event_data[event_id] = user_data;
+
+  if (callback && user_callback_data_.event_unread_count[event_id]) {
+    // Push events happened before having assigned a callback
+    callback(user_data, user_callback_data_.event_unread_count[event_id]);
+    user_callback_data_.event_unread_count[event_id] = 0;
+  }
+  return;
+}
+
+///=============================================================================
 bool rmw_service_data_t::query_queue_is_empty() const
 {
   std::lock_guard<std::mutex> lock(query_queue_mutex_);
   return query_queue_.empty();
 }
 
+///=============================================================================
 void rmw_service_data_t::attach_condition(std::condition_variable * condition_variable)
 {
   std::lock_guard<std::mutex> lock(condition_mutex_);
   condition_ = condition_variable;
 }
 
+///=============================================================================
 void rmw_service_data_t::detach_condition()
 {
   std::lock_guard<std::mutex> lock(condition_mutex_);
   condition_ = nullptr;
 }
 
+///=============================================================================
 std::unique_ptr<ZenohQuery> rmw_service_data_t::pop_next_query()
 {
   std::lock_guard<std::mutex> lock(query_queue_mutex_);
@@ -134,6 +227,7 @@ std::unique_ptr<ZenohQuery> rmw_service_data_t::pop_next_query()
   return query;
 }
 
+///=============================================================================
 void rmw_service_data_t::notify()
 {
   std::lock_guard<std::mutex> lock(condition_mutex_);
@@ -142,15 +236,26 @@ void rmw_service_data_t::notify()
   }
 }
 
+///=============================================================================
 void rmw_service_data_t::add_new_query(std::unique_ptr<ZenohQuery> query)
 {
   std::lock_guard<std::mutex> lock(query_queue_mutex_);
   query_queue_.emplace_back(std::move(query));
 
+  // Trigger the user provided event callback if available.
+  std::unique_lock<std::mutex> lock_event_mutex(user_callback_data_.mutex);
+  if (user_callback_data_.callback != nullptr) {
+    user_callback_data_.callback(user_callback_data_.user_data, 1);
+  } else {
+    ++user_callback_data_.unread_count;
+  }
+  lock_event_mutex.unlock();
+
   // Since we added new data, trigger the guard condition if it is available
   notify();
 }
 
+///=============================================================================
 bool rmw_service_data_t::add_to_query_map(
   int64_t sequence_number, std::unique_ptr<ZenohQuery> query)
 {
@@ -164,6 +269,7 @@ bool rmw_service_data_t::add_to_query_map(
   return true;
 }
 
+///=============================================================================
 std::unique_ptr<ZenohQuery> rmw_service_data_t::take_from_query_map(int64_t sequence_number)
 {
   std::lock_guard<std::mutex> lock(sequence_to_query_map_mutex_);
@@ -178,6 +284,27 @@ std::unique_ptr<ZenohQuery> rmw_service_data_t::take_from_query_map(int64_t sequ
   return query;
 }
 
+///=============================================================================
+void rmw_service_data_t::set_on_new_request_callback(
+  const void * user_data, rmw_event_callback_t callback)
+{
+  std::lock_guard<std::mutex> lock_mutex(user_callback_data_.mutex);
+
+  if (callback) {
+    // Push events arrived before setting the the executor callback.
+    if (user_callback_data_.unread_count) {
+      callback(user_data, user_callback_data_.unread_count);
+      user_callback_data_.unread_count = 0;
+    }
+    user_callback_data_.user_data = user_data;
+    user_callback_data_.callback = callback;
+  } else {
+    user_callback_data_.user_data = nullptr;
+    user_callback_data_.callback = nullptr;
+  }
+}
+
+///=============================================================================
 void rmw_client_data_t::notify()
 {
   std::lock_guard<std::mutex> lock(condition_mutex_);
@@ -186,14 +313,25 @@ void rmw_client_data_t::notify()
   }
 }
 
+///=============================================================================
 void rmw_client_data_t::add_new_reply(std::unique_ptr<ZenohReply> reply)
 {
   std::lock_guard<std::mutex> lock(reply_queue_mutex_);
   reply_queue_.emplace_back(std::move(reply));
 
+  // Trigger the user provided event callback if available.
+  std::unique_lock<std::mutex> lock_event_mutex(user_callback_data_.mutex);
+  if (user_callback_data_.callback != nullptr) {
+    user_callback_data_.callback(user_callback_data_.user_data, 1);
+  } else {
+    ++user_callback_data_.unread_count;
+  }
+  lock_event_mutex.unlock();
+
   notify();
 }
 
+///=============================================================================
 bool rmw_client_data_t::reply_queue_is_empty() const
 {
   std::lock_guard<std::mutex> lock(reply_queue_mutex_);
@@ -201,18 +339,21 @@ bool rmw_client_data_t::reply_queue_is_empty() const
   return reply_queue_.empty();
 }
 
+///=============================================================================
 void rmw_client_data_t::attach_condition(std::condition_variable * condition_variable)
 {
   std::lock_guard<std::mutex> lock(condition_mutex_);
   condition_ = condition_variable;
 }
 
+///=============================================================================
 void rmw_client_data_t::detach_condition()
 {
   std::lock_guard<std::mutex> lock(condition_mutex_);
   condition_ = nullptr;
 }
 
+///=============================================================================
 std::unique_ptr<ZenohReply> rmw_client_data_t::pop_next_reply()
 {
   std::lock_guard<std::mutex> lock(reply_queue_mutex_);
@@ -225,6 +366,26 @@ std::unique_ptr<ZenohReply> rmw_client_data_t::pop_next_reply()
   reply_queue_.pop_front();
 
   return latest_reply;
+}
+
+///=============================================================================
+void rmw_client_data_t::set_on_new_response_callback(
+  const void * user_data, rmw_event_callback_t callback)
+{
+  std::lock_guard<std::mutex> lock_mutex(user_callback_data_.mutex);
+
+  if (callback) {
+    // Push events arrived before setting the the executor callback.
+    if (user_callback_data_.unread_count) {
+      callback(user_data, user_callback_data_.unread_count);
+      user_callback_data_.unread_count = 0;
+    }
+    user_callback_data_.user_data = user_data;
+    user_callback_data_.callback = callback;
+  } else {
+    user_callback_data_.user_data = nullptr;
+    user_callback_data_.callback = nullptr;
+  }
 }
 
 //==============================================================================
@@ -255,16 +416,19 @@ void sub_data_handler(
       sample->timestamp.time, sample->timestamp.id.id), z_loan(keystr));
 }
 
+///=============================================================================
 ZenohQuery::ZenohQuery(const z_query_t * query)
 {
   query_ = z_query_clone(query);
 }
 
+///=============================================================================
 ZenohQuery::~ZenohQuery()
 {
   z_drop(z_move(query_));
 }
 
+///=============================================================================
 const z_query_t ZenohQuery::get_query() const
 {
   return z_query_loan(&query_);
@@ -293,16 +457,19 @@ void service_data_handler(const z_query_t * query, void * data)
   service_data->add_new_query(std::make_unique<ZenohQuery>(query));
 }
 
+///=============================================================================
 ZenohReply::ZenohReply(const z_owned_reply_t * reply)
 {
   reply_ = *reply;
 }
 
+///=============================================================================
 ZenohReply::~ZenohReply()
 {
   z_reply_drop(z_move(reply_));
 }
 
+///=============================================================================
 std::optional<z_sample_t> ZenohReply::get_sample() const
 {
   if (z_reply_is_ok(&reply_)) {
@@ -312,6 +479,7 @@ std::optional<z_sample_t> ZenohReply::get_sample() const
   return std::nullopt;
 }
 
+///=============================================================================
 size_t rmw_client_data_t::get_next_sequence_number()
 {
   std::lock_guard<std::mutex> lock(sequence_number_mutex);
