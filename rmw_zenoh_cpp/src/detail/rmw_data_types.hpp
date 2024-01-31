@@ -73,10 +73,6 @@ public:
     rmw_event_callback_t callback,
     const void * user_data);
 
-  /// @brief Trigger the callback for an event.
-  /// @param event_id the event id whose callback should be triggered.
-  void trigger_event_callback(rmw_zenoh_event_type_t event_id);
-
   /// @brief  Returns true if the event queue is empty.
   /// @param event_id the event id whose event queue should be checked.
   bool event_queue_is_empty(rmw_zenoh_event_type_t event_id) const;
@@ -102,11 +98,16 @@ public:
   void detach_event_condition(rmw_zenoh_event_type_t event_id);
 
 private:
+  /// @brief Trigger the callback for an event.
+  /// @param event_id the event id whose callback should be triggered.
+  void trigger_event_callback(rmw_zenoh_event_type_t event_id);
+
   /// Notify once event is added to an event queue.
   void notify_event(rmw_zenoh_event_type_t event_id);
 
   /// Mutex to lock when read/writing members.
-  mutable std::mutex event_mutex_;
+  // The mutex is recursive as add_new_event() invokes `trigger_event_callback()`.
+  mutable std::recursive_mutex event_mutex_;
   /// Mutex to lock for event_condition.
   mutable std::mutex event_condition_mutex_;
   /// Condition variable to attach for event notifications.
@@ -179,7 +180,6 @@ public:
 
   // Context for memory allocation for messages.
   rmw_context_t * context;
-
 };
 
 ///=============================================================================

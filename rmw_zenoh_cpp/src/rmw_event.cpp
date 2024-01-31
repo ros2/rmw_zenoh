@@ -116,30 +116,6 @@ rmw_event_set_callback(
     callback,
     user_data);
 
-  // switch (zenoh_event_it->second) {
-  //   case ZENOH_EVENT_REQUESTED_QOS_INCOMPATIBLE: {
-  //     rmw_subscription_data_t * sub_data = static_cast<rmw_subscription_data_t *>(rmw_event->data);
-  //     RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
-  //     sub_data->event_set_callback(
-  //       zenoh_event_it->second,
-  //       callback,
-  //       user_data);
-  //     break;
-  //   }
-  //   case ZENOH_EVENT_OFFERED_QOS_INCOMPATIBLE: {
-  //     rmw_publisher_data_t * pub_data = static_cast<rmw_publisher_data_t *>(rmw_event->data);
-  //     RMW_CHECK_ARGUMENT_FOR_NULL(pub_data, RMW_RET_INVALID_ARGUMENT);
-  //     pub_data->event_set_callback(
-  //       zenoh_event_it->second,
-  //       callback,
-  //       user_data);
-  //     break;
-  //   }
-  //   default: {
-  //     return RMW_RET_INVALID_ARGUMENT;
-  //   }
-  // }
-
   return RMW_RET_OK;
 }
 
