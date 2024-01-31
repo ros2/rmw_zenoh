@@ -3184,18 +3184,25 @@ static bool has_triggered_condition(
     }
   }
 
-  // TODO(clalancette): Deal with events
-  // if (events) {
-  //   for (size_t i = 0; i < events->event_count; ++i) {
-  //     auto event = static_cast<rmw_event_t *>(events->events[i]);
-  //     auto custom_event_info = static_cast<CustomEventInfo *>(event->data);
-  //     if (custom_event_info->get_listener()->get_statuscondition().get_trigger_value() ||
-  //       custom_event_info->get_listener()->get_event_guard(event->event_type).get_trigger_value())
-  //     {
-  //       return true;
-  //     }
-  //   }
-  // }
+  if (events) {
+    for (size_t i = 0; i < events->event_count; ++i) {
+      auto event = static_cast<rmw_event_t *>(events->events[i]);
+      const rmw_event_type_t & event_type = event->event_type;
+      // Check if the event queue for this event type is empty.
+      auto zenoh_event_it = event_map.find(event_type);
+      if (zenoh_event_it != event_map.end()) {
+        auto event_data = static_cast<EventsBase *>(event->data);
+        if (event_data != nullptr) {
+          if (!event_data->event_queue_is_empty(zenoh_event_it->second)) {
+            printf("EVENTS QUEUE IS NOT EMPTY!!\n");
+            return true;
+          }
+        }
+      } else {
+        printf("ERROR!!!!!!!!!!!!!!\n");
+      }
+    }
+  }
 
   if (subscriptions) {
     for (size_t i = 0; i < subscriptions->subscriber_count; ++i) {
@@ -3325,16 +3332,20 @@ rmw_wait(
       }
     }
 
-    // if (events) {
-    //   for (size_t i = 0; i < events->event_count; ++i) {
-    //     auto event = static_cast<rmw_event_t *>(events->events[i]);
-    //     auto custom_event_info = static_cast<CustomEventInfo *>(event->data);
-    //     attached_conditions.push_back(
-    //       &custom_event_info->get_listener()->get_statuscondition());
-    //     attached_conditions.push_back(
-    //       &custom_event_info->get_listener()->get_event_guard(event->event_type));
-    //   }
-    // }
+    if (events) {
+      for (size_t i = 0; i < events->event_count; ++i) {
+        auto event = static_cast<rmw_event_t *>(events->events[i]);
+        auto event_data = static_cast<EventsBase *>(event->data);
+        if (event_data != nullptr) {
+          auto zenoh_event_it = event_map.find(event->event_type);
+          if (zenoh_event_it != event_map.end()) {
+            event_data->attach_event_condition(
+              zenoh_event_it->second,
+              &wait_set_data->condition_variable);
+          }
+        }
+      }
+    }
 
     std::unique_lock<std::mutex> lock(wait_set_data->condition_mutex);
 
@@ -3362,6 +3373,26 @@ rmw_wait(
         // array that have *not* been triggered should be set to NULL
         if (!gc->get_and_reset_trigger()) {
           guard_conditions->guard_conditions[i] = nullptr;
+        }
+      }
+    }
+  }
+
+  if (events) {
+    // Now detach the condition variable and mutex from each of the subscriptions
+    for (size_t i = 0; i < events->event_count; ++i) {
+      auto event = static_cast<rmw_event_t *>(events->events[i]);
+      auto event_data = static_cast<EventsBase *>(event->data);
+      if (event_data != nullptr) {
+        auto zenoh_event_it = event_map.find(event->event_type);
+        if (zenoh_event_it != event_map.end()) {
+          event_data->detach_event_condition(zenoh_event_it->second);
+          // According to the documentation for rmw_wait in rmw.h, entries in the
+          // array that have *not* been triggered should be set to NULL
+          if (event_data->event_queue_is_empty(zenoh_event_it->second)) {
+            // Setting to nullptr lets rcl know that this subscription is not ready
+            events->events[i] = nullptr;
+          }
         }
       }
     }
@@ -3676,7 +3707,7 @@ rmw_subscription_set_on_new_message_callback(
   rmw_subscription_data_t * sub_data =
     static_cast<rmw_subscription_data_t *>(subscription->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
-  sub_data->set_on_new_message_callback(
+  sub_data->set_user_callback(
     user_data, callback);
   return RMW_RET_OK;
 }
@@ -3693,7 +3724,7 @@ rmw_service_set_on_new_request_callback(
   rmw_service_data_t * service_data =
     static_cast<rmw_service_data_t *>(service->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(service_data, RMW_RET_INVALID_ARGUMENT);
-  service_data->set_on_new_request_callback(
+  service_data->set_user_callback(
     user_data, callback);
   return RMW_RET_OK;
 }
@@ -3710,7 +3741,7 @@ rmw_client_set_on_new_response_callback(
   rmw_client_data_t * client_data =
     static_cast<rmw_client_data_t *>(client->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(client_data, RMW_RET_INVALID_ARGUMENT);
-  client_data->set_on_new_response_callback(
+  client_data->set_user_callback(
     user_data, callback);
   return RMW_RET_OK;
 }

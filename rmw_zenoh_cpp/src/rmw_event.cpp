@@ -102,33 +102,43 @@ rmw_event_set_callback(
 
   auto zenoh_event_it = event_map.find(rmw_event->event_type);
   if (zenoh_event_it == event_map.end()) {
-    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("RMW Zenoh does not support event [%d]", rmw_event->event_type);
+    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
+      "RMW Zenoh does not support event [%d]",
+      rmw_event->event_type);
     return RMW_RET_ERROR;
   }
 
-  switch (zenoh_event_it->second) {
-    case ZENOH_EVENT_REQUESTED_QOS_INCOMPATIBLE: {
-      rmw_subscription_data_t * sub_data = static_cast<rmw_subscription_data_t *>(rmw_event->data);
-      RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
-      sub_data->event_set_callback(
-        zenoh_event_it->second,
-        callback,
-        user_data);
-      break;
-    }
-    case ZENOH_EVENT_OFFERED_QOS_INCOMPATIBLE: {
-      rmw_publisher_data_t * pub_data = static_cast<rmw_publisher_data_t *>(rmw_event->data);
-      RMW_CHECK_ARGUMENT_FOR_NULL(pub_data, RMW_RET_INVALID_ARGUMENT);
-      pub_data->event_set_callback(
-        zenoh_event_it->second,
-        callback,
-        user_data);
-      break;
-    }
-    default: {
-      return RMW_RET_INVALID_ARGUMENT;
-    }
-  }
+  // Both rmw_subscription_data_t and rmw_publisher_data_t inherit EventsBase.
+  EventsBase * event_data = static_cast<EventsBase *>(rmw_event->data);
+  RMW_CHECK_ARGUMENT_FOR_NULL(event_data, RMW_RET_INVALID_ARGUMENT);
+  event_data->event_set_callback(
+    zenoh_event_it->second,
+    callback,
+    user_data);
+
+  // switch (zenoh_event_it->second) {
+  //   case ZENOH_EVENT_REQUESTED_QOS_INCOMPATIBLE: {
+  //     rmw_subscription_data_t * sub_data = static_cast<rmw_subscription_data_t *>(rmw_event->data);
+  //     RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
+  //     sub_data->event_set_callback(
+  //       zenoh_event_it->second,
+  //       callback,
+  //       user_data);
+  //     break;
+  //   }
+  //   case ZENOH_EVENT_OFFERED_QOS_INCOMPATIBLE: {
+  //     rmw_publisher_data_t * pub_data = static_cast<rmw_publisher_data_t *>(rmw_event->data);
+  //     RMW_CHECK_ARGUMENT_FOR_NULL(pub_data, RMW_RET_INVALID_ARGUMENT);
+  //     pub_data->event_set_callback(
+  //       zenoh_event_it->second,
+  //       callback,
+  //       user_data);
+  //     break;
+  //   }
+  //   default: {
+  //     return RMW_RET_INVALID_ARGUMENT;
+  //   }
+  // }
 
   return RMW_RET_OK;
 }
@@ -154,31 +164,45 @@ rmw_take_event(
 
   auto zenoh_event_it = event_map.find(event_handle->event_type);
   if (zenoh_event_it == event_map.end()) {
-    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("RMW Zenoh does not support event [%d]", event_handle->event_type);
+    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
+      "RMW Zenoh does not support event [%d]",
+      event_handle->event_type);
     return RMW_RET_ERROR;
   }
 
+  // Both rmw_subscription_data_t and rmw_publisher_data_t inherit EventsBase.
+  EventsBase * event_data = static_cast<EventsBase *>(event_handle->data);
+  RMW_CHECK_ARGUMENT_FOR_NULL(event_data, RMW_RET_INVALID_ARGUMENT);
+  std::unique_ptr<rmw_zenoh_event_status_t> st = event_data->pop_next_event(
+    zenoh_event_it->second);
+  if (st == nullptr) {
+    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
+      "rmw_take_event called when event queue for event type [%d] is empty",
+      event_handle->event_type);
+    return RMW_RET_ERROR;
+  }
+
+  // Now depending on the event, populate the rwm event status.
   switch (zenoh_event_it->second) {
     case ZENOH_EVENT_REQUESTED_QOS_INCOMPATIBLE: {
-      rmw_subscription_data_t * sub_data = static_cast<rmw_subscription_data_t *>(event_handle->data);
-      RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
-      auto ei = static_cast<rmw_requested_qos_incompatible_event_status_t *>(event_info);
-      ei->total_count = 0;
-      ei->total_count_change = 0;
-      *taken = true;
-      return RMW_RET_OK;
-    }
+        auto ei = static_cast<rmw_requested_qos_incompatible_event_status_t *>(event_info);
+        RMW_CHECK_ARGUMENT_FOR_NULL(ei, RMW_RET_INVALID_ARGUMENT);
+        ei->total_count = st->total_count;
+        ei->total_count_change = st->total_count_change;
+        *taken = true;
+        return RMW_RET_OK;
+      }
     case ZENOH_EVENT_OFFERED_QOS_INCOMPATIBLE: {
-      rmw_publisher_data_t * pub_data = static_cast<rmw_publisher_data_t *>(event_handle->data);
-      auto ei = static_cast<rmw_offered_qos_incompatible_event_status_t *>(event_info);
-      ei->total_count = 0;
-      ei->total_count_change = 0;
-      *taken = true;
-      return RMW_RET_OK;
-    }
+        auto ei = static_cast<rmw_offered_qos_incompatible_event_status_t *>(event_info);
+        RMW_CHECK_ARGUMENT_FOR_NULL(ei, RMW_RET_INVALID_ARGUMENT);
+        ei->total_count = st->total_count;
+        ei->total_count_change = st->total_count_change;
+        *taken = true;
+        return RMW_RET_OK;
+      }
     default: {
-      return RMW_RET_INVALID_ARGUMENT;
-    }
+        return RMW_RET_INVALID_ARGUMENT;
+      }
   }
 
   return RMW_RET_ERROR;
