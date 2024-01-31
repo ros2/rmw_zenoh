@@ -57,6 +57,8 @@
 
 #include "rmw_dds_common/qos.hpp"
 
+#define RMW_ZENOH_DEFAULT_HISTORY_DEPTH 1;
+
 namespace
 {
 
@@ -1286,10 +1288,11 @@ rmw_create_subscription(
     RMW_SET_ERROR_MSG("Failed to obtain adapted_qos_profile.");
     return nullptr;
   }
-  // Explicitly ensure the history depth is at least 1.
-  sub_data->adapted_qos_profile.depth = std::max(
-    static_cast<std::size_t>(1),
-    sub_data->adapted_qos_profile.depth);
+  // If a depth of 0 was provided, the RMW implementation can set the depth to a default.
+  sub_data->adapted_qos_profile.depth =
+    sub_data->adapted_qos_profile.depth > 0 ?
+    sub_data->adapted_qos_profile.depth :
+    RMW_ZENOH_DEFAULT_HISTORY_DEPTH;
 
   sub_data->typesupport_identifier = type_support->typesupport_identifier;
   sub_data->type_support_impl = type_support->data;
@@ -2545,7 +2548,6 @@ rmw_create_service(
   // Adapt any 'best available' QoS options
   service_data->adapted_qos_profile =
     rmw_dds_common::qos_profile_update_best_available_for_services(*qos_profiles);
-
 
   // Get the RMW type support.
   const rosidl_service_type_support_t * type_support = find_service_type_support(type_supports);
