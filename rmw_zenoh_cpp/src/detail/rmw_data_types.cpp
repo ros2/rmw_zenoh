@@ -32,7 +32,7 @@ void EventsBase::set_user_callback(
 {
   std::lock_guard<std::recursive_mutex> lock_mutex(event_mutex_);
 
-  if (callback_) {
+  if (callback) {
     // Push events arrived before setting the the executor callback.
     if (unread_count_) {
       callback(user_data, unread_count_);
