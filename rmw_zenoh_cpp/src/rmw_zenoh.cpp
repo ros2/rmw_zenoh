@@ -259,17 +259,11 @@ rmw_create_node(
       allocator->deallocate(node, allocator->state);
     });
 
-  size_t name_len = strlen(name);
-  // We specifically don't use rcutils_strdup() here because we want to avoid iterating over the
-  // name again looking for the \0 (we already did that above).
-  char * new_string = static_cast<char *>(allocator->allocate(name_len + 1, allocator->state));
+  node->name = rcutils_strdup(name, *allocator);
   RMW_CHECK_FOR_NULL_WITH_MSG(
-    new_string,
+    node->name,
     "unable to allocate memory for node name",
     return nullptr);
-  memcpy(new_string, name, name_len);
-  new_string[name_len] = '\0';
-  node->name = new_string;
   auto free_name = rcpputils::make_scope_exit(
     [node, allocator]() {
       allocator->deallocate(const_cast<char *>(node->name), allocator->state);
@@ -551,17 +545,11 @@ rmw_create_publisher(
   rmw_publisher->options = *publisher_options;
   rmw_publisher->can_loan_messages = false;
 
-  size_t topic_len = strlen(topic_name);
-  // We specifically don't use rcutils_strdup() here because we want to avoid iterating over the
-  // name again looking for the \0 (we already did that above).
-  char * new_string = static_cast<char *>(allocator->allocate(topic_len + 1, allocator->state));
+  rmw_publisher->topic_name = rcutils_strdup(topic_name, *allocator);
   RMW_CHECK_FOR_NULL_WITH_MSG(
-    new_string,
+    rmw_publisher->topic_name,
     "Failed to allocate topic name",
     return nullptr);
-  memcpy(new_string, topic_name, topic_len);
-  new_string[topic_len] = '\0';
-  rmw_publisher->topic_name = new_string;
   auto free_topic_name = rcpputils::make_scope_exit(
     [rmw_publisher, allocator]() {
       allocator->deallocate(const_cast<char *>(rmw_publisher->topic_name), allocator->state);
@@ -1270,17 +1258,11 @@ rmw_create_subscription(
   rmw_subscription->implementation_identifier = rmw_zenoh_identifier;
   rmw_subscription->data = sub_data;
 
-  size_t topic_len = strlen(topic_name);
-  // We specifically don't use rcutils_strdup() here because we want to avoid iterating over the
-  // name again looking for the \0 (we already did that above).
-  char * new_string = static_cast<char *>(allocator->allocate(topic_len + 1, allocator->state));
+  rmw_subscription->topic_name = rcutils_strdup(topic_name, *allocator);
   RMW_CHECK_FOR_NULL_WITH_MSG(
-    new_string,
+    rmw_subscription->topic_name,
     "Failed to allocate topic name",
     return nullptr);
-  memcpy(new_string, topic_name, topic_len);
-  new_string[topic_len] = '\0';
-  rmw_subscription->topic_name = new_string;
   auto free_topic_name = rcpputils::make_scope_exit(
     [rmw_subscription, allocator]() {
       allocator->deallocate(const_cast<char *>(rmw_subscription->topic_name), allocator->state);
