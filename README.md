@@ -32,6 +32,8 @@ colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
 
 ```
 
+> Note: When the stderr `CMake Error at CMakeLists.txt:11 (find_package):` occurs, you need to install ament_cmake_vendor_package by `sudo apt install ros-<DISTRO>-ament-cmake-vendor-package`.
+
 ## Test
 
 Make sure to source the built workspace using the commands below prior to running any other commands.
