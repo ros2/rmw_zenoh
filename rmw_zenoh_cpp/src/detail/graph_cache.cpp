@@ -459,6 +459,9 @@ void GraphCache::parse_del(const std::string & keyexpr)
     }
     ns_it->second.erase(node_it);
     total_nodes_in_graph_ -= 1;
+    if (ns_it->second.size() == 0) {
+      graph_.erase(entity.node_namespace());
+    }
     return;
   }
 
