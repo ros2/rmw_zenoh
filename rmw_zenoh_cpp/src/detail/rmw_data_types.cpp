@@ -95,7 +95,6 @@ void rmw_subscription_data_t::add_new_message(
       z_drop(z_move(old->payload));
       message_queue_.pop_front();
     }
-
   }
 
   message_queue_.emplace_back(std::move(msg));

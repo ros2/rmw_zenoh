@@ -28,7 +28,6 @@ rmw_qos_profile_check_compatible(
   char * reason,
   size_t reason_size)
 {
-
   // In Zenoh, publishers do not have any reliability settings.
   // A publisher and subscription are only incompatible if the durability of the publisher is
   // TRANSIENT_LOCAL but that of the subscription is not. In such a scenario, a late-joining
