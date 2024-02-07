@@ -163,6 +163,9 @@ std::vector<std::string> split_keyexpr(
  *  <DurabilityKind> - enum value from rmw_qos_durability_policy_e.
  *  <HistoryKind> - enum value from rmw_qos_history_policy_e.
  *  <HistoryDepth> - The depth number.
+ * For example, the liveliness substring for a topic with Reliability policy: reliable,
+ * Durability policy: volatile, History policy: keep_last, and depth: 10, would be
+ * "1:2:1,10". See rmw/types.h for the values of each policy enum.
  */
 // TODO(Yadunund): Rely on maps to retrieve strings.
 std::string qos_to_keyexpr(rmw_qos_profile_t qos)
@@ -228,7 +231,6 @@ std::optional<rmw_qos_profile_t> keyexpr_to_qos(const std::string & keyexpr)
   qos.lifespan = RMW_QOS_LIFESPAN_DEFAULT;
   return qos;
 }
-
 }  // namespace
 
 ///=============================================================================
@@ -268,7 +270,15 @@ Entity::Entity(
    * <ADMIN_SPACE>/<domainid>/<id>/<entity>/<namespace>/<nodename>/<topic_name>/<topic_type>/<topic_qos>
    *  <topic_name> - The ROS topic name for this entity.
    *  <topic_type> - The type for the topic.
-   *  <topic_qos> - The qos for the topic.
+   *  <topic_qos> - The qos for the topic (see qos_to_keyexpr() docstring for more information).
+   *
+   * For example, the liveliness expression for a publisher within a /talker node that publishes
+   * an std_msgs/msg/String over topic /chatter and with QoS settings of Reliability: best_effort,
+   * Durability: transient_local, History: keep_all, and depth: 10, would be
+   * "@ros2_lv/0/q1w2e3r4t5y6/MP/_/talker/dds_::std_msgs::msg::String/2:1:2,10".
+   * Note: The domain_id is assumed to be 0 and a random id is used in the example. Also the
+   *  _dds:: prefix in the topic_type is an artifact of the type support implementation and is
+   *  removed when reporting the topic_type in graph_cache.cpp (see _demangle_if_ros_type()).
    */
   std::stringstream token_ss;
   const std::string & ns = node_info_.ns_;
