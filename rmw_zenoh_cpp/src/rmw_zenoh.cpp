@@ -1393,9 +1393,8 @@ rmw_create_subscription(
       RMW_SET_ERROR_MSG("unable to create zenoh subscription");
       return nullptr;
     }
-  }
-  // Create a regular subscriber for all other durability settings.
-  else {
+  } else {
+    // Create a regular subscriber for all other durability settings.
     z_subscriber_options_t sub_options = z_subscriber_options_default();
     if (qos_profile->reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE) {
       sub_options.reliability = Z_RELIABILITY_RELIABLE;
