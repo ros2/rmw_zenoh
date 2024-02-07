@@ -317,11 +317,8 @@ rmw_create_node(
     NULL
   );
   auto free_token = rcpputils::make_scope_exit(
-    [node]() {
-      if (node->data != nullptr) {
-        rmw_node_data_t * node_data = static_cast<rmw_node_data_t *>(node->data);
-        z_drop(z_move(node_data->token));
-      }
+    [node_data]() {
+      z_drop(z_move(node_data->token));
     });
   if (!z_check(node_data->token)) {
     RCUTILS_LOG_ERROR_NAMED(
@@ -330,11 +327,11 @@ rmw_create_node(
     return nullptr;
   }
 
+  free_token.cancel();
   free_node_data.cancel();
   free_namespace.cancel();
   free_name.cancel();
   free_node.cancel();
-  free_token.cancel();
   return node;
 }
 
