@@ -1288,7 +1288,7 @@ rmw_create_subscription(
     RMW_SET_ERROR_MSG("Failed to obtain adapted_qos_profile.");
     return nullptr;
   }
-  // If a depth of 0 was provided, the RMW implementation can set the depth to a default.
+  // If a depth of 0 was provided, the RMW implementation should choose a suitable default.
   sub_data->adapted_qos_profile.depth =
     sub_data->adapted_qos_profile.depth > 0 ?
     sub_data->adapted_qos_profile.depth :
