@@ -128,29 +128,16 @@ std::vector<std::string> split_keyexpr(
   const std::string & keyexpr,
   const char delim = '/')
 {
-  std::vector<std::size_t> delim_idx = {};
-  // Insert -1 for starting position to make the split easier when using substr.
-  delim_idx.push_back(-1);
-  std::size_t idx = 0;
-  for (std::string::const_iterator it = keyexpr.begin(); it != keyexpr.end(); ++it) {
-    if (*it == delim) {
-      delim_idx.push_back(idx);
-    }
-    ++idx;
-  }
   std::vector<std::string> result = {};
-  try {
-    for (std::size_t i = 1; i < delim_idx.size(); ++i) {
-      const size_t prev_idx = delim_idx[i - 1];
-      const size_t idx = delim_idx[i];
-      result.push_back(keyexpr.substr(prev_idx + 1, idx - prev_idx - 1));
-    }
-  } catch (const std::exception & e) {
-    printf("%s\n", e.what());
-    return {};
+  size_t start = 0;
+  size_t end = keyexpr.find(delim);
+  while (end != std::string::npos) {
+    result.push_back(keyexpr.substr(start, end - start));
+    start = end + 1;
+    end = keyexpr.find(delim, start);
   }
   // Finally add the last substr.
-  result.push_back(keyexpr.substr(delim_idx.back() + 1));
+  result.push_back(keyexpr.substr(start));
   return result;
 }
 
