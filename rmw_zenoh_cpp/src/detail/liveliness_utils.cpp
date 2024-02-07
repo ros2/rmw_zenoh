@@ -433,67 +433,6 @@ std::string Entity::keyexpr() const
 }
 
 ///=============================================================================
-bool PublishToken::put(
-  z_owned_session_t * session,
-  const std::string & token)
-{
-  if (!z_session_check(session)) {
-    RCUTILS_SET_ERROR_MSG("The zenoh session is invalid.");
-    return false;
-  }
-
-  // TODO(Yadunund): z_keyexpr_new creates a copy so find a way to avoid it.
-  z_owned_keyexpr_t keyexpr = z_keyexpr_new(token.c_str());
-  auto drop_keyexpr = rcpputils::make_scope_exit(
-    [&keyexpr]() {
-      z_drop(z_move(keyexpr));
-    });
-  if (!z_keyexpr_check(&keyexpr)) {
-    RCUTILS_SET_ERROR_MSG("invalid keyexpression generation for liveliness publication.");
-    return false;
-  }
-
-  z_put_options_t options = z_put_options_default();
-  options.encoding = z_encoding(Z_ENCODING_PREFIX_EMPTY, NULL);
-  if (z_put(z_loan(*session), z_keyexpr(token.c_str()), nullptr, 0, &options) < 0) {
-    RCUTILS_SET_ERROR_MSG("unable to publish liveliness for node creation");
-    return false;
-  }
-
-  return true;
-}
-
-///=============================================================================
-bool PublishToken::del(
-  z_owned_session_t * session,
-  const std::string & token)
-{
-  if (!z_session_check(session)) {
-    RCUTILS_SET_ERROR_MSG("The zenoh session is invalid.");
-    return false;
-  }
-
-  // TODO(Yadunund): z_keyexpr_new creates a copy so find a way to avoid it.
-  z_owned_keyexpr_t keyexpr = z_keyexpr_new(token.c_str());
-  auto drop_keyexpr = rcpputils::make_scope_exit(
-    [&keyexpr]() {
-      z_drop(z_move(keyexpr));
-    });
-  if (!z_keyexpr_check(&keyexpr)) {
-    RCUTILS_SET_ERROR_MSG("invalid key-expression generation for liveliness publication.");
-    return false;
-  }
-
-  const z_delete_options_t options = z_delete_options_default();
-  if (z_delete(z_loan(*session), z_loan(keyexpr), &options) < 0) {
-    RCUTILS_SET_ERROR_MSG("failed to delete liveliness key");
-    return false;
-  }
-
-  return true;
-}
-
-///=============================================================================
 std::string mangle_name(const std::string & input)
 {
   std::string output = "";

@@ -299,16 +299,6 @@ rmw_create_node(
   node->implementation_identifier = rmw_zenoh_identifier;
   node->context = context;
 
-  // Uncomment and rely on #if #endif blocks to enable this feature when building with
-  // zenoh-pico since liveliness is only available in zenoh-c.
-  // Publish to the graph that a new node is in town
-  // const bool pub_result = PublishToken::put(
-  //   &node->context->impl->session,
-  //   liveliness::GenerateToken::node(context->actual_domain_id, namespace_, name)
-  // );
-  // if (!pub_result) {
-  //   return nullptr;
-  // }
   // Initialize liveliness token for the node to advertise that a new node is in town.
   rmw_node_data_t * node_data = static_cast<rmw_node_data_t *>(node->data);
   const auto liveliness_entity = liveliness::Entity::make(
@@ -362,18 +352,6 @@ rmw_destroy_node(rmw_node_t * node)
     node->implementation_identifier,
     rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
-
-  // Uncomment and rely on #if #endif blocks to enable this feature when building with
-  // zenoh-pico since liveliness is only available in zenoh-c.
-  // Publish to the graph that a node has ridden off into the sunset
-  // const bool del_result = PublishToken::del(
-  //   &node->context->impl->session,
-  //   liveliness::GenerateToken::node(node->context->actual_domain_id, node->namespace_,
-  //     node->name)
-  // );
-  // if (!del_result) {
-  //   return RMW_RET_ERROR;
-  // }
 
   // Undeclare liveliness token for the node to advertise that the node has ridden
   // off into the sunset.
@@ -647,23 +625,6 @@ rmw_create_publisher(
       z_undeclare_publisher(z_move(publisher_data->pub));
     });
 
-  // Uncomment and rely on #if #endif blocks to enable this feature when building with
-  // zenoh-pico since liveliness is only available in zenoh-c.
-  // Publish to the graph that a new publisher is in town
-  // TODO(Yadunund): Publish liveliness for the new publisher.
-  // const bool pub_result = PublishToken::put(
-  //   &node->context->impl->session,
-  //   liveliness::GenerateToken::publisher(
-  //     node->context->actual_domain_id,
-  //     node->namespace_,
-  //     node->name,
-  //     rmw_publisher->topic_name,
-  //     publisher_data->type_support->get_name(),
-  //     "reliable")
-  // );
-  // if (!pub_result) {
-  //   return nullptr;
-  // }
   const auto liveliness_entity = liveliness::Entity::make(
     z_info_zid(z_loan(node->context->impl->session)),
     liveliness::EntityType::Publisher,
@@ -733,24 +694,6 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
 
   auto publisher_data = static_cast<rmw_publisher_data_t *>(publisher->data);
   if (publisher_data != nullptr) {
-    // Uncomment and rely on #if #endif blocks to enable this feature when building with
-    // zenoh-pico since liveliness is only available in zenoh-c.
-    // Publish to the graph that a publisher has ridden off into the sunset
-    // const bool del_result = PublishToken::del(
-    //   &node->context->impl->session,
-    //   liveliness::GenerateToken::publisher(
-    //     node->context->actual_domain_id,
-    //     node->namespace_,
-    //     node->name,
-    //     publisher->topic_name,
-    //     publisher_data->type_support->get_name(),
-    //     "reliable"
-    //   )
-    // );
-    // if (!del_result) {
-    //   // TODO(Yadunund): Should this really return an error?
-    //   return RMW_RET_ERROR;
-    // }
     z_drop(z_move(publisher_data->token));
     if (publisher_data->pub_cache.has_value()) {
       z_drop(z_move(publisher_data->pub_cache.value()));
