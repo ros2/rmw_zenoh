@@ -111,6 +111,8 @@ struct saved_msg_data
 {
   explicit saved_msg_data(zc_owned_payload_t p, uint64_t recv_ts, const uint8_t pub_gid[16]);
 
+  ~saved_msg_data();
+
   zc_owned_payload_t payload;
   uint64_t recv_timestamp;
   uint8_t publisher_gid[16];

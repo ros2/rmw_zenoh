@@ -31,6 +31,11 @@ saved_msg_data::saved_msg_data(zc_owned_payload_t p, uint64_t recv_ts, const uin
   memcpy(publisher_gid, pub_gid, 16);
 }
 
+saved_msg_data::~saved_msg_data()
+{
+  z_drop(z_move(payload));
+}
+
 void rmw_subscription_data_t::attach_condition(std::condition_variable * condition_variable)
 {
   std::lock_guard<std::mutex> lock(condition_mutex_);
@@ -92,7 +97,6 @@ void rmw_subscription_data_t::add_new_message(
     // queue if it is non-empty.
     if (!message_queue_.empty()) {
       std::unique_ptr<saved_msg_data> old = std::move(message_queue_.front());
-      z_drop(z_move(old->payload));
       message_queue_.pop_front();
     }
   }

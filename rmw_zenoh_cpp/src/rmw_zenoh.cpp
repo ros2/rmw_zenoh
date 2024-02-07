@@ -1578,7 +1578,6 @@ static rmw_ret_t __rmw_take(
   }
 
   *taken = true;
-  z_drop(&msg_data->payload);
 
   // TODO(clalancette): fill in source_timestamp
   message_info->source_timestamp = 0;
