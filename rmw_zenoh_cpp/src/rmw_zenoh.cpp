@@ -285,8 +285,6 @@ rmw_create_node(
       allocator->deallocate(const_cast<char *>(node->namespace_), allocator->state);
     });
 
-  // TODO(yadunund): Register with storage system here and throw error if
-  // zenohd is not running.
   // Put metadata into node->data.
   node->data = allocator->zero_allocate(1, sizeof(rmw_node_data_t), allocator->state);
   RMW_CHECK_FOR_NULL_WITH_MSG(
@@ -576,7 +574,6 @@ rmw_create_publisher(
   rmw_publisher->data = publisher_data;
   rmw_publisher->implementation_identifier = rmw_zenoh_identifier;
   rmw_publisher->options = *publisher_options;
-  // TODO(yadunund): Update this.
   rmw_publisher->can_loan_messages = false;
 
   size_t topic_len = strlen(topic_name);
