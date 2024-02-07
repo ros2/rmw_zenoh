@@ -192,7 +192,7 @@ std::optional<rmw_qos_profile_t> keyexpr_to_qos(const std::string & keyexpr)
   // Get the history depth.
   errno = 0;
   char * endptr;
-  int64_t num = strtol(history_parts[1].c_str(), &endptr, 10);
+  unsigned long num = strtoul(history_parts[1].c_str(), &endptr, 10);
   if (endptr == history_parts[1].c_str()) {
     // No values were converted, this is an error
     RMW_SET_ERROR_MSG("no valid numbers available");
