@@ -55,6 +55,18 @@
 #include "rmw/validate_namespace.h"
 #include "rmw/validate_node_name.h"
 
+#include "rmw_dds_common/qos.hpp"
+
+// If the depth field in the qos profile is set to 0, the RMW implementation
+// has the liberty to assign a default depth. The zenoh transport protocol
+// is configured with 256 channels so theoretically, this would be the maximum
+// depth we can set before blocking transport. A high depth would increase the
+// memory footprint of processes as more messages are stored in memory while a
+// very low depth might unintentionally drop messages leading to a poor
+// out-of-the-box experience for new users. For now we set the depth to 42,
+// a popular "magic number". See https://en.wikipedia.org/wiki/42_(number).
+#define RMW_ZENOH_DEFAULT_HISTORY_DEPTH 42;
+
 namespace
 {
 
@@ -459,13 +471,6 @@ rmw_create_publisher(
       return nullptr;
     }
   }
-  // Adapt any 'best available' QoS options
-  // rmw_qos_profile_t adapted_qos_profile = *qos_profile;
-  // rmw_ret_t ret = rmw_dds_common::qos_profile_get_best_available_for_topic_publisher(
-  //   node, topic_name, &adapted_qos_profile, rmw_get_subscriptions_info_by_topic);
-  // if (RMW_RET_OK != ret) {
-  //   return nullptr;
-  // }
   RMW_CHECK_ARGUMENT_FOR_NULL(publisher_options, nullptr);
   if (publisher_options->require_unique_network_flow_endpoints ==
     RMW_UNIQUE_NETWORK_FLOW_ENDPOINTS_STRICTLY_REQUIRED)
@@ -534,6 +539,13 @@ rmw_create_publisher(
         publisher_data->~rmw_publisher_data_t(), rmw_publisher_data_t);
     });
 
+  // Adapt any 'best available' QoS options
+  publisher_data->adapted_qos_profile = *qos_profile;
+  rmw_ret_t ret = rmw_dds_common::qos_profile_get_best_available_for_topic_publisher(
+    node, topic_name, &publisher_data->adapted_qos_profile, rmw_get_subscriptions_info_by_topic);
+  if (RMW_RET_OK != ret) {
+    return nullptr;
+  }
   publisher_data->typesupport_identifier = type_support->typesupport_identifier;
   publisher_data->type_support_impl = type_support->data;
   auto callbacks = static_cast<const message_type_support_callbacks_t *>(type_support->data);
@@ -583,8 +595,6 @@ rmw_create_publisher(
       allocator->deallocate(const_cast<char *>(rmw_publisher->topic_name), allocator->state);
     });
 
-  // TODO(yadunund): Parse adapted_qos_profile and publisher_options to generate
-  // a z_publisher_put_options struct instead of passing NULL to this function.
   z_owned_keyexpr_t keyexpr = ros_topic_name_to_zenoh_key(
     topic_name, node->context->actual_domain_id, allocator);
   auto always_free_ros_keyexpr = rcpputils::make_scope_exit(
@@ -595,11 +605,41 @@ rmw_create_publisher(
     RMW_SET_ERROR_MSG("unable to create zenoh keyexpr.");
     return nullptr;
   }
+
+  // Create a Publication Cache if durability is transient_local.
+  if (publisher_data->adapted_qos_profile.durability == RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL) {
+    ze_publication_cache_options_t pub_cache_opts = ze_publication_cache_options_default();
+    pub_cache_opts.history = publisher_data->adapted_qos_profile.depth;
+    publisher_data->pub_cache = ze_declare_publication_cache(
+      z_loan(context_impl->session),
+      z_loan(keyexpr),
+      &pub_cache_opts
+    );
+    if (!publisher_data->pub_cache.has_value() || !z_check(publisher_data->pub_cache.value())) {
+      RMW_SET_ERROR_MSG("unable to create zenoh publisher cache");
+      return nullptr;
+    }
+  }
+  auto undeclare_z_publisher_cache = rcpputils::make_scope_exit(
+    [publisher_data]() {
+      if (publisher_data && publisher_data->pub_cache.has_value()) {
+        z_drop(z_move(publisher_data->pub_cache.value()));
+      }
+    });
+
+  // Set congestion_control to BLOCK if appropriate.
+  z_publisher_options_t opts = z_publisher_options_default();
+  opts.congestion_control = Z_CONGESTION_CONTROL_DROP;
+  if (publisher_data->adapted_qos_profile.history == RMW_QOS_POLICY_HISTORY_KEEP_ALL &&
+    publisher_data->adapted_qos_profile.reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE)
+  {
+    opts.congestion_control = Z_CONGESTION_CONTROL_BLOCK;
+  }
   // TODO(clalancette): What happens if the key name is a valid but empty string?
   publisher_data->pub = z_declare_publisher(
     z_loan(context_impl->session),
     z_loan(keyexpr),
-    NULL
+    &opts
   );
   if (!z_check(publisher_data->pub)) {
     RMW_SET_ERROR_MSG("unable to create zenoh publisher");
@@ -632,7 +672,7 @@ rmw_create_publisher(
     liveliness::EntityType::Publisher,
     liveliness::NodeInfo{node->context->actual_domain_id, node->namespace_, node->name, ""},
     liveliness::TopicInfo{rmw_publisher->topic_name,
-      publisher_data->type_support->get_name(), "reliable"}
+      publisher_data->type_support->get_name(), publisher_data->adapted_qos_profile}
   );
   if (!liveliness_entity.has_value()) {
     RCUTILS_LOG_ERROR_NAMED(
@@ -659,6 +699,7 @@ rmw_create_publisher(
   }
 
   free_token.cancel();
+  undeclare_z_publisher_cache.cancel();
   undeclare_z_publisher.cancel();
   free_topic_name.cancel();
   destruct_msg_type_support.cancel();
@@ -714,7 +755,9 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
     //   return RMW_RET_ERROR;
     // }
     z_drop(z_move(publisher_data->token));
-
+    if (publisher_data->pub_cache.has_value()) {
+      z_drop(z_move(publisher_data->pub_cache.value()));
+    }
     RMW_TRY_DESTRUCTOR(publisher_data->type_support->~MessageTypeSupport(), MessageTypeSupport, );
     allocator->deallocate(publisher_data->type_support, allocator->state);
     if (z_undeclare_publisher(z_move(publisher_data->pub))) {
@@ -834,31 +877,37 @@ rmw_publish(
 
   // To store serialized message byte array.
   char * msg_bytes = nullptr;
-  bool from_shm = false;
+  std::optional<zc_owned_shmbuf_t> shmbuf = std::nullopt;
+  auto always_free_shmbuf = rcpputils::make_scope_exit(
+    [&shmbuf]() {
+      if (shmbuf.has_value()) {
+        zc_shmbuf_drop(&shmbuf.value());
+      }
+    });
   auto free_msg_bytes = rcpputils::make_scope_exit(
-    [msg_bytes, allocator, from_shm]() {
-      if (msg_bytes && !from_shm) {
+    [msg_bytes, allocator, &shmbuf]() {
+      if (msg_bytes && !shmbuf.has_value()) {
         allocator->deallocate(msg_bytes, allocator->state);
       }
     });
 
-  zc_owned_shmbuf_t shmbuf;
   // Get memory from SHM buffer if available.
-  if (zc_shm_manager_check(&publisher_data->context->impl->shm_manager)) {
+  if (publisher_data->context->impl->shm_manager.has_value() &&
+    zc_shm_manager_check(&publisher_data->context->impl->shm_manager.value()))
+  {
     shmbuf = zc_shm_alloc(
-      &publisher_data->context->impl->shm_manager,
+      &publisher_data->context->impl->shm_manager.value(),
       max_data_length);
-    if (!z_check(shmbuf)) {
-      zc_shm_gc(&publisher_data->context->impl->shm_manager);
-      shmbuf = zc_shm_alloc(&publisher_data->context->impl->shm_manager, max_data_length);
-      if (!z_check(shmbuf)) {
+    if (!z_check(shmbuf.value())) {
+      zc_shm_gc(&publisher_data->context->impl->shm_manager.value());
+      shmbuf = zc_shm_alloc(&publisher_data->context->impl->shm_manager.value(), max_data_length);
+      if (!z_check(shmbuf.value())) {
         // TODO(Yadunund): Should we revert to regular allocation and not return an error?
         RMW_SET_ERROR_MSG("Failed to allocate a SHM buffer, even after GCing");
         return RMW_RET_ERROR;
       }
     }
-    msg_bytes = reinterpret_cast<char *>(zc_shmbuf_ptr(&shmbuf));
-    from_shm = true;
+    msg_bytes = reinterpret_cast<char *>(zc_shmbuf_ptr(&shmbuf.value()));
   } else {
     // Get memory from the allocator.
     msg_bytes = static_cast<char *>(allocator->allocate(max_data_length, allocator->state));
@@ -892,9 +941,9 @@ rmw_publish(
   z_publisher_put_options_t options = z_publisher_put_options_default();
   options.encoding = z_encoding(Z_ENCODING_PREFIX_EMPTY, NULL);
 
-  if (from_shm) {
-    zc_shmbuf_set_length(&shmbuf, data_length);
-    zc_owned_payload_t payload = zc_shmbuf_into_payload(z_move(shmbuf));
+  if (shmbuf.has_value()) {
+    zc_shmbuf_set_length(&shmbuf.value(), data_length);
+    zc_owned_payload_t payload = zc_shmbuf_into_payload(z_move(shmbuf.value()));
     ret = zc_publisher_put_owned(z_loan(publisher_data->pub), z_move(payload), &options);
   } else {
     // Returns 0 if success.
@@ -933,11 +982,23 @@ rmw_publisher_count_matched_subscriptions(
   const rmw_publisher_t * publisher,
   size_t * subscription_count)
 {
-  static_cast<void>(publisher);
-  static_cast<void>(subscription_count);
-  // TODO(yadunund): Fixme.
-  *subscription_count = 0;
-  return RMW_RET_OK;
+  RMW_CHECK_ARGUMENT_FOR_NULL(publisher, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(publisher->data, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    publisher,
+    publisher->implementation_identifier,
+    rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_ARGUMENT_FOR_NULL(subscription_count, RMW_RET_INVALID_ARGUMENT);
+
+  rmw_publisher_data_t * pub_data = static_cast<rmw_publisher_data_t *>(publisher->data);
+  RMW_CHECK_ARGUMENT_FOR_NULL(pub_data, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(pub_data->context, RMW_RET_INVALID_ARGUMENT);
+  rmw_context_impl_t * context_impl = static_cast<rmw_context_impl_t *>(pub_data->context->impl);
+  RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
+
+  return context_impl->graph_cache.publisher_count_matched_subscriptions(
+    publisher, subscription_count);
 }
 
 //==============================================================================
@@ -947,9 +1008,18 @@ rmw_publisher_get_actual_qos(
   const rmw_publisher_t * publisher,
   rmw_qos_profile_t * qos)
 {
-  static_cast<void>(publisher);
-  static_cast<void>(qos);
-  // TODO(yadunund): Fixme.
+  RMW_CHECK_ARGUMENT_FOR_NULL(publisher, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    publisher,
+    publisher->implementation_identifier,
+    rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_ARGUMENT_FOR_NULL(qos, RMW_RET_INVALID_ARGUMENT);
+
+  rmw_publisher_data_t * pub_data = static_cast<rmw_publisher_data_t *>(publisher->data);
+  RMW_CHECK_ARGUMENT_FOR_NULL(pub_data, RMW_RET_INVALID_ARGUMENT);
+
+  *qos = pub_data->adapted_qos_profile;
   return RMW_RET_OK;
 }
 
@@ -1151,20 +1221,7 @@ rmw_create_subscription(
     return nullptr;
   }
   RMW_CHECK_ARGUMENT_FOR_NULL(qos_profile, nullptr);
-  // Adapt any 'best available' QoS options
-  // rmw_qos_profile_t adapted_qos_profile = *qos_profile;
-  // rmw_ret_t ret = rmw_dds_common::qos_profile_get_best_available_for_topic_subscription(
-  //   node, topic_name, &adapted_qos_profile, rmw_get_publishers_info_by_topic);
-  // if (RMW_RET_OK != ret) {
-  //   return nullptr;
-  // }
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription_options, nullptr);
-
-  // Check RMW QoS
-  // if (!is_valid_qos(*qos_profile)) {
-  //   RMW_SET_ERROR_MSG("create_subscription() called with invalid QoS");
-  //   return nullptr;
-  // }
 
   const rosidl_message_type_support_t * type_support = find_message_type_support(type_supports);
   if (type_support == nullptr) {
@@ -1231,14 +1288,19 @@ rmw_create_subscription(
         rmw_subscription_data_t);
     });
 
-  // Set the reliability of the subscription options based on qos_profile.
-  // The default options will be initialized with Best Effort reliability.
-  auto sub_options = z_subscriber_options_default();
-  sub_data->reliable = false;
-  if (qos_profile->reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE) {
-    sub_options.reliability = Z_RELIABILITY_RELIABLE;
-    sub_data->reliable = true;
+  // Adapt any 'best available' QoS options
+  sub_data->adapted_qos_profile = *qos_profile;
+  rmw_ret_t ret = rmw_dds_common::qos_profile_get_best_available_for_topic_subscription(
+    node, topic_name, &sub_data->adapted_qos_profile, rmw_get_publishers_info_by_topic);
+  if (RMW_RET_OK != ret) {
+    RMW_SET_ERROR_MSG("Failed to obtain adapted_qos_profile.");
+    return nullptr;
   }
+  // If a depth of 0 was provided, the RMW implementation should choose a suitable default.
+  sub_data->adapted_qos_profile.depth =
+    sub_data->adapted_qos_profile.depth > 0 ?
+    sub_data->adapted_qos_profile.depth :
+    RMW_ZENOH_DEFAULT_HISTORY_DEPTH;
 
   sub_data->typesupport_identifier = type_support->typesupport_identifier;
   sub_data->type_support_impl = type_support->data;
@@ -1266,7 +1328,6 @@ rmw_create_subscription(
         MessageTypeSupport);
     });
 
-  sub_data->queue_depth = qos_profile->depth;
   sub_data->context = node->context;
 
   rmw_subscription->implementation_identifier = rmw_zenoh_identifier;
@@ -1306,19 +1367,70 @@ rmw_create_subscription(
     RMW_SET_ERROR_MSG("unable to create zenoh keyexpr.");
     return nullptr;
   }
-  sub_data->sub = z_declare_subscriber(
-    z_loan(context_impl->session),
-    z_loan(keyexpr),
-    z_move(callback),
-    &sub_options
-  );
-  if (!z_check(sub_data->sub)) {
-    RMW_SET_ERROR_MSG("unable to create zenoh subscription");
-    return nullptr;
+  // Instantiate the subscription with suitable options depending on the
+  // adapted_qos_profile.
+  // TODO(Yadunund): Rely on a separate function to return the sub
+  // as we start supporting more qos settings.
+  z_owned_str_t owned_key_str = z_keyexpr_to_string(z_loan(keyexpr));
+  auto always_drop_keystr = rcpputils::make_scope_exit(
+    [&owned_key_str]() {
+      z_drop(z_move(owned_key_str));
+    });
+
+  if (sub_data->adapted_qos_profile.durability == RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL) {
+    ze_querying_subscriber_options_t sub_options = ze_querying_subscriber_options_default();
+    // TODO(Yadunund): We need the query_target to be ALL_COMPLETE but the PubCache created
+    // does not setup a queryable that is complete. Once zettascale exposes that API,
+    // uncomment below.
+    // sub_options.query_target = Z_QUERY_TARGET_ALL_COMPLETE;
+    sub_options.query_target = Z_QUERY_TARGET_ALL;
+    // We set consolidation to none as we need to receive transient local messages
+    // from a number of publishers. Eg: To receive TF data published over /tf_static
+    // by various publishers.
+    sub_options.query_consolidation = z_query_consolidation_none();
+    if (sub_data->adapted_qos_profile.reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE) {
+      sub_options.reliability = Z_RELIABILITY_RELIABLE;
+    }
+    sub_data->sub = ze_declare_querying_subscriber(
+      z_loan(context_impl->session),
+      z_loan(keyexpr),
+      z_move(callback),
+      &sub_options
+    );
+    if (!z_check(std::get<ze_owned_querying_subscriber_t>(sub_data->sub))) {
+      RMW_SET_ERROR_MSG("unable to create zenoh subscription");
+      return nullptr;
+    }
+  } else {
+    // Create a regular subscriber for all other durability settings.
+    z_subscriber_options_t sub_options = z_subscriber_options_default();
+    if (qos_profile->reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE) {
+      sub_options.reliability = Z_RELIABILITY_RELIABLE;
+    }
+    sub_data->sub = z_declare_subscriber(
+      z_loan(context_impl->session),
+      z_loan(keyexpr),
+      z_move(callback),
+      &sub_options
+    );
+    if (!z_check(std::get<z_owned_subscriber_t>(sub_data->sub))) {
+      RMW_SET_ERROR_MSG("unable to create zenoh subscription");
+      return nullptr;
+    }
   }
+
   auto undeclare_z_sub = rcpputils::make_scope_exit(
     [sub_data]() {
-      z_undeclare_subscriber(z_move(sub_data->sub));
+      z_owned_subscriber_t * sub = std::get_if<z_owned_subscriber_t>(&sub_data->sub);
+      if (sub == nullptr || z_undeclare_subscriber(sub)) {
+        RMW_SET_ERROR_MSG("failed to undeclare sub");
+      } else {
+        ze_owned_querying_subscriber_t * querying_sub =
+        std::get_if<ze_owned_querying_subscriber_t>(&sub_data->sub);
+        if (querying_sub == nullptr || ze_undeclare_querying_subscriber(querying_sub)) {
+          RMW_SET_ERROR_MSG("failed to undeclare sub");
+        }
+      }
     });
 
   // Publish to the graph that a new subscription is in town
@@ -1327,7 +1439,7 @@ rmw_create_subscription(
     liveliness::EntityType::Subscription,
     liveliness::NodeInfo{node->context->actual_domain_id, node->namespace_, node->name, ""},
     liveliness::TopicInfo{rmw_subscription->topic_name,
-      sub_data->type_support->get_name(), "reliable"}
+      sub_data->type_support->get_name(), sub_data->adapted_qos_profile}
   );
   if (!liveliness_entity.has_value()) {
     RCUTILS_LOG_ERROR_NAMED(
@@ -1395,9 +1507,19 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
     RMW_TRY_DESTRUCTOR(sub_data->type_support->~MessageTypeSupport(), MessageTypeSupport, );
     allocator->deallocate(sub_data->type_support, allocator->state);
 
-    if (z_undeclare_subscriber(z_move(sub_data->sub))) {
-      RMW_SET_ERROR_MSG("failed to undeclare sub");
-      ret = RMW_RET_ERROR;
+    z_owned_subscriber_t * sub = std::get_if<z_owned_subscriber_t>(&sub_data->sub);
+    if (sub != nullptr) {
+      if (z_undeclare_subscriber(sub)) {
+        RMW_SET_ERROR_MSG("failed to undeclare sub");
+        ret = RMW_RET_ERROR;
+      }
+    } else {
+      ze_owned_querying_subscriber_t * querying_sub =
+        std::get_if<ze_owned_querying_subscriber_t>(&sub_data->sub);
+      if (querying_sub == nullptr || ze_undeclare_querying_subscriber(querying_sub)) {
+        RMW_SET_ERROR_MSG("failed to undeclare sub");
+        ret = RMW_RET_ERROR;
+      }
     }
 
     RMW_TRY_DESTRUCTOR(sub_data->~rmw_subscription_data_t(), rmw_subscription_data_t, );
@@ -1416,12 +1538,23 @@ rmw_subscription_count_matched_publishers(
   const rmw_subscription_t * subscription,
   size_t * publisher_count)
 {
-  static_cast<void>(subscription);
+  RMW_CHECK_ARGUMENT_FOR_NULL(subscription, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(subscription->data, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    subscription,
+    subscription->implementation_identifier,
+    rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_ARGUMENT_FOR_NULL(publisher_count, RMW_RET_INVALID_ARGUMENT);
 
-  // TODO(clalancette): implement
-  *publisher_count = 0;
+  rmw_subscription_data_t * sub_data = static_cast<rmw_subscription_data_t *>(subscription->data);
+  RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(sub_data->context, RMW_RET_INVALID_ARGUMENT);
+  rmw_context_impl_t * context_impl = static_cast<rmw_context_impl_t *>(sub_data->context->impl);
+  RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
 
-  return RMW_RET_UNSUPPORTED;
+  return context_impl->graph_cache.subscription_count_matched_publishers(
+    subscription, publisher_count);
 }
 
 //==============================================================================
@@ -1442,8 +1575,7 @@ rmw_subscription_get_actual_qos(
   auto sub_data = static_cast<rmw_subscription_data_t *>(subscription->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
 
-  qos->reliability = sub_data->reliable ? RMW_QOS_POLICY_RELIABILITY_RELIABLE :
-    RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT;
+  *qos = sub_data->adapted_qos_profile;
   return RMW_RET_OK;
 }
 
@@ -1890,7 +2022,7 @@ rmw_create_client(
     liveliness::EntityType::Client,
     liveliness::NodeInfo{node->context->actual_domain_id, node->namespace_, node->name, ""},
     liveliness::TopicInfo{rmw_client->service_name,
-      std::move(service_type), "reliable"}
+      std::move(service_type), client_data->adapted_qos_profile}
   );
   if (!liveliness_entity.has_value()) {
     RCUTILS_LOG_ERROR_NAMED(
@@ -2303,9 +2435,18 @@ rmw_client_request_publisher_get_actual_qos(
   const rmw_client_t * client,
   rmw_qos_profile_t * qos)
 {
-  // TODO(francocipollone): Fix.
-  static_cast<void>(client);
-  static_cast<void>(qos);
+  RMW_CHECK_ARGUMENT_FOR_NULL(client, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    client,
+    client->implementation_identifier,
+    rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_ARGUMENT_FOR_NULL(qos, RMW_RET_INVALID_ARGUMENT);
+
+  rmw_client_data_t * client_data = static_cast<rmw_client_data_t *>(client->data);
+  RMW_CHECK_ARGUMENT_FOR_NULL(client_data, RMW_RET_INVALID_ARGUMENT);
+
+  *qos = client_data->adapted_qos_profile;
   return RMW_RET_OK;
 }
 
@@ -2316,10 +2457,8 @@ rmw_client_response_subscription_get_actual_qos(
   const rmw_client_t * client,
   rmw_qos_profile_t * qos)
 {
-  // TODO(francocipollone): Fix.
-  static_cast<void>(client);
-  static_cast<void>(qos);
-  return RMW_RET_OK;
+  // The same QoS profile is used for sending requests and receiving responses.
+  return rmw_client_request_publisher_get_actual_qos(client, qos);
 }
 
 //==============================================================================
@@ -2412,6 +2551,10 @@ rmw_create_service(
         service_data->~rmw_service_data_t(),
         rmw_service_data_t);
     });
+
+  // Adapt any 'best available' QoS options
+  service_data->adapted_qos_profile =
+    rmw_dds_common::qos_profile_update_best_available_for_services(*qos_profiles);
 
   // Get the RMW type support.
   const rosidl_service_type_support_t * type_support = find_service_type_support(type_supports);
@@ -2539,7 +2682,7 @@ rmw_create_service(
     liveliness::EntityType::Service,
     liveliness::NodeInfo{node->context->actual_domain_id, node->namespace_, node->name, ""},
     liveliness::TopicInfo{rmw_service->service_name,
-      std::move(service_type), "reliable"}
+      std::move(service_type), service_data->adapted_qos_profile}
   );
   if (!liveliness_entity.has_value()) {
     RCUTILS_LOG_ERROR_NAMED(
@@ -2833,9 +2976,18 @@ rmw_service_request_subscription_get_actual_qos(
   const rmw_service_t * service,
   rmw_qos_profile_t * qos)
 {
-  // TODO(yadunund): Fix.
-  static_cast<void>(service);
-  static_cast<void>(qos);
+  RMW_CHECK_ARGUMENT_FOR_NULL(service, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    service,
+    service->implementation_identifier,
+    rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_ARGUMENT_FOR_NULL(qos, RMW_RET_INVALID_ARGUMENT);
+
+  rmw_service_data_t * service_data = static_cast<rmw_service_data_t *>(service->data);
+  RMW_CHECK_ARGUMENT_FOR_NULL(service_data, RMW_RET_INVALID_ARGUMENT);
+
+  *qos = service_data->adapted_qos_profile;
   return RMW_RET_OK;
 }
 
@@ -2846,10 +2998,8 @@ rmw_service_response_publisher_get_actual_qos(
   const rmw_service_t * service,
   rmw_qos_profile_t * qos)
 {
-  // TODO(yadunund): Fix.
-  static_cast<void>(service);
-  static_cast<void>(qos);
-  return RMW_RET_OK;
+  // The same QoS profile is used for receiving requests and sending responses.
+  return rmw_service_request_subscription_get_actual_qos(service, qos);
 }
 
 //==============================================================================

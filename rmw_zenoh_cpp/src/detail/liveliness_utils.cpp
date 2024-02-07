@@ -25,6 +25,8 @@
 #include "rcpputils/scope_exit.hpp"
 #include "rcutils/logging_macros.h"
 
+#include "rmw/error_handling.h"
+
 
 namespace liveliness
 {
@@ -47,7 +49,7 @@ NodeInfo::NodeInfo(
 TopicInfo::TopicInfo(
   std::string name,
   std::string type,
-  std::string qos)
+  rmw_qos_profile_t qos)
 : name_(std::move(name)),
   type_(std::move(type)),
   qos_(std::move(qos))
@@ -67,6 +69,8 @@ static const char SUB_STR[] = "MS";
 static const char SRV_STR[] = "SS";
 static const char CLI_STR[] = "SC";
 static const char SLASH_REPLACEMENT = '%';
+static const char QOS_DELIMITER = ':';
+static const char QOS_HISTORY_DELIMITER = ',';
 
 static const std::unordered_map<EntityType, std::string> entity_to_str = {
   {EntityType::Node, NODE_STR},
@@ -84,18 +88,136 @@ static const std::unordered_map<std::string, EntityType> str_to_entity = {
   {CLI_STR, EntityType::Client}
 };
 
+static const std::unordered_map<std::string, rmw_qos_history_policy_e> str_to_qos_history = {
+  {std::to_string(RMW_QOS_POLICY_HISTORY_SYSTEM_DEFAULT), RMW_QOS_POLICY_HISTORY_SYSTEM_DEFAULT},
+  {std::to_string(RMW_QOS_POLICY_HISTORY_KEEP_LAST), RMW_QOS_POLICY_HISTORY_KEEP_LAST},
+  {std::to_string(RMW_QOS_POLICY_HISTORY_KEEP_ALL), RMW_QOS_POLICY_HISTORY_KEEP_ALL},
+  {std::to_string(RMW_QOS_POLICY_HISTORY_UNKNOWN), RMW_QOS_POLICY_HISTORY_UNKNOWN}
+};
+
+static const std::unordered_map<std::string,
+  rmw_qos_reliability_policy_e> str_to_qos_reliability = {
+  {std::to_string(RMW_QOS_POLICY_RELIABILITY_SYSTEM_DEFAULT),
+    RMW_QOS_POLICY_RELIABILITY_SYSTEM_DEFAULT},
+  {std::to_string(RMW_QOS_POLICY_RELIABILITY_RELIABLE), RMW_QOS_POLICY_RELIABILITY_RELIABLE},
+  {std::to_string(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT), RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT},
+  {std::to_string(RMW_QOS_POLICY_RELIABILITY_UNKNOWN), RMW_QOS_POLICY_RELIABILITY_UNKNOWN}
+};
+
+static const std::unordered_map<std::string, rmw_qos_durability_policy_e> str_to_qos_durability = {
+  {std::to_string(RMW_QOS_POLICY_DURABILITY_SYSTEM_DEFAULT),
+    RMW_QOS_POLICY_DURABILITY_SYSTEM_DEFAULT},
+  {std::to_string(RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL),
+    RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL},
+  {std::to_string(RMW_QOS_POLICY_DURABILITY_VOLATILE), RMW_QOS_POLICY_DURABILITY_VOLATILE},
+  {std::to_string(RMW_QOS_POLICY_DURABILITY_UNKNOWN), RMW_QOS_POLICY_DURABILITY_UNKNOWN}
+};
+
 std::string zid_to_str(z_id_t id)
 {
   std::stringstream ss;
   ss << std::hex;
   size_t i = 0;
-  for (; i < (sizeof(id.id) - 1); i++) {
-    ss << static_cast<int>(id.id[i]) << ".";
+  for (; i < (sizeof(id.id)); i++) {
+    ss << static_cast<int>(id.id[i]);
   }
-  ss << static_cast<int>(id.id[i]);
   return ss.str();
 }
 
+std::vector<std::string> split_keyexpr(
+  const std::string & keyexpr,
+  const char delim = '/')
+{
+  std::vector<std::string> result = {};
+  size_t start = 0;
+  size_t end = keyexpr.find(delim);
+  while (end != std::string::npos) {
+    result.push_back(keyexpr.substr(start, end - start));
+    start = end + 1;
+    end = keyexpr.find(delim, start);
+  }
+  // Finally add the last substr.
+  result.push_back(keyexpr.substr(start));
+  return result;
+}
+
+/**
+ * Convert a rmw_qos_profile_t to a string with format:
+ *
+ * <ReliabilityKind>:<DurabilityKind>:<HistoryKind>,<HistoryDepth>"
+ * Where:
+ *  <ReliabilityKind> - enum value from rmw_qos_reliability_policy_e.
+ *  <DurabilityKind> - enum value from rmw_qos_durability_policy_e.
+ *  <HistoryKind> - enum value from rmw_qos_history_policy_e.
+ *  <HistoryDepth> - The depth number.
+ * For example, the liveliness substring for a topic with Reliability policy: reliable,
+ * Durability policy: volatile, History policy: keep_last, and depth: 10, would be
+ * "1:2:1,10". See rmw/types.h for the values of each policy enum.
+ */
+// TODO(Yadunund): Rely on maps to retrieve strings.
+std::string qos_to_keyexpr(rmw_qos_profile_t qos)
+{
+  std::string keyexpr = "";
+  keyexpr += std::to_string(qos.reliability);
+  keyexpr += QOS_DELIMITER;
+  keyexpr += std::to_string(qos.durability);
+  keyexpr += QOS_DELIMITER;
+  keyexpr += std::to_string(qos.history);
+  keyexpr += QOS_HISTORY_DELIMITER;
+  keyexpr += std::to_string(qos.depth);
+  return keyexpr;
+}
+
+/// Convert a rmw_qos_profile_t from a keyexpr. Return std::nullopt if invalid.
+std::optional<rmw_qos_profile_t> keyexpr_to_qos(const std::string & keyexpr)
+{
+  rmw_qos_profile_t qos;
+  const std::vector<std::string> parts = split_keyexpr(keyexpr, QOS_DELIMITER);
+  if (parts.size() < 3) {
+    return std::nullopt;
+  }
+  const std::vector<std::string> history_parts = split_keyexpr(parts[2], QOS_HISTORY_DELIMITER);
+  if (history_parts.size() < 2) {
+    return std::nullopt;
+  }
+
+  try {
+    qos.history = str_to_qos_history.at(history_parts[0]);
+    qos.reliability = str_to_qos_reliability.at(parts[0]);
+    qos.durability = str_to_qos_durability.at(parts[1]);
+  } catch (const std::exception & e) {
+    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("Error setting QoS values from strings: %s", e.what());
+    return std::nullopt;
+  }
+  // Get the history depth.
+  errno = 0;
+  char * endptr;
+  size_t num = strtoul(history_parts[1].c_str(), &endptr, 10);
+  if (endptr == history_parts[1].c_str()) {
+    // No values were converted, this is an error
+    RMW_SET_ERROR_MSG("no valid numbers available");
+    return std::nullopt;
+  } else if (*endptr != '\0') {
+    // There was junk after the number
+    RMW_SET_ERROR_MSG("non-numeric values");
+    return std::nullopt;
+  } else if (errno != 0) {
+    // Some other error occurred, which may include overflow or underflow
+    RMW_SET_ERROR_MSG(
+      "an undefined error occurred while getting the number, this may be an overflow");
+    return std::nullopt;
+  }
+  qos.depth = num;
+
+  // Liveliness is always automatic given liveliness tokens.
+  qos.liveliness = RMW_QOS_POLICY_LIVELINESS_AUTOMATIC;
+  qos.liveliness_lease_duration = RMW_QOS_LIVELINESS_LEASE_DURATION_DEFAULT;
+
+  // TODO(Yadunund): Update once we support these settings.
+  qos.deadline = RMW_QOS_DEADLINE_DEFAULT;
+  qos.lifespan = RMW_QOS_LIFESPAN_DEFAULT;
+  return qos;
+}
 }  // namespace
 
 ///=============================================================================
@@ -135,7 +257,15 @@ Entity::Entity(
    * <ADMIN_SPACE>/<domainid>/<id>/<entity>/<namespace>/<nodename>/<topic_name>/<topic_type>/<topic_qos>
    *  <topic_name> - The ROS topic name for this entity.
    *  <topic_type> - The type for the topic.
-   *  <topic_qos> - The qos for the topic.
+   *  <topic_qos> - The qos for the topic (see qos_to_keyexpr() docstring for more information).
+   *
+   * For example, the liveliness expression for a publisher within a /talker node that publishes
+   * an std_msgs/msg/String over topic /chatter and with QoS settings of Reliability: best_effort,
+   * Durability: transient_local, History: keep_all, and depth: 10, would be
+   * "@ros2_lv/0/q1w2e3r4t5y6/MP/_/talker/dds_::std_msgs::msg::String/2:1:2,10".
+   * Note: The domain_id is assumed to be 0 and a random id is used in the example. Also the
+   *  _dds:: prefix in the topic_type is an artifact of the type support implementation and is
+   *  removed when reporting the topic_type in graph_cache.cpp (see _demangle_if_ros_type()).
    */
   std::stringstream token_ss;
   const std::string & ns = node_info_.ns_;
@@ -156,7 +286,8 @@ Entity::Entity(
     const auto & topic_info = this->topic_info_.value();
     // Note: We don't append a leading "/" as we expect the ROS topic name to start with a "/".
     token_ss <<
-      "/" + mangle_name(topic_info.name_) + "/" + topic_info.type_ + "/" + topic_info.qos_;
+      "/" + mangle_name(topic_info.name_) + "/" + topic_info.type_ + "/" + qos_to_keyexpr(
+      topic_info.qos_);
   }
 
   this->keyexpr_ = token_ss.str();
@@ -185,41 +316,6 @@ std::optional<Entity> Entity::make(
   Entity entity{zid_to_str(id), std::move(type), std::move(node_info), std::move(topic_info)};
   return entity;
 }
-
-namespace
-{
-///=============================================================================
-std::vector<std::string> split_keyexpr(
-  const std::string & keyexpr,
-  const char delim = '/')
-{
-  std::vector<std::size_t> delim_idx = {};
-  // Insert -1 for starting position to make the split easier when using substr.
-  delim_idx.push_back(-1);
-  std::size_t idx = 0;
-  for (std::string::const_iterator it = keyexpr.begin(); it != keyexpr.end(); ++it) {
-    if (*it == delim) {
-      delim_idx.push_back(idx);
-    }
-    ++idx;
-  }
-  std::vector<std::string> result = {};
-  try {
-    for (std::size_t i = 1; i < delim_idx.size(); ++i) {
-      const size_t prev_idx = delim_idx[i - 1];
-      const size_t idx = delim_idx[i];
-      result.push_back(keyexpr.substr(prev_idx + 1, idx - prev_idx - 1));
-    }
-  } catch (const std::exception & e) {
-    printf("%s\n", e.what());
-    return {};
-  }
-  // Finally add the last substr.
-  result.push_back(keyexpr.substr(delim_idx.back() + 1));
-  return result;
-}
-
-}  // namespace
 
 ///=============================================================================
 std::optional<Entity> Entity::make(const std::string & keyexpr)
@@ -276,10 +372,18 @@ std::optional<Entity> Entity::make(const std::string & keyexpr)
         "Received liveliness token for non-node entity without required parameters.");
       return std::nullopt;
     }
+    std::optional<rmw_qos_profile_t> qos = keyexpr_to_qos(parts[8]);
+    if (!qos.has_value()) {
+      RCUTILS_LOG_ERROR_NAMED(
+        "rmw_zenoh_cpp",
+        "Received liveliness token with invalid qos keyexpr");
+      return std::nullopt;
+    }
     topic_info = TopicInfo{
       demangle_name(std::move(parts[6])),
       std::move(parts[7]),
-      std::move(parts[8])};
+      std::move(qos.value())
+    };
   }
 
   return Entity{

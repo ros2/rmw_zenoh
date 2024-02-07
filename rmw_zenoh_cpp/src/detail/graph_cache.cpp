@@ -34,6 +34,7 @@
 #include "rmw/validate_node_name.h"
 
 #include "graph_cache.hpp"
+#include "rmw_data_types.hpp"
 
 ///=============================================================================
 using Entity = liveliness::Entity;
@@ -680,6 +681,46 @@ rmw_ret_t GraphCache::get_topic_names_and_types(
 }
 
 ///=============================================================================
+rmw_ret_t GraphCache::publisher_count_matched_subscriptions(
+  const rmw_publisher_t * publisher,
+  size_t * subscription_count)
+{
+  // TODO(Yadunund): Check if QoS settings also match.
+  *subscription_count = 0;
+  GraphNode::TopicMap::const_iterator topic_it = graph_topics_.find(publisher->topic_name);
+  if (topic_it != graph_topics_.end()) {
+    rmw_publisher_data_t * pub_data = static_cast<rmw_publisher_data_t *>(publisher->data);
+    GraphNode::TopicDataMap::const_iterator topic_data_it = topic_it->second.find(
+      pub_data->type_support->get_name());
+    if (topic_data_it != topic_it->second.end()) {
+      *subscription_count = topic_data_it->second->stats_.sub_count_;
+    }
+  }
+
+  return RMW_RET_OK;
+}
+
+///=============================================================================
+rmw_ret_t GraphCache::subscription_count_matched_publishers(
+  const rmw_subscription_t * subscription,
+  size_t * publisher_count)
+{
+  // TODO(Yadunund): Check if QoS settings also match.
+  *publisher_count = 0;
+  GraphNode::TopicMap::const_iterator topic_it = graph_topics_.find(subscription->topic_name);
+  if (topic_it != graph_topics_.end()) {
+    rmw_subscription_data_t * sub_data = static_cast<rmw_subscription_data_t *>(subscription->data);
+    GraphNode::TopicDataMap::const_iterator topic_data_it = topic_it->second.find(
+      sub_data->type_support->get_name());
+    if (topic_data_it != topic_it->second.end()) {
+      *publisher_count = topic_data_it->second->stats_.pub_count_;
+    }
+  }
+
+  return RMW_RET_OK;
+}
+
+///=============================================================================
 rmw_ret_t GraphCache::get_service_names_and_types(
   rcutils_allocator_t * allocator,
   rmw_names_and_types_t * service_names_and_types) const
@@ -893,7 +934,7 @@ rmw_ret_t GraphCache::get_entities_info_by_topic(
       entity_type == EntityType::Publisher ? nodes[i]->pubs_ :
       nodes[i]->subs_;
     const GraphNode::TopicDataMap & topic_data_map = entity_map.find(topic_name)->second;
-    for (const auto & [topic_data, _] : topic_data_map) {
+    for (const auto & [topic_type, topic_data] : topic_data_map) {
       rmw_topic_endpoint_info_t & endpoint_info = endpoints_info->info_array[i];
       endpoint_info = rmw_get_zero_initialized_topic_endpoint_info();
 
@@ -915,7 +956,7 @@ rmw_ret_t GraphCache::get_entities_info_by_topic(
 
       ret = rmw_topic_endpoint_info_set_topic_type(
         &endpoint_info,
-        _demangle_if_ros_type(topic_data).c_str(),
+        _demangle_if_ros_type(topic_type).c_str(),
         allocator);
       if (RMW_RET_OK != ret) {
         return ret;
@@ -927,7 +968,16 @@ rmw_ret_t GraphCache::get_entities_info_by_topic(
       if (RMW_RET_OK != ret) {
         return ret;
       }
-      // TODO(Yadunund): Set type_hash, qos_profile, gid.
+
+      ret = rmw_topic_endpoint_info_set_qos_profile(
+        &endpoint_info,
+        &topic_data->info_.qos_
+      );
+      if (RMW_RET_OK != ret) {
+        return ret;
+      }
+
+      // TODO(Yadunund): Set type_hash, gid.
     }
   }
 

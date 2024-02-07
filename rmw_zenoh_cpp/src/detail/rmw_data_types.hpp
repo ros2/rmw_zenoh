@@ -26,6 +26,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "rcutils/allocator.h"
@@ -44,8 +45,9 @@ struct rmw_context_impl_s
   // An owned session.
   z_owned_session_t session;
 
-  // The SHM manager.
-  zc_owned_shm_manager_t shm_manager;
+  // An optional SHM manager that is initialized of SHM is enabled in the
+  // zenoh session config.
+  std::optional<zc_owned_shm_manager_t> shm_manager;
 
   z_owned_subscriber_t graph_subscriber;
 
@@ -73,6 +75,12 @@ struct rmw_publisher_data_t
 {
   // An owned publisher.
   z_owned_publisher_t pub;
+
+  // Optional publication cache when durability is transient_local.
+  std::optional<ze_owned_publication_cache_t> pub_cache;
+
+  // Store the actual QoS profile used to configure this publisher.
+  rmw_qos_profile_t adapted_qos_profile;
 
   // Liveliness token for the publisher.
   zc_owned_liveliness_token_t token;
@@ -112,7 +120,11 @@ struct saved_msg_data
 class rmw_subscription_data_t final
 {
 public:
-  z_owned_subscriber_t sub;
+  // An owned subscriber or querying_subscriber depending on the QoS settings.
+  std::variant<z_owned_subscriber_t, ze_owned_querying_subscriber_t> sub;
+
+  // Store the actual QoS profile used to configure this subscription.
+  rmw_qos_profile_t adapted_qos_profile;
 
   // Liveliness token for the subscription.
   zc_owned_liveliness_token_t token;
@@ -121,9 +133,6 @@ public:
   const char * typesupport_identifier;
   MessageTypeSupport * type_support;
   rmw_context_t * context;
-
-  size_t queue_depth;
-  bool reliable;
 
   void attach_condition(std::condition_variable * condition_variable);
 
@@ -172,6 +181,10 @@ class rmw_service_data_t final
 public:
   z_owned_keyexpr_t keyexpr;
   z_owned_queryable_t qable;
+
+  // Store the actual QoS profile used to configure this service.
+  // The QoS is reused for getting requests and sending responses.
+  rmw_qos_profile_t adapted_qos_profile;
 
   // Liveliness token for the service.
   zc_owned_liveliness_token_t token;
@@ -233,6 +246,10 @@ class rmw_client_data_t final
 public:
   z_owned_keyexpr_t keyexpr;
   z_owned_closure_reply_t zn_closure_reply;
+
+  // Store the actual QoS profile used to configure this client.
+  // The QoS is reused for sending requests and getting responses.
+  rmw_qos_profile_t adapted_qos_profile;
 
   // Liveliness token for the client.
   zc_owned_liveliness_token_t token;

@@ -77,18 +77,24 @@ void rmw_subscription_data_t::add_new_message(
 {
   std::lock_guard<std::mutex> lock(message_queue_mutex_);
 
-  if (message_queue_.size() >= queue_depth) {
+  if (message_queue_.size() >= adapted_qos_profile.depth) {
     // Log warning if message is discarded due to hitting the queue depth
-    RCUTILS_LOG_WARN_NAMED(
+    RCUTILS_LOG_DEBUG_NAMED(
       "rmw_zenoh_cpp",
       "Message queue depth of %ld reached, discarding oldest message "
       "for subscription for %s",
-      queue_depth,
+      adapted_qos_profile.depth,
       topic_name.c_str());
 
-    std::unique_ptr<saved_msg_data> old = std::move(message_queue_.front());
-    z_drop(z_move(old->payload));
-    message_queue_.pop_front();
+    // If the adapted_qos_profile.depth is 0, the std::move command below will result
+    // in UB and the z_drop will segfault. We explicitly set the depth to a minimum of 1
+    // in rmw_create_subscription() but to be safe, we only attempt to discard from the
+    // queue if it is non-empty.
+    if (!message_queue_.empty()) {
+      std::unique_ptr<saved_msg_data> old = std::move(message_queue_.front());
+      z_drop(z_move(old->payload));
+      message_queue_.pop_front();
+    }
   }
 
   message_queue_.emplace_back(std::move(msg));

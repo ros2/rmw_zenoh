@@ -195,14 +195,18 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
       z_loan(context->impl->session),
       idstr,
       SHM_BUFFER_SIZE_MB * 1024 * 1024);
-    if (!zc_shm_manager_check(&context->impl->shm_manager)) {
+    if (!context->impl->shm_manager.has_value() ||
+      !zc_shm_manager_check(&context->impl->shm_manager.value()))
+    {
       RMW_SET_ERROR_MSG("Unable to create shm manager.");
       return RMW_RET_ERROR;
     }
   }
   auto free_shm_manager = rcpputils::make_scope_exit(
     [context]() {
-      z_drop(z_move(context->impl->shm_manager));
+      if (context->impl->shm_manager.has_value()) {
+        z_drop(z_move(context->impl->shm_manager.value()));
+      }
     });
 
   // Initialize the guard condition.
@@ -252,6 +256,15 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   // is too low, the channel may starve the zenoh executor of its threads which
   // would lead to deadlocks when trying to receive replies and block the
   // execution here.
+  // The blocking channel will return when the sender end is closed which is
+  // the moment the query finishes.
+  // The non-blocking fifo exists only for the use case where we don't want to
+  // block the thread between responses (including the request termination response).
+  // In general, unless we want to cooperatively schedule other tasks on the same
+  // thread as reading the fifo, the blocking fifo will be more appropriate as
+  // the code will be simpler, and if we're just going to spin over the non-blocking
+  // reads until we obtain responses, we'll just be hogging CPU time by convincing
+  // the OS that we're doing actual work when it could instead park the thread.
   z_owned_reply_channel_t channel = zc_reply_fifo_new(0);
   zc_liveliness_get(
     z_loan(context->impl->session), z_keyexpr(liveliness_str.c_str()),
@@ -263,7 +276,12 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   //   z_loan(context->impl->session), z_keyexpr(liveliness_str.c_str()), "", z_move(channel.send),
   //   &opts);      // here, the send is moved and will be dropped by zenoh when adequate
   z_owned_reply_t reply = z_reply_null();
-  for (z_call(channel.recv, &reply); z_check(reply); z_call(channel.recv, &reply)) {
+  for (bool call_success = z_call(channel.recv, &reply); !call_success || z_check(reply);
+    call_success = z_call(channel.recv, &reply))
+  {
+    if (!call_success) {
+      continue;
+    }
     if (z_reply_is_ok(&reply)) {
       z_sample_t sample = z_reply_ok(&reply);
       z_owned_str_t keystr = z_keyexpr_to_string(sample.keyexpr);
@@ -335,11 +353,10 @@ rmw_shutdown(rmw_context_t * context)
     rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
-  // We destroy zenoh artifacts here instead of rmw_shutdown() as
-  // rmw_shutdown() is invoked before rmw_destroy_node() however we still need the session
-  // alive for the latter.
-  // TODO(Yadunund): Check if this is a bug in rmw.
   z_undeclare_subscriber(z_move(context->impl->graph_subscriber));
+  if (context->impl->shm_manager.has_value()) {
+    z_drop(z_move(context->impl->shm_manager.value()));
+  }
   // Close the zenoh session
   if (z_close(z_move(context->impl->session)) < 0) {
     RMW_SET_ERROR_MSG("Error while closing zenoh session");
@@ -347,8 +364,6 @@ rmw_shutdown(rmw_context_t * context)
   }
 
   const rcutils_allocator_t * allocator = &context->options.allocator;
-
-  z_drop(z_move(context->impl->shm_manager));
 
   RMW_TRY_DESTRUCTOR(
     static_cast<GuardCondition *>(context->impl->graph_guard_condition->data)->~GuardCondition(),
