@@ -57,7 +57,15 @@
 
 #include "rmw_dds_common/qos.hpp"
 
-#define RMW_ZENOH_DEFAULT_HISTORY_DEPTH 1;
+// If the depth field in the qos profile is set to 0, the RMW implementation
+// has the liberty to assign a default depth. The zenoh transport protocol
+// is configured with 256 channels so theoretically, this would be the maximum
+// depth we can set before blocking transport. A high depth would increase the
+// memory footprint of processes as more messages are stored in memory while a
+// very low depth might unintentionally drop messages leading to a poor
+// out-of-the-box experience for new users. For now we set the depth to 42,
+// a popular "magic number". See https://en.wikipedia.org/wiki/42_(number).
+#define RMW_ZENOH_DEFAULT_HISTORY_DEPTH 42;
 
 namespace
 {
