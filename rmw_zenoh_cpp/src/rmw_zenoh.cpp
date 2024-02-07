@@ -3504,10 +3504,23 @@ rmw_get_gid_for_client(const rmw_client_t * client, rmw_gid_t * gid)
 rmw_ret_t
 rmw_compare_gids_equal(const rmw_gid_t * gid1, const rmw_gid_t * gid2, bool * result)
 {
-  static_cast<void>(gid1);
-  static_cast<void>(gid2);
-  static_cast<void>(result);
-  return RMW_RET_UNSUPPORTED;
+  RMW_CHECK_ARGUMENT_FOR_NULL(gid1, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    gid1,
+    gid1->implementation_identifier,
+    rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_ARGUMENT_FOR_NULL(gid2, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    gid2,
+    gid2->implementation_identifier,
+    rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_ARGUMENT_FOR_NULL(result, RMW_RET_INVALID_ARGUMENT);
+
+  *result = memcmp(gid1->data, gid2->data, RMW_GID_STORAGE_SIZE) == 0;
+
+  return RMW_RET_OK;
 }
 
 //==============================================================================
