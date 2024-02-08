@@ -205,6 +205,7 @@ void GraphCache::parse_put(const std::string & keyexpr)
     NodeMap node_map = {
       {entity.node_name(), make_graph_node(entity, *this)}};
     graph_.emplace(std::make_pair(entity.node_namespace(), std::move(node_map)));
+    total_nodes_in_graph_ += 1;
     return;
   }
 
@@ -226,6 +227,7 @@ void GraphCache::parse_put(const std::string & keyexpr)
     // name but unique id.
     NodeMap::iterator insertion_it =
       ns_it->second.insert(std::make_pair(entity.node_name(), make_graph_node(entity, *this)));
+    total_nodes_in_graph_ += 1;
     if (insertion_it == ns_it->second.end()) {
       RCUTILS_LOG_ERROR_NAMED(
         "rmw_zenoh_cpp",
@@ -456,6 +458,10 @@ void GraphCache::parse_del(const std::string & keyexpr)
       remove_topics(graph_node->clients_, EntityType::Client, *this);
     }
     ns_it->second.erase(node_it);
+    total_nodes_in_graph_ -= 1;
+    if (ns_it->second.size() == 0) {
+      graph_.erase(entity.node_namespace());
+    }
     return;
   }
 
@@ -494,13 +500,8 @@ rmw_ret_t GraphCache::get_node_names(
   RCUTILS_CHECK_ALLOCATOR_WITH_MSG(
     allocator, "get_node_names allocator is not valid", return RMW_RET_INVALID_ARGUMENT);
 
-  size_t nodes_number = 0;
-  for (const std::pair<const std::string, NodeMap> & it : graph_) {
-    nodes_number += it.second.size();
-  }
-
   rcutils_ret_t rcutils_ret =
-    rcutils_string_array_init(node_names, nodes_number, allocator);
+    rcutils_string_array_init(node_names, total_nodes_in_graph_, allocator);
   if (rcutils_ret != RCUTILS_RET_OK) {
     return RMW_RET_BAD_ALLOC;
   }
@@ -515,7 +516,7 @@ rmw_ret_t GraphCache::get_node_names(
     });
 
   rcutils_ret =
-    rcutils_string_array_init(node_namespaces, nodes_number, allocator);
+    rcutils_string_array_init(node_namespaces, total_nodes_in_graph_, allocator);
   if (rcutils_ret != RCUTILS_RET_OK) {
     return RMW_RET_BAD_ALLOC;
   }
@@ -541,7 +542,7 @@ rmw_ret_t GraphCache::get_node_names(
   std::shared_ptr<rcpputils::scope_exit<decltype(free_enclaves_lambda)>> free_enclaves{nullptr};
   if (enclaves) {
     rcutils_ret =
-      rcutils_string_array_init(enclaves, nodes_number, allocator);
+      rcutils_string_array_init(enclaves, total_nodes_in_graph_, allocator);
     if (RCUTILS_RET_OK != rcutils_ret) {
       return RMW_RET_BAD_ALLOC;
     }

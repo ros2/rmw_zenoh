@@ -119,21 +119,6 @@ private:
   std::string keyexpr_;
 };
 
-///=============================================================================
-/// Helper utilities to put/delete tokens until liveliness is supported in the
-/// zenoh-c bindings.
-class PublishToken
-{
-public:
-  static bool put(
-    z_owned_session_t * session,
-    const std::string & token);
-
-  static bool del(
-    z_owned_session_t * session,
-    const std::string & token);
-};
-
 /// Replace "/" instances with "%".
 std::string mangle_name(const std::string & input);
 
