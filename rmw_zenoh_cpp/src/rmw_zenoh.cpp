@@ -25,7 +25,6 @@
 #include <new>
 #include <optional>
 #include <random>
-#include <sstream>
 #include <string>
 #include <utility>
 
@@ -82,6 +81,8 @@ namespace
 z_owned_keyexpr_t ros_topic_name_to_zenoh_key(
   const char * const topic_name, size_t domain_id, rcutils_allocator_t * allocator)
 {
+  std::string d = std::to_string(domain_id);
+
   size_t start_offset = 0;
   size_t topic_name_len = strlen(topic_name);
   size_t end_offset = topic_name_len;
@@ -97,18 +98,17 @@ z_owned_keyexpr_t ros_topic_name_to_zenoh_key(
     }
   }
 
-  std::stringstream domain_ss;
-  domain_ss << domain_id;
   char * stripped_topic_name = rcutils_strndup(
     &topic_name[start_offset], end_offset - start_offset, *allocator);
   if (stripped_topic_name == nullptr) {
     return z_keyexpr_null();
   }
-  z_owned_keyexpr_t keyexpr = z_keyexpr_join(
-    z_keyexpr(domain_ss.str().c_str()), z_keyexpr(stripped_topic_name));
+
+  z_owned_keyexpr_t ret = z_keyexpr_join(z_keyexpr(d.c_str()), z_keyexpr(stripped_topic_name));
+
   allocator->deallocate(stripped_topic_name, allocator->state);
 
-  return keyexpr;
+  return ret;
 }
 
 //==============================================================================
@@ -259,17 +259,11 @@ rmw_create_node(
       allocator->deallocate(node, allocator->state);
     });
 
-  size_t name_len = strlen(name);
-  // We specifically don't use rcutils_strdup() here because we want to avoid iterating over the
-  // name again looking for the \0 (we already did that above).
-  char * new_string = static_cast<char *>(allocator->allocate(name_len + 1, allocator->state));
+  node->name = rcutils_strdup(name, *allocator);
   RMW_CHECK_FOR_NULL_WITH_MSG(
-    new_string,
+    node->name,
     "unable to allocate memory for node name",
     return nullptr);
-  memcpy(new_string, name, name_len);
-  new_string[name_len] = '\0';
-  node->name = new_string;
   auto free_name = rcpputils::make_scope_exit(
     [node, allocator]() {
       allocator->deallocate(const_cast<char *>(node->name), allocator->state);
@@ -285,8 +279,6 @@ rmw_create_node(
       allocator->deallocate(const_cast<char *>(node->namespace_), allocator->state);
     });
 
-  // TODO(yadunund): Register with storage system here and throw error if
-  // zenohd is not running.
   // Put metadata into node->data.
   node->data = allocator->zero_allocate(1, sizeof(rmw_node_data_t), allocator->state);
   RMW_CHECK_FOR_NULL_WITH_MSG(
@@ -301,16 +293,6 @@ rmw_create_node(
   node->implementation_identifier = rmw_zenoh_identifier;
   node->context = context;
 
-  // Uncomment and rely on #if #endif blocks to enable this feature when building with
-  // zenoh-pico since liveliness is only available in zenoh-c.
-  // Publish to the graph that a new node is in town
-  // const bool pub_result = PublishToken::put(
-  //   &node->context->impl->session,
-  //   liveliness::GenerateToken::node(context->actual_domain_id, namespace_, name)
-  // );
-  // if (!pub_result) {
-  //   return nullptr;
-  // }
   // Initialize liveliness token for the node to advertise that a new node is in town.
   rmw_node_data_t * node_data = static_cast<rmw_node_data_t *>(node->data);
   const auto liveliness_entity = liveliness::Entity::make(
@@ -329,11 +311,8 @@ rmw_create_node(
     NULL
   );
   auto free_token = rcpputils::make_scope_exit(
-    [node]() {
-      if (node->data != nullptr) {
-        rmw_node_data_t * node_data = static_cast<rmw_node_data_t *>(node->data);
-        z_drop(z_move(node_data->token));
-      }
+    [node_data]() {
+      z_drop(z_move(node_data->token));
     });
   if (!z_check(node_data->token)) {
     RCUTILS_LOG_ERROR_NAMED(
@@ -342,11 +321,11 @@ rmw_create_node(
     return nullptr;
   }
 
+  free_token.cancel();
   free_node_data.cancel();
   free_namespace.cancel();
   free_name.cancel();
   free_node.cancel();
-  free_token.cancel();
   return node;
 }
 
@@ -364,18 +343,6 @@ rmw_destroy_node(rmw_node_t * node)
     node->implementation_identifier,
     rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
-
-  // Uncomment and rely on #if #endif blocks to enable this feature when building with
-  // zenoh-pico since liveliness is only available in zenoh-c.
-  // Publish to the graph that a node has ridden off into the sunset
-  // const bool del_result = PublishToken::del(
-  //   &node->context->impl->session,
-  //   liveliness::GenerateToken::node(node->context->actual_domain_id, node->namespace_,
-  //     node->name)
-  // );
-  // if (!del_result) {
-  //   return RMW_RET_ERROR;
-  // }
 
   // Undeclare liveliness token for the node to advertise that the node has ridden
   // off into the sunset.
@@ -576,20 +543,13 @@ rmw_create_publisher(
   rmw_publisher->data = publisher_data;
   rmw_publisher->implementation_identifier = rmw_zenoh_identifier;
   rmw_publisher->options = *publisher_options;
-  // TODO(yadunund): Update this.
   rmw_publisher->can_loan_messages = false;
 
-  size_t topic_len = strlen(topic_name);
-  // We specifically don't use rcutils_strdup() here because we want to avoid iterating over the
-  // name again looking for the \0 (we already did that above).
-  char * new_string = static_cast<char *>(allocator->allocate(topic_len + 1, allocator->state));
+  rmw_publisher->topic_name = rcutils_strdup(topic_name, *allocator);
   RMW_CHECK_FOR_NULL_WITH_MSG(
-    new_string,
+    rmw_publisher->topic_name,
     "Failed to allocate topic name",
     return nullptr);
-  memcpy(new_string, topic_name, topic_len);
-  new_string[topic_len] = '\0';
-  rmw_publisher->topic_name = new_string;
   auto free_topic_name = rcpputils::make_scope_exit(
     [rmw_publisher, allocator]() {
       allocator->deallocate(const_cast<char *>(rmw_publisher->topic_name), allocator->state);
@@ -650,23 +610,6 @@ rmw_create_publisher(
       z_undeclare_publisher(z_move(publisher_data->pub));
     });
 
-  // Uncomment and rely on #if #endif blocks to enable this feature when building with
-  // zenoh-pico since liveliness is only available in zenoh-c.
-  // Publish to the graph that a new publisher is in town
-  // TODO(Yadunund): Publish liveliness for the new publisher.
-  // const bool pub_result = PublishToken::put(
-  //   &node->context->impl->session,
-  //   liveliness::GenerateToken::publisher(
-  //     node->context->actual_domain_id,
-  //     node->namespace_,
-  //     node->name,
-  //     rmw_publisher->topic_name,
-  //     publisher_data->type_support->get_name(),
-  //     "reliable")
-  // );
-  // if (!pub_result) {
-  //   return nullptr;
-  // }
   const auto liveliness_entity = liveliness::Entity::make(
     z_info_zid(z_loan(node->context->impl->session)),
     liveliness::EntityType::Publisher,
@@ -736,24 +679,6 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
 
   auto publisher_data = static_cast<rmw_publisher_data_t *>(publisher->data);
   if (publisher_data != nullptr) {
-    // Uncomment and rely on #if #endif blocks to enable this feature when building with
-    // zenoh-pico since liveliness is only available in zenoh-c.
-    // Publish to the graph that a publisher has ridden off into the sunset
-    // const bool del_result = PublishToken::del(
-    //   &node->context->impl->session,
-    //   liveliness::GenerateToken::publisher(
-    //     node->context->actual_domain_id,
-    //     node->namespace_,
-    //     node->name,
-    //     publisher->topic_name,
-    //     publisher_data->type_support->get_name(),
-    //     "reliable"
-    //   )
-    // );
-    // if (!del_result) {
-    //   // TODO(Yadunund): Should this really return an error?
-    //   return RMW_RET_ERROR;
-    // }
     z_drop(z_move(publisher_data->token));
     if (publisher_data->pub_cache.has_value()) {
       z_drop(z_move(publisher_data->pub_cache.value()));
@@ -1333,17 +1258,11 @@ rmw_create_subscription(
   rmw_subscription->implementation_identifier = rmw_zenoh_identifier;
   rmw_subscription->data = sub_data;
 
-  size_t topic_len = strlen(topic_name);
-  // We specifically don't use rcutils_strdup() here because we want to avoid iterating over the
-  // name again looking for the \0 (we already did that above).
-  char * new_string = static_cast<char *>(allocator->allocate(topic_len + 1, allocator->state));
+  rmw_subscription->topic_name = rcutils_strdup(topic_name, *allocator);
   RMW_CHECK_FOR_NULL_WITH_MSG(
-    new_string,
+    rmw_subscription->topic_name,
     "Failed to allocate topic name",
     return nullptr);
-  memcpy(new_string, topic_name, topic_len);
-  new_string[topic_len] = '\0';
-  rmw_subscription->topic_name = new_string;
   auto free_topic_name = rcpputils::make_scope_exit(
     [rmw_subscription, allocator]() {
       allocator->deallocate(const_cast<char *>(rmw_subscription->topic_name), allocator->state);
@@ -1659,7 +1578,6 @@ static rmw_ret_t __rmw_take(
   }
 
   *taken = true;
-  z_drop(&msg_data->payload);
 
   // TODO(clalancette): fill in source_timestamp
   message_info->source_timestamp = 0;
@@ -3586,10 +3504,23 @@ rmw_get_gid_for_client(const rmw_client_t * client, rmw_gid_t * gid)
 rmw_ret_t
 rmw_compare_gids_equal(const rmw_gid_t * gid1, const rmw_gid_t * gid2, bool * result)
 {
-  static_cast<void>(gid1);
-  static_cast<void>(gid2);
-  static_cast<void>(result);
-  return RMW_RET_UNSUPPORTED;
+  RMW_CHECK_ARGUMENT_FOR_NULL(gid1, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    gid1,
+    gid1->implementation_identifier,
+    rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_ARGUMENT_FOR_NULL(gid2, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    gid2,
+    gid2->implementation_identifier,
+    rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_ARGUMENT_FOR_NULL(result, RMW_RET_INVALID_ARGUMENT);
+
+  *result = memcmp(gid1->data, gid2->data, RMW_GID_STORAGE_SIZE) == 0;
+
+  return RMW_RET_OK;
 }
 
 //==============================================================================

@@ -180,6 +180,7 @@ private:
   using NamespaceMap = std::unordered_map<std::string, NodeMap>;
   // Map namespace to a map of <node_name, GraphNodePtr>.
   NamespaceMap graph_ = {};
+  size_t total_nodes_in_graph_{0};
 
   // Optimize pub/sub lookups across the graph.
   GraphNode::TopicMap graph_topics_ = {};
