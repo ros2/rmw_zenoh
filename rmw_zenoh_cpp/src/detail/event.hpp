@@ -20,7 +20,7 @@
 #include "rmw/event.h"
 
 ///=============================================================================
-// RMW Event types that we support in rmw_zenoh.
+// A struct that represents an event status in rmw_zenoh.
 enum rmw_zenoh_event_type_t
 {
   // sentinel value
@@ -43,6 +43,7 @@ enum rmw_zenoh_event_type_t
 /// Helper value to indicate the maximum index of events supported.
 #define ZENOH_EVENT_ID_MAX rmw_zenoh_event_type_t::ZENOH_EVENT_PUBLICATION_MATCHED
 
+// RMW Event types that we support in rmw_zenoh.
 static const std::unordered_map<rmw_event_type_t, rmw_zenoh_event_type_t> event_map{
   {RMW_EVENT_REQUESTED_QOS_INCOMPATIBLE, ZENOH_EVENT_REQUESTED_QOS_INCOMPATIBLE},
   {RMW_EVENT_OFFERED_QOS_INCOMPATIBLE, ZENOH_EVENT_OFFERED_QOS_INCOMPATIBLE},
