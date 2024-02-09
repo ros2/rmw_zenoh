@@ -45,8 +45,13 @@ static void graph_sub_data_handler(
   const z_sample_t * sample,
   void * data)
 {
-  (void)data;
+  static_cast<void>(data);
+
   z_owned_str_t keystr = z_keyexpr_to_string(sample->keyexpr);
+  auto free_keystr = rcpputils::make_scope_exit(
+    [&keystr]() {
+      z_drop(z_move(keystr));
+    });
 
   // Get the context impl from data.
   rmw_context_impl_s * context_impl = static_cast<rmw_context_impl_s *>(
@@ -59,21 +64,16 @@ static void graph_sub_data_handler(
     return;
   }
 
-  // TODO(Yadunund): Avoid this copy.
-  std::string keyexpr_str(keystr._cstr);
-
   switch (sample->kind) {
     case z_sample_kind_t::Z_SAMPLE_KIND_PUT:
-      context_impl->graph_cache.parse_put(keyexpr_str);
+      context_impl->graph_cache.parse_put(keystr._cstr);
       break;
     case z_sample_kind_t::Z_SAMPLE_KIND_DELETE:
-      context_impl->graph_cache.parse_del(keyexpr_str);
+      context_impl->graph_cache.parse_del(keystr._cstr);
       break;
     default:
       break;
   }
-
-  z_drop(z_move(keystr));
 }
 
 //==============================================================================
