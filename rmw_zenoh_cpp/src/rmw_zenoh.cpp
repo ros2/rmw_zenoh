@@ -2055,12 +2055,9 @@ static z_owned_bytes_map_t create_map_and_set_sequence_num(
 
   z_bytes_t guid_bytes;
   guid_bytes.len = RMW_GID_STORAGE_SIZE;
-  guid_bytes.start = static_cast<uint8_t *>(malloc(RMW_GID_STORAGE_SIZE));
-  memcpy(static_cast<void *>(const_cast<uint8_t *>(guid_bytes.start)), guid, RMW_GID_STORAGE_SIZE);
+  guid_bytes.start = guid;
 
   z_bytes_map_insert_by_copy(&map, z_bytes_new("client_guid"), guid_bytes);
-
-  free(const_cast<uint8_t *>(guid_bytes.start));
 
   free_attachment_map.cancel();
 
