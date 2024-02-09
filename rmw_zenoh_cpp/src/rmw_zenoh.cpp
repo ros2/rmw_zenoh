@@ -2661,7 +2661,7 @@ rmw_destroy_service(rmw_node_t * node, rmw_service_t * service)
 
   // CLEANUP ================================================================
   z_drop(z_move(service_data->keyexpr));
-  z_drop(z_move(service_data->qable));
+  z_undeclare_queryable(z_move(service_data->qable));
   z_drop(z_move(service_data->token));
 
   RMW_TRY_DESTRUCTOR(
