@@ -269,12 +269,6 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   zc_liveliness_get(
     z_loan(context->impl->session), z_keyexpr(liveliness_str.c_str()),
     z_move(channel.send), NULL);
-  // Uncomment and rely on #if #endif blocks to enable this feature when building with
-  // zenoh-pico since liveliness is only available in zenoh-c.
-  // z_get_options_t opts = z_get_options_default();
-  // z_get(
-  //   z_loan(context->impl->session), z_keyexpr(liveliness_str.c_str()), "", z_move(channel.send),
-  //   &opts);      // here, the send is moved and will be dropped by zenoh when adequate
   z_owned_reply_t reply = z_reply_null();
   for (bool call_success = z_call(channel.recv, &reply); !call_success || z_check(reply);
     call_success = z_call(channel.recv, &reply))
