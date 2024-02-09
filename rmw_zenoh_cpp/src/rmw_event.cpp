@@ -20,6 +20,7 @@
 #include "detail/identifier.hpp"
 #include "detail/rmw_data_types.hpp"
 
+
 extern "C"
 {
 ///==============================================================================
