@@ -657,7 +657,8 @@ rmw_ret_t GraphCache::publisher_count_matched_subscriptions(
   const rmw_publisher_t * publisher,
   size_t * subscription_count)
 {
-  // TODO(Yadunund): Check if QoS settings also match.
+  // TODO(Yadunund): Replace this logic by returning a number that is tracked once
+  // we support matched qos events.
   *subscription_count = 0;
   GraphNode::TopicMap::const_iterator topic_it = graph_topics_.find(publisher->topic_name);
   if (topic_it != graph_topics_.end()) {
@@ -666,7 +667,19 @@ rmw_ret_t GraphCache::publisher_count_matched_subscriptions(
       pub_data->type_support->get_name());
     if (topic_data_it != topic_it->second.end()) {
       for (const auto & [_, topic_data]  : topic_data_it->second) {
-        *subscription_count = *subscription_count + topic_data->stats_.sub_count_;
+        // If a subscription exists with compatible QoS, update the subscription count.
+        if (topic_data->stats_.sub_count_ > 0) {
+          rmw_qos_compatibility_type_t is_compatible;
+          rmw_ret_t ret = rmw_qos_profile_check_compatible(
+            pub_data->adapted_qos_profile,
+            topic_data->info_.qos_,
+            &is_compatible,
+            nullptr,
+            0);
+          if (ret == RMW_RET_OK && is_compatible == RMW_QOS_COMPATIBILITY_OK) {
+            *subscription_count = *subscription_count + topic_data->stats_.sub_count_;
+          }
+        }
       }
     }
   }
@@ -679,7 +692,8 @@ rmw_ret_t GraphCache::subscription_count_matched_publishers(
   const rmw_subscription_t * subscription,
   size_t * publisher_count)
 {
-  // TODO(Yadunund): Check if QoS settings also match.
+  // TODO(Yadunund): Replace this logic by returning a number that is tracked once
+  // we support matched qos events.
   *publisher_count = 0;
   GraphNode::TopicMap::const_iterator topic_it = graph_topics_.find(subscription->topic_name);
   if (topic_it != graph_topics_.end()) {
@@ -688,7 +702,19 @@ rmw_ret_t GraphCache::subscription_count_matched_publishers(
       sub_data->type_support->get_name());
     if (topic_data_it != topic_it->second.end()) {
       for (const auto & [_, topic_data]  : topic_data_it->second) {
-        *publisher_count = *publisher_count + topic_data->stats_.pub_count_;
+        // If a subscription exists with compatible QoS, update the subscription count.
+        if (topic_data->stats_.pub_count_ > 0) {
+          rmw_qos_compatibility_type_t is_compatible;
+          rmw_ret_t ret = rmw_qos_profile_check_compatible(
+            sub_data->adapted_qos_profile,
+            topic_data->info_.qos_,
+            &is_compatible,
+            nullptr,
+            0);
+          if (ret == RMW_RET_OK && is_compatible == RMW_QOS_COMPATIBILITY_OK) {
+            *publisher_count = *publisher_count + topic_data->stats_.pub_count_;
+          }
+        }
       }
     }
   }
