@@ -70,8 +70,10 @@ struct GraphNode
   // TODO(Yadunund): Should enclave be the parent to the namespace key and not within a Node?
   std::string enclave_;
 
-  // Map topic type to TopicData
-  using TopicDataMap = std::unordered_map<std::string, TopicDataPtr>;
+  // Map QoS (serialized using liveliness::qos_to_keyexpr) to TopicData
+  using TopicQoSMap = std::unordered_map<std::string, TopicDataPtr>;
+  // Map topic type to QoSMap
+  using TopicDataMap = std::unordered_map<std::string, TopicQoSMap>;
   // Map topic name to TopicDataMap
   using TopicMap = std::unordered_map<std::string, TopicDataMap>;
 

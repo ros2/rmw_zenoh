@@ -140,20 +140,9 @@ std::vector<std::string> split_keyexpr(
   result.push_back(keyexpr.substr(start));
   return result;
 }
+}  // namespace
 
-/**
- * Convert a rmw_qos_profile_t to a string with format:
- *
- * <ReliabilityKind>:<DurabilityKind>:<HistoryKind>,<HistoryDepth>"
- * Where:
- *  <ReliabilityKind> - enum value from rmw_qos_reliability_policy_e.
- *  <DurabilityKind> - enum value from rmw_qos_durability_policy_e.
- *  <HistoryKind> - enum value from rmw_qos_history_policy_e.
- *  <HistoryDepth> - The depth number.
- * For example, the liveliness substring for a topic with Reliability policy: reliable,
- * Durability policy: volatile, History policy: keep_last, and depth: 10, would be
- * "1:2:1,10". See rmw/types.h for the values of each policy enum.
- */
+///=============================================================================
 // TODO(Yadunund): Rely on maps to retrieve strings.
 std::string qos_to_keyexpr(rmw_qos_profile_t qos)
 {
@@ -168,7 +157,7 @@ std::string qos_to_keyexpr(rmw_qos_profile_t qos)
   return keyexpr;
 }
 
-/// Convert a rmw_qos_profile_t from a keyexpr. Return std::nullopt if invalid.
+///=============================================================================
 std::optional<rmw_qos_profile_t> keyexpr_to_qos(const std::string & keyexpr)
 {
   rmw_qos_profile_t qos;
@@ -218,7 +207,6 @@ std::optional<rmw_qos_profile_t> keyexpr_to_qos(const std::string & keyexpr)
   qos.lifespan = RMW_QOS_LIFESPAN_DEFAULT;
   return qos;
 }
-}  // namespace
 
 ///=============================================================================
 std::string subscription_token(size_t domain_id)
