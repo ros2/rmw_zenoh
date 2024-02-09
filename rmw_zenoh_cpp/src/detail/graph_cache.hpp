@@ -73,9 +73,9 @@ struct GraphNode
   // Map QoS (serialized using liveliness::qos_to_keyexpr) to TopicData
   using TopicQoSMap = std::unordered_map<std::string, TopicDataPtr>;
   // Map topic type to QoSMap
-  using TopicDataMap = std::unordered_map<std::string, TopicQoSMap>;
-  // Map topic name to TopicDataMap
-  using TopicMap = std::unordered_map<std::string, TopicDataMap>;
+  using TopicTypeMap = std::unordered_map<std::string, TopicQoSMap>;
+  // Map topic name to TopicTypeMap
+  using TopicMap = std::unordered_map<std::string, TopicTypeMap>;
 
   // Entries for pub/sub.
   TopicMap pubs_ = {};

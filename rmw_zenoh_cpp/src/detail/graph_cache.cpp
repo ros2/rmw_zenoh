@@ -112,14 +112,14 @@ void GraphCache::parse_put(const std::string & keyexpr)
 
           GraphNode::TopicMap::iterator topic_map_it = topic_map.find(topic_info.name_);
           if (topic_map_it == topic_map.end()) {
-            // First time this topic name is discovered for the node so we insert a TopicDataMap.
-            GraphNode::TopicDataMap topic_data_map = {
+            // First time this topic name is discovered for the node so we insert a TopicTypeMap.
+            GraphNode::TopicTypeMap topic_data_map = {
               {topic_info.type_, std::move(topic_qos_map)}
             };
             topic_map.insert(std::make_pair(topic_info.name_, std::move(topic_data_map)));
           } else {
             // The topic exists for the node so we check if the type also exists.
-            GraphNode::TopicDataMap::iterator topic_data_map_it = topic_map_it->second.find(
+            GraphNode::TopicTypeMap::iterator topic_data_map_it = topic_map_it->second.find(
               topic_info.type_);
             if (topic_data_map_it == topic_map_it->second.end()) {
               // First time this topic type is added.
@@ -277,7 +277,7 @@ void GraphCache::parse_del(const std::string & keyexpr)
           "rmw_zenoh_cpp", "topic_key %s not found in graph_endpoints. Report this.",
           topic_info.name_.c_str());
       } else {
-        GraphNode::TopicDataMap::iterator cache_topic_data_it =
+        GraphNode::TopicTypeMap::iterator cache_topic_data_it =
           cache_topic_it->second.find(topic_info.type_);
         if (cache_topic_data_it != cache_topic_it->second.end()) {
           const std::string qos_str = liveliness::qos_to_keyexpr(topic_info.qos_);
@@ -407,7 +407,7 @@ void GraphCache::parse_del(const std::string & keyexpr)
           for (GraphNode::TopicMap::const_iterator topic_it = to_remove.begin();
             topic_it != to_remove.end(); ++topic_it)
           {
-            for (GraphNode::TopicDataMap::const_iterator topic_type_it = topic_it->second.begin();
+            for (GraphNode::TopicTypeMap::const_iterator topic_type_it = topic_it->second.begin();
               topic_type_it != topic_it->second.end(); ++topic_type_it)
             {
               for (GraphNode::TopicQoSMap::const_iterator topic_qos_it =
@@ -603,7 +603,7 @@ rmw_ret_t fill_names_and_types(
     });
   // Fill topic names and types.
   std::size_t index = 0;
-  for (const std::pair<const std::string, GraphNode::TopicDataMap> & item : entity_map) {
+  for (const std::pair<const std::string, GraphNode::TopicTypeMap> & item : entity_map) {
     names_and_types->names.data[index] = rcutils_strdup(item.first.c_str(), *allocator);
     if (!names_and_types->names.data[index]) {
       return RMW_RET_BAD_ALLOC;
@@ -663,7 +663,7 @@ rmw_ret_t GraphCache::publisher_count_matched_subscriptions(
   GraphNode::TopicMap::const_iterator topic_it = graph_topics_.find(publisher->topic_name);
   if (topic_it != graph_topics_.end()) {
     rmw_publisher_data_t * pub_data = static_cast<rmw_publisher_data_t *>(publisher->data);
-    GraphNode::TopicDataMap::const_iterator topic_data_it = topic_it->second.find(
+    GraphNode::TopicTypeMap::const_iterator topic_data_it = topic_it->second.find(
       pub_data->type_support->get_name());
     if (topic_data_it != topic_it->second.end()) {
       for (const auto & [_, topic_data]  : topic_data_it->second) {
@@ -698,7 +698,7 @@ rmw_ret_t GraphCache::subscription_count_matched_publishers(
   GraphNode::TopicMap::const_iterator topic_it = graph_topics_.find(subscription->topic_name);
   if (topic_it != graph_topics_.end()) {
     rmw_subscription_data_t * sub_data = static_cast<rmw_subscription_data_t *>(subscription->data);
-    GraphNode::TopicDataMap::const_iterator topic_data_it = topic_it->second.find(
+    GraphNode::TopicTypeMap::const_iterator topic_data_it = topic_it->second.find(
       sub_data->type_support->get_name());
     if (topic_data_it != topic_it->second.end()) {
       for (const auto & [_, topic_data]  : topic_data_it->second) {
@@ -951,7 +951,7 @@ rmw_ret_t GraphCache::get_entities_info_by_topic(
     const GraphNode::TopicMap & entity_map =
       entity_type == EntityType::Publisher ? nodes[i]->pubs_ :
       nodes[i]->subs_;
-    const GraphNode::TopicDataMap & topic_data_map = entity_map.find(topic_name)->second;
+    const GraphNode::TopicTypeMap & topic_data_map = entity_map.find(topic_name)->second;
     for (const auto & [topic_type, topic_qos_map] : topic_data_map) {
       for (const auto & [_, topic_data] : topic_qos_map) {
         rmw_topic_endpoint_info_t & endpoint_info = endpoints_info->info_array[i];
@@ -1016,7 +1016,7 @@ rmw_ret_t GraphCache::service_server_is_available(
   std::lock_guard<std::mutex> lock(graph_mutex_);
   GraphNode::TopicMap::iterator service_it = graph_services_.find(service_name);
   if (service_it != graph_services_.end()) {
-    GraphNode::TopicDataMap::iterator type_it = service_it->second.find(service_type);
+    GraphNode::TopicTypeMap::iterator type_it = service_it->second.find(service_type);
     if (type_it != service_it->second.end()) {
       for (const auto & [_, topic_data] : type_it->second) {
         if (topic_data->stats_.sub_count_ > 0) {
