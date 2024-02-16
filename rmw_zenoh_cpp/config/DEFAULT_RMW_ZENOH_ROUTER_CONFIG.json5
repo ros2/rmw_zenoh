@@ -24,7 +24,7 @@
   /// peers, or client can use to establish a zenoh session.
   listen: {
     endpoints: [
-      "tcp/localhost:7447"
+      "tcp/[::]:7447"
     ],
   },
   /// Configure the scouting mechanisms and their behaviours
