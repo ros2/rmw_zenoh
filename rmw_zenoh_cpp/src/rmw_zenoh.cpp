@@ -78,8 +78,7 @@ namespace
 // the old string into it. If this becomes a performance problem, we could consider
 // modifying the topic_name in place. But this means we need to be much more
 // careful about who owns the string.
-z_owned_keyexpr_t ros_topic_name_to_zenoh_key(
-  const char * const topic_name, size_t domain_id, rcutils_allocator_t * allocator)
+z_owned_keyexpr_t ros_topic_name_to_zenoh_key(const char * const topic_name, size_t domain_id)
 {
   std::string d = std::to_string(domain_id);
 
@@ -98,17 +97,9 @@ z_owned_keyexpr_t ros_topic_name_to_zenoh_key(
     }
   }
 
-  char * stripped_topic_name = rcutils_strndup(
-    &topic_name[start_offset], end_offset - start_offset, *allocator);
-  if (stripped_topic_name == nullptr) {
-    return z_keyexpr_null();
-  }
-
-  z_owned_keyexpr_t ret = z_keyexpr_join(z_keyexpr(d.c_str()), z_keyexpr(stripped_topic_name));
-
-  allocator->deallocate(stripped_topic_name, allocator->state);
-
-  return ret;
+  return z_keyexpr_join(
+    z_keyexpr(d.c_str()),
+    zc_keyexpr_from_slice(&topic_name[start_offset], end_offset - start_offset));
 }
 
 //==============================================================================
@@ -556,7 +547,7 @@ rmw_create_publisher(
     });
 
   z_owned_keyexpr_t keyexpr = ros_topic_name_to_zenoh_key(
-    topic_name, node->context->actual_domain_id, allocator);
+    topic_name, node->context->actual_domain_id);
   auto always_free_ros_keyexpr = rcpputils::make_scope_exit(
     [&keyexpr]() {
       z_keyexpr_drop(z_move(keyexpr));
@@ -1277,7 +1268,7 @@ rmw_create_subscription(
 
   z_owned_closure_sample_t callback = z_closure(sub_data_handler, nullptr, sub_data);
   z_owned_keyexpr_t keyexpr = ros_topic_name_to_zenoh_key(
-    topic_name, node->context->actual_domain_id, allocator);
+    topic_name, node->context->actual_domain_id);
   auto always_free_ros_keyexpr = rcpputils::make_scope_exit(
     [&keyexpr]() {
       z_keyexpr_drop(z_move(keyexpr));
@@ -1911,7 +1902,7 @@ rmw_create_client(
     });
 
   client_data->keyexpr = ros_topic_name_to_zenoh_key(
-    rmw_client->service_name, node->context->actual_domain_id, allocator);
+    rmw_client->service_name, node->context->actual_domain_id);
   auto free_ros_keyexpr = rcpputils::make_scope_exit(
     [client_data]() {
       z_keyexpr_drop(z_move(client_data->keyexpr));
@@ -2064,12 +2055,9 @@ static z_owned_bytes_map_t create_map_and_set_sequence_num(
 
   z_bytes_t guid_bytes;
   guid_bytes.len = RMW_GID_STORAGE_SIZE;
-  guid_bytes.start = static_cast<uint8_t *>(malloc(RMW_GID_STORAGE_SIZE));
-  memcpy(static_cast<void *>(const_cast<uint8_t *>(guid_bytes.start)), guid, RMW_GID_STORAGE_SIZE);
+  guid_bytes.start = guid;
 
   z_bytes_map_insert_by_copy(&map, z_bytes_new("client_guid"), guid_bytes);
-
-  free(const_cast<uint8_t *>(guid_bytes.start));
 
   free_attachment_map.cancel();
 
@@ -2550,7 +2538,7 @@ rmw_create_service(
       allocator->deallocate(const_cast<char *>(rmw_service->service_name), allocator->state);
     });
   service_data->keyexpr = ros_topic_name_to_zenoh_key(
-    rmw_service->service_name, node->context->actual_domain_id, allocator);
+    rmw_service->service_name, node->context->actual_domain_id);
   auto free_ros_keyexpr = rcpputils::make_scope_exit(
     [service_data]() {
       if (service_data) {
@@ -2673,7 +2661,7 @@ rmw_destroy_service(rmw_node_t * node, rmw_service_t * service)
 
   // CLEANUP ================================================================
   z_drop(z_move(service_data->keyexpr));
-  z_drop(z_move(service_data->qable));
+  z_undeclare_queryable(z_move(service_data->qable));
   z_drop(z_move(service_data->token));
 
   RMW_TRY_DESTRUCTOR(
