@@ -92,6 +92,8 @@ struct rmw_publisher_data_t
 
   // Context for memory allocation for messages.
   rmw_context_t * context;
+
+  uint8_t pub_guid[RMW_GID_STORAGE_SIZE];
 };
 
 ///==============================================================================
