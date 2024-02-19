@@ -1634,6 +1634,7 @@ rmw_take_sequence(
   return RMW_RET_UNSUPPORTED;
 }
 
+//==============================================================================
 static rmw_ret_t __rmw_take_serialized(
   const rmw_subscription_t * subscription,
   rmw_serialized_message_t * serialized_message,
@@ -1669,13 +1670,16 @@ static rmw_ret_t __rmw_take_serialized(
   }
 
   if (serialized_message->buffer_capacity < msg_data->payload.payload.len) {
-    rmw_ret_t ret = rmw_serialized_message_resize(serialized_message, msg_data->payload.payload.len);
+    rmw_ret_t ret =
+      rmw_serialized_message_resize(serialized_message, msg_data->payload.payload.len);
     if (ret != RMW_RET_OK) {
       return ret;  // Error message already set
     }
   }
   serialized_message->buffer_length = msg_data->payload.payload.len;
-  memcpy(serialized_message->buffer, msg_data->payload.payload.start, msg_data->payload.payload.len);
+  memcpy(
+    serialized_message->buffer, msg_data->payload.payload.start,
+    msg_data->payload.payload.len);
 
   *taken = true;
 
