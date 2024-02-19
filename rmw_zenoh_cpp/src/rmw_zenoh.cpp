@@ -3542,9 +3542,15 @@ rmw_get_gid_for_publisher(const rmw_publisher_t * publisher, rmw_gid_t * gid)
 rmw_ret_t
 rmw_get_gid_for_client(const rmw_client_t * client, rmw_gid_t * gid)
 {
-  static_cast<void>(client);
-  static_cast<void>(gid);
-  return RMW_RET_UNSUPPORTED;
+  RMW_CHECK_ARGUMENT_FOR_NULL(client, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(gid, RMW_RET_INVALID_ARGUMENT);
+
+  rmw_client_data_t * client_data = static_cast<rmw_client_data_t *>(client->data);
+
+  gid->implementation_identifier = rmw_zenoh_identifier;
+  memcpy(gid->data, client_data->client_guid, RMW_GID_STORAGE_SIZE);
+
+  return RMW_RET_OK;
 }
 
 //==============================================================================
