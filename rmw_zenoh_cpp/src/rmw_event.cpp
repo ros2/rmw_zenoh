@@ -159,7 +159,7 @@ rmw_take_event(
     return RMW_RET_ERROR;
   }
 
-  // Now depending on the event, populate the rwm event status.
+  // Now depending on the event, populate the rmw event status.
   switch (zenoh_event_it->second) {
     case ZENOH_EVENT_REQUESTED_QOS_INCOMPATIBLE: {
         auto ei = static_cast<rmw_requested_qos_incompatible_event_status_t *>(event_info);
