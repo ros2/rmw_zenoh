@@ -9,7 +9,7 @@ The end result is that users can use ROS 2 to send and receive data over Zenoh, 
 
 There is more detail on each item below, but a brief overview on how this is accomplished is the following:
 
-* It is assumed that Zenoh a router is running on the local system.  This router will be used for discovery and host-to-host communication.  However it is *not* used for intra-host comms; that is done via direct peer-to-peer connections.
+* It is assumed that a Zenoh router is running on the local system.  This router will be used for discovery and host-to-host communication.  However it is *not* used for intra-host comms (i.e., as a message broker); that is done via direct peer-to-peer connections.
 * Each "context" in ROS 2 is mapped to a single Zenoh "session".  That means that there may be many publishers, subscriptions, services, and clients sharing the same session.
 * Every "context" has a local "graph cache" that keeps track of the details of the network graph of ROS 2 entities.
 * Zenoh publishers, subscriptions, services, and clients are created or destroyed when the corresponding RMW APIs are called.
@@ -71,7 +71,7 @@ However, local multicast has some limitations, both intrinsic and specific to Ze
 * Multicast discovery can cause a lot of discovery traffic while discovering all other entities in the graph.
 * Multicast discovery has a limited TTL (time-to-live), which means it can usually only discover peers on the local network segment.
 
-For the reasons cited above, `rmw_zenoh_cpp` requires a Zenoh router to be running.
+To alleviate issues with multicast discovery, `rmw_zenoh_cpp` relies on a Zenoh router to discover peers and forward this discovery information to other peers via Zenoh's `gossip scouting` functionality. Hence `rmw_zenoh_cpp` requires the Zenoh router to be running.
 
 It should be noted that when building upstream Zenoh from source, a `zenohd` binary is created which is the router.
 `rmw_zenoh_cpp` actually has its own simplified version of the router that nonetheless uses most of the same code.
@@ -106,7 +106,7 @@ Zenoh attempts to do the absolute minimum of discovery (for performance reasons)
 To deal with this discrepancy, each context in `rmw_zenoh_cpp` keeps a cache of all entities discovered in the graph so far.
 An "entity" is a node, publisher, subscription, service server, or service client.
 Each entity sends a unique liveliness token as it comes online, and removes that liveliness token when it is destroyed.
-These tokens contain information about the entity and it's relationship to the other entities in the system (for instance, a publisher is always attached to a node).
+The key expression of these liveliness tokens encode information about the entity and it's relationship to the other entities in the system (for instance, a publisher is always attached to a node within a certain namespace).
 
 ### Related RMW APIs
 
@@ -206,6 +206,7 @@ When a new publisher is created, a liveliness token of type `MP` is sent out.
 
 * zc_liveliness_declare_token
 * zc_publish_put_owned
+* ze_declare_publication_cache
 * z_declare_publisher
 * z_undeclare_publisher
 * z_publisher_put
@@ -241,6 +242,7 @@ When a new subscription is created, a liveliness token of type `MS` is sent out.
 
 * zc_liveliness_declare_token
 * zc_sample_payload_rcinc
+* ze_declare_querying_subscriber
 * z_declare_subscriber
 * z_undeclare_subscriber
 
