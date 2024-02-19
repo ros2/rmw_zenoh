@@ -561,6 +561,7 @@ rmw_create_publisher(
   if (publisher_data->adapted_qos_profile.durability == RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL) {
     ze_publication_cache_options_t pub_cache_opts = ze_publication_cache_options_default();
     pub_cache_opts.history = publisher_data->adapted_qos_profile.depth;
+    pub_cache_opts.queryable_complete = true;
     publisher_data->pub_cache = ze_declare_publication_cache(
       z_loan(context_impl->session),
       z_loan(keyexpr),
@@ -1289,11 +1290,8 @@ rmw_create_subscription(
 
   if (sub_data->adapted_qos_profile.durability == RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL) {
     ze_querying_subscriber_options_t sub_options = ze_querying_subscriber_options_default();
-    // TODO(Yadunund): We need the query_target to be ALL_COMPLETE but the PubCache created
-    // does not setup a queryable that is complete. Once zettascale exposes that API,
-    // uncomment below.
-    // sub_options.query_target = Z_QUERY_TARGET_ALL_COMPLETE;
-    sub_options.query_target = Z_QUERY_TARGET_ALL;
+    // Target all complete publication caches which are queryables.
+    sub_options.query_target = Z_QUERY_TARGET_ALL_COMPLETE;
     // We set consolidation to none as we need to receive transient local messages
     // from a number of publishers. Eg: To receive TF data published over /tf_static
     // by various publishers.
