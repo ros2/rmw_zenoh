@@ -14,9 +14,11 @@
 
 #include "rmw/error_handling.h"
 #include "rmw/event.h"
+#include "rmw/events_statuses/events_statuses.h"
 #include "rmw/types.h"
 
 #include "detail/event.hpp"
+#include "detail/graph_cache.hpp"
 #include "detail/identifier.hpp"
 #include "detail/rmw_data_types.hpp"
 
@@ -37,13 +39,15 @@ rmw_publisher_event_init(
   RMW_CHECK_ARGUMENT_FOR_NULL(publisher->data, RMW_RET_INVALID_ARGUMENT);
   rmw_publisher_data_t * pub_data = static_cast<rmw_publisher_data_t *>(publisher->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(pub_data, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(pub_data->context, RMW_RET_INVALID_ARGUMENT);
 
   if (publisher->implementation_identifier != rmw_zenoh_identifier) {
     RMW_SET_ERROR_MSG("Publisher implementation identifier not from this implementation");
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION;
   }
 
-  if (event_map.count(event_type) != 1) {
+  auto rmw_event_it = event_map.find(event_type);
+  if (rmw_event_it == event_map.end()) {
     RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
       "provided event_type %d is not supported by rmw_zenoh_cpp", event_type);
     return RMW_RET_UNSUPPORTED;
@@ -52,6 +56,24 @@ rmw_publisher_event_init(
   rmw_event->implementation_identifier = publisher->implementation_identifier;
   rmw_event->data = pub_data;
   rmw_event->event_type = event_type;
+
+  // Register the event with graph cache.
+  pub_data->context->impl->graph_cache->set_qos_event_callback(
+    pub_data->entity.value(),
+    rmw_event_it->second,
+    [pub_data_wk_ptr = pub_data->weak_from_this(), event_id =rmw_event_it->second](std::unique_ptr<rmw_zenoh_event_status_t> zenoh_event)
+    {
+      auto pub_data = pub_data_wk_ptr.lock();
+      if (pub_data == nullptr) {
+        printf("CANNOT LOCK PUB DATA!!!\n");
+        return;
+      }
+      printf("Successfully added event %zu from graph cache to event queue\n");
+      pub_data->add_new_event(
+        event_id,
+        std::move(zenoh_event));
+    }
+  );
 
   return RMW_RET_OK;
 }
@@ -70,6 +92,7 @@ rmw_subscription_event_init(
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription->data, RMW_RET_INVALID_ARGUMENT);
   rmw_subscription_data_t * sub_data = static_cast<rmw_subscription_data_t *>(subscription->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(sub_data->context, RMW_RET_INVALID_ARGUMENT);
 
   if (subscription->implementation_identifier != rmw_zenoh_identifier) {
     RMW_SET_ERROR_MSG(
@@ -77,7 +100,8 @@ rmw_subscription_event_init(
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION;
   }
 
-  if (event_map.count(event_type) != 1) {
+  auto rmw_event_it = event_map.find(event_type);
+  if (rmw_event_it == event_map.end()) {
     RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
       "provided event_type %d is not supported by rmw_zenoh_cpp", event_type);
     return RMW_RET_UNSUPPORTED;
@@ -86,6 +110,24 @@ rmw_subscription_event_init(
   rmw_event->implementation_identifier = subscription->implementation_identifier;
   rmw_event->data = sub_data;
   rmw_event->event_type = event_type;
+
+  // Register the event with graph cache.
+  sub_data->context->impl->graph_cache->set_qos_event_callback(
+    sub_data->entity.value(),
+    rmw_event_it->second,
+    [sub_data_wk_ptr = sub_data->weak_from_this(), event_id =rmw_event_it->second](std::unique_ptr<rmw_zenoh_event_status_t> zenoh_event)
+    {
+      auto sub_data = sub_data_wk_ptr.lock();
+      if (sub_data == nullptr) {
+        printf("CANNOT LOCK SUB DATA!!!\n");
+        return;
+      }
+      printf("Successfully added event %zu from graph cache to event queue\n");
+      sub_data->add_new_event(
+        event_id,
+        std::move(zenoh_event));
+    }
+  );
 
   return RMW_RET_OK;
 }
@@ -166,6 +208,25 @@ rmw_take_event(
         RMW_CHECK_ARGUMENT_FOR_NULL(ei, RMW_RET_INVALID_ARGUMENT);
         ei->total_count = st->total_count;
         ei->total_count_change = st->total_count_change;
+        *taken = true;
+        return RMW_RET_OK;
+      }
+    case ZENOH_EVENT_MESSAGE_LOST: {
+        auto ei = static_cast<rmw_message_lost_status_t *>(event_info);
+        RMW_CHECK_ARGUMENT_FOR_NULL(ei, RMW_RET_INVALID_ARGUMENT);
+        ei->total_count = st->total_count;
+        ei->total_count_change = st->total_count_change;
+        *taken = true;
+        return RMW_RET_OK;
+      }
+    case ZENOH_EVENT_PUBLICATION_MATCHED:
+    case ZENOH_EVENT_SUBSCRIPTION_MATCHED: {
+        auto ei = static_cast<rmw_matched_status_t *>(event_info);
+        RMW_CHECK_ARGUMENT_FOR_NULL(ei, RMW_RET_INVALID_ARGUMENT);
+        ei->total_count = st->total_count;
+        ei->total_count_change = st->total_count_change;
+        ei->current_count = st->current_count;
+        ei->current_count_change = st->current_count_change;
         *taken = true;
         return RMW_RET_OK;
       }

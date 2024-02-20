@@ -68,6 +68,7 @@ struct rmw_zenoh_event_status_t
   size_t total_count;
   size_t total_count_change;
   size_t current_count;
+  size_t current_count_change;
   std::string data;
 };
 

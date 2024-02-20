@@ -164,7 +164,7 @@ public:
 
   /// @brief Signature for a function that will be invoked by the GraphCache when a QoS
   ///   event is detected.
-  using GraphCacheEventCallback = std::function<void (rmw_zenoh_event_status_t)>;
+  using GraphCacheEventCallback = std::function<void (std::unique_ptr<rmw_zenoh_event_status_t>)>;
 
   /// Set a qos event callback for an entity from the current session.
   /// @note The callback will be removed when the entity is removed from the graph.
