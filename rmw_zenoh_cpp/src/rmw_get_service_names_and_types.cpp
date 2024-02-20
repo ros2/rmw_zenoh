@@ -36,7 +36,7 @@ rmw_get_service_names_and_types(
   RMW_CHECK_ARGUMENT_FOR_NULL(allocator, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(service_names_and_types, RMW_RET_INVALID_ARGUMENT);
 
-  return node->context->impl->graph_cache.get_service_names_and_types(
+  return node->context->impl->graph_cache->get_service_names_and_types(
     allocator, service_names_and_types);
 }
 }  // extern "C"

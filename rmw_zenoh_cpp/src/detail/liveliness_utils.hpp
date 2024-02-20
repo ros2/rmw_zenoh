@@ -119,12 +119,15 @@ private:
   std::string keyexpr_;
 };
 
+///=============================================================================
 /// Replace "/" instances with "%".
 std::string mangle_name(const std::string & input);
 
+///=============================================================================
 /// Replace "%" instances with "/".
 std::string demangle_name(const std::string & input);
 
+///=============================================================================
 /**
  * Convert a rmw_qos_profile_t to a string with format:
  *
@@ -140,9 +143,13 @@ std::string demangle_name(const std::string & input);
  */
 std::string qos_to_keyexpr(rmw_qos_profile_t qos);
 
+///=============================================================================
 /// Convert a rmw_qos_profile_t from a keyexpr. Return std::nullopt if invalid.
 std::optional<rmw_qos_profile_t> keyexpr_to_qos(const std::string & keyexpr);
 
+///=============================================================================
+/// Convert a Zenoh id to a string.
+std::string zid_to_str(const z_id_t & id);
 
 }  // namespace liveliness
 

@@ -113,17 +113,6 @@ static const std::unordered_map<std::string, rmw_qos_durability_policy_e> str_to
   {std::to_string(RMW_QOS_POLICY_DURABILITY_UNKNOWN), RMW_QOS_POLICY_DURABILITY_UNKNOWN}
 };
 
-std::string zid_to_str(z_id_t id)
-{
-  std::stringstream ss;
-  ss << std::hex;
-  size_t i = 0;
-  for (; i < (sizeof(id.id)); i++) {
-    ss << static_cast<int>(id.id[i]);
-  }
-  return ss.str();
-}
-
 std::vector<std::string> split_keyexpr(
   const std::string & keyexpr,
   const char delim = '/')
@@ -206,6 +195,18 @@ std::optional<rmw_qos_profile_t> keyexpr_to_qos(const std::string & keyexpr)
   qos.deadline = RMW_QOS_DEADLINE_DEFAULT;
   qos.lifespan = RMW_QOS_LIFESPAN_DEFAULT;
   return qos;
+}
+
+///=============================================================================
+std::string zid_to_str(const z_id_t & id)
+{
+  std::stringstream ss;
+  ss << std::hex;
+  size_t i = 0;
+  for (; i < (sizeof(id.id)); i++) {
+    ss << static_cast<int>(id.id[i]);
+  }
+  return ss.str();
 }
 
 ///=============================================================================

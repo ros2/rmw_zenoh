@@ -57,6 +57,13 @@ TopicData::TopicData(
 {}
 
 ///=============================================================================
+GraphCache::GraphCache(const z_id_t & zid)
+: zid_str(liveliness::zid_to_str(zid))
+{
+  // Do nothing.
+}
+
+///=============================================================================
 void GraphCache::parse_put(const std::string & keyexpr)
 {
   std::optional<liveliness::Entity> valid_entity = liveliness::Entity::make(keyexpr);

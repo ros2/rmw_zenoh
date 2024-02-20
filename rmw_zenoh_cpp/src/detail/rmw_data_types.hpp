@@ -59,7 +59,7 @@ struct rmw_context_impl_s
   /// Guard condition that should be triggered when the graph changes.
   rmw_guard_condition_t * graph_guard_condition;
 
-  GraphCache graph_cache;
+  std::unique_ptr<GraphCache> graph_cache;
 };
 
 ///=============================================================================

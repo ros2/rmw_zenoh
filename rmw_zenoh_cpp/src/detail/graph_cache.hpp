@@ -91,6 +91,12 @@ using GraphNodePtr = std::shared_ptr<GraphNode>;
 class GraphCache final
 {
 public:
+  /// @brief Constructor
+  /// @param id The id of the zenoh session that is building the graph cache.
+  ///   This is used to infer which entities originated from the current session
+  ///   so that appropriate event callbacks may be triggered.
+  explicit GraphCache(const z_id_t & zid);
+
   // Parse a PUT message over a token's key-expression and update the graph.
   void parse_put(const std::string & keyexpr);
   // Parse a DELETE message over a token's key-expression and update the graph.
@@ -156,6 +162,7 @@ public:
     bool * is_available);
 
 private:
+  std::string zid_str;
   /*
   namespace_1:
     node_1:
