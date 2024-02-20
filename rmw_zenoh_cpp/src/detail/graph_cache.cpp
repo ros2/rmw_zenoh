@@ -58,7 +58,7 @@ TopicData::TopicData(
 
 ///=============================================================================
 GraphCache::GraphCache(const z_id_t & zid)
-: zid_str(liveliness::zid_to_str(zid))
+: zid_str_(std::move(liveliness::zid_to_str(zid)))
 {
   // Do nothing.
 }
@@ -1035,4 +1035,27 @@ rmw_ret_t GraphCache::service_server_is_available(
   }
 
   return RMW_RET_OK;
+}
+
+///=============================================================================
+void GraphCache::set_qos_event_callback(
+  const liveliness::Entity & entity,
+  const rmw_zenoh_event_type_t & event_type,
+  GraphCacheEventCallback callback)
+{
+  std::lock_guard<std::mutex> lock(graph_mutex_);
+
+  if (event_type > ZENOH_EVENT_ID_MAX) {
+    return;
+  }
+
+  const std::string entity_key = entity.keyexpr();
+  const GraphEventCallbackMap::iterator event_cb_it = event_callbacks_.find(entity_key);
+  if (event_cb_it == event_callbacks_.end()) {
+    // First time a callback is being set for this entity.
+    event_callbacks_[entity_key] = {};
+    event_callbacks_[entity_key].insert(std::make_pair(event_type, std::move(callback)));
+    return;
+  }
+  event_cb_it->second.insert(std::make_pair(event_type, std::move(callback)));
 }

@@ -15,6 +15,7 @@
 #ifndef DETAIL__GRAPH_CACHE_HPP_
 #define DETAIL__GRAPH_CACHE_HPP_
 
+#include <functional>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -161,8 +162,19 @@ public:
     const char * service_type,
     bool * is_available);
 
+  /// @brief Signature for a function that will be invoked by the GraphCache when a QoS
+  ///   event is detected.
+  using GraphCacheEventCallback = std::function<void (rmw_zenoh_event_status_t)>;
+
+  /// Set a qos event callback for an entity from the current session.
+  /// @note The callback will be removed when the entity is removed from the graph.
+  void set_qos_event_callback(
+    const liveliness::Entity & entity,
+    const rmw_zenoh_event_type_t & event_type,
+    GraphCacheEventCallback callback);
+
 private:
-  std::string zid_str;
+  std::string zid_str_;
   /*
   namespace_1:
     node_1:
@@ -197,6 +209,18 @@ private:
   // Optimize service/client lookups across the graph.
   GraphNode::TopicMap graph_services_ = {};
 
+  using GraphEventCallbacks = std::unordered_map<rmw_zenoh_event_type_t, GraphCacheEventCallback>;
+  // Map the liveliness token of an entity to a map of event callbacks.
+  // Note: Since we use unordered_map, we will only store a single callback for an
+  // entity string. So we do not support the case where a node create a duplicate
+  // pub/sub with the exact same topic, type & QoS but registers a different callback
+  // for the same event type. We could switch to a multimap here but removing the callback
+  // will be impossible right now since entities do not have unique IDs.
+  using GraphEventCallbackMap = std::unordered_map<std::string, GraphEventCallbacks>;
+  // EventCallbackMap for each type of event we support in rmw_zenoh_cpp.
+  GraphEventCallbackMap event_callbacks_;
+
+  // Mutex to lock before modifying the members above.
   mutable std::mutex graph_mutex_;
 };
 
