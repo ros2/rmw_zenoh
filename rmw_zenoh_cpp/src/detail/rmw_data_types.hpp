@@ -75,6 +75,9 @@ struct rmw_node_data_t
 class rmw_publisher_data_t : public EventsBase
 {
 public:
+  // The Entity generated for the publisher.
+  std::optional<liveliness::Entity> entity;
+
   // An owned publisher.
   z_owned_publisher_t pub;
 
@@ -124,6 +127,9 @@ struct saved_msg_data
 class rmw_subscription_data_t : public EventsBase
 {
 public:
+  // The Entity generated for the subscription.
+  std::optional<liveliness::Entity> entity;
+
   // An owned subscriber or querying_subscriber depending on the QoS settings.
   std::variant<z_owned_subscriber_t, ze_owned_querying_subscriber_t> sub;
 
@@ -183,6 +189,9 @@ private:
 class rmw_service_data_t : public EventsBase
 {
 public:
+  // The Entity generated for the service.
+  std::optional<liveliness::Entity> entity;
+
   z_owned_keyexpr_t keyexpr;
   z_owned_queryable_t qable;
 
@@ -248,6 +257,9 @@ private:
 class rmw_client_data_t : public EventsBase
 {
 public:
+  // The Entity generated for the client.
+  std::optional<liveliness::Entity> entity;
+
   z_owned_keyexpr_t keyexpr;
   z_owned_closure_reply_t zn_closure_reply;
 

@@ -601,14 +601,14 @@ rmw_create_publisher(
       z_undeclare_publisher(z_move(publisher_data->pub));
     });
 
-  const auto liveliness_entity = liveliness::Entity::make(
+  publisher_data->entity = liveliness::Entity::make(
     z_info_zid(z_loan(node->context->impl->session)),
     liveliness::EntityType::Publisher,
     liveliness::NodeInfo{node->context->actual_domain_id, node->namespace_, node->name, ""},
     liveliness::TopicInfo{rmw_publisher->topic_name,
       publisher_data->type_support->get_name(), publisher_data->adapted_qos_profile}
   );
-  if (!liveliness_entity.has_value()) {
+  if (!publisher_data->entity.has_value()) {
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to generate keyexpr for liveliness token for the publisher.");
@@ -616,7 +616,7 @@ rmw_create_publisher(
   }
   publisher_data->token = zc_liveliness_declare_token(
     z_loan(node->context->impl->session),
-    z_keyexpr(liveliness_entity->keyexpr().c_str()),
+    z_keyexpr(publisher_data->entity->keyexpr().c_str()),
     NULL
   );
   auto free_token = rcpputils::make_scope_exit(
@@ -1344,14 +1344,14 @@ rmw_create_subscription(
     });
 
   // Publish to the graph that a new subscription is in town
-  const auto liveliness_entity = liveliness::Entity::make(
+  sub_data->entity = liveliness::Entity::make(
     z_info_zid(z_loan(node->context->impl->session)),
     liveliness::EntityType::Subscription,
     liveliness::NodeInfo{node->context->actual_domain_id, node->namespace_, node->name, ""},
     liveliness::TopicInfo{rmw_subscription->topic_name,
       sub_data->type_support->get_name(), sub_data->adapted_qos_profile}
   );
-  if (!liveliness_entity.has_value()) {
+  if (!sub_data->entity.has_value()) {
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to generate keyexpr for liveliness token for the subscription.");
@@ -1359,7 +1359,7 @@ rmw_create_subscription(
   }
   sub_data->token = zc_liveliness_declare_token(
     z_loan(context_impl->session),
-    z_keyexpr(liveliness_entity->keyexpr().c_str()),
+    z_keyexpr(sub_data->entity->keyexpr().c_str()),
     NULL
   );
   auto free_token = rcpputils::make_scope_exit(
@@ -1986,14 +1986,14 @@ rmw_create_client(
       service_type.c_str(), rmw_client->service_name);
     return nullptr;
   }
-  const auto liveliness_entity = liveliness::Entity::make(
+  client_data->entity = liveliness::Entity::make(
     z_info_zid(z_loan(node->context->impl->session)),
     liveliness::EntityType::Client,
     liveliness::NodeInfo{node->context->actual_domain_id, node->namespace_, node->name, ""},
     liveliness::TopicInfo{rmw_client->service_name,
       std::move(service_type), client_data->adapted_qos_profile}
   );
-  if (!liveliness_entity.has_value()) {
+  if (!client_data->entity.has_value()) {
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to generate keyexpr for liveliness token for the client.");
@@ -2001,7 +2001,7 @@ rmw_create_client(
   }
   client_data->token = zc_liveliness_declare_token(
     z_loan(node->context->impl->session),
-    z_keyexpr(liveliness_entity->keyexpr().c_str()),
+    z_keyexpr(client_data->entity->keyexpr().c_str()),
     NULL
   );
   auto free_token = rcpputils::make_scope_exit(
@@ -2643,14 +2643,14 @@ rmw_create_service(
       service_type.c_str(), rmw_service->service_name);
     return nullptr;
   }
-  const auto liveliness_entity = liveliness::Entity::make(
+  service_data->entity = liveliness::Entity::make(
     z_info_zid(z_loan(node->context->impl->session)),
     liveliness::EntityType::Service,
     liveliness::NodeInfo{node->context->actual_domain_id, node->namespace_, node->name, ""},
     liveliness::TopicInfo{rmw_service->service_name,
       std::move(service_type), service_data->adapted_qos_profile}
   );
-  if (!liveliness_entity.has_value()) {
+  if (!service_data->entity.has_value()) {
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to generate keyexpr for liveliness token for the service.");
@@ -2658,7 +2658,7 @@ rmw_create_service(
   }
   service_data->token = zc_liveliness_declare_token(
     z_loan(node->context->impl->session),
-    z_keyexpr(liveliness_entity->keyexpr().c_str()),
+    z_keyexpr(service_data->entity->keyexpr().c_str()),
     NULL
   );
   auto free_token = rcpputils::make_scope_exit(
