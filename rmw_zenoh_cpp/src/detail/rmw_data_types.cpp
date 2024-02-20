@@ -111,6 +111,8 @@ void rmw_subscription_data_t::add_new_message(
     }
   }
 
+  // TODO(Yadunund): Check for ZENOH_EVENT_MESSAGE_LOST.
+
   message_queue_.emplace_back(std::move(msg));
 
   // Since we added new data, trigger user callback and guard condition if they are available

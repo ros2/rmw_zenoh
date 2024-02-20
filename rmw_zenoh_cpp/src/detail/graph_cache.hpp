@@ -173,7 +173,39 @@ public:
     const rmw_zenoh_event_type_t & event_type,
     GraphCacheEventCallback callback);
 
+  /// Returns true if the entity was created within the same context / zenoh session.
+  bool is_local_entity(const liveliness::Entity & entity) const;
+
 private:
+  // Helper function to convert an Entity into a GraphNode.
+  // Note: this will update bookkeeping variables in GraphCache.
+  std::shared_ptr<GraphNode> make_graph_node(const liveliness::Entity & entity) const;
+
+  // Helper function to update TopicMap within the node the cache for the entire graph.
+  void update_topic_maps_for_put(
+    GraphNodePtr graph_node,
+    const liveliness::Entity & entity);
+
+  void update_topic_map_for_put(
+    GraphNode::TopicMap & topic_map,
+    const liveliness::TopicInfo & topic_info,
+    const std::size_t pub_count,
+    const std::size_t sub_count);
+
+  void update_topic_maps_for_del(
+    GraphNodePtr graph_node,
+    const liveliness::Entity & entity);
+
+  void update_topic_map_for_del(
+    GraphNode::TopicMap & topic_map,
+    const liveliness::TopicInfo & topic_info,
+    const std::size_t pub_count,
+    const std::size_t sub_count);
+
+  void remove_topic_map_from_cache(
+    const GraphNode::TopicMap & to_remove,
+    GraphNode::TopicMap & from_cache);
+
   std::string zid_str_;
   /*
   namespace_1:

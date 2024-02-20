@@ -72,8 +72,7 @@ struct rmw_node_data_t
 };
 
 ///=============================================================================
-class rmw_publisher_data_t : public EventsBase,
-  public std::enable_shared_from_this<rmw_publisher_data_t>
+class rmw_publisher_data_t : public EventsBase
 {
 public:
   // The Entity generated for the publisher.
@@ -125,8 +124,7 @@ struct saved_msg_data
 };
 
 ///=============================================================================
-class rmw_subscription_data_t : public EventsBase,
-  public std::enable_shared_from_this<rmw_subscription_data_t>
+class rmw_subscription_data_t : public EventsBase
 {
 public:
   // The Entity generated for the subscription.

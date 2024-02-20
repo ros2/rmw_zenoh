@@ -61,9 +61,9 @@ rmw_publisher_event_init(
   pub_data->context->impl->graph_cache->set_qos_event_callback(
     pub_data->entity.value(),
     rmw_event_it->second,
-    [pub_data_wk_ptr = pub_data->weak_from_this(), event_id =rmw_event_it->second](std::unique_ptr<rmw_zenoh_event_status_t> zenoh_event)
+    [pub_data,
+    event_id = rmw_event_it->second](std::unique_ptr<rmw_zenoh_event_status_t> zenoh_event)
     {
-      auto pub_data = pub_data_wk_ptr.lock();
       if (pub_data == nullptr) {
         printf("CANNOT LOCK PUB DATA!!!\n");
         return;
@@ -111,13 +111,18 @@ rmw_subscription_event_init(
   rmw_event->data = sub_data;
   rmw_event->event_type = event_type;
 
-  // Register the event with graph cache.
+  // Register the event with graph cache if the event is not ZENOH_EVENT_MESSAGE_LOST
+  // since this is checked for in the subscription callback.
+  if (rmw_event_it->second == ZENOH_EVENT_MESSAGE_LOST) {
+    return RMW_RET_OK;
+  }
+
   sub_data->context->impl->graph_cache->set_qos_event_callback(
     sub_data->entity.value(),
     rmw_event_it->second,
-    [sub_data_wk_ptr = sub_data->weak_from_this(), event_id =rmw_event_it->second](std::unique_ptr<rmw_zenoh_event_status_t> zenoh_event)
+    [sub_data,
+    event_id = rmw_event_it->second](std::unique_ptr<rmw_zenoh_event_status_t> zenoh_event)
     {
-      auto sub_data = sub_data_wk_ptr.lock();
       if (sub_data == nullptr) {
         printf("CANNOT LOCK SUB DATA!!!\n");
         return;
