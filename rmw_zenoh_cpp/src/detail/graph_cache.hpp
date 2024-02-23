@@ -38,19 +38,20 @@
 ///=============================================================================
 // TODO(Yadunund): Since we reuse pub_count_ and sub_count_ for pub/sub and
 // service/client consider more general names for these fields.
+// Consider changing this to an array of unordered_maps where the index of the
+// array corresponds to the EntityType enum. This way we don't need to mix
+// pub/sub with client/service.
 struct TopicStats
 {
-  // The count of publishers or clients.
-  std::size_t pub_count_;
+  // The guids of publishers or clients.
+  std::unordered_set<liveliness::Entity> pubs_;
 
-  // The count of subscriptions or services.
-  std::size_t sub_count_;
-
-  // Constructor which initializes counters to 0.
-  TopicStats(std::size_t pub_count, std::size_t sub_count);
+  // The guids of subscriptions or services.
+  std::unordered_set<liveliness::Entity> subs_;
 };
 
 ///=============================================================================
+// TODO(Yadunund): Simplify to directly store pubs_ and subs_.
 struct TopicData
 {
   liveliness::TopicInfo info_;
@@ -173,9 +174,6 @@ public:
     const rmw_zenoh_event_type_t & event_type,
     GraphCacheEventCallback callback);
 
-  /// Returns true if the entity was created within the same context / zenoh session.
-  bool is_local_entity(const liveliness::Entity & entity) const;
-
 private:
   // Helper function to convert an Entity into a GraphNode.
   // Note: this will update bookkeeping variables in GraphCache.
@@ -188,9 +186,8 @@ private:
 
   void update_topic_map_for_put(
     GraphNode::TopicMap & topic_map,
-    const liveliness::TopicInfo & topic_info,
-    const std::size_t pub_count,
-    const std::size_t sub_count);
+    const liveliness::Entity & entity,
+    bool report_events = false);
 
   void update_topic_maps_for_del(
     GraphNodePtr graph_node,
@@ -198,13 +195,33 @@ private:
 
   void update_topic_map_for_del(
     GraphNode::TopicMap & topic_map,
-    const liveliness::TopicInfo & topic_info,
-    const std::size_t pub_count,
-    const std::size_t sub_count);
+    const liveliness::Entity & entity,
+    bool report_events = false);
 
   void remove_topic_map_from_cache(
     const GraphNode::TopicMap & to_remove,
     GraphNode::TopicMap & from_cache);
+
+  /// Returns true if the entity was created within the same context / zenoh session.
+  bool is_entity_local(const liveliness::Entity & entity) const;
+
+  /// Returns true if the entity is a publisher or client. False otherwise.
+  bool is_entity_pub(const liveliness::Entity & entity) const;
+
+  void update_event_counters(
+    const std::string & topic_name,
+    const rmw_zenoh_event_type_t event_id,
+    int32_t change);
+
+  // Take status and reset change counters.
+  std::unique_ptr<rmw_zenoh_event_status_t> take_event_status(
+    const std::string & topic_name,
+    const rmw_zenoh_event_type_t event_id);
+
+  void take_local_entities_with_events(
+    std::unordered_map<liveliness::Entity, std::unordered_set<rmw_zenoh_event_type_t>> &
+    local_entities_with_events);
+
 
   std::string zid_str_;
   /*
@@ -242,15 +259,18 @@ private:
   GraphNode::TopicMap graph_services_ = {};
 
   using GraphEventCallbacks = std::unordered_map<rmw_zenoh_event_type_t, GraphCacheEventCallback>;
-  // Map the liveliness token of an entity to a map of event callbacks.
+  // Map entity (based on uuid) to a map of event callbacks.
   // Note: Since we use unordered_map, we will only store a single callback for an
   // entity string. So we do not support the case where a node create a duplicate
   // pub/sub with the exact same topic, type & QoS but registers a different callback
   // for the same event type. We could switch to a multimap here but removing the callback
   // will be impossible right now since entities do not have unique IDs.
-  using GraphEventCallbackMap = std::unordered_map<std::string, GraphEventCallbacks>;
+  using GraphEventCallbackMap = std::unordered_map<liveliness::Entity, GraphEventCallbacks>;
   // EventCallbackMap for each type of event we support in rmw_zenoh_cpp.
   GraphEventCallbackMap event_callbacks_;
+  // Counters to track changes to event statues for each topic.
+  std::unordered_map<std::string,
+    std::array<rmw_zenoh_event_status_t, ZENOH_EVENT_ID_MAX + 1>> event_statuses_;
 
   // Mutex to lock before modifying the members above.
   mutable std::mutex graph_mutex_;

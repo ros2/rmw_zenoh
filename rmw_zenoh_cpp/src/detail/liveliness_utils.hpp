@@ -17,6 +17,7 @@
 
 #include <zenoh.h>
 
+#include <functional>
 #include <optional>
 #include <string>
 #include <vector>
@@ -76,9 +77,18 @@ enum class EntityType : uint8_t
 class Entity
 {
 public:
-  /// Make an Entity from datatypes. This will return nullopt if the required
-  /// fields are not present for the EntityType.
   // TODO(Yadunund): Find a way to better bundle the type and the associated data.
+  // Also make id globally unique when zenoh supports this.
+  // In the meanwhile, we rely on the interim _guid() method to return a hash value
+  // of the keyexpr which we use as guid.
+
+  /// @brief Make an Entity from datatypes. This will return nullopt if the required
+  ///   fields are not present for the EntityType.
+  /// @param id The zenoh
+  /// @param type
+  /// @param node_info
+  /// @param topic_info
+  /// @return
   static std::optional<Entity> make(
     z_id_t id,
     EntityType type,
@@ -88,7 +98,15 @@ public:
   /// Make an Entity from a liveliness keyexpr.
   static std::optional<Entity> make(const std::string & keyexpr);
 
+  // Get the zenoh session id as a string. This is not unique as entities
+  // created within the same session, will have the same ids.
   std::string id() const;
+
+  // Interim method to get a "unique" id for this entity which is the hash of the keyexpr.
+  // Note: This is still not globally unique since two entities created with the
+  // same session with the same EntityType, topic name, topic type, and topic qos
+  // will have the same _id. Eg. If a node creates two publishers with same properties.
+  std::size_t guid() const;
 
   /// Get the entity type.
   EntityType type() const;
@@ -105,6 +123,9 @@ public:
   /// Get the liveliness keyexpr for this entity.
   std::string keyexpr() const;
 
+  // Two entities are equal if their guids are equal.
+  bool operator==(const Entity & other) const;
+
 private:
   Entity(
     std::string id,
@@ -113,6 +134,7 @@ private:
     std::optional<TopicInfo> topic_info);
 
   std::string id_;
+  std::size_t guid_;
   EntityType type_;
   NodeInfo node_info_;
   std::optional<TopicInfo> topic_info_;
@@ -152,5 +174,19 @@ std::optional<rmw_qos_profile_t> keyexpr_to_qos(const std::string & keyexpr);
 std::string zid_to_str(const z_id_t & id);
 
 }  // namespace liveliness
+
+///=============================================================================
+// Allow Entity to be hashed and used as a key in unordered_maps/sets
+namespace std
+{
+template<>
+struct hash<liveliness::Entity>
+{
+  auto operator()(const liveliness::Entity & entity) const -> size_t
+  {
+    return entity.guid();
+  }
+};
+}  // namespace std
 
 #endif  // DETAIL__LIVELINESS_UTILS_HPP_

@@ -14,6 +14,7 @@
 
 #include "liveliness_utils.hpp"
 
+#include <functional>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
@@ -280,6 +281,8 @@ Entity::Entity(
   }
 
   this->keyexpr_ = token_ss.str();
+  // TODO(Yadunund): Replace once zenoh api provides guids.
+  this->guid_ = std::hash<std::string>{}(this->keyexpr_);
 }
 
 ///=============================================================================
@@ -389,6 +392,12 @@ std::string Entity::id() const
 }
 
 ///=============================================================================
+std::size_t Entity::guid() const
+{
+  return this->guid_;
+}
+
+///=============================================================================
 EntityType Entity::type() const
 {
   return this->type_;
@@ -419,6 +428,12 @@ std::optional<TopicInfo> Entity::topic_info() const
 std::string Entity::keyexpr() const
 {
   return this->keyexpr_;
+}
+
+///=============================================================================
+bool Entity::operator==(const Entity & other) const
+{
+  return other.guid() == guid_;
 }
 
 ///=============================================================================

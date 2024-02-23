@@ -65,16 +65,17 @@ rmw_publisher_event_init(
     event_id = rmw_event_it->second](std::unique_ptr<rmw_zenoh_event_status_t> zenoh_event)
     {
       if (pub_data == nullptr) {
-        printf("CANNOT LOCK PUB DATA!!!\n");
         return;
       }
-      printf("Successfully added event %zu from graph cache to event queue\n");
       pub_data->add_new_event(
         event_id,
         std::move(zenoh_event));
     }
   );
 
+  // printf(
+  //   "[rmw_publisher_event_init] created new rmw_event_type_t %s for %s\n",
+  //   std::to_string(event_type).c_str(), pub_data->entity->keyexpr().c_str());
   return RMW_RET_OK;
 }
 
@@ -124,16 +125,17 @@ rmw_subscription_event_init(
     event_id = rmw_event_it->second](std::unique_ptr<rmw_zenoh_event_status_t> zenoh_event)
     {
       if (sub_data == nullptr) {
-        printf("CANNOT LOCK SUB DATA!!!\n");
         return;
       }
-      printf("Successfully added event %zu from graph cache to event queue\n");
       sub_data->add_new_event(
         event_id,
         std::move(zenoh_event));
     }
   );
 
+  // printf(
+  //   "[rmw_subscription_event_init] created new rmw_event_type_t %s for %s\n",
+  //   std::to_string(event_type).c_str(), sub_data->entity->keyexpr().c_str());
   return RMW_RET_OK;
 }
 

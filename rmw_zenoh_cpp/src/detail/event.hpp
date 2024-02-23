@@ -36,14 +36,14 @@ enum rmw_zenoh_event_type_t
   // subscription events
   ZENOH_EVENT_REQUESTED_QOS_INCOMPATIBLE,
   ZENOH_EVENT_MESSAGE_LOST,
-  // RMW_EVENT_SUBSCRIPTION_INCOMPATIBLE_TYPE,
+  ZENOH_EVENT_SUBSCRIPTION_INCOMPATIBLE_TYPE,
   ZENOH_EVENT_SUBSCRIPTION_MATCHED,
 
   // publisher events
   // RMW_EVENT_LIVELINESS_LOST,
   // RMW_EVENT_OFFERED_DEADLINE_MISSED,
   ZENOH_EVENT_OFFERED_QOS_INCOMPATIBLE,
-  // RMW_EVENT_PUBLISHER_INCOMPATIBLE_TYPE,
+  ZENOH_EVENT_PUBLISHER_INCOMPATIBLE_TYPE,
   ZENOH_EVENT_PUBLICATION_MATCHED,
 };
 
@@ -56,19 +56,21 @@ static const std::unordered_map<rmw_event_type_t, rmw_zenoh_event_type_t> event_
   {RMW_EVENT_OFFERED_QOS_INCOMPATIBLE, ZENOH_EVENT_OFFERED_QOS_INCOMPATIBLE},
   {RMW_EVENT_MESSAGE_LOST, ZENOH_EVENT_MESSAGE_LOST},
   {RMW_EVENT_SUBSCRIPTION_MATCHED, ZENOH_EVENT_SUBSCRIPTION_MATCHED},
-  {RMW_EVENT_PUBLICATION_MATCHED, ZENOH_EVENT_PUBLICATION_MATCHED}
+  {RMW_EVENT_PUBLICATION_MATCHED, ZENOH_EVENT_PUBLICATION_MATCHED},
+  {RMW_EVENT_SUBSCRIPTION_INCOMPATIBLE_TYPE, ZENOH_EVENT_SUBSCRIPTION_INCOMPATIBLE_TYPE},
+  {RMW_EVENT_PUBLISHER_INCOMPATIBLE_TYPE, ZENOH_EVENT_PUBLISHER_INCOMPATIBLE_TYPE}
   // TODO(clalancette): Implement remaining events
 };
 
 ///=============================================================================
 /// A struct to store status changes which can be mapped to rmw event statuses.
-/// The data field can be used to store serialized information for more complex statuses.
 struct rmw_zenoh_event_status_t
 {
   size_t total_count;
   size_t total_count_change;
   size_t current_count;
   size_t current_count_change;
+  // The data field can be used to store serialized information for more complex statuses.
   std::string data;
 };
 
