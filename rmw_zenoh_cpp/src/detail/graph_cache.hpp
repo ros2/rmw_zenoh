@@ -66,7 +66,7 @@ using TopicDataPtr = std::shared_ptr<TopicData>;
 ///=============================================================================
 struct GraphNode
 {
-  std::string id_;
+  std::string zid_;
   std::string ns_;
   std::string name_;
   // TODO(Yadunund): Should enclave be the parent to the namespace key and not within a Node?

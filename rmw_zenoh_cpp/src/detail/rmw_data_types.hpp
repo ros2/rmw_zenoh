@@ -41,8 +41,9 @@
 /// Structs for various type erased data fields.
 
 ///=============================================================================
-struct rmw_context_impl_s
+class rmw_context_impl_s
 {
+public:
   // An owned session.
   z_owned_session_t session;
 
@@ -60,6 +61,12 @@ struct rmw_context_impl_s
   rmw_guard_condition_t * graph_guard_condition;
 
   std::unique_ptr<GraphCache> graph_cache;
+
+  size_t get_next_entity_id();
+
+private:
+  // A counter to assign a local id for every entity created in this session.
+  size_t next_entity_id_{0};
 };
 
 ///=============================================================================

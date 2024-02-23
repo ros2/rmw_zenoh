@@ -62,7 +62,6 @@ std::string subscription_token(size_t domain_id);
 ///=============================================================================
 enum class EntityType : uint8_t
 {
-  Invalid = 0,
   Node,
   Publisher,
   Subscription,
@@ -72,25 +71,51 @@ enum class EntityType : uint8_t
 
 ///=============================================================================
 // An struct to bundle results of parsing a token.
-// TODO(Yadunund): Consider using variadic templates to pass args instead of
-// relying on optional fields.
+/**
+ * Every entity will generate a unique key-expression for setting up a liveliness token.
+ *
+ * The minimal key-expression is of the form:
+ *
+ * <ADMIN_SPACE>/<domainid>/<zid>/<id>/<entity>/<namespace>/<nodename>
+ *
+ * Where:
+ *  <domainid> - A number set by the user to "partition" graphs.  Roughly equivalent to the domain ID in DDS.
+ *  <zid> - The zenoh session's id with elements concatenated into a string using '.' as separator.
+ *  <id> - A unique ID within the zenoh session to identify this entity.
+ *  <entity> - The type of entity.  This can be one of "NN" for a Network Node, "MP" for a Message Publisher, "MS" for a Message Subscription, "SS" for a Service Server, or "SC" for a Service Client.
+ *  <namespace> - The ROS namespace for this entity.  If the namespace is absolute, this function will add in an _ for later parsing reasons.
+ *  <nodename> - The ROS node name for this entity.
+ *
+ * For entities with topic infomation, the liveliness token keyexpr have additional fields:
+ *
+ * <ADMIN_SPACE>/<domainid>/<zid>/<id>/<entity>/<namespace>/<nodename>/<topic_name>/<topic_type>/<topic_qos>
+ *  <topic_name> - The ROS topic name for this entity.
+ *  <topic_type> - The type for the topic.
+ *  <topic_qos> - The qos for the topic (see qos_to_keyexpr() docstring for more information).
+ *
+ * For example, the liveliness expression for a publisher within a /talker node that publishes
+ * an std_msgs/msg/String over topic /chatter and with QoS settings of Reliability: best_effort,
+ * Durability: transient_local, History: keep_all, and depth: 10, would be
+ * "@ros2_lv/0/q1w2e3r4t5y6/32/MP/_/talker/dds_::std_msgs::msg::String/2:1:2,10".
+ * Note: The domain_id is assumed to be 0 and a random id is used in the example. Also the
+ *  _dds:: prefix in the topic_type is an artifact of the type support implementation and is
+ *  removed when reporting the topic_type in graph_cache.cpp (see _demangle_if_ros_type()).
+ */
 class Entity
 {
 public:
   // TODO(Yadunund): Find a way to better bundle the type and the associated data.
-  // Also make id globally unique when zenoh supports this.
-  // In the meanwhile, we rely on the interim _guid() method to return a hash value
-  // of the keyexpr which we use as guid.
-
   /// @brief Make an Entity from datatypes. This will return nullopt if the required
   ///   fields are not present for the EntityType.
-  /// @param id The zenoh
-  /// @param type
-  /// @param node_info
-  /// @param topic_info
-  /// @return
+  /// @param zid The zenoh session id within which this entity was created.
+  /// @param id A unique id for this entity within the zenoh session.
+  /// @param type The type of the entity.
+  /// @param node_info The node information that is required for all entities.
+  /// @param topic_info An optional topic information for relevant entities.
+  /// @return An entity if all inputs are valid. This way no invalid entities can be created.
   static std::optional<Entity> make(
-    z_id_t id,
+    z_id_t zid,
+    const std::string & id,
     EntityType type,
     NodeInfo node_info,
     std::optional<TopicInfo> topic_info = std::nullopt);
@@ -100,12 +125,15 @@ public:
 
   // Get the zenoh session id as a string. This is not unique as entities
   // created within the same session, will have the same ids.
+  std::string zid() const;
+
+  // Get the id of the entity local to a zenoh session.
+  // Use guid() to retrieve a globally unique id.
   std::string id() const;
 
-  // Interim method to get a "unique" id for this entity which is the hash of the keyexpr.
-  // Note: This is still not globally unique since two entities created with the
-  // same session with the same EntityType, topic name, topic type, and topic qos
-  // will have the same _id. Eg. If a node creates two publishers with same properties.
+  // Interim method to get a globally unique id for this entity which is the hash of the keyexpr.
+  // TODO(Yadunund): Should this return a rmw_gid_t?
+  // This is named guid and not gid to remain distinct as it is not of type rmw_gid_t.
   std::size_t guid() const;
 
   /// Get the entity type.
@@ -128,11 +156,13 @@ public:
 
 private:
   Entity(
+    std::string zid,
     std::string id,
     EntityType type,
     NodeInfo node_info,
     std::optional<TopicInfo> topic_info);
 
+  std::string zid_;
   std::string id_;
   std::size_t guid_;
   EntityType type_;

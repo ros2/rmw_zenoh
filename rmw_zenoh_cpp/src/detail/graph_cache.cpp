@@ -58,14 +58,8 @@ GraphCache::GraphCache(const z_id_t & zid)
 ///=============================================================================
 std::shared_ptr<GraphNode> GraphCache::make_graph_node(const Entity & entity) const
 {
-  if (entity.type() == EntityType::Invalid) {
-    RCUTILS_LOG_WARN_NAMED(
-      "rmw_zenoh_cpp",
-      "make_graph_node() called for Invalid entity. Report this.");
-    return nullptr;
-  }
   auto graph_node = std::make_shared<GraphNode>();
-  graph_node->id_ = entity.id();
+  graph_node->zid_ = entity.zid();
   graph_node->ns_ = entity.node_namespace();
   graph_node->name_ = entity.node_name();
   graph_node->enclave_ = entity.node_enclave();
@@ -309,13 +303,6 @@ void GraphCache::parse_put(const std::string & keyexpr)
 
   const liveliness::Entity & entity = *maybe_entity;
 
-  if (entity.type() == EntityType::Invalid) {
-    RCUTILS_LOG_WARN_NAMED(
-      "rmw_zenoh_cpp",
-      "parse_put() called for an invalid entity. Report this.");
-    return;
-  }
-
   // Lock the graph mutex before accessing the graph.
   std::lock_guard<std::mutex> lock(graph_mutex_);
 
@@ -346,7 +333,14 @@ void GraphCache::parse_put(const std::string & keyexpr)
     range.first, range.second,
     [&entity](const std::pair<std::string, GraphNodePtr> & node_it)
     {
-      return entity.id() == node_it.second->id_;
+      // TODO(Yadunund): We need to encode the node's id in every entity's liveliness
+      // token. Right now we cannot differentiate between two nodes from the same session
+      // with the same name and namespace.
+      const bool match =
+      entity.zid() == node_it.second->zid_ &&
+      entity.node_namespace() == node_it.second->ns_ &&
+      entity.node_name() == node_it.second->name_;
+      return match;
     });
   if (node_it == range.second) {
     // Either the first time a node with this name is added or with an existing
@@ -363,10 +357,9 @@ void GraphCache::parse_put(const std::string & keyexpr)
     if (insertion_it == ns_it->second.end()) {
       RCUTILS_LOG_ERROR_NAMED(
         "rmw_zenoh_cpp",
-        "Unable to add a new node /%s with id %s an "
+        "Unable to add a new node /%s to an "
         "existing namespace %s in the graph. Report this bug.",
         entity.node_name().c_str(),
-        entity.id().c_str(),
         entity.node_namespace().c_str());
     }
     return;
@@ -561,13 +554,6 @@ void GraphCache::parse_del(const std::string & keyexpr)
   }
   const liveliness::Entity entity = *maybe_entity;
 
-  if (entity.type() == EntityType::Invalid) {
-    RCUTILS_LOG_WARN_NAMED(
-      "rmw_zenoh_cpp",
-      "parse_del() called for an invalid entity. Report this.");
-    return;
-  }
-
   // Lock the graph mutex before accessing the graph.
   std::lock_guard<std::mutex> lock(graph_mutex_);
 
@@ -584,7 +570,11 @@ void GraphCache::parse_del(const std::string & keyexpr)
     range.first, range.second,
     [&entity](const std::pair<std::string, GraphNodePtr> & node_it)
     {
-      return entity.id() == node_it.second->id_;
+      const bool match =
+      entity.zid() == node_it.second->zid_ &&
+      entity.node_namespace() == node_it.second->ns_ &&
+      entity.node_name() == node_it.second->name_;
+      return match;
     });
   if (node_it == range.second) {
     // Node does not exist.
@@ -1247,7 +1237,7 @@ bool GraphCache::is_entity_local(const liveliness::Entity & entity) const
   // For now zenoh does not expose unique IDs for its entities and hence the id
   // assigned to an entity is always the zenoh session id. When we update liveliness
   // tokens to contain globally unique ids for entities, we should also update the logic here.
-  return entity.id() == zid_str_;
+  return entity.zid() == zid_str_;
 }
 
 ///=============================================================================

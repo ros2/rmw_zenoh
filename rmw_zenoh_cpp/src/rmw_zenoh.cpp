@@ -288,6 +288,7 @@ rmw_create_node(
   rmw_node_data_t * node_data = static_cast<rmw_node_data_t *>(node->data);
   const auto liveliness_entity = liveliness::Entity::make(
     z_info_zid(z_loan(context->impl->session)),
+    std::to_string(context->impl->get_next_entity_id()),
     liveliness::EntityType::Node,
     liveliness::NodeInfo{context->actual_domain_id, namespace_, name, ""});
   if (!liveliness_entity.has_value()) {
@@ -603,6 +604,7 @@ rmw_create_publisher(
 
   publisher_data->entity = liveliness::Entity::make(
     z_info_zid(z_loan(node->context->impl->session)),
+    std::to_string(context_impl->get_next_entity_id()),
     liveliness::EntityType::Publisher,
     liveliness::NodeInfo{node->context->actual_domain_id, node->namespace_, node->name, ""},
     liveliness::TopicInfo{rmw_publisher->topic_name,
@@ -1346,6 +1348,7 @@ rmw_create_subscription(
   // Publish to the graph that a new subscription is in town
   sub_data->entity = liveliness::Entity::make(
     z_info_zid(z_loan(node->context->impl->session)),
+    std::to_string(context_impl->get_next_entity_id()),
     liveliness::EntityType::Subscription,
     liveliness::NodeInfo{node->context->actual_domain_id, node->namespace_, node->name, ""},
     liveliness::TopicInfo{rmw_subscription->topic_name,
@@ -1988,6 +1991,7 @@ rmw_create_client(
   }
   client_data->entity = liveliness::Entity::make(
     z_info_zid(z_loan(node->context->impl->session)),
+    std::to_string(context_impl->get_next_entity_id()),
     liveliness::EntityType::Client,
     liveliness::NodeInfo{node->context->actual_domain_id, node->namespace_, node->name, ""},
     liveliness::TopicInfo{rmw_client->service_name,
@@ -2645,6 +2649,7 @@ rmw_create_service(
   }
   service_data->entity = liveliness::Entity::make(
     z_info_zid(z_loan(node->context->impl->session)),
+    std::to_string(context_impl->get_next_entity_id()),
     liveliness::EntityType::Service,
     liveliness::NodeInfo{node->context->actual_domain_id, node->namespace_, node->name, ""},
     liveliness::TopicInfo{rmw_service->service_name,

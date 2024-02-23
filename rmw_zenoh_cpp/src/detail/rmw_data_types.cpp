@@ -26,6 +26,11 @@
 
 #include "rmw_data_types.hpp"
 
+///=============================================================================
+size_t rmw_context_impl_s::get_next_entity_id()
+{
+  return next_entity_id_++;
+}
 
 ///=============================================================================
 saved_msg_data::saved_msg_data(zc_owned_payload_t p, uint64_t recv_ts, const uint8_t pub_gid[16])
