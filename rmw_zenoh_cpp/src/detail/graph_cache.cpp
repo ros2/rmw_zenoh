@@ -43,9 +43,11 @@ using EntityType = liveliness::EntityType;
 ///=============================================================================
 TopicData::TopicData(
   liveliness::TopicInfo info,
-  TopicStats stats)
+  std::unordered_set<liveliness::Entity> pubs,
+  std::unordered_set<liveliness::Entity> subs)
 : info_(std::move(info)),
-  stats_(std::move(stats))
+  pubs_(std::move(pubs)),
+  subs_(std::move(subs))
 {}
 
 ///=============================================================================
@@ -123,16 +125,17 @@ void GraphCache::update_topic_map_for_put(
   // Initialize a map that will be populated with any QoS events that may be detected.
   std::unordered_map<liveliness::Entity, std::unordered_set<rmw_zenoh_event_type_t>>
   local_entities_with_events = {};
-
-  TopicStats new_topic_stats;
+  std::unordered_set<liveliness::Entity> pubs = {};
+  std::unordered_set<liveliness::Entity> subs = {};
   if (is_pub) {
-    new_topic_stats.pubs_.insert(entity);
+    pubs.insert(entity);
   } else {
-    new_topic_stats.subs_.insert(entity);
+    subs.insert(entity);
   }
   TopicDataPtr graph_topic_data = std::make_shared<TopicData>(
     topic_info,
-    std::move(new_topic_stats));
+    std::move(pubs),
+    std::move(subs));
 
   std::string qos_str = liveliness::qos_to_keyexpr(topic_info.qos_);
   GraphNode::TopicQoSMap topic_qos_map = {
@@ -193,11 +196,11 @@ void GraphCache::update_topic_map_for_put(
         for (const auto & [_, topic_data_ptr] : topic_type_map_it->second) {
           if (is_pub) {
             // Count the number of matching subs for each set of qos settings.
-            if (!topic_data_ptr->stats_.subs_.empty()) {
-              match_count_for_entity += topic_data_ptr->stats_.subs_.size();
+            if (!topic_data_ptr->subs_.empty()) {
+              match_count_for_entity += topic_data_ptr->subs_.size();
             }
             // Also iterate through the subs to check if any are local and if update event counters.
-            for (const liveliness::Entity & sub_entity : topic_data_ptr->stats_.subs_) {
+            for (const liveliness::Entity & sub_entity : topic_data_ptr->subs_) {
               update_event_counters(
                 topic_info.name_,
                 ZENOH_EVENT_SUBSCRIPTION_MATCHED,
@@ -223,11 +226,11 @@ void GraphCache::update_topic_map_for_put(
           } else {
             // Entity is a sub.
             // Count the number of matching pubs for each set of qos settings.
-            if (!topic_data_ptr->stats_.pubs_.empty()) {
-              match_count_for_entity += topic_data_ptr->stats_.pubs_.size();
+            if (!topic_data_ptr->pubs_.empty()) {
+              match_count_for_entity += topic_data_ptr->pubs_.size();
             }
             // Also iterate through the pubs to check if any are local and if update event counters.
-            for (const liveliness::Entity & pub_entity : topic_data_ptr->stats_.pubs_) {
+            for (const liveliness::Entity & pub_entity : topic_data_ptr->pubs_) {
               update_event_counters(
                 topic_info.name_,
                 ZENOH_EVENT_PUBLICATION_MATCHED,
@@ -265,9 +268,9 @@ void GraphCache::update_topic_map_for_put(
         // type and qos so we increment the counters.
         TopicDataPtr & existing_graph_topic = topic_qos_map_it->second;
         if (is_pub) {
-          existing_graph_topic->stats_.pubs_.insert(entity);
+          existing_graph_topic->pubs_.insert(entity);
         } else {
-          existing_graph_topic->stats_.subs_.insert(entity);
+          existing_graph_topic->subs_.insert(entity);
         }
       }
     }
@@ -464,14 +467,14 @@ void GraphCache::update_topic_map_for_del(
       }
       // Decrement the relevant counters. If both counters are 0 remove from cache.
       if (is_pub) {
-        cache_topic_qos_it->second->stats_.pubs_.erase(entity);
+        cache_topic_qos_it->second->pubs_.erase(entity);
       } else {
-        cache_topic_qos_it->second->stats_.subs_.erase(entity);
+        cache_topic_qos_it->second->subs_.erase(entity);
       }
       // If after removing the entity, the parent map is empty, then remove parent
       // map.
-      if (cache_topic_qos_it->second->stats_.pubs_.empty() &&
-        cache_topic_qos_it->second->stats_.subs_.empty())
+      if (cache_topic_qos_it->second->pubs_.empty() &&
+        cache_topic_qos_it->second->subs_.empty())
       {
         cache_topic_type_it->second.erase(qos_str);
       }
@@ -484,7 +487,7 @@ void GraphCache::update_topic_map_for_del(
         if (is_pub) {
           // Notify any local subs of a matched event with change -1.
           for (const auto & [_, topic_data_ptr] : cache_topic_type_it->second) {
-            for (const liveliness::Entity & sub_entity : topic_data_ptr->stats_.subs_) {
+            for (const liveliness::Entity & sub_entity : topic_data_ptr->subs_) {
               update_event_counters(
                 topic_info.name_,
                 ZENOH_EVENT_SUBSCRIPTION_MATCHED,
@@ -500,7 +503,7 @@ void GraphCache::update_topic_map_for_del(
         } else {
           // Notify any local pubs of a matched event with change -1.
           for (const auto & [_, topic_data_ptr] : cache_topic_type_it->second) {
-            for (const liveliness::Entity & pub_entity : topic_data_ptr->stats_.pubs_) {
+            for (const liveliness::Entity & pub_entity : topic_data_ptr->pubs_) {
               update_event_counters(
                 topic_info.name_,
                 ZENOH_EVENT_PUBLICATION_MATCHED,
@@ -549,13 +552,13 @@ void GraphCache::remove_topic_map_from_cache(
         // Technically only one of pubs_ or sub_ will be populated and with one
         // element at most since to_remove comes from a node. For completeness,
         // we iterate though both and call update_topic_map_for_del().
-        for (const liveliness::Entity & entity : topic_qos_it->second->stats_.pubs_) {
+        for (const liveliness::Entity & entity : topic_qos_it->second->pubs_) {
           update_topic_map_for_del(
             from_cache,
             entity,
             true);
         }
-        for (const liveliness::Entity & entity : topic_qos_it->second->stats_.subs_) {
+        for (const liveliness::Entity & entity : topic_qos_it->second->subs_) {
           update_topic_map_for_del(
             from_cache,
             entity,
@@ -868,7 +871,7 @@ rmw_ret_t GraphCache::publisher_count_matched_subscriptions(
     if (topic_data_it != topic_it->second.end()) {
       for (const auto & [_, topic_data]  : topic_data_it->second) {
         // If a subscription exists with compatible QoS, update the subscription count.
-        if (!topic_data->stats_.subs_.empty()) {
+        if (!topic_data->subs_.empty()) {
           rmw_qos_compatibility_type_t is_compatible;
           rmw_ret_t ret = rmw_qos_profile_check_compatible(
             pub_data->adapted_qos_profile,
@@ -877,7 +880,7 @@ rmw_ret_t GraphCache::publisher_count_matched_subscriptions(
             nullptr,
             0);
           if (ret == RMW_RET_OK && is_compatible != RMW_QOS_COMPATIBILITY_ERROR) {
-            *subscription_count = *subscription_count + topic_data->stats_.subs_.size();
+            *subscription_count = *subscription_count + topic_data->subs_.size();
           }
         }
       }
@@ -903,7 +906,7 @@ rmw_ret_t GraphCache::subscription_count_matched_publishers(
     if (topic_data_it != topic_it->second.end()) {
       for (const auto & [_, topic_data]  : topic_data_it->second) {
         // If a subscription exists with compatible QoS, update the subscription count.
-        if (!topic_data->stats_.pubs_.empty()) {
+        if (!topic_data->pubs_.empty()) {
           rmw_qos_compatibility_type_t is_compatible;
           rmw_ret_t ret = rmw_qos_profile_check_compatible(
             sub_data->adapted_qos_profile,
@@ -912,7 +915,7 @@ rmw_ret_t GraphCache::subscription_count_matched_publishers(
             nullptr,
             0);
           if (ret == RMW_RET_OK && is_compatible != RMW_QOS_COMPATIBILITY_ERROR) {
-            *publisher_count = *publisher_count + topic_data->stats_.pubs_.size();
+            *publisher_count = *publisher_count + topic_data->pubs_.size();
           }
         }
       }
@@ -947,7 +950,7 @@ rmw_ret_t GraphCache::count_publishers(
       GraphNode::TopicQoSMap> & topic_data : graph_topics_.at(topic_name))
     {
       for (auto it = topic_data.second.begin(); it != topic_data.second.end(); ++it) {
-        *count += it->second->stats_.pubs_.size();
+        *count += it->second->pubs_.size();
       }
     }
   }
@@ -968,7 +971,7 @@ rmw_ret_t GraphCache::count_subscriptions(
       GraphNode::TopicQoSMap> & topic_data : graph_topics_.at(topic_name))
     {
       for (auto it = topic_data.second.begin(); it != topic_data.second.end(); ++it) {
-        *count += it->second->stats_.subs_.size();
+        *count += it->second->subs_.size();
       }
     }
   }
@@ -989,7 +992,7 @@ rmw_ret_t GraphCache::count_services(
       GraphNode::TopicQoSMap> & topic_data : graph_services_.at(service_name))
     {
       for (auto it = topic_data.second.begin(); it != topic_data.second.end(); ++it) {
-        *count += it->second->stats_.subs_.size();
+        *count += it->second->subs_.size();
       }
     }
   }
@@ -1010,7 +1013,7 @@ rmw_ret_t GraphCache::count_clients(
       GraphNode::TopicQoSMap> & topic_data : graph_services_.at(service_name))
     {
       for (auto it = topic_data.second.begin(); it != topic_data.second.end(); ++it) {
-        *count += it->second->stats_.pubs_.size();
+        *count += it->second->pubs_.size();
       }
     }
   }
@@ -1219,7 +1222,7 @@ rmw_ret_t GraphCache::service_server_is_available(
     GraphNode::TopicTypeMap::iterator type_it = service_it->second.find(service_type);
     if (type_it != service_it->second.end()) {
       for (const auto & [_, topic_data] : type_it->second) {
-        if (topic_data->stats_.subs_.size() > 0) {
+        if (topic_data->subs_.size() > 0) {
           *is_available = true;
           return RMW_RET_OK;
         }

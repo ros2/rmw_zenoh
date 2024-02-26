@@ -38,28 +38,23 @@
 ///=============================================================================
 // TODO(Yadunund): Since we reuse pub_count_ and sub_count_ for pub/sub and
 // service/client consider more general names for these fields.
-// Consider changing this to an array of unordered_maps where the index of the
+// Consider changing this to an array of unordered_set where the index of the
 // array corresponds to the EntityType enum. This way we don't need to mix
 // pub/sub with client/service.
-struct TopicStats
-{
-  // The guids of publishers or clients.
-  std::unordered_set<liveliness::Entity> pubs_;
-
-  // The guids of subscriptions or services.
-  std::unordered_set<liveliness::Entity> subs_;
-};
-
-///=============================================================================
-// TODO(Yadunund): Simplify to directly store pubs_ and subs_.
 struct TopicData
 {
   liveliness::TopicInfo info_;
-  TopicStats stats_;
+
+  // The publishers or clients entities.
+  std::unordered_set<liveliness::Entity> pubs_;
+
+  // The subscriptions or services entities
+  std::unordered_set<liveliness::Entity> subs_;
 
   TopicData(
     liveliness::TopicInfo info,
-    TopicStats stats);
+    std::unordered_set<liveliness::Entity> pubs,
+    std::unordered_set<liveliness::Entity> subs);
 };
 using TopicDataPtr = std::shared_ptr<TopicData>;
 
