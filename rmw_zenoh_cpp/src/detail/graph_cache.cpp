@@ -204,6 +204,9 @@ void GraphCache::update_topic_map_for_put(
                 static_cast<int32_t>(1));
               if (is_entity_local(sub_entity)) {
                 local_entities_with_events[sub_entity].insert(ZENOH_EVENT_SUBSCRIPTION_MATCHED);
+                printf(
+                  "Updating matched count by 1 for local sub: %s\n",
+                  sub_entity.keyexpr().c_str());
               }
             }
             // Update event counters for the new entity.
@@ -213,6 +216,9 @@ void GraphCache::update_topic_map_for_put(
               match_count_for_entity);
             if (is_entity_local(entity) && match_count_for_entity > 0) {
               local_entities_with_events[entity].insert(ZENOH_EVENT_PUBLICATION_MATCHED);
+              printf(
+                "Updating matched count by %ld for local pub: %s\n",
+                match_count_for_entity, entity.keyexpr().c_str());
             }
           } else {
             // Entity is a sub.
@@ -228,6 +234,9 @@ void GraphCache::update_topic_map_for_put(
                 static_cast<int32_t>(1));
               if (is_entity_local(pub_entity)) {
                 local_entities_with_events[pub_entity].insert(ZENOH_EVENT_PUBLICATION_MATCHED);
+                printf(
+                  "Updating matched count by 1 for local pub: %s\n",
+                  pub_entity.keyexpr().c_str());
               }
             }
             // Update event counters for the new entity.
@@ -237,6 +246,9 @@ void GraphCache::update_topic_map_for_put(
               match_count_for_entity);
             if (is_entity_local(entity) && match_count_for_entity > 0) {
               local_entities_with_events[entity].insert(ZENOH_EVENT_SUBSCRIPTION_MATCHED);
+              printf(
+                "Updating matched count by %ld for local sub: %s\n",
+                match_count_for_entity, entity.keyexpr().c_str());
             }
           }
         }
@@ -294,7 +306,9 @@ void GraphCache::take_local_entities_with_events(
 }
 
 ///=============================================================================
-void GraphCache::parse_put(const std::string & keyexpr)
+void GraphCache::parse_put(
+  const std::string & keyexpr,
+  bool ignore_from_current_session)
 {
   printf("[parse_put %s] %s\n", zid_str_.c_str(), keyexpr.c_str());
   std::optional<liveliness::Entity> maybe_entity = liveliness::Entity::make(keyexpr);
@@ -304,6 +318,12 @@ void GraphCache::parse_put(const std::string & keyexpr)
   }
 
   const liveliness::Entity & entity = *maybe_entity;
+  if (ignore_from_current_session && is_entity_local(entity)){
+    RCUTILS_LOG_DEBUG_NAMED(
+      "rmw_zenoh_cpp",
+      "Ignoring parse_put for %s from the same session.\n", entity.keyexpr().c_str());
+    return;
+  }
 
   // Lock the graph mutex before accessing the graph.
   std::lock_guard<std::mutex> lock(graph_mutex_);
@@ -487,6 +507,9 @@ void GraphCache::update_topic_map_for_del(
                 static_cast<int32_t>(-1));
               if (is_entity_local(pub_entity)) {
                 local_entities_with_events[pub_entity].insert(ZENOH_EVENT_PUBLICATION_MATCHED);
+                printf(
+                  "Updating matched count by -1 for pub sub: %s\n",
+                  pub_entity.keyexpr().c_str());
               }
             }
           }
@@ -544,7 +567,9 @@ void GraphCache::remove_topic_map_from_cache(
 }
 
 ///=============================================================================
-void GraphCache::parse_del(const std::string & keyexpr)
+void GraphCache::parse_del(
+const std::string & keyexpr,
+bool ignore_from_current_session)
 {
   printf("[parse_del %s] %s\n", zid_str_.c_str(), keyexpr.c_str());
   std::optional<liveliness::Entity> maybe_entity = liveliness::Entity::make(keyexpr);
@@ -553,7 +578,12 @@ void GraphCache::parse_del(const std::string & keyexpr)
     return;
   }
   const liveliness::Entity entity = *maybe_entity;
-
+  if (ignore_from_current_session && is_entity_local(entity)){
+    RCUTILS_LOG_DEBUG_NAMED(
+      "rmw_zenoh_cpp",
+      "Ignoring parse_del for %s from the same session.\n", entity.keyexpr().c_str());
+    return;
+  }
   // Lock the graph mutex before accessing the graph.
   std::lock_guard<std::mutex> lock(graph_mutex_);
 

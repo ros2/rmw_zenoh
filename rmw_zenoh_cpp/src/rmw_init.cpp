@@ -282,7 +282,9 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
     if (z_reply_is_ok(&reply)) {
       z_sample_t sample = z_reply_ok(&reply);
       z_owned_str_t keystr = z_keyexpr_to_string(sample.keyexpr);
-      context->impl->graph_cache->parse_put(z_loan(keystr));
+      // Ignore tokens from the same session to avoid race conditions from this
+      // query and the liveliness subscription.
+      context->impl->graph_cache->parse_put(z_loan(keystr), true);
       z_drop(z_move(keystr));
     } else {
       printf("[discovery] Received an error\n");

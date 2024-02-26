@@ -341,7 +341,7 @@ rmw_destroy_node(rmw_node_t * node)
   // Undeclare liveliness token for the node to advertise that the node has ridden
   // off into the sunset.
   rmw_node_data_t * node_data = static_cast<rmw_node_data_t *>(node->data);
-  z_drop(z_move(node_data->token));
+  zc_liveliness_undeclare_token(z_move(node_data->token));
 
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
@@ -683,7 +683,7 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
 
   auto publisher_data = static_cast<rmw_publisher_data_t *>(publisher->data);
   if (publisher_data != nullptr) {
-    z_drop(z_move(publisher_data->token));
+    zc_liveliness_undeclare_token(z_move(publisher_data->token));
     if (publisher_data->pub_cache.has_value()) {
       z_drop(z_move(publisher_data->pub_cache.value()));
     }
@@ -1428,7 +1428,7 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
   auto sub_data = static_cast<rmw_subscription_data_t *>(subscription->data);
   if (sub_data != nullptr) {
     // Publish to the graph that a subscription has ridden off into the sunset
-    z_drop(z_move(sub_data->token));
+    zc_liveliness_undeclare_token(z_move(sub_data->token));
 
     RMW_TRY_DESTRUCTOR(sub_data->type_support->~MessageTypeSupport(), MessageTypeSupport, );
     allocator->deallocate(sub_data->type_support, allocator->state);
@@ -2088,7 +2088,7 @@ rmw_destroy_client(rmw_node_t * node, rmw_client_t * client)
   // CLEANUP ===================================================================
   z_drop(z_move(client_data->zn_closure_reply));
   z_drop(z_move(client_data->keyexpr));
-  z_drop(z_move(client_data->token));
+  zc_liveliness_undeclare_token(z_move(client_data->token));
 
   RMW_TRY_DESTRUCTOR(
     client_data->request_type_support->~RequestTypeSupport(), RequestTypeSupport, );
@@ -2755,7 +2755,7 @@ rmw_destroy_service(rmw_node_t * node, rmw_service_t * service)
   // CLEANUP ================================================================
   z_drop(z_move(service_data->keyexpr));
   z_undeclare_queryable(z_move(service_data->qable));
-  z_drop(z_move(service_data->token));
+  zc_liveliness_undeclare_token(z_move(service_data->token));
 
   RMW_TRY_DESTRUCTOR(
     service_data->request_type_support->~RequestTypeSupport(), RequestTypeSupport, );

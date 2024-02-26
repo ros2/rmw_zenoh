@@ -101,9 +101,9 @@ public:
   explicit GraphCache(const z_id_t & zid);
 
   // Parse a PUT message over a token's key-expression and update the graph.
-  void parse_put(const std::string & keyexpr);
+  void parse_put(const std::string & keyexpr, bool ignore_from_current_session = false);
   // Parse a DELETE message over a token's key-expression and update the graph.
-  void parse_del(const std::string & keyexpr);
+  void parse_del(const std::string & keyexpr, bool ignore_from_current_session = false);
 
   rmw_ret_t get_node_names(
     rcutils_string_array_t * node_names,
