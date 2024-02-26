@@ -1261,7 +1261,6 @@ rmw_create_subscription(
   sub_data->context = node->context;
 
   rmw_subscription->implementation_identifier = rmw_zenoh_identifier;
-  rmw_subscription->data = sub_data;
 
   rmw_subscription->topic_name = rcutils_strdup(topic_name, *allocator);
   RMW_CHECK_FOR_NULL_WITH_MSG(
@@ -1390,6 +1389,8 @@ rmw_create_subscription(
       "Unable to create liveliness token for the subscription.");
     return nullptr;
   }
+
+  rmw_subscription->data = sub_data;
 
   free_token.cancel();
   undeclare_z_sub.cancel();
@@ -3190,7 +3191,7 @@ static bool has_triggered_condition(
       // Check if the event queue for this event type is empty.
       auto zenoh_event_it = event_map.find(event_type);
       if (zenoh_event_it != event_map.end()) {
-        auto event_data = static_cast<EventsBase *>(event->data);
+        auto event_data = static_cast<EventsManager *>(event->data);
         if (event_data != nullptr) {
           if (!event_data->event_queue_is_empty(zenoh_event_it->second)) {
             return true;
@@ -3334,7 +3335,7 @@ rmw_wait(
     if (events) {
       for (size_t i = 0; i < events->event_count; ++i) {
         auto event = static_cast<rmw_event_t *>(events->events[i]);
-        auto event_data = static_cast<EventsBase *>(event->data);
+        auto event_data = static_cast<EventsManager *>(event->data);
         if (event_data != nullptr) {
           auto zenoh_event_it = event_map.find(event->event_type);
           if (zenoh_event_it != event_map.end()) {
@@ -3381,7 +3382,7 @@ rmw_wait(
     // Now detach the condition variable and mutex from each of the subscriptions
     for (size_t i = 0; i < events->event_count; ++i) {
       auto event = static_cast<rmw_event_t *>(events->events[i]);
-      auto event_data = static_cast<EventsBase *>(event->data);
+      auto event_data = static_cast<EventsManager *>(event->data);
       if (event_data != nullptr) {
         auto zenoh_event_it = event_map.find(event->event_type);
         if (zenoh_event_it != event_map.end()) {
@@ -3719,7 +3720,7 @@ rmw_subscription_set_on_new_message_callback(
   rmw_subscription_data_t * sub_data =
     static_cast<rmw_subscription_data_t *>(subscription->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
-  sub_data->set_user_callback(
+  sub_data->data_callback_mgr.set_callback(
     user_data, callback);
   return RMW_RET_OK;
 }
@@ -3736,7 +3737,7 @@ rmw_service_set_on_new_request_callback(
   rmw_service_data_t * service_data =
     static_cast<rmw_service_data_t *>(service->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(service_data, RMW_RET_INVALID_ARGUMENT);
-  service_data->set_user_callback(
+  service_data->data_callback_mgr.set_callback(
     user_data, callback);
   return RMW_RET_OK;
 }
@@ -3753,7 +3754,7 @@ rmw_client_set_on_new_response_callback(
   rmw_client_data_t * client_data =
     static_cast<rmw_client_data_t *>(client->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(client_data, RMW_RET_INVALID_ARGUMENT);
-  client_data->set_user_callback(
+  client_data->data_callback_mgr.set_callback(
     user_data, callback);
   return RMW_RET_OK;
 }

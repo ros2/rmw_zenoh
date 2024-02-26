@@ -154,31 +154,7 @@ void GraphCache::update_topic_map_for_put(
       topic_info.type_);
     if (topic_type_map_it == topic_map_it->second.end()) {
       // First time this topic type is added.
-
-      // Check for and report an *_INCOMPATIBLE_TYPE event if a different type for the same
-      // topic exists.
-//       if (report_events) {
-//         for (const auto & [topic_type, qos_map] : topic_map_it->second) {
-//           for (const auto & [qos_type, topic_data_ptr] : qos_map) {
-//             // If the entity is a publisher but the graph contains a sub,
-//             // report ZENOH_EVENT_PUBLISHER_INCOMPATIBLE_TYPE or
-//             // ZENOH_EVENT_PUBLISHER_INCOMPATIBLE_TYPE if vice versa.
-//             if ((is_pub && topic_data_ptr->stats_.sub_count_ > 0) ||
-//               (!is_pub && topic_data_ptr->stats_.pub_count_ > 0))
-//             {
-//               goto incompatible_type_event_found;
-//             }
-//           }
-//         }
-// incompatible_type_event_found:
-//         // TODO(Yadunund): Retrieve total count from global counters.
-//         auto event_type = is_pub ? ZENOH_EVENT_PUBLISHER_INCOMPATIBLE_TYPE :
-//           ZENOH_EVENT_SUBSCRIPTION_INCOMPATIBLE_TYPE;
-//         auto event = std::make_unique<rmw_zenoh_event_status_t>();
-//         event->total_count = 1;
-//         event->total_count_change = 1;
-//         detected_events[event_type] = std::move(event);
-//       }
+      // TODO(Yadunund) Check for and report an *_INCOMPATIBLE_TYPE events.
 
       topic_map_it->second.insert(
         std::make_pair(

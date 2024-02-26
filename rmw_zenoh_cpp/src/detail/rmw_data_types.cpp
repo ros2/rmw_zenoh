@@ -121,7 +121,7 @@ void rmw_subscription_data_t::add_new_message(
   message_queue_.emplace_back(std::move(msg));
 
   // Since we added new data, trigger user callback and guard condition if they are available
-  trigger_user_callback();
+  data_callback_mgr.trigger_callback();
   notify();
 }
 
@@ -176,7 +176,7 @@ void rmw_service_data_t::add_new_query(std::unique_ptr<ZenohQuery> query)
   query_queue_.emplace_back(std::move(query));
 
   // Since we added new data, trigger user callback and guard condition if they are available
-  trigger_user_callback();
+  data_callback_mgr.trigger_callback();
   notify();
 }
 
@@ -225,7 +225,7 @@ void rmw_client_data_t::add_new_reply(std::unique_ptr<ZenohReply> reply)
   reply_queue_.emplace_back(std::move(reply));
 
   // Since we added new data, trigger user callback and guard condition if they are available
-  trigger_user_callback();
+  data_callback_mgr.trigger_callback();
   notify();
 }
 

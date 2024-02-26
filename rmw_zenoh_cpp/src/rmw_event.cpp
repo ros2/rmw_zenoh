@@ -54,7 +54,7 @@ rmw_publisher_event_init(
   }
 
   rmw_event->implementation_identifier = publisher->implementation_identifier;
-  rmw_event->data = pub_data;
+  rmw_event->data = &pub_data->events_mgr;
   rmw_event->event_type = event_type;
 
   // Register the event with graph cache.
@@ -67,15 +67,12 @@ rmw_publisher_event_init(
       if (pub_data == nullptr) {
         return;
       }
-      pub_data->add_new_event(
+      pub_data->events_mgr.add_new_event(
         event_id,
         std::move(zenoh_event));
     }
   );
 
-  // printf(
-  //   "[rmw_publisher_event_init] created new rmw_event_type_t %s for %s\n",
-  //   std::to_string(event_type).c_str(), pub_data->entity->keyexpr().c_str());
   return RMW_RET_OK;
 }
 
@@ -109,7 +106,7 @@ rmw_subscription_event_init(
   }
 
   rmw_event->implementation_identifier = subscription->implementation_identifier;
-  rmw_event->data = sub_data;
+  rmw_event->data = &sub_data->events_mgr;
   rmw_event->event_type = event_type;
 
   // Register the event with graph cache if the event is not ZENOH_EVENT_MESSAGE_LOST
@@ -127,15 +124,12 @@ rmw_subscription_event_init(
       if (sub_data == nullptr) {
         return;
       }
-      sub_data->add_new_event(
+      sub_data->events_mgr.add_new_event(
         event_id,
         std::move(zenoh_event));
     }
   );
 
-  // printf(
-  //   "[rmw_subscription_event_init] created new rmw_event_type_t %s for %s\n",
-  //   std::to_string(event_type).c_str(), sub_data->entity->keyexpr().c_str());
   return RMW_RET_OK;
 }
 
@@ -159,7 +153,7 @@ rmw_event_set_callback(
   }
 
   // Both rmw_subscription_data_t and rmw_publisher_data_t inherit EventsBase.
-  EventsBase * event_data = static_cast<EventsBase *>(rmw_event->data);
+  EventsManager * event_data = static_cast<EventsManager *>(rmw_event->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(event_data, RMW_RET_INVALID_ARGUMENT);
   event_data->event_set_callback(
     zenoh_event_it->second,
@@ -196,8 +190,7 @@ rmw_take_event(
     return RMW_RET_ERROR;
   }
 
-  // Both rmw_subscription_data_t and rmw_publisher_data_t inherit EventsBase.
-  EventsBase * event_data = static_cast<EventsBase *>(event_handle->data);
+  EventsManager * event_data = static_cast<EventsManager *>(event_handle->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(event_data, RMW_RET_INVALID_ARGUMENT);
   std::unique_ptr<rmw_zenoh_event_status_t> st = event_data->pop_next_event(
     zenoh_event_it->second);

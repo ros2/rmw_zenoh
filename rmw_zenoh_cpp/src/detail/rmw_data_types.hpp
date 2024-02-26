@@ -83,7 +83,7 @@ struct rmw_node_data_t
 };
 
 ///=============================================================================
-class rmw_publisher_data_t : public EventsBase
+class rmw_publisher_data_t
 {
 public:
   // The Entity generated for the publisher.
@@ -108,6 +108,8 @@ public:
 
   // Context for memory allocation for messages.
   rmw_context_t * context;
+
+  EventsManager events_mgr;
 };
 
 ///=============================================================================
@@ -135,7 +137,7 @@ struct saved_msg_data
 };
 
 ///=============================================================================
-class rmw_subscription_data_t : public EventsBase
+class rmw_subscription_data_t
 {
 public:
   // The Entity generated for the subscription.
@@ -164,6 +166,9 @@ public:
   std::unique_ptr<saved_msg_data> pop_next_message();
 
   void add_new_message(std::unique_ptr<saved_msg_data> msg, const std::string & topic_name);
+
+  DataCallbackManager data_callback_mgr;
+  EventsManager events_mgr;
 
 private:
   std::deque<std::unique_ptr<saved_msg_data>> message_queue_;
@@ -197,7 +202,7 @@ private:
 };
 
 ///=============================================================================
-class rmw_service_data_t : public EventsBase
+class rmw_service_data_t
 {
 public:
   // The Entity generated for the service.
@@ -235,6 +240,8 @@ public:
 
   std::unique_ptr<ZenohQuery> take_from_query_map(int64_t sequence_number);
 
+  DataCallbackManager data_callback_mgr;
+
 private:
   void notify();
 
@@ -265,7 +272,7 @@ private:
 };
 
 ///=============================================================================
-class rmw_client_data_t : public EventsBase
+class rmw_client_data_t
 {
 public:
   // The Entity generated for the client.
@@ -302,6 +309,8 @@ public:
   void detach_condition();
 
   std::unique_ptr<ZenohReply> pop_next_reply();
+
+  DataCallbackManager data_callback_mgr;
 
 private:
   void notify();

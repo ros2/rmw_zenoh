@@ -82,19 +82,34 @@ struct rmw_zenoh_event_status_t
 };
 
 ///=============================================================================
-/// Base class to be inherited by entities that support events.
-class EventsBase
+/// A class that manages callbacks that should be triggered when a new
+/// message/request/response is received by an entity.
+class DataCallbackManager
 {
 public:
   /// @brief Set the user defined callback that should be called when
   /// a new message/response/request is received.
   /// @param user_data the data that should be passed to the callback.
   /// @param callback the callback to be set.
-  void set_user_callback(const void * user_data, rmw_event_callback_t callback);
+  void set_callback(const void * user_data, rmw_event_callback_t callback);
 
   /// Trigger the user callback.
-  void trigger_user_callback();
+  void trigger_callback();
 
+private:
+  std::mutex event_mutex_;
+  /// User callback that can be set via set_callback().
+  rmw_event_callback_t callback_ {nullptr};
+  /// User data that should be passed to the user callback.
+  const void * user_data_ {nullptr};
+  /// number of trigger requests made before the callback was set.
+  size_t unread_count_ {0};
+};
+
+/// Base class to be inherited by entities that support events.
+class EventsManager
+{
+public:
   /// @brief  Set the callback to be triggered when the relevant event is triggered.
   /// @param event_id the id of the event
   /// @param callback the callback to trigger for this event.
@@ -143,7 +158,7 @@ private:
   mutable std::mutex event_condition_mutex_;
   /// Condition variable to attach for event notifications.
   std::condition_variable * event_conditions_[ZENOH_EVENT_ID_MAX + 1]{nullptr};
-  /// User callback that can be set via set_user_callback().
+  /// User callback that can be set via data_callback_mgr.set_callback().
   rmw_event_callback_t callback_ {nullptr};
   /// User data that should be passed to the user callback.
   const void * user_data_ {nullptr};
