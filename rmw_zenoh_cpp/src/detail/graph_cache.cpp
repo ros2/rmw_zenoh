@@ -183,9 +183,9 @@ void GraphCache::update_topic_map_for_put(
                 static_cast<int32_t>(1));
               if (is_entity_local(sub_entity)) {
                 local_entities_with_events[sub_entity].insert(ZENOH_EVENT_SUBSCRIPTION_MATCHED);
-                printf(
-                  "Updating matched count by 1 for local sub: %s\n",
-                  sub_entity.keyexpr().c_str());
+                // printf(
+                //   "Updating matched count by 1 for local sub: %s\n",
+                //   sub_entity.keyexpr().c_str());
               }
             }
             // Update event counters for the new entity.
@@ -195,9 +195,9 @@ void GraphCache::update_topic_map_for_put(
               match_count_for_entity);
             if (is_entity_local(entity) && match_count_for_entity > 0) {
               local_entities_with_events[entity].insert(ZENOH_EVENT_PUBLICATION_MATCHED);
-              printf(
-                "Updating matched count by %ld for local pub: %s\n",
-                match_count_for_entity, entity.keyexpr().c_str());
+              // printf(
+              //   "Updating matched count by %ld for local pub: %s\n",
+              //   match_count_for_entity, entity.keyexpr().c_str());
             }
           } else {
             // Entity is a sub.
@@ -213,9 +213,9 @@ void GraphCache::update_topic_map_for_put(
                 static_cast<int32_t>(1));
               if (is_entity_local(pub_entity)) {
                 local_entities_with_events[pub_entity].insert(ZENOH_EVENT_PUBLICATION_MATCHED);
-                printf(
-                  "Updating matched count by 1 for local pub: %s\n",
-                  pub_entity.keyexpr().c_str());
+                // printf(
+                //   "Updating matched count by 1 for local pub: %s\n",
+                //   pub_entity.keyexpr().c_str());
               }
             }
             // Update event counters for the new entity.
@@ -225,9 +225,9 @@ void GraphCache::update_topic_map_for_put(
               match_count_for_entity);
             if (is_entity_local(entity) && match_count_for_entity > 0) {
               local_entities_with_events[entity].insert(ZENOH_EVENT_SUBSCRIPTION_MATCHED);
-              printf(
-                "Updating matched count by %ld for local sub: %s\n",
-                match_count_for_entity, entity.keyexpr().c_str());
+              // printf(
+              //   "Updating matched count by %ld for local sub: %s\n",
+              //   match_count_for_entity, entity.keyexpr().c_str());
             }
           }
         }
@@ -289,7 +289,7 @@ void GraphCache::parse_put(
   const std::string & keyexpr,
   bool ignore_from_current_session)
 {
-  printf("[parse_put %s] %s\n", zid_str_.c_str(), keyexpr.c_str());
+  // printf("[parse_put %s] %s\n", zid_str_.c_str(), keyexpr.c_str());
   std::optional<liveliness::Entity> maybe_entity = liveliness::Entity::make(keyexpr);
   if (!maybe_entity.has_value()) {
     // Error message has already been logged.
@@ -470,9 +470,9 @@ void GraphCache::update_topic_map_for_del(
                 static_cast<int32_t>(-1));
               if (is_entity_local(sub_entity)) {
                 local_entities_with_events[sub_entity].insert(ZENOH_EVENT_SUBSCRIPTION_MATCHED);
-                printf(
-                  "Updating matched count by -1 for local sub: %s\n",
-                  sub_entity.keyexpr().c_str());
+                // printf(
+                //   "Updating matched count by -1 for local sub: %s\n",
+                //   sub_entity.keyexpr().c_str());
               }
             }
           }
@@ -486,9 +486,9 @@ void GraphCache::update_topic_map_for_del(
                 static_cast<int32_t>(-1));
               if (is_entity_local(pub_entity)) {
                 local_entities_with_events[pub_entity].insert(ZENOH_EVENT_PUBLICATION_MATCHED);
-                printf(
-                  "Updating matched count by -1 for pub sub: %s\n",
-                  pub_entity.keyexpr().c_str());
+                // printf(
+                //   "Updating matched count by -1 for pub sub: %s\n",
+                //   pub_entity.keyexpr().c_str());
               }
             }
           }
@@ -550,7 +550,7 @@ void GraphCache::parse_del(
   const std::string & keyexpr,
   bool ignore_from_current_session)
 {
-  printf("[parse_del %s] %s\n", zid_str_.c_str(), keyexpr.c_str());
+  // printf("[parse_del %s] %s\n", zid_str_.c_str(), keyexpr.c_str());
   std::optional<liveliness::Entity> maybe_entity = liveliness::Entity::make(keyexpr);
   if (!maybe_entity.has_value()) {
     // Error message has already been logged.

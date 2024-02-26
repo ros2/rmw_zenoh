@@ -643,7 +643,7 @@ rmw_create_publisher(
       "Unable to create liveliness token for the publisher.");
     return nullptr;
   }
-  printf("[rmw_create_publisher] Created pub %s\n", publisher_data->entity->keyexpr().c_str());
+  // printf("[rmw_create_publisher] Created pub %s\n", publisher_data->entity->keyexpr().c_str());
 
   free_token.cancel();
   undeclare_z_publisher_cache.cancel();
