@@ -318,7 +318,7 @@ void GraphCache::parse_put(
   }
 
   const liveliness::Entity & entity = *maybe_entity;
-  if (ignore_from_current_session && is_entity_local(entity)){
+  if (ignore_from_current_session && is_entity_local(entity)) {
     RCUTILS_LOG_DEBUG_NAMED(
       "rmw_zenoh_cpp",
       "Ignoring parse_put for %s from the same session.\n", entity.keyexpr().c_str());
@@ -568,8 +568,8 @@ void GraphCache::remove_topic_map_from_cache(
 
 ///=============================================================================
 void GraphCache::parse_del(
-const std::string & keyexpr,
-bool ignore_from_current_session)
+  const std::string & keyexpr,
+  bool ignore_from_current_session)
 {
   printf("[parse_del %s] %s\n", zid_str_.c_str(), keyexpr.c_str());
   std::optional<liveliness::Entity> maybe_entity = liveliness::Entity::make(keyexpr);
@@ -578,7 +578,7 @@ bool ignore_from_current_session)
     return;
   }
   const liveliness::Entity entity = *maybe_entity;
-  if (ignore_from_current_session && is_entity_local(entity)){
+  if (ignore_from_current_session && is_entity_local(entity)) {
     RCUTILS_LOG_DEBUG_NAMED(
       "rmw_zenoh_cpp",
       "Ignoring parse_del for %s from the same session.\n", entity.keyexpr().c_str());
@@ -876,7 +876,7 @@ rmw_ret_t GraphCache::publisher_count_matched_subscriptions(
             &is_compatible,
             nullptr,
             0);
-          if (ret == RMW_RET_OK && is_compatible == RMW_QOS_COMPATIBILITY_OK) {
+          if (ret == RMW_RET_OK && is_compatible != RMW_QOS_COMPATIBILITY_ERROR) {
             *subscription_count = *subscription_count + topic_data->stats_.subs_.size();
           }
         }
@@ -911,7 +911,7 @@ rmw_ret_t GraphCache::subscription_count_matched_publishers(
             &is_compatible,
             nullptr,
             0);
-          if (ret == RMW_RET_OK && is_compatible == RMW_QOS_COMPATIBILITY_OK) {
+          if (ret == RMW_RET_OK && is_compatible != RMW_QOS_COMPATIBILITY_ERROR) {
             *publisher_count = *publisher_count + topic_data->stats_.pubs_.size();
           }
         }
