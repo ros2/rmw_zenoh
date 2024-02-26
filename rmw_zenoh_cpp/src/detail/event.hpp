@@ -36,14 +36,14 @@ enum rmw_zenoh_event_type_t
   // subscription events
   ZENOH_EVENT_REQUESTED_QOS_INCOMPATIBLE,
   ZENOH_EVENT_MESSAGE_LOST,
-  // RMW_EVENT_SUBSCRIPTION_INCOMPATIBLE_TYPE,
+  ZENOH_EVENT_SUBSCRIPTION_INCOMPATIBLE_TYPE,
   ZENOH_EVENT_SUBSCRIPTION_MATCHED,
 
   // publisher events
   // RMW_EVENT_LIVELINESS_LOST,
   // RMW_EVENT_OFFERED_DEADLINE_MISSED,
   ZENOH_EVENT_OFFERED_QOS_INCOMPATIBLE,
-  // RMW_EVENT_PUBLISHER_INCOMPATIBLE_TYPE,
+  ZENOH_EVENT_PUBLISHER_INCOMPATIBLE_TYPE,
   ZENOH_EVENT_PUBLICATION_MATCHED,
 };
 
@@ -56,35 +56,60 @@ static const std::unordered_map<rmw_event_type_t, rmw_zenoh_event_type_t> event_
   {RMW_EVENT_OFFERED_QOS_INCOMPATIBLE, ZENOH_EVENT_OFFERED_QOS_INCOMPATIBLE},
   {RMW_EVENT_MESSAGE_LOST, ZENOH_EVENT_MESSAGE_LOST},
   {RMW_EVENT_SUBSCRIPTION_MATCHED, ZENOH_EVENT_SUBSCRIPTION_MATCHED},
-  {RMW_EVENT_PUBLICATION_MATCHED, ZENOH_EVENT_PUBLICATION_MATCHED}
+  {RMW_EVENT_PUBLICATION_MATCHED, ZENOH_EVENT_PUBLICATION_MATCHED},
+  {RMW_EVENT_SUBSCRIPTION_INCOMPATIBLE_TYPE, ZENOH_EVENT_SUBSCRIPTION_INCOMPATIBLE_TYPE},
+  {RMW_EVENT_PUBLISHER_INCOMPATIBLE_TYPE, ZENOH_EVENT_PUBLISHER_INCOMPATIBLE_TYPE}
   // TODO(clalancette): Implement remaining events
 };
 
 ///=============================================================================
 /// A struct to store status changes which can be mapped to rmw event statuses.
-/// The data field can be used to store serialized information for more complex statuses.
 struct rmw_zenoh_event_status_t
 {
   size_t total_count;
   size_t total_count_change;
   size_t current_count;
+  size_t current_count_change;
+  // The data field can be used to store serialized information for more complex statuses.
   std::string data;
+
+  rmw_zenoh_event_status_t()
+  : total_count(0),
+    total_count_change(0),
+    current_count(0),
+    current_count_change(0)
+  {}
 };
 
 ///=============================================================================
-/// Base class to be inherited by entities that support events.
-class EventsBase
+/// A class that manages callbacks that should be triggered when a new
+/// message/request/response is received by an entity.
+class DataCallbackManager
 {
 public:
   /// @brief Set the user defined callback that should be called when
   /// a new message/response/request is received.
   /// @param user_data the data that should be passed to the callback.
   /// @param callback the callback to be set.
-  void set_user_callback(const void * user_data, rmw_event_callback_t callback);
+  void set_callback(const void * user_data, rmw_event_callback_t callback);
 
   /// Trigger the user callback.
-  void trigger_user_callback();
+  void trigger_callback();
 
+private:
+  std::mutex event_mutex_;
+  /// User callback that can be set via set_callback().
+  rmw_event_callback_t callback_ {nullptr};
+  /// User data that should be passed to the user callback.
+  const void * user_data_ {nullptr};
+  /// number of trigger requests made before the callback was set.
+  size_t unread_count_ {0};
+};
+
+/// Base class to be inherited by entities that support events.
+class EventsManager
+{
+public:
   /// @brief  Set the callback to be triggered when the relevant event is triggered.
   /// @param event_id the id of the event
   /// @param callback the callback to trigger for this event.
@@ -133,7 +158,7 @@ private:
   mutable std::mutex event_condition_mutex_;
   /// Condition variable to attach for event notifications.
   std::condition_variable * event_conditions_[ZENOH_EVENT_ID_MAX + 1]{nullptr};
-  /// User callback that can be set via set_user_callback().
+  /// User callback that can be set via data_callback_mgr.set_callback().
   rmw_event_callback_t callback_ {nullptr};
   /// User data that should be passed to the user callback.
   const void * user_data_ {nullptr};

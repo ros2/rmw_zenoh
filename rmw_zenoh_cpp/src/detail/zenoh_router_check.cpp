@@ -21,32 +21,6 @@
 #include <sstream>
 #include <string>
 
-namespace
-{
-
-// Convert a Zenoh Id to a string
-// Zenoh IDs are LSB-first 128bit unsigned and non-zero integers in hexadecimal lowercase.
-// @param pid Zenoh Id to convert
-std::string zid_to_str(const z_id_t & pid)
-{
-  std::stringstream ss;
-  int len = 0;
-  for (size_t i = 0; i < sizeof(pid.id); ++i) {
-    if (pid.id[i]) {
-      len = static_cast<int>(i) + 1;
-    }
-  }
-  if (!len) {
-    ss << "";
-  } else {
-    for (int i = len - 1; i >= 0; --i) {
-      ss << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(pid.id[i]);
-    }
-  }
-  return ss.str();
-}
-
-}  // namespace
 
 rmw_ret_t zenoh_router_check(z_session_t session)
 {
@@ -55,9 +29,9 @@ rmw_ret_t zenoh_router_check(z_session_t session)
 
   // Define callback
   auto callback = [](const struct z_id_t * id, void * ctx) {
-      const std::string id_str = zid_to_str(*id);
       // Note: Callback is guaranteed to never be called
       // concurrently according to z_info_routers_zid docstring
+      static_cast<void>(id);
       (*(static_cast<int *>(ctx)))++;
     };
 

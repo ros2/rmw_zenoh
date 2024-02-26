@@ -22,10 +22,10 @@
 
 
 ///=============================================================================
-void EventsBase::set_user_callback(
+void DataCallbackManager::set_callback(
   const void * user_data, rmw_event_callback_t callback)
 {
-  std::lock_guard<std::recursive_mutex> lock_mutex(event_mutex_);
+  std::lock_guard<std::mutex> lock_mutex(event_mutex_);
 
   if (callback) {
     // Push events arrived before setting the the executor callback.
@@ -42,10 +42,10 @@ void EventsBase::set_user_callback(
 }
 
 ///=============================================================================
-void EventsBase::trigger_user_callback()
+void DataCallbackManager::trigger_callback()
 {
   // Trigger the user provided event callback if available.
-  std::lock_guard<std::recursive_mutex> lock_mutex(event_mutex_);
+  std::lock_guard<std::mutex> lock_mutex(event_mutex_);
   if (callback_ != nullptr) {
     callback_(user_data_, 1);
   } else {
@@ -54,7 +54,7 @@ void EventsBase::trigger_user_callback()
 }
 
 ///=============================================================================
-void EventsBase::event_set_callback(
+void EventsManager::event_set_callback(
   rmw_zenoh_event_type_t event_id,
   rmw_event_callback_t callback,
   const void * user_data)
@@ -82,7 +82,7 @@ void EventsBase::event_set_callback(
 }
 
 ///=============================================================================
-void EventsBase::trigger_event_callback(rmw_zenoh_event_type_t event_id)
+void EventsManager::trigger_event_callback(rmw_zenoh_event_type_t event_id)
 {
   if (event_id > ZENOH_EVENT_ID_MAX) {
     RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
@@ -103,7 +103,7 @@ void EventsBase::trigger_event_callback(rmw_zenoh_event_type_t event_id)
 }
 
 ///=============================================================================
-bool EventsBase::event_queue_is_empty(rmw_zenoh_event_type_t event_id) const
+bool EventsManager::event_queue_is_empty(rmw_zenoh_event_type_t event_id) const
 {
   if (event_id > ZENOH_EVENT_ID_MAX) {
     RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
@@ -119,7 +119,7 @@ bool EventsBase::event_queue_is_empty(rmw_zenoh_event_type_t event_id) const
 }
 
 ///=============================================================================
-std::unique_ptr<rmw_zenoh_event_status_t> EventsBase::pop_next_event(
+std::unique_ptr<rmw_zenoh_event_status_t> EventsManager::pop_next_event(
   rmw_zenoh_event_type_t event_id)
 {
   if (event_id > ZENOH_EVENT_ID_MAX) {
@@ -145,7 +145,7 @@ std::unique_ptr<rmw_zenoh_event_status_t> EventsBase::pop_next_event(
 }
 
 ///=============================================================================
-void EventsBase::add_new_event(
+void EventsManager::add_new_event(
   rmw_zenoh_event_type_t event_id,
   std::unique_ptr<rmw_zenoh_event_status_t> event)
 {
@@ -180,7 +180,7 @@ void EventsBase::add_new_event(
 }
 
 ///=============================================================================
-void EventsBase::attach_event_condition(
+void EventsManager::attach_event_condition(
   rmw_zenoh_event_type_t event_id,
   std::condition_variable * condition_variable)
 {
@@ -197,7 +197,7 @@ void EventsBase::attach_event_condition(
 }
 
 ///=============================================================================
-void EventsBase::detach_event_condition(rmw_zenoh_event_type_t event_id)
+void EventsManager::detach_event_condition(rmw_zenoh_event_type_t event_id)
 {
   if (event_id > ZENOH_EVENT_ID_MAX) {
     RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
@@ -212,7 +212,7 @@ void EventsBase::detach_event_condition(rmw_zenoh_event_type_t event_id)
 }
 
 ///=============================================================================
-void EventsBase::notify_event(rmw_zenoh_event_type_t event_id)
+void EventsManager::notify_event(rmw_zenoh_event_type_t event_id)
 {
   if (event_id > ZENOH_EVENT_ID_MAX) {
     RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(

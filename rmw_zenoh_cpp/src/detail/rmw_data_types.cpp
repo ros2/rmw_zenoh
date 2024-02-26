@@ -26,6 +26,11 @@
 
 #include "rmw_data_types.hpp"
 
+///=============================================================================
+size_t rmw_context_impl_s::get_next_entity_id()
+{
+  return next_entity_id_++;
+}
 
 ///=============================================================================
 saved_msg_data::saved_msg_data(zc_owned_payload_t p, uint64_t recv_ts, const uint8_t pub_gid[16])
@@ -111,10 +116,12 @@ void rmw_subscription_data_t::add_new_message(
     }
   }
 
+  // TODO(Yadunund): Check for ZENOH_EVENT_MESSAGE_LOST.
+
   message_queue_.emplace_back(std::move(msg));
 
   // Since we added new data, trigger user callback and guard condition if they are available
-  trigger_user_callback();
+  data_callback_mgr.trigger_callback();
   notify();
 }
 
@@ -169,7 +176,7 @@ void rmw_service_data_t::add_new_query(std::unique_ptr<ZenohQuery> query)
   query_queue_.emplace_back(std::move(query));
 
   // Since we added new data, trigger user callback and guard condition if they are available
-  trigger_user_callback();
+  data_callback_mgr.trigger_callback();
   notify();
 }
 
@@ -218,7 +225,7 @@ void rmw_client_data_t::add_new_reply(std::unique_ptr<ZenohReply> reply)
   reply_queue_.emplace_back(std::move(reply));
 
   // Since we added new data, trigger user callback and guard condition if they are available
-  trigger_user_callback();
+  data_callback_mgr.trigger_callback();
   notify();
 }
 
