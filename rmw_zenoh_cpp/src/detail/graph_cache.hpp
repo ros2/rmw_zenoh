@@ -67,6 +67,7 @@ using TopicDataPtr = std::shared_ptr<TopicData>;
 struct GraphNode
 {
   std::string zid_;
+  std::string nid_;
   std::string ns_;
   std::string name_;
   // TODO(Yadunund): Should enclave be the parent to the namespace key and not within a Node?
@@ -271,6 +272,7 @@ private:
   // Counters to track changes to event statues for each topic.
   std::unordered_map<std::string,
     std::array<rmw_zenoh_event_status_t, ZENOH_EVENT_ID_MAX + 1>> event_statuses_;
+  std::mutex events_mutex_;
 
   // Mutex to lock before modifying the members above.
   mutable std::mutex graph_mutex_;

@@ -72,6 +72,13 @@ struct rmw_zenoh_event_status_t
   size_t current_count_change;
   // The data field can be used to store serialized information for more complex statuses.
   std::string data;
+
+  rmw_zenoh_event_status_t()
+  : total_count(0),
+    total_count_change(0),
+    current_count(0),
+    current_count_change(0)
+  {}
 };
 
 ///=============================================================================

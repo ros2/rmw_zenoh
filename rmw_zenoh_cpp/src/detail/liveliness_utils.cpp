@@ -67,6 +67,7 @@ enum KeyexprIndex
   AdminSpace,
   DomainId,
   Zid,
+  Nid,
   Id,
   EntityStr,
   Namespace,
@@ -240,11 +241,13 @@ std::string subscription_token(size_t domain_id)
 ///=============================================================================
 Entity::Entity(
   std::string zid,
+  std::string nid,
   std::string id,
   EntityType type,
   NodeInfo node_info,
   std::optional<TopicInfo> topic_info)
 : zid_(std::move(zid)),
+  nid_(std::move(nid)),
   id_(std::move(id)),
   type_(std::move(type)),
   node_info_(std::move(node_info)),
@@ -254,6 +257,7 @@ Entity::Entity(
   keyexpr_parts[KeyexprIndex::AdminSpace] = ADMIN_SPACE;
   keyexpr_parts[KeyexprIndex::DomainId] = std::to_string(node_info_.domain_id_);
   keyexpr_parts[KeyexprIndex::Zid] = zid_;
+  keyexpr_parts[KeyexprIndex::Nid] = nid_;
   keyexpr_parts[KeyexprIndex::Id] = id_;
   keyexpr_parts[KeyexprIndex::EntityStr] = entity_to_str.at(type_);
   // An empty namespace from rcl will contain "/" but zenoh does not allow keys with "//".
@@ -289,6 +293,7 @@ Entity::Entity(
 ///=============================================================================
 std::optional<Entity> Entity::make(
   z_id_t zid,
+  const std::string & nid,
   const std::string & id,
   EntityType type,
   NodeInfo node_info,
@@ -311,8 +316,13 @@ std::optional<Entity> Entity::make(
     return std::nullopt;
   }
 
-  Entity entity{zid_to_str(zid), std::move(id), std::move(type), std::move(node_info), std::move(
-      topic_info)};
+  Entity entity{
+    zid_to_str(zid),
+    std::move(nid),
+    std::move(id),
+    std::move(type),
+    std::move(node_info),
+    std::move(topic_info)};
   return entity;
 }
 
@@ -359,6 +369,7 @@ std::optional<Entity> Entity::make(const std::string & keyexpr)
   EntityType entity_type = entity_it->second;
   std::size_t domain_id = std::stoul(parts[KeyexprIndex::DomainId]);
   std::string & zid = parts[KeyexprIndex::Zid];
+  std::string & nid = parts[KeyexprIndex::Nid];
   std::string & id = parts[KeyexprIndex::Id];
   std::string ns = demangle_name(std::move(parts[KeyexprIndex::Namespace]));
   std::string node_name = demangle_name(std::move(parts[KeyexprIndex::NodeName]));
@@ -388,6 +399,7 @@ std::optional<Entity> Entity::make(const std::string & keyexpr)
 
   return Entity{
     std::move(zid),
+    std::move(nid),
     std::move(id),
     std::move(entity_type),
     NodeInfo{std::move(domain_id), std::move(ns), std::move(node_name), ""},
@@ -398,6 +410,12 @@ std::optional<Entity> Entity::make(const std::string & keyexpr)
 std::string Entity::zid() const
 {
   return this->zid_;
+}
+
+///=============================================================================
+std::string Entity::nid() const
+{
+  return this->nid_;
 }
 
 ///=============================================================================

@@ -286,9 +286,11 @@ rmw_create_node(
 
   // Initialize liveliness token for the node to advertise that a new node is in town.
   rmw_node_data_t * node_data = static_cast<rmw_node_data_t *>(node->data);
+  node_data->id = context->impl->get_next_entity_id();
   const auto liveliness_entity = liveliness::Entity::make(
     z_info_zid(z_loan(context->impl->session)),
-    std::to_string(context->impl->get_next_entity_id()),
+    std::to_string(node_data->id),
+    std::to_string(node_data->id),
     liveliness::EntityType::Node,
     liveliness::NodeInfo{context->actual_domain_id, namespace_, name, ""});
   if (!liveliness_entity.has_value()) {
@@ -436,6 +438,13 @@ rmw_create_publisher(
   {
     RMW_SET_ERROR_MSG(
       "Strict requirement on unique network flow endpoints for publishers not supported");
+    return nullptr;
+  }
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->data, nullptr);
+  const rmw_node_data_t * node_data = static_cast<rmw_node_data_t *>(node->data);
+  if (node_data == nullptr) {
+    RMW_SET_ERROR_MSG(
+      "Unable to create publisher as node_data is invalid.");
     return nullptr;
   }
 
@@ -604,6 +613,7 @@ rmw_create_publisher(
 
   publisher_data->entity = liveliness::Entity::make(
     z_info_zid(z_loan(node->context->impl->session)),
+    std::to_string(node_data->id),
     std::to_string(context_impl->get_next_entity_id()),
     liveliness::EntityType::Publisher,
     liveliness::NodeInfo{node->context->actual_domain_id, node->namespace_, node->name, ""},
@@ -633,6 +643,7 @@ rmw_create_publisher(
       "Unable to create liveliness token for the publisher.");
     return nullptr;
   }
+  printf("[rmw_create_publisher] Created pub %s\n", publisher_data->entity->keyexpr().c_str());
 
   free_token.cancel();
   undeclare_z_publisher_cache.cancel();
@@ -1147,6 +1158,7 @@ rmw_create_subscription(
     return nullptr;
   }
 
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->data, nullptr);
   auto node_data = static_cast<rmw_node_data_t *>(node->data);
   RMW_CHECK_FOR_NULL_WITH_MSG(
     node_data, "unable to create subscription as node_data is invalid.",
@@ -1348,6 +1360,7 @@ rmw_create_subscription(
   // Publish to the graph that a new subscription is in town
   sub_data->entity = liveliness::Entity::make(
     z_info_zid(z_loan(node->context->impl->session)),
+    std::to_string(node_data->id),
     std::to_string(context_impl->get_next_entity_id()),
     liveliness::EntityType::Subscription,
     liveliness::NodeInfo{node->context->actual_domain_id, node->namespace_, node->name, ""},
@@ -1832,6 +1845,13 @@ rmw_create_client(
     RMW_SET_ERROR_MSG("zenoh session is invalid");
     return nullptr;
   }
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->data, nullptr);
+  const rmw_node_data_t * node_data = static_cast<rmw_node_data_t *>(node->data);
+  if (node_data == nullptr) {
+    RMW_SET_ERROR_MSG(
+      "Unable to create client as node data is invalid.");
+    return nullptr;
+  }
 
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
@@ -1991,6 +2011,7 @@ rmw_create_client(
   }
   client_data->entity = liveliness::Entity::make(
     z_info_zid(z_loan(node->context->impl->session)),
+    std::to_string(node_data->id),
     std::to_string(context_impl->get_next_entity_id()),
     liveliness::EntityType::Client,
     liveliness::NodeInfo{node->context->actual_domain_id, node->namespace_, node->name, ""},
@@ -2467,7 +2488,13 @@ rmw_create_service(
       return nullptr;
     }
   }
-
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->data, nullptr);
+  const rmw_node_data_t * node_data = static_cast<rmw_node_data_t *>(node->data);
+  if (node_data == nullptr) {
+    RMW_SET_ERROR_MSG(
+      "Unable to create service as node data is invalid.");
+    return nullptr;
+  }
   RMW_CHECK_FOR_NULL_WITH_MSG(
     node->context,
     "expected initialized context",
@@ -2649,6 +2676,7 @@ rmw_create_service(
   }
   service_data->entity = liveliness::Entity::make(
     z_info_zid(z_loan(node->context->impl->session)),
+    std::to_string(node_data->id),
     std::to_string(context_impl->get_next_entity_id()),
     liveliness::EntityType::Service,
     liveliness::NodeInfo{node->context->actual_domain_id, node->namespace_, node->name, ""},
@@ -3165,12 +3193,12 @@ static bool has_triggered_condition(
         auto event_data = static_cast<EventsBase *>(event->data);
         if (event_data != nullptr) {
           if (!event_data->event_queue_is_empty(zenoh_event_it->second)) {
-            printf("EVENTS QUEUE IS NOT EMPTY!!\n");
             return true;
           }
         }
       } else {
-        printf("ERROR!!!!!!!!!!!!!!\n");
+        RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
+          "has_triggered_condition() called with unknown event %u. Report this bug.", event_type);
       }
     }
   }

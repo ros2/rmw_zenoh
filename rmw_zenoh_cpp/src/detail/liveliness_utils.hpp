@@ -76,12 +76,13 @@ enum class EntityType : uint8_t
  *
  * The minimal key-expression is of the form:
  *
- * <ADMIN_SPACE>/<domainid>/<zid>/<id>/<entity>/<namespace>/<nodename>
+ * <ADMIN_SPACE>/<domainid>/<zid>/<nid>/<id>/<entity>/<namespace>/<nodename>
  *
  * Where:
  *  <domainid> - A number set by the user to "partition" graphs.  Roughly equivalent to the domain ID in DDS.
  *  <zid> - The zenoh session's id with elements concatenated into a string using '.' as separator.
- *  <id> - A unique ID within the zenoh session to identify this entity.
+ *  <nid> - A unique ID within the zenoh session of the node which created this entity.
+ *  <id> - A unique ID within the zenoh session to identify this entity. When entity is a node, the id and nid are equal.
  *  <entity> - The type of entity.  This can be one of "NN" for a Network Node, "MP" for a Message Publisher, "MS" for a Message Subscription, "SS" for a Service Server, or "SC" for a Service Client.
  *  <namespace> - The ROS namespace for this entity.  If the namespace is absolute, this function will add in an _ for later parsing reasons.
  *  <nodename> - The ROS node name for this entity.
@@ -96,7 +97,7 @@ enum class EntityType : uint8_t
  * For example, the liveliness expression for a publisher within a /talker node that publishes
  * an std_msgs/msg/String over topic /chatter and with QoS settings of Reliability: best_effort,
  * Durability: transient_local, History: keep_all, and depth: 10, would be
- * "@ros2_lv/0/q1w2e3r4t5y6/32/MP/_/talker/dds_::std_msgs::msg::String/2:1:2,10".
+ * "@ros2_lv/0/q1w2e3r4t5y6/1/32/MP/_/talker/dds_::std_msgs::msg::String/2:1:2,10".
  * Note: The domain_id is assumed to be 0 and a random id is used in the example. Also the
  *  _dds:: prefix in the topic_type is an artifact of the type support implementation and is
  *  removed when reporting the topic_type in graph_cache.cpp (see _demangle_if_ros_type()).
@@ -115,6 +116,7 @@ public:
   /// @return An entity if all inputs are valid. This way no invalid entities can be created.
   static std::optional<Entity> make(
     z_id_t zid,
+    const std::string & nid,
     const std::string & id,
     EntityType type,
     NodeInfo node_info,
@@ -126,6 +128,9 @@ public:
   // Get the zenoh session id as a string. This is not unique as entities
   // created within the same session, will have the same ids.
   std::string zid() const;
+
+  // Get the id of the node of this entity.
+  std::string nid() const;
 
   // Get the id of the entity local to a zenoh session.
   // Use guid() to retrieve a globally unique id.
@@ -157,12 +162,14 @@ public:
 private:
   Entity(
     std::string zid,
+    std::string nid,
     std::string id,
     EntityType type,
     NodeInfo node_info,
     std::optional<TopicInfo> topic_info);
 
   std::string zid_;
+  std::string nid_;
   std::string id_;
   std::size_t guid_;
   EntityType type_;

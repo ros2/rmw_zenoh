@@ -60,6 +60,7 @@ std::shared_ptr<GraphNode> GraphCache::make_graph_node(const Entity & entity) co
 {
   auto graph_node = std::make_shared<GraphNode>();
   graph_node->zid_ = entity.zid();
+  graph_node->nid_ = entity.nid();
   graph_node->ns_ = entity.node_namespace();
   graph_node->name_ = entity.node_name();
   graph_node->enclave_ = entity.node_enclave();
@@ -197,20 +198,20 @@ void GraphCache::update_topic_map_for_put(
             }
             // Also iterate through the subs to check if any are local and if update event counters.
             for (const liveliness::Entity & sub_entity : topic_data_ptr->stats_.subs_) {
+              update_event_counters(
+                topic_info.name_,
+                ZENOH_EVENT_SUBSCRIPTION_MATCHED,
+                static_cast<int32_t>(1));
               if (is_entity_local(sub_entity)) {
-                update_event_counters(
-                  topic_info.name_,
-                  ZENOH_EVENT_SUBSCRIPTION_MATCHED,
-                  1);
                 local_entities_with_events[sub_entity].insert(ZENOH_EVENT_SUBSCRIPTION_MATCHED);
               }
             }
             // Update event counters for the new entity.
+            update_event_counters(
+              topic_info.name_,
+              ZENOH_EVENT_PUBLICATION_MATCHED,
+              match_count_for_entity);
             if (is_entity_local(entity) && match_count_for_entity > 0) {
-              update_event_counters(
-                topic_info.name_,
-                ZENOH_EVENT_PUBLICATION_MATCHED,
-                match_count_for_entity);
               local_entities_with_events[entity].insert(ZENOH_EVENT_PUBLICATION_MATCHED);
             }
           } else {
@@ -221,20 +222,20 @@ void GraphCache::update_topic_map_for_put(
             }
             // Also iterate through the pubs to check if any are local and if update event counters.
             for (const liveliness::Entity & pub_entity : topic_data_ptr->stats_.pubs_) {
+              update_event_counters(
+                topic_info.name_,
+                ZENOH_EVENT_PUBLICATION_MATCHED,
+                static_cast<int32_t>(1));
               if (is_entity_local(pub_entity)) {
-                update_event_counters(
-                  topic_info.name_,
-                  ZENOH_EVENT_PUBLICATION_MATCHED,
-                  1);
                 local_entities_with_events[pub_entity].insert(ZENOH_EVENT_PUBLICATION_MATCHED);
               }
             }
             // Update event counters for the new entity.
+            update_event_counters(
+              topic_info.name_,
+              ZENOH_EVENT_SUBSCRIPTION_MATCHED,
+              match_count_for_entity);
             if (is_entity_local(entity) && match_count_for_entity > 0) {
-              update_event_counters(
-                topic_info.name_,
-                ZENOH_EVENT_SUBSCRIPTION_MATCHED,
-                match_count_for_entity);
               local_entities_with_events[entity].insert(ZENOH_EVENT_SUBSCRIPTION_MATCHED);
             }
           }
@@ -295,6 +296,7 @@ void GraphCache::take_local_entities_with_events(
 ///=============================================================================
 void GraphCache::parse_put(const std::string & keyexpr)
 {
+  printf("[parse_put %s] %s\n", zid_str_.c_str(), keyexpr.c_str());
   std::optional<liveliness::Entity> maybe_entity = liveliness::Entity::make(keyexpr);
   if (!maybe_entity.has_value()) {
     // Error message has already been logged.
@@ -333,14 +335,8 @@ void GraphCache::parse_put(const std::string & keyexpr)
     range.first, range.second,
     [&entity](const std::pair<std::string, GraphNodePtr> & node_it)
     {
-      // TODO(Yadunund): We need to encode the node's id in every entity's liveliness
-      // token. Right now we cannot differentiate between two nodes from the same session
-      // with the same name and namespace.
-      const bool match =
-      entity.zid() == node_it.second->zid_ &&
-      entity.node_namespace() == node_it.second->ns_ &&
-      entity.node_name() == node_it.second->name_;
-      return match;
+      // Match nodes if their zenoh sesion and node ids match.
+      return entity.zid() == node_it.second->zid_ && entity.nid() == node_it.second->nid_;
     });
   if (node_it == range.second) {
     // Either the first time a node with this name is added or with an existing
@@ -469,12 +465,15 @@ void GraphCache::update_topic_map_for_del(
           // Notify any local subs of a matched event with change -1.
           for (const auto & [_, topic_data_ptr] : cache_topic_type_it->second) {
             for (const liveliness::Entity & sub_entity : topic_data_ptr->stats_.subs_) {
+              update_event_counters(
+                topic_info.name_,
+                ZENOH_EVENT_SUBSCRIPTION_MATCHED,
+                static_cast<int32_t>(-1));
               if (is_entity_local(sub_entity)) {
-                update_event_counters(
-                  topic_info.name_,
-                  ZENOH_EVENT_SUBSCRIPTION_MATCHED,
-                  -1);
                 local_entities_with_events[sub_entity].insert(ZENOH_EVENT_SUBSCRIPTION_MATCHED);
+                printf(
+                  "Updating matched count by -1 for local sub: %s\n",
+                  sub_entity.keyexpr().c_str());
               }
             }
           }
@@ -482,11 +481,11 @@ void GraphCache::update_topic_map_for_del(
           // Notify any local pubs of a matched event with change -1.
           for (const auto & [_, topic_data_ptr] : cache_topic_type_it->second) {
             for (const liveliness::Entity & pub_entity : topic_data_ptr->stats_.pubs_) {
+              update_event_counters(
+                topic_info.name_,
+                ZENOH_EVENT_PUBLICATION_MATCHED,
+                static_cast<int32_t>(-1));
               if (is_entity_local(pub_entity)) {
-                update_event_counters(
-                  topic_info.name_,
-                  ZENOH_EVENT_PUBLICATION_MATCHED,
-                  -1);
                 local_entities_with_events[pub_entity].insert(ZENOH_EVENT_PUBLICATION_MATCHED);
               }
             }
@@ -547,6 +546,7 @@ void GraphCache::remove_topic_map_from_cache(
 ///=============================================================================
 void GraphCache::parse_del(const std::string & keyexpr)
 {
+  printf("[parse_del %s] %s\n", zid_str_.c_str(), keyexpr.c_str());
   std::optional<liveliness::Entity> maybe_entity = liveliness::Entity::make(keyexpr);
   if (!maybe_entity.has_value()) {
     // Error message has already been logged.
@@ -570,11 +570,8 @@ void GraphCache::parse_del(const std::string & keyexpr)
     range.first, range.second,
     [&entity](const std::pair<std::string, GraphNodePtr> & node_it)
     {
-      const bool match =
-      entity.zid() == node_it.second->zid_ &&
-      entity.node_namespace() == node_it.second->ns_ &&
-      entity.node_name() == node_it.second->name_;
-      return match;
+      // Match nodes if their zenoh sesion and node ids match.
+      return entity.zid() == node_it.second->zid_ && entity.nid() == node_it.second->nid_;
     });
   if (node_it == range.second) {
     // Node does not exist.
@@ -1261,10 +1258,12 @@ void GraphCache::update_event_counters(
     return;
   }
 
+  std::lock_guard<std::mutex> lock(events_mutex_);
+
   auto event_statuses_it = event_statuses_.find(topic_name);
   if (event_statuses_it == event_statuses_.end()) {
     // Initialize statuses.
-    std::array<rmw_zenoh_event_status_t, ZENOH_EVENT_ID_MAX + 1> status_array;
+    std::array<rmw_zenoh_event_status_t, ZENOH_EVENT_ID_MAX + 1> status_array {};
     event_statuses_[topic_name] = std::move(status_array);
   }
 
@@ -1283,6 +1282,8 @@ std::unique_ptr<rmw_zenoh_event_status_t> GraphCache::take_event_status(
   if (event_id > ZENOH_EVENT_ID_MAX) {
     return nullptr;
   }
+
+  std::lock_guard<std::mutex> lock(events_mutex_);
 
   auto event_statuses_it = event_statuses_.find(topic_name);
   if (event_statuses_it == event_statuses_.end()) {
