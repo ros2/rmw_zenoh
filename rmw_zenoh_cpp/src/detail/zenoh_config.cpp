@@ -25,6 +25,16 @@
 ///==============================================================================
 namespace
 {
+/// Map the configurable entity to a pair of environment variable name that
+/// stores the absolute path to the Zenoh config and the default config filename.
+/// Note: The default config file should be located within rmw_zenoh_cpp/config/.
+static const std::unordered_map<ConfigurableEntity,
+  std::pair<const char *, const char *>> envar_map = {
+  {ConfigurableEntity::Session,
+    {"ZENOH_SESSION_CONFIG_URI", "DEFAULT_RMW_ZENOH_SESSION_CONFIG.json5"}},
+  {ConfigurableEntity::Router, {"ZENOH_ROUTER_CONFIG_URI", "DEFAULT_RMW_ZENOH_ROUTER_CONFIG.json5"}}
+};
+
 rmw_ret_t _get_z_config(
   const char * envar_name,
   const char * default_uri,
