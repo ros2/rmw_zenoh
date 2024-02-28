@@ -95,12 +95,12 @@ install(
   DESTINATION share/${PROJECT_NAME}
 )
 
-add_executable(zenohd
+add_executable(rmw_zenohd
   src/zenohd/main.cpp
   src/detail/zenoh_config.cpp
 )
 
-target_link_libraries(zenohd
+target_link_libraries(rmw_zenohd
   PRIVATE
     ament_index_cpp::ament_index_cpp
     rcutils::rcutils
@@ -109,7 +109,7 @@ target_link_libraries(zenohd
 )
 
 install(
-  TARGETS zenohd
+  TARGETS rmw_zenohd
   DESTINATION lib/${PROJECT_NAME}
 )
 
