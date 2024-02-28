@@ -25,12 +25,6 @@
 ///==============================================================================
 namespace
 {
-/// The name of the default configuration file for the default zenoh session configuration.
-static const std::unordered_map<ConfigurableEntity, const char *> default_config_filenames = {
-  {ConfigurableEntity::Session, "DEFAULT_RMW_ZENOH_SESSION_CONFIG.json5"},
-  {ConfigurableEntity::Router, "DEFAULT_RMW_ZENOH_ROUTER_CONFIG.json5"}
-};
-
 rmw_ret_t _get_z_config(
   const char * envar_name,
   const char * default_uri,
@@ -72,11 +66,8 @@ rmw_ret_t _get_z_config(
 ///==============================================================================
 rmw_ret_t get_z_config(const ConfigurableEntity & entity, z_owned_config_t * config)
 {
-  auto entity_envar_it = envar_map.find(entity);
-  auto default_filename_it = default_config_filenames.find(entity);
-  if (entity_envar_it == envar_map.end() ||
-    default_filename_it == default_config_filenames.end() )
-  {
+  auto envar_map_it = envar_map.find(entity);
+  if (envar_map_it == envar_map.end()) {
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp", "get_z_config called with invalid ConfigurableEntity.");
     return RMW_RET_ERROR;
@@ -84,7 +75,7 @@ rmw_ret_t get_z_config(const ConfigurableEntity & entity, z_owned_config_t * con
   // Get the absolute path to the default configuration file.
   static const std::string path_to_config_folder =
     ament_index_cpp::get_package_share_directory("rmw_zenoh_cpp") + "/config/";
-  const std::string default_config_path = path_to_config_folder + default_filename_it->second;
+  const std::string default_config_path = path_to_config_folder + envar_map_it->second.second;
 
-  return _get_z_config(entity_envar_it->second, default_config_path.c_str(), config);
+  return _get_z_config(envar_map_it->second.first, default_config_path.c_str(), config);
 }
