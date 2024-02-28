@@ -86,7 +86,7 @@ export ZENOH_ROUTER_CONFIG_URI=$HOME/MY_ZENOH_ROUTER_CONFIG.json5
 ```
 
 ### Connecting multiple hosts
-By default, all discovery traffic is local per host where host is the PC running a Zenoh `router`.
+By default, all discovery traffic is local per host, where the host is the PC running a Zenoh `router`.
 To bridge communications across two hosts, the `router` configuration for one the hosts must be updated to connect to the other `router` at startup.
 This is done by specifying an endpoint in host's `router` configuration file to as seen below.
 In this example, the `router` will connect to the `router` running on a second host with IP address `192.168.1.1` and port `7447`.
