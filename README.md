@@ -70,6 +70,7 @@ The listener node should start receiving messages over the `/chatter` topic.
 
 ## Configuration
 `rmw_zenoh` relies on separate configurations files to configure the Zenoh `router` and `session` respectively.
+To understand more about `routers` and `sessions`, see [Zenoh documentation](https://zenoh.io/docs/getting-started/deployment/).
 For more information on the topology of Zenoh adopted in `rmw_zenoh`, please see [Design](#design).
 Default configuration files are used by `rmw_zenoh` however certain environment variables may be set to provide absolute paths to custom configuration files.
 The table below summarizes the default files and the environment variables for the `router` and `session`.
