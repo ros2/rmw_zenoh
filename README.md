@@ -69,7 +69,11 @@ The listener node should start receiving messages over the `/chatter` topic.
 > Note: Ignore all the warning printouts.
 
 ## Configuration
-`rmw_zenoh` relies on separate configurations files to configure the Zenoh `router` and `session` respectively. For more information on the topology of Zenoh adopted in `rmw_zenoh`, please see [Design](#design). Default configuration files are used by `rmw_zenoh` however certain environment variables may be set to provide absolute paths to custom configuration files. The table below summarizes the default files and the environment variables for the `router` and `session`. For a complete list of configurable parameters, see [zenoh/DEFAULT_CONFIG.json5](https://github.com/eclipse-zenoh/zenoh/blob/main/DEFAULT_CONFIG.json5).
+`rmw_zenoh` relies on separate configurations files to configure the Zenoh `router` and `session` respectively.
+For more information on the topology of Zenoh adopted in `rmw_zenoh`, please see [Design](#design).
+Default configuration files are used by `rmw_zenoh` however certain environment variables may be set to provide absolute paths to custom configuration files.
+The table below summarizes the default files and the environment variables for the `router` and `session`.
+For a complete list of configurable parameters, see [zenoh/DEFAULT_CONFIG.json5](https://github.com/eclipse-zenoh/zenoh/blob/main/DEFAULT_CONFIG.json5).
 
 |         |                                            Default config                                            |   Envar for custom config  |
 |---------|:----------------------------------------------------------------------------------------------------:|:--------------------------:|
