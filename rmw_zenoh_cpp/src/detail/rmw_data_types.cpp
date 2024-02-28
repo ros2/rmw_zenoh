@@ -383,10 +383,16 @@ void client_data_handler(z_owned_reply_t * reply, void * data)
     return;
   }
   if (!z_reply_is_ok(reply)) {
+    z_owned_str_t keystr = z_keyexpr_to_string(z_loan(client_data->keyexpr));
+    z_value_t err = z_reply_err(reply);
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
-      "z_reply_is_ok returned False"
-    );
+      "z_reply_is_ok returned False for keyexpr %s. Reason: %.*s",
+      z_loan(keystr),
+      (int)err.payload.len,
+      err.payload.start);
+    z_drop(z_move(keystr));
+
     return;
   }
 
