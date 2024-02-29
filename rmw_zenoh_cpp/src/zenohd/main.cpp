@@ -31,6 +31,10 @@
 
 #include <ament_index_cpp/get_package_share_directory.hpp>
 
+#include "../detail/zenoh_config.hpp"
+
+#include "rmw/error_handling.h"
+
 static bool running = true;
 
 class KeyboardReader final
@@ -169,13 +173,13 @@ int main(int argc, char ** argv)
   (void)argc;
   (void)argv;
 
-  static const char * RMW_ZENOH_IDENTIFIER = "rmw_zenoh_cpp";
-  static const char * ZENOH_ROUTER_CONFIG_NAME = "DEFAULT_RMW_ZENOH_ROUTER_CONFIG.json5";
-  const std::string zenoh_router_config_path =
-    ament_index_cpp::get_package_share_directory(RMW_ZENOH_IDENTIFIER) +
-    "/config/" + std::string(ZENOH_ROUTER_CONFIG_NAME);
+  // Initialize the zenoh configuration for the router.
+  z_owned_config_t config;
+  if ((get_z_config(ConfigurableEntity::Router, &config)) != RMW_RET_OK) {
+    RMW_SET_ERROR_MSG("Error configuring Zenoh router.");
+    return 1;
+  }
 
-  z_owned_config_t config = zc_config_from_file(zenoh_router_config_path.c_str());
   z_owned_session_t s = z_open(z_move(config));
   if (!z_check(s)) {
     printf("Unable to open router session!\n");

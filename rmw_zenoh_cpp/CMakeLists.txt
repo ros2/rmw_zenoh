@@ -96,16 +96,21 @@ install(
   DESTINATION share/${PROJECT_NAME}
 )
 
-add_executable(init_rmw_zenoh_router apps/init_rmw_zenoh_router.cpp)
+add_executable(rmw_zenohd
+  src/zenohd/main.cpp
+  src/detail/zenoh_config.cpp
+)
 
-target_link_libraries(init_rmw_zenoh_router
+target_link_libraries(rmw_zenohd
   PRIVATE
     ament_index_cpp::ament_index_cpp
+    rcutils::rcutils
+    rmw::rmw
     zenohc::lib
 )
 
 install(
-  TARGETS init_rmw_zenoh_router
+  TARGETS rmw_zenohd
   DESTINATION lib/${PROJECT_NAME}
 )
 

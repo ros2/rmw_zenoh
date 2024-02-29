@@ -45,7 +45,7 @@ source install/setup.bash
 > Note: Manually launching zenoh router won't be necessary in the future.
 ```bash
 # terminal 1
-ros2 run rmw_zenoh_cpp init_rmw_zenoh_router
+ros2 run rmw_zenoh_cpp rmw_zenohd
 ```
 
 > Note: Without the zenoh router, nodes will not be able to discover each other since multicast discovery is disabled by default in the node's session config. Instead, nodes will receive discovery information about other peers via the zenoh router's gossip functionality. See more information on the session configs [below](#config).
@@ -68,26 +68,36 @@ ros2 run demo_nodes_cpp listener
 The listener node should start receiving messages over the `/chatter` topic.
 > Note: Ignore all the warning printouts.
 
-### Graph introspection
-Presently we only support limited `ros2cli` commands to introspect the ROS graph such as `ros2 node list` and `ros2 topic list`.
+## Configuration
+`rmw_zenoh` relies on separate configurations files to configure the Zenoh `router` and `session` respectively.
+To understand more about `routers` and `sessions`, see [Zenoh documentation](https://zenoh.io/docs/getting-started/deployment/).
+For more information on the topology of Zenoh adopted in `rmw_zenoh`, please see [Design](#design).
+Default configuration files are used by `rmw_zenoh` however certain environment variables may be set to provide absolute paths to custom configuration files.
+The table below summarizes the default files and the environment variables for the `router` and `session`.
+For a complete list of configurable parameters, see [zenoh/DEFAULT_CONFIG.json5](https://github.com/eclipse-zenoh/zenoh/blob/main/DEFAULT_CONFIG.json5).
 
-## Config
-The [default configuration](rmw_zenoh_cpp/config/DEFAULT_RMW_ZENOH_SESSION_CONFIG.json5) sets up the zenoh sessions with the following main characteristics:
+|         |                                            Default config                                            |   Envar for custom config  |
+|---------|:----------------------------------------------------------------------------------------------------:|:--------------------------:|
+| Router  |  [DEFAULT_RMW_ZENOH_ROUTER_CONFIG.json5](rmw_zenoh_cpp/config/DEFAULT_RMW_ZENOH_ROUTER_CONFIG.json5)  |  `ZENOH_ROUTER_CONFIG_URI` |
+| Session | [DEFAULT_RMW_ZENOH_SESSION_CONFIG.json5](rmw_zenoh_cpp/config/DEFAULT_RMW_ZENOH_SESSION_CONFIG.json5) | `ZENOH_SESSION_CONFIG_URI` |
 
-Table:
-| Zenoh Config | Default |
-| :---:   | :---: |
-| udp_multicast | disabled |
-| gossip scouting | enabled |
-| connect | tcp/localhost:7447 |
+For example, to set the path to a custom `router` configuration file,
+```bash
+export ZENOH_ROUTER_CONFIG_URI=$HOME/MY_ZENOH_ROUTER_CONFIG.json5
+```
 
-This assumes that there is a `zenohd` running in the system at port 7447.
-A custom configuration may be provided by setting the `RMW_ZENOH_CONFIG_FILE` environment variable to point to a custom zenoh configuration file.
+### Connecting multiple hosts
+By default, all discovery traffic is local per host, where the host is the PC running a Zenoh `router`.
+To bridge communications across two hosts, the `router` configuration for one the hosts must be updated to connect to the other `router` at startup.
+This is done by specifying an endpoint in host's `router` configuration file to as seen below.
+In this example, the `router` will connect to the `router` running on a second host with IP address `192.168.1.1` and port `7447`.
 
+```json
+{
+  connect: {
+    endpoints: ["tcp/192.168.1.1:7447"],
+  },
+}
+```
 
-## TODO Features
-- [x] Publisher
-- [x] Subscription
-- [ ] Client
-- [ ] Service
-- [ ] Graph introspection
+> Note: To connect multiple hosts, include the endpoints of all routers in the network.

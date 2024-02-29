@@ -148,8 +148,8 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
 
   // Initialize the zenoh configuration.
   z_owned_config_t config;
-  if ((ret = get_z_config(&config)) != RMW_RET_OK) {
-    RMW_SET_ERROR_MSG("Error setting up zenoh configuration for the session.");
+  if ((ret = get_z_config(ConfigurableEntity::Session, &config)) != RMW_RET_OK) {
+    RMW_SET_ERROR_MSG("Error configuring Zenoh session.");
     return ret;
   }
 
