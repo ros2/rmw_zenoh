@@ -397,6 +397,18 @@ rmw_fini_publisher_allocation(
   return RMW_RET_UNSUPPORTED;
 }
 
+static void generate_random_guid(uint8_t guid[RMW_GID_STORAGE_SIZE])
+{
+  std::random_device dev;
+  std::mt19937 rng(dev());
+  std::uniform_int_distribution<std::mt19937::result_type> dist(
+    std::numeric_limits<unsigned char>::min(), std::numeric_limits<unsigned char>::max());
+
+  for (size_t i = 0; i < RMW_GID_STORAGE_SIZE; ++i) {
+    guid[i] = dist(rng);
+  }
+}
+
 //==============================================================================
 /// Create a publisher and return a handle to that publisher.
 rmw_publisher_t *
@@ -506,6 +518,8 @@ rmw_create_publisher(
       RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(
         publisher_data->~rmw_publisher_data_t(), rmw_publisher_data_t);
     });
+
+  generate_random_guid(publisher_data->pub_guid);
 
   // Adapt any 'best available' QoS options
   publisher_data->adapted_qos_profile = *qos_profile;
@@ -1787,18 +1801,6 @@ rmw_return_loaned_message_from_subscription(
   static_cast<void>(subscription);
   static_cast<void>(loaned_message);
   return RMW_RET_UNSUPPORTED;
-}
-
-static void generate_random_guid(uint8_t guid[RMW_GID_STORAGE_SIZE])
-{
-  std::random_device dev;
-  std::mt19937 rng(dev());
-  std::uniform_int_distribution<std::mt19937::result_type> dist(
-    std::numeric_limits<unsigned char>::min(), std::numeric_limits<unsigned char>::max());
-
-  for (size_t i = 0; i < RMW_GID_STORAGE_SIZE; ++i) {
-    guid[i] = dist(rng);
-  }
 }
 
 //==============================================================================
@@ -3616,9 +3618,14 @@ rmw_count_services(
 rmw_ret_t
 rmw_get_gid_for_publisher(const rmw_publisher_t * publisher, rmw_gid_t * gid)
 {
-  static_cast<void>(publisher);
-  static_cast<void>(gid);
-  // TODO(clalancette): Implement me
+  RMW_CHECK_ARGUMENT_FOR_NULL(publisher, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(gid, RMW_RET_INVALID_ARGUMENT);
+
+  rmw_publisher_data_t * pub_data = static_cast<rmw_publisher_data_t *>(publisher->data);
+
+  gid->implementation_identifier = rmw_zenoh_identifier;
+  memcpy(gid->data, pub_data->pub_guid, RMW_GID_STORAGE_SIZE);
+
   return RMW_RET_OK;
 }
 
@@ -3627,9 +3634,15 @@ rmw_get_gid_for_publisher(const rmw_publisher_t * publisher, rmw_gid_t * gid)
 rmw_ret_t
 rmw_get_gid_for_client(const rmw_client_t * client, rmw_gid_t * gid)
 {
-  static_cast<void>(client);
-  static_cast<void>(gid);
-  return RMW_RET_UNSUPPORTED;
+  RMW_CHECK_ARGUMENT_FOR_NULL(client, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(gid, RMW_RET_INVALID_ARGUMENT);
+
+  rmw_client_data_t * client_data = static_cast<rmw_client_data_t *>(client->data);
+
+  gid->implementation_identifier = rmw_zenoh_identifier;
+  memcpy(gid->data, client_data->client_guid, RMW_GID_STORAGE_SIZE);
+
+  return RMW_RET_OK;
 }
 
 //==============================================================================
