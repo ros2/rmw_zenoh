@@ -75,7 +75,7 @@ To alleviate issues with multicast discovery, `rmw_zenoh_cpp` relies on a Zenoh 
 Hence `rmw_zenoh_cpp` requires the Zenoh router to be running.
 
 It should be noted that when building upstream Zenoh from source, a `zenohd` binary is created which is the router.
-`rmw_zenoh_cpp` actually has its own simplified version of the router that nonetheless uses most of the same code.
+`rmw_zenoh_cpp` has its own simplified version of the router that nonetheless uses most of the same code.
 This was done so that Zenoh didn't have to be vendored twice (once for zenoh-c and once for zenohd), and so that the router could be more easily integrated into the ROS 2 package format.
 
 As of 2024-02-09, the user is expected to launch the router by hand.
@@ -112,6 +112,20 @@ To deal with this discrepancy, each context in `rmw_zenoh_cpp` keeps a cache of 
 An "entity" is a node, publisher, subscription, service server, or service client.
 Each entity sends a unique liveliness token as it comes online, and removes that liveliness token when it is destroyed.
 The key expression of these liveliness tokens encode information about the entity and it's relationship to the other entities in the system (for instance, a publisher is always attached to a node within a certain namespace).
+The format of a liveliness token is:
+
+`<ADMIN_SPACE>/<domainid>/<id>/<entity>/<namespace>/<nodename>`
+
+Where:
+
+*  `<domainid>` - A number set by the user to "partition" graphs.  Roughly equivalent to the domain ID in DDS.
+*  `<id>` - A unique ID to identify this entity. Currently the id is the zenoh session's id with elements concatenated into a string using '.' as separator.
+*  `<entity>` - The type of entity.  This can be one of "NN" for a node, "MP" for a publisher, "MS" for a subscription, "SS" for a service server, or "SC" for a service client.
+*  `<namespace>` - The ROS namespace for this entity.
+*  `<nodename>` - The ROS node name for this entity.
+
+During context initialization, `rmw_zenoh_cpp` calls `zc_liveliness_get` to get an initial view of the entire graph from other nodes in the system.
+From then on, when entities enter and leave the system, `rmw_zenoh_cpp` will get new liveliness tokens that it can use to update its internal cache.
 
 ### Related RMW APIs
 
@@ -176,11 +190,22 @@ The user can use a custom configuration by setting the `ZENOH_SESSION_CONFIG_URI
 * z_call
 * z_session_check
 
+## Namespaces
+
+ROS 2 has a concept of "namespaces", where everything under that namespace has an additional prefix added to all names.
+Because of this, namespaces are not separate "entities" in a ROS 2 graph.
+
+Zenoh doesn't directly have a concept of a namespace; instead, everything is under a single global namespace, but can be partitioned by using `/` in topic and queryable names.
+
+To map the ROS 2 concept of namespaces onto Zenoh, all entity liveliness tokens encode the namespace.
+Since Zenoh liveliness tokens cannot be empty, in the case of an empty namespace (the default), a namespace of `%` is used.
+
 ## Nodes
 
 A ROS 2 node can be though of as the "unit of computation" in a ROS 2 graph; usually one node performs one particular task.
 Nodes may contain publishers, subscriptions, service servers, service clients, action servers, action clients, parameters, and anything else needed to do some computation.
 Zenoh has no conceptual equivalent to the ROS 2 node, so `rmw_zenoh_cpp` creates no Zenoh entities when nodes are created.
+
 When a new node is created through the RMW API, a liveliness token of type `NN` is sent out.
 
 ### Related RMW APIs
@@ -197,6 +222,9 @@ When a new node is created through the RMW API, a liveliness token of type `NN` 
 
 A ROS 2 publisher sends data to 0 or more connected subscriptions.
 A Zenoh publisher does exactly the same thing, so ROS 2 publishers are mapped onto Zenoh publishers in `rmw_zenoh_cpp`.
+If the Quality of Service durability for a publisher is `TRANSIENT_LOCAL`, a Zenoh publication cache will also be created with `ze_declare_publication_cache`.
+See the [Quality of Service](#Quality-of-Service) section below for more information.
+
 When a new publisher is created, a liveliness token of type `MP` is sent out.
 
 ### Related RMW APIs
@@ -224,8 +252,11 @@ When a new publisher is created, a liveliness token of type `MP` is sent out.
 
 A ROS 2 subscription receives data from 1 or more connected publishers.
 A Zenoh subscriber does exactly the same thing, so ROS 2 subscriptions are mapped onto Zenoh subscribers in `rmw_zenoh_cpp`.
+If the Quality of Service durability for a subscription is `TRANSIENT_LOCAL`, a Zenoh `ze_owned_querying_subscriber_t` will be created; in all other cases, a `z_owned_subscriber_t` will be created.
+See the [Quality of Service](#Quality-of-Service) section below for more information.
 When new data arrives, a callback within `rmw_zenoh_cpp` is executed, which takes ownership of the data and signals that there is data available.
 Then rmw_wait can find out that there is data available, and the data can be delivered via rmw_take.
+
 When a new subscription is created, a liveliness token of type `MS` is sent out.
 
 ### Related RMW APIs
@@ -260,9 +291,13 @@ When a new subscription is created, a liveliness token of type `MS` is sent out.
 In ROS 2, services are meant to be used for remote procedure calls that will return fairly quickly.
 `rmw_zenoh_cpp` uses Zenoh queryables to implement ROS 2 services.
 When a client wants to make a request, it uses the rmw API `rmw_send_request`.
+Attached to that request are various other pieces of metadata, like the sequence number of the request and the GUID of the client that sent the request.
+The sequence number is used to correlate this request to the response that comes back later.
 `rmw_zenoh_cpp` then calls the Zenoh `z_get` function to send a query out to the network.
+
 Assuming there is a service server listening to that queryable, it will receive the request, perform a computation, and return the result.
 The result will then be made available to the client via `rmw_take_response`.
+
 When a new service client is created, a liveliness token of type `SC` is sent out.
 
 ### Related RMW APIs
@@ -294,6 +329,7 @@ When a ROS 2 node wants to advertise a service to the network, it calls `rmw_cre
 `rmw_zenoh_cpp` uses the `z_declare_queryable` Zenoh API to create that service.
 When a client request comes in, `rmw_take_request` is called to send the query to the user callback, which should perform some computation.
 Once the user callback returns, `rmw_send_response` is called to send the response back to the requester.
+
 When a new service server is created, a liveliness token of type `SS` is sent out.
 
 ### Related RMW APIs
@@ -318,26 +354,29 @@ When a new service server is created, a liveliness token of type `SS` is sent ou
 * z_query_value
 * z_query_attachment
 
-## Quality of Service (QoS)
+## Quality of Service
 
 The ROS 2 RMW layer defines quite a few Quality of Service settings that are largely derived from DDS.
 Here is an incomplete list of some of the settings and the values that they can take:
 
 * RELIABILITY
-    * RELIABLE - Data delivery is retried until it is successfully delivered.  Because Zenoh is TCP-based (by default), this is the default in `rmw_zenoh_cpp`.
-    * BEST_EFFORT - Data may be dropped during delivery. Because Zenoh is TCP-based (by default), this may not work exactly the same as in DDS.
+    * RELIABLE - Applicable only for subscriptions.  Data delivery is retried until it is successfully delivered.
+    * BEST_EFFORT - Data may be dropped during delivery. Because Zenoh is TCP-based (by default), this may not work exactly the same as in DDS.  This is the `SYSTEM_DEFAULT` reliability.
 * HISTORY
-    * KEEP_LAST - For subscriptions, only keep up to a maximum number of samples (defined by depth); once the maximum is reached, older samples will be lost.
+    * KEEP_LAST - For subscriptions, only keep up to a maximum number of samples (defined by depth); once the maximum is reached, older samples will be lost.  This is the `SYSTEM_DEFAULT` history.
     * KEEP_ALL - For subscriptions, keep all values.
-* DEPTH - The maximum number of samples to keep; only comes into play when KEEP_LAST history is used.
+* DEPTH - The maximum number of samples to keep; only comes into play when KEEP_LAST history is used.  If `DEPTH` is set to 0, `rmw_zenoh_cpp` will choose a depth of 42.
 * DURABILITY
-    * VOLATILE - Samples will only be delivered to subscriptions that are active at the time of publishing.  In `rmw_zenoh_cpp`, this is implemented via `z_declare_subscriber` on the subscription side and `z_declare_publisher` on the publisher side.
+    * VOLATILE - Samples will only be delivered to subscriptions that are active at the time of publishing.  In `rmw_zenoh_cpp`, this is implemented via `z_declare_subscriber` on the subscription side and `z_declare_publisher` on the publisher side.  This is the `SYSTEM_DEFAULT` durability.
     * TRANSIENT_LOCAL - "Late-joining" subscriptions will receive historical data, along with any new data.  In `rmw_zenoh_cpp`, this is implemented via `ze_declare_querying_subscriber` on the subscription side and `ze_declare_publication_cache` on the publisher side.
 * LIVELINESS
-    * AUTOMATIC - The "liveliness" of an entity of the system is managed by the RMW layer.  This is what `rmw_zenoh_cpp` uses.
+    * AUTOMATIC - The "liveliness" of an entity of the system is managed by the RMW layer.  This is the only LIVELINESS that `rmw_zenoh_cpp` supports.
     * MANUAL_BY_TOPIC - It is up to the application to periodically publish to a particular topic to assert liveliness.
 * DEADLINE - The period at which messages are expected to be sent/received.  Currently unimplemented in `rmw_zenoh_cpp`.
 * LIFESPAN - The age at which messages are expired and no longer valid.  Currently unimplemented in `rmw_zenoh_cpp`.
+
+In Zenoh, there are essentially no "incompatible" Quality of Service settings.
+This means that any publisher can match any subscriber.
 
 ### Related RMW APIs
 
@@ -354,7 +393,7 @@ N/A
 
 ## Events
 
-In ROS 2 terminology, "events" are out-of-band things that may happen for communication.
+A ROS 2 RMW may communicate information not directly concerned with communication by using "events".
 For instance, if a message is lost, then the RMW layer may raise an event to the upper layers to signal that fact.
 
 Events are broken down into subscription events and publisher events:
@@ -395,10 +434,3 @@ Thus, there is no direct implementation of actions in `rmw_zenoh_cpp`.
 ## Security
 
 TBD
-
-### Notes
-
- - Zenoh routers (a.k.a. `zenohd`) are required mainly to allow the peers to discover each other within the subsystem.
- - Zenoh sessions are configured in `peer` mode and connect directly to the router looking for other peers. As `gossip` scouting is being used, the router is in charge to spread the discovery information across the peers of the subsystem.
- - Each Zenoh sessions discover each other and creates direct `Peer-To-Peer` connection between them and the connection remains without relying on the router.
- - By means of the `Peer-To-Peer` connection, the publisher-subscriber interaction happens: Data flows from the publishers to the subscribers.
