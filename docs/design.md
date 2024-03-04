@@ -71,13 +71,18 @@ However, local multicast has some limitations, both intrinsic and specific to Ze
 * Multicast discovery can cause a lot of discovery traffic while discovering all other entities in the graph.
 * Multicast discovery has a limited TTL (time-to-live), which means it can usually only discover peers on the local network segment.
 
-To alleviate issues with multicast discovery, `rmw_zenoh_cpp` relies on a Zenoh router to discover peers and forward this discovery information to other peers via Zenoh's `gossip scouting` functionality. Hence `rmw_zenoh_cpp` requires the Zenoh router to be running.
+To alleviate issues with multicast discovery, `rmw_zenoh_cpp` relies on a Zenoh router to discover peers and forward this discovery information to other peers via Zenoh's `gossip scouting` functionality.
+Hence `rmw_zenoh_cpp` requires the Zenoh router to be running.
 
 It should be noted that when building upstream Zenoh from source, a `zenohd` binary is created which is the router.
 `rmw_zenoh_cpp` actually has its own simplified version of the router that nonetheless uses most of the same code.
 This was done so that Zenoh didn't have to be vendored twice (once for zenoh-c and once for zenohd), and so that the router could be more easily integrated into the ROS 2 package format.
 
 As of 2024-02-09, the user is expected to launch the router by hand.
+In order to integrate more seamlessly into ROS 2, the Zenoh router can be launched by running `ros2 run rmw_zenoh_cpp rmw_zenohd`.
+The default configuration that the router uses is located in [DEFAULT_RMW_ZENOH_ROUTER_CONFIG.json5](../rmw_zenoh_cpp/config/DEFAULT_RMW_ZENOH_ROUTER_CONFIG.json5).
+The user can use a custom configuration by setting the `ZENOH_ROUTER_CONFIG_URI` environment variable to point to a valid [Zenoh configuration file](https://github.com/eclipse-zenoh/zenoh/blob/main/DEFAULT_CONFIG.json5).
+
 In the future, additional work may be done to automatically launch a Zenoh router if one isn't already running.
 
 ## Serialization/Deserialization
@@ -140,6 +145,10 @@ The key expression of these liveliness tokens encode information about the entit
 
 A ROS 2 context describes a certain middleware configuration, which can contain 0 or more ROS 2 nodes.
 In `rmw_zenoh_cpp`, a context maps to a Zenoh session, along with a liveliness token for the graph cache and some additional metadata.
+
+Zenoh allows sessions to be custom configured through a configuration file.
+If otherwise unconfigured, `rmw_zenoh_cpp` uses a [default configuration file](../rmw_zenoh_cpp/config/DEFAULT_RMW_ZENOH_SESSION_CONFIG.json5).
+The user can use a custom configuration by setting the `ZENOH_SESSION_CONFIG_URI` environment variable to point to a valid [Zenoh configuration file](https://github.com/eclipse-zenoh/zenoh/blob/main/DEFAULT_CONFIG.json5).
 
 ### Related RMW APIs
 
