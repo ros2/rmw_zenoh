@@ -24,12 +24,8 @@
 
 #include "type_support.hpp"
 
-TypeSupport::TypeSupport()
-{
-  max_size_bound_ = false;
-  is_plain_ = false;
-  type_size_ = 0;
-}
+TypeSupport::TypeSupport(): max_size_bound_(false), is_plain_(false), type_size_(0)
+{}
 
 void TypeSupport::set_name(const char * name)
 {
