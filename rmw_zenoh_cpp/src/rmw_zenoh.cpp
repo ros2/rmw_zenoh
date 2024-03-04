@@ -28,6 +28,7 @@
 #include <string>
 #include <utility>
 
+#include "detail/attachment_helpers.hpp"
 #include "detail/guard_condition.hpp"
 #include "detail/graph_cache.hpp"
 #include "detail/identifier.hpp"
@@ -394,7 +395,7 @@ rmw_fini_publisher_allocation(
   return RMW_RET_UNSUPPORTED;
 }
 
-static void generate_random_guid(uint8_t guid[RMW_GID_STORAGE_SIZE])
+static void generate_random_gid(uint8_t gid[RMW_GID_STORAGE_SIZE])
 {
   std::random_device dev;
   std::mt19937 rng(dev());
@@ -402,7 +403,7 @@ static void generate_random_guid(uint8_t guid[RMW_GID_STORAGE_SIZE])
     std::numeric_limits<unsigned char>::min(), std::numeric_limits<unsigned char>::max());
 
   for (size_t i = 0; i < RMW_GID_STORAGE_SIZE; ++i) {
-    guid[i] = dist(rng);
+    gid[i] = dist(rng);
   }
 }
 
@@ -509,7 +510,7 @@ rmw_create_publisher(
         publisher_data->~rmw_publisher_data_t(), rmw_publisher_data_t);
     });
 
-  generate_random_guid(publisher_data->pub_guid);
+  generate_random_gid(publisher_data->pub_gid);
 
   // Adapt any 'best available' QoS options
   publisher_data->adapted_qos_profile = *qos_profile;
@@ -775,6 +776,48 @@ rmw_return_loaned_message_from_publisher(
   return RMW_RET_UNSUPPORTED;
 }
 
+static z_owned_bytes_map_t create_map_and_set_sequence_num(
+  int64_t sequence_number, uint8_t gid[RMW_GID_STORAGE_SIZE])
+{
+  z_owned_bytes_map_t map = z_bytes_map_new();
+  if (!z_check(map)) {
+    RMW_SET_ERROR_MSG("failed to allocate map for sequence number");
+    return z_bytes_map_null();
+  }
+  auto free_attachment_map = rcpputils::make_scope_exit(
+    [&map]() {
+      z_bytes_map_drop(z_move(map));
+    });
+
+  // The largest possible int64_t number is INT64_MAX, i.e. 9223372036854775807.
+  // That is 19 characters long, plus one for the trailing \0, means we need 20 bytes.
+  char seq_id_str[20];
+  if (rcutils_snprintf(seq_id_str, sizeof(seq_id_str), "%" PRId64, sequence_number) < 0) {
+    RMW_SET_ERROR_MSG("failed to print sequence_number into buffer");
+    return z_bytes_map_null();
+  }
+  z_bytes_map_insert_by_copy(&map, z_bytes_new("sequence_number"), z_bytes_new(seq_id_str));
+
+  auto now = std::chrono::system_clock::now().time_since_epoch();
+  auto now_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now);
+  char source_ts_str[20];
+  if (rcutils_snprintf(source_ts_str, sizeof(source_ts_str), "%" PRId64, now_ns.count()) < 0) {
+    RMW_SET_ERROR_MSG("failed to print sequence_number into buffer");
+    return z_bytes_map_null();
+  }
+  z_bytes_map_insert_by_copy(&map, z_bytes_new("source_timestamp"), z_bytes_new(source_ts_str));
+
+  z_bytes_t gid_bytes;
+  gid_bytes.len = RMW_GID_STORAGE_SIZE;
+  gid_bytes.start = gid;
+
+  z_bytes_map_insert_by_copy(&map, z_bytes_new("source_gid"), gid_bytes);
+
+  free_attachment_map.cancel();
+
+  return map;
+}
+
 //==============================================================================
 /// Publish a ROS message.
 rmw_ret_t
@@ -865,12 +908,26 @@ rmw_publish(
 
   const size_t data_length = ser.getSerializedDataLength();
 
+  int64_t sequence_number = publisher_data->get_next_sequence_number();
+
+  z_owned_bytes_map_t map =
+    create_map_and_set_sequence_num(sequence_number, publisher_data->pub_gid);
+  if (!z_check(map)) {
+    // create_map_and_set_sequence_num already set the error
+    return RMW_RET_ERROR;
+  }
+  auto free_attachment_map = rcpputils::make_scope_exit(
+    [&map]() {
+      z_bytes_map_drop(z_move(map));
+    });
+
   int ret;
   // The encoding is simply forwarded and is useful when key expressions in the
   // session use different encoding formats. In our case, all key expressions
   // will be encoded with CDR so it does not really matter.
   z_publisher_put_options_t options = z_publisher_put_options_default();
   options.encoding = z_encoding(Z_ENCODING_PREFIX_EMPTY, NULL);
+  options.attachment = z_bytes_map_as_attachment(&map);
 
   if (shmbuf.has_value()) {
     zc_shmbuf_set_length(&shmbuf.value(), data_length);
@@ -1582,15 +1639,13 @@ static rmw_ret_t __rmw_take(
 
   *taken = true;
 
-  // TODO(clalancette): fill in source_timestamp
-  message_info->source_timestamp = 0;
+  message_info->source_timestamp = msg_data->source_timestamp;
   message_info->received_timestamp = msg_data->recv_timestamp;
-  // TODO(clalancette): fill in publication_sequence_number
-  message_info->publication_sequence_number = 0;
+  message_info->publication_sequence_number = msg_data->sequence_number;
   // TODO(clalancette): fill in reception_sequence_number
   message_info->reception_sequence_number = 0;
   message_info->publisher_gid.implementation_identifier = rmw_zenoh_identifier;
-  memcpy(message_info->publisher_gid.data, msg_data->publisher_gid, 16);
+  memcpy(message_info->publisher_gid.data, msg_data->publisher_gid, RMW_GID_STORAGE_SIZE);
   message_info->from_intra_process = false;
 
   return RMW_RET_OK;
@@ -1695,15 +1750,13 @@ static rmw_ret_t __rmw_take_serialized(
 
   *taken = true;
 
-  // TODO(clalancette): fill in source_timestamp
-  message_info->source_timestamp = 0;
+  message_info->source_timestamp = msg_data->source_timestamp;
   message_info->received_timestamp = msg_data->recv_timestamp;
-  // TODO(clalancette): fill in publication_sequence_number
-  message_info->publication_sequence_number = 0;
+  message_info->publication_sequence_number = msg_data->sequence_number;
   // TODO(clalancette): fill in reception_sequence_number
   message_info->reception_sequence_number = 0;
   message_info->publisher_gid.implementation_identifier = rmw_zenoh_identifier;
-  memcpy(message_info->publisher_gid.data, msg_data->publisher_gid, 16);
+  memcpy(message_info->publisher_gid.data, msg_data->publisher_gid, RMW_GID_STORAGE_SIZE);
   message_info->from_intra_process = false;
 
   return RMW_RET_OK;
@@ -1879,7 +1932,7 @@ rmw_create_client(
         rmw_client_data_t);
     });
 
-  generate_random_guid(client_data->client_guid);
+  generate_random_gid(client_data->client_gid);
 
   // Obtain the type support
   const rosidl_service_type_support_t * type_support = find_service_type_support(type_supports);
@@ -2082,48 +2135,6 @@ rmw_destroy_client(rmw_node_t * node, rmw_client_t * client)
   return RMW_RET_OK;
 }
 
-static z_owned_bytes_map_t create_map_and_set_sequence_num(
-  int64_t sequence_number, uint8_t guid[RMW_GID_STORAGE_SIZE])
-{
-  z_owned_bytes_map_t map = z_bytes_map_new();
-  if (!z_check(map)) {
-    RMW_SET_ERROR_MSG("failed to allocate map for sequence number");
-    return z_bytes_map_null();
-  }
-  auto free_attachment_map = rcpputils::make_scope_exit(
-    [&map]() {
-      z_bytes_map_drop(z_move(map));
-    });
-
-  // The largest possible int64_t number is INT64_MAX, i.e. 9223372036854775807.
-  // That is 19 characters long, plus one for the trailing \0, means we need 20 bytes.
-  char seq_id_str[20];
-  if (rcutils_snprintf(seq_id_str, sizeof(seq_id_str), "%" PRId64, sequence_number) < 0) {
-    RMW_SET_ERROR_MSG("failed to print sequence_number into buffer");
-    return z_bytes_map_null();
-  }
-  z_bytes_map_insert_by_copy(&map, z_bytes_new("sequence_number"), z_bytes_new(seq_id_str));
-
-  auto now = std::chrono::system_clock::now().time_since_epoch();
-  auto now_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now);
-  char source_ts_str[20];
-  if (rcutils_snprintf(source_ts_str, sizeof(source_ts_str), "%" PRId64, now_ns.count()) < 0) {
-    RMW_SET_ERROR_MSG("failed to print sequence_number into buffer");
-    return z_bytes_map_null();
-  }
-  z_bytes_map_insert_by_copy(&map, z_bytes_new("source_timestamp"), z_bytes_new(source_ts_str));
-
-  z_bytes_t guid_bytes;
-  guid_bytes.len = RMW_GID_STORAGE_SIZE;
-  guid_bytes.start = guid;
-
-  z_bytes_map_insert_by_copy(&map, z_bytes_new("client_guid"), guid_bytes);
-
-  free_attachment_map.cancel();
-
-  return map;
-}
-
 //==============================================================================
 /// Send a ROS service request.
 rmw_ret_t
@@ -2195,7 +2206,7 @@ rmw_send_request(
   // Send request
   z_get_options_t opts = z_get_options_default();
 
-  z_owned_bytes_map_t map = create_map_and_set_sequence_num(*sequence_id, client_data->client_guid);
+  z_owned_bytes_map_t map = create_map_and_set_sequence_num(*sequence_id, client_data->client_gid);
   if (!z_check(map)) {
     // create_map_and_set_sequence_num already set the error
     return RMW_RET_ERROR;
@@ -2220,88 +2231,6 @@ rmw_send_request(
       client_data->keyexpr), "", &client_data->zn_closure_reply, &opts);
 
   return RMW_RET_OK;
-}
-
-static int64_t get_int64_from_attachment(
-  const z_attachment_t * const attachment, const std::string & name)
-{
-  if (!z_check(*attachment)) {
-    // A valid request must have had an attachment
-    RMW_SET_ERROR_MSG("Could not get attachment from query");
-    return -1;
-  }
-
-  z_bytes_t index = z_attachment_get(*attachment, z_bytes_new(name.c_str()));
-  if (!z_check(index)) {
-    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("Could not get %s from attachment", name.c_str());
-    return -1;
-  }
-
-  if (index.len < 1) {
-    RMW_SET_ERROR_MSG("no value specified");
-    return -1;
-  }
-
-  if (index.len > 19) {
-    // The number was larger than we expected
-    RMW_SET_ERROR_MSG("number too large");
-    return -1;
-  }
-
-  // The largest possible int64_t number is INT64_MAX, i.e. 9223372036854775807.
-  // That is 19 characters long, plus one for the trailing \0, means we need 20 bytes.
-  char int64_str[20];
-
-  memcpy(int64_str, index.start, index.len);
-  int64_str[index.len] = '\0';
-
-  errno = 0;
-  char * endptr;
-  int64_t num = strtol(int64_str, &endptr, 10);
-  if (num == 0) {
-    // This is an error regardless; the client should never send this
-    RMW_SET_ERROR_MSG("a invalid zero value sent");
-    return -1;
-  } else if (endptr == int64_str) {
-    // No values were converted, this is an error
-    RMW_SET_ERROR_MSG("no valid numbers available");
-    return -1;
-  } else if (*endptr != '\0') {
-    // There was junk after the number
-    RMW_SET_ERROR_MSG("non-numeric values");
-    return -1;
-  } else if (errno != 0) {
-    // Some other error occurred, which may include overflow or underflow
-    RMW_SET_ERROR_MSG(
-      "an undefined error occurred while getting the number, this may be an overflow");
-    return -1;
-  }
-
-  return num;
-}
-
-static bool get_client_guid_from_attachment(
-  const z_attachment_t * const attachment, uint8_t guid[RMW_GID_STORAGE_SIZE])
-{
-  if (!z_check(*attachment)) {
-    RMW_SET_ERROR_MSG("Could not get client_guid from attachment");
-    return false;
-  }
-
-  z_bytes_t index = z_attachment_get(*attachment, z_bytes_new("client_guid"));
-  if (!z_check(index)) {
-    RMW_SET_ERROR_MSG("Could not get client_guid from attachment");
-    return false;
-  }
-
-  if (index.len != RMW_GID_STORAGE_SIZE) {
-    RMW_SET_ERROR_MSG("Invalid size for GUID storage");
-    return false;
-  }
-
-  memcpy(guid, index.start, index.len);
-
-  return true;
 }
 
 //==============================================================================
@@ -2367,21 +2296,19 @@ rmw_take_response(
   request_header->request_id.sequence_number =
     get_int64_from_attachment(&sample->attachment, "sequence_number");
   if (request_header->request_id.sequence_number < 0) {
-    // get_int64_from_attachment already set an error
+    RMW_SET_ERROR_MSG("Failed to get sequence_number from client call attachment");
     return RMW_RET_ERROR;
   }
 
   request_header->source_timestamp =
     get_int64_from_attachment(&sample->attachment, "source_timestamp");
   if (request_header->source_timestamp < 0) {
-    // get_int64_from_attachment already set an error
+    RMW_SET_ERROR_MSG("Failed to get source_timestamp from client call attachment");
     return RMW_RET_ERROR;
   }
 
-  if (!get_client_guid_from_attachment(
-      &sample->attachment, request_header->request_id.writer_guid))
-  {
-    // get_client_guid_from_attachment already set an error
+  if (!get_gid_from_attachment(&sample->attachment, request_header->request_id.writer_guid)) {
+    RMW_SET_ERROR_MSG("Could not get client gid from attachment");
     return RMW_RET_ERROR;
   }
 
@@ -2808,18 +2735,18 @@ rmw_take_request(
   request_header->request_id.sequence_number =
     get_int64_from_attachment(&attachment, "sequence_number");
   if (request_header->request_id.sequence_number < 0) {
-    // get_int64_from_attachment already set the error
+    RMW_SET_ERROR_MSG("Failed to get sequence_number from client call attachment");
     return RMW_RET_ERROR;
   }
 
   request_header->source_timestamp = get_int64_from_attachment(&attachment, "source_timestamp");
   if (request_header->source_timestamp < 0) {
-    // get_int64_from_attachment already set the error
+    RMW_SET_ERROR_MSG("Failed to get source_timestamp from client call attachment");
     return RMW_RET_ERROR;
   }
 
-  if (!get_client_guid_from_attachment(&attachment, request_header->request_id.writer_guid)) {
-    // get_client_guid_from_attachment already set an error
+  if (!get_gid_from_attachment(&attachment, request_header->request_id.writer_guid)) {
+    RMW_SET_ERROR_MSG("Could not get client GID from attachment");
     return RMW_RET_ERROR;
   }
 
@@ -3537,7 +3464,7 @@ rmw_get_gid_for_publisher(const rmw_publisher_t * publisher, rmw_gid_t * gid)
   rmw_publisher_data_t * pub_data = static_cast<rmw_publisher_data_t *>(publisher->data);
 
   gid->implementation_identifier = rmw_zenoh_identifier;
-  memcpy(gid->data, pub_data->pub_guid, RMW_GID_STORAGE_SIZE);
+  memcpy(gid->data, pub_data->pub_gid, RMW_GID_STORAGE_SIZE);
 
   return RMW_RET_OK;
 }
@@ -3553,7 +3480,7 @@ rmw_get_gid_for_client(const rmw_client_t * client, rmw_gid_t * gid)
   rmw_client_data_t * client_data = static_cast<rmw_client_data_t *>(client->data);
 
   gid->implementation_identifier = rmw_zenoh_identifier;
-  memcpy(gid->data, client_data->client_guid, RMW_GID_STORAGE_SIZE);
+  memcpy(gid->data, client_data->client_gid, RMW_GID_STORAGE_SIZE);
 
   return RMW_RET_OK;
 }
