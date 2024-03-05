@@ -247,7 +247,6 @@ std::unique_ptr<ZenohReply> rmw_client_data_t::pop_next_reply()
 }
 
 //==============================================================================
-
 void sub_data_handler(
   const z_sample_t * sample,
   void * data)
