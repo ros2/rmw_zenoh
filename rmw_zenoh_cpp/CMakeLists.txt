@@ -26,6 +26,7 @@ find_package(zenoh_c_vendor REQUIRED)
 find_package(zenohc REQUIRED)
 
 add_library(rmw_zenoh_cpp SHARED
+  src/detail/attachment_helpers.cpp
   src/detail/identifier.cpp
   src/detail/graph_cache.cpp
   src/detail/guard_condition.cpp

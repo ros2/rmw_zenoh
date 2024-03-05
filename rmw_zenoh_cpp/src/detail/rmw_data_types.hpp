@@ -71,8 +71,9 @@ struct rmw_node_data_t
 };
 
 ///==============================================================================
-struct rmw_publisher_data_t
+class rmw_publisher_data_t final
 {
+public:
   // An owned publisher.
   z_owned_publisher_t pub;
 
@@ -93,7 +94,13 @@ struct rmw_publisher_data_t
   // Context for memory allocation for messages.
   rmw_context_t * context;
 
-  uint8_t pub_guid[RMW_GID_STORAGE_SIZE];
+  uint8_t pub_gid[RMW_GID_STORAGE_SIZE];
+
+  size_t get_next_sequence_number();
+
+private:
+  std::mutex sequence_number_mutex_;
+  size_t sequence_number_{1};
 };
 
 ///==============================================================================
@@ -111,13 +118,20 @@ void sub_data_handler(const z_sample_t * sample, void * sub_data);
 
 struct saved_msg_data
 {
-  explicit saved_msg_data(zc_owned_payload_t p, uint64_t recv_ts, const uint8_t pub_gid[16]);
+  explicit saved_msg_data(
+    zc_owned_payload_t p,
+    uint64_t recv_ts,
+    const uint8_t pub_gid[RMW_GID_STORAGE_SIZE],
+    int64_t seqnum,
+    int64_t source_ts);
 
   ~saved_msg_data();
 
   zc_owned_payload_t payload;
   uint64_t recv_timestamp;
-  uint8_t publisher_gid[16];
+  uint8_t publisher_gid[RMW_GID_STORAGE_SIZE];
+  int64_t sequence_number;
+  int64_t source_timestamp;
 };
 
 ///==============================================================================
@@ -266,7 +280,7 @@ public:
 
   rmw_context_t * context;
 
-  uint8_t client_guid[RMW_GID_STORAGE_SIZE];
+  uint8_t client_gid[RMW_GID_STORAGE_SIZE];
 
   size_t get_next_sequence_number();
 
@@ -283,8 +297,8 @@ public:
 private:
   void notify();
 
-  size_t sequence_number{1};
-  std::mutex sequence_number_mutex;
+  size_t sequence_number_{1};
+  std::mutex sequence_number_mutex_;
 
   std::condition_variable * condition_{nullptr};
   std::mutex condition_mutex_;

@@ -14,26 +14,41 @@
 
 #include <zenoh.h>
 
+#include <condition_variable>
 #include <cstring>
+#include <memory>
 #include <mutex>
 #include <optional>
+#include <string>
 #include <utility>
 
 #include "rcpputils/scope_exit.hpp"
 #include "rcutils/logging_macros.h"
 
+#include "attachment_helpers.hpp"
 #include "rmw_data_types.hpp"
 
 ///==============================================================================
-saved_msg_data::saved_msg_data(zc_owned_payload_t p, uint64_t recv_ts, const uint8_t pub_gid[16])
-: payload(p), recv_timestamp(recv_ts)
+saved_msg_data::saved_msg_data(
+  zc_owned_payload_t p,
+  uint64_t recv_ts,
+  const uint8_t pub_gid[RMW_GID_STORAGE_SIZE],
+  int64_t seqnum,
+  int64_t source_ts)
+: payload(p), recv_timestamp(recv_ts), sequence_number(seqnum), source_timestamp(source_ts)
 {
-  memcpy(publisher_gid, pub_gid, 16);
+  memcpy(publisher_gid, pub_gid, RMW_GID_STORAGE_SIZE);
 }
 
 saved_msg_data::~saved_msg_data()
 {
   z_drop(z_move(payload));
+}
+
+size_t rmw_publisher_data_t::get_next_sequence_number()
+{
+  std::lock_guard<std::mutex> lock(sequence_number_mutex_);
+  return sequence_number_++;
 }
 
 void rmw_subscription_data_t::attach_condition(std::condition_variable * condition_variable)
@@ -253,10 +268,36 @@ void sub_data_handler(
     return;
   }
 
+  uint8_t pub_gid[RMW_GID_STORAGE_SIZE];
+  if (!get_gid_from_attachment(&sample->attachment, pub_gid)) {
+    // We failed to get the GID from the attachment.  While this isn't fatal,
+    // it is unusual and so we should report it.
+    memset(pub_gid, 0, RMW_GID_STORAGE_SIZE);
+    RCUTILS_LOG_ERROR_NAMED("rmw_zenoh_cpp", "Unable to obtain publisher GID from the attachment.");
+  }
+
+  int64_t sequence_number = get_int64_from_attachment(&sample->attachment, "sequence_number");
+  if (sequence_number < 0) {
+    // We failed to get the sequence number from the attachment.  While this
+    // isn't fatal, it is unusual and so we should report it.
+    sequence_number = 0;
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp", "Unable to obtain sequence number from the attachment.");
+  }
+
+  int64_t source_timestamp = get_int64_from_attachment(&sample->attachment, "source_timestamp");
+  if (source_timestamp < 0) {
+    // We failed to get the source timestamp from the attachment.  While this
+    // isn't fatal, it is unusual and so we should report it.
+    source_timestamp = 0;
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp", "Unable to obtain sequence number from the attachment.");
+  }
+
   sub_data->add_new_message(
     std::make_unique<saved_msg_data>(
       zc_sample_payload_rcinc(sample),
-      sample->timestamp.time, sample->timestamp.id.id), z_loan(keystr));
+      sample->timestamp.time, pub_gid, sequence_number, source_timestamp), z_loan(keystr));
 }
 
 ZenohQuery::ZenohQuery(const z_query_t * query)
@@ -318,8 +359,8 @@ std::optional<z_sample_t> ZenohReply::get_sample() const
 
 size_t rmw_client_data_t::get_next_sequence_number()
 {
-  std::lock_guard<std::mutex> lock(sequence_number_mutex);
-  return sequence_number++;
+  std::lock_guard<std::mutex> lock(sequence_number_mutex_);
+  return sequence_number_++;
 }
 
 //==============================================================================
