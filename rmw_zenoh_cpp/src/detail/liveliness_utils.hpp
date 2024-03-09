@@ -122,6 +122,9 @@ private:
 /// Replace "/" instances with "%".
 std::string mangle_name(const std::string & input);
 
+/// Replace "/" instances with "%".
+char * mangle_name(const char * input);
+
 /// Replace "%" instances with "/".
 std::string demangle_name(const std::string & input);
 
