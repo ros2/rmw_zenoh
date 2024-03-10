@@ -447,24 +447,6 @@ std::string mangle_name(const std::string & input)
 }
 
 ///=============================================================================
-char * mangle_name(const char * input)
-{
-  size_t input_length = strlen(input);
-  char * output = new char[input_length + 1];
-
-  for (size_t i = 0; i < input_length; ++i) {
-    if (input[i] == '/') {
-      output[i] = SLASH_REPLACEMENT;
-    } else {
-      output[i] = input[i];
-    }
-  }
-  output[input_length] = '\0';
-
-  return output;
-}
-
-///=============================================================================
 std::string demangle_name(const std::string & input)
 {
   std::string output = "";

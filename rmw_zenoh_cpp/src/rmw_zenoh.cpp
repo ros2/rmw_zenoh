@@ -87,22 +87,12 @@ z_owned_keyexpr_t ros_topic_name_to_zenoh_key(const char * topic_name, size_t do
   size_t topic_name_len = strlen(topic_name);
   size_t end_offset = topic_name_len;
 
-  topic_name = liveliness::mangle_name(topic_name);
-
-  if (topic_name_len > 0) {
-    if (topic_name[0] == '%') {
-      // Strip the leading '/'
-      start_offset = 1;
-    }
-    if (topic_name[end_offset - 1] == '%') {
-      // Strip the trailing '/'
-      end_offset -= 1;
-    }
-  }
+  std::string topic_nm(topic_name);
+  topic_nm = liveliness::mangle_name(topic_nm);
 
   return z_keyexpr_join(
     z_keyexpr(d.c_str()),
-    zc_keyexpr_from_slice(&topic_name[start_offset], end_offset - start_offset));
+    z_keyexpr(topic_nm.c_str()));
 }
 
 //==============================================================================
