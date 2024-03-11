@@ -30,7 +30,6 @@ cd ~/ws_rmw_zenoh
 rosdep install --from-paths src --ignore-src --rosdistro <DISTRO> -y # replace <DISTRO> with ROS 2 distro of choice
 source /opt/ros/<DISTRO>/setup.bash # replace <DISTRO> with ROS 2 distro of choice
 colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
-
 ```
 
 ## Test
@@ -56,7 +55,6 @@ ros2 run rmw_zenoh_cpp rmw_zenohd
 export RMW_IMPLEMENTATION=rmw_zenoh_cpp
 ros2 run demo_nodes_cpp talker
 ```
-> Note: Ignore all the warning printouts.
 
 ### Run the `listener`
 ```bash
@@ -66,7 +64,6 @@ ros2 run demo_nodes_cpp listener
 ```
 
 The listener node should start receiving messages over the `/chatter` topic.
-> Note: Ignore all the warning printouts.
 
 ## Configuration
 `rmw_zenoh` relies on separate configurations files to configure the Zenoh `router` and `session` respectively.

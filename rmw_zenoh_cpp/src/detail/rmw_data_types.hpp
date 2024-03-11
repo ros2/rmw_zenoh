@@ -41,7 +41,7 @@
 /// Structs for various type erased data fields.
 
 ///=============================================================================
-class rmw_context_impl_s
+class rmw_context_impl_s final
 {
 public:
   // An owned session.
@@ -83,7 +83,7 @@ struct rmw_node_data_t
 };
 
 ///=============================================================================
-class rmw_publisher_data_t
+class rmw_publisher_data_t final
 {
 public:
   // The Entity generated for the publisher.
@@ -109,9 +109,15 @@ public:
   // Context for memory allocation for messages.
   rmw_context_t * context;
 
-  uint8_t pub_guid[RMW_GID_STORAGE_SIZE];
+  uint8_t pub_gid[RMW_GID_STORAGE_SIZE];
+
+  size_t get_next_sequence_number();
 
   EventsManager events_mgr;
+
+private:
+  std::mutex sequence_number_mutex_;
+  size_t sequence_number_{1};
 };
 
 ///=============================================================================
@@ -129,17 +135,24 @@ void sub_data_handler(const z_sample_t * sample, void * sub_data);
 
 struct saved_msg_data
 {
-  explicit saved_msg_data(zc_owned_payload_t p, uint64_t recv_ts, const uint8_t pub_gid[16]);
+  explicit saved_msg_data(
+    zc_owned_payload_t p,
+    uint64_t recv_ts,
+    const uint8_t pub_gid[RMW_GID_STORAGE_SIZE],
+    int64_t seqnum,
+    int64_t source_ts);
 
   ~saved_msg_data();
 
   zc_owned_payload_t payload;
   uint64_t recv_timestamp;
-  uint8_t publisher_gid[16];
+  uint8_t publisher_gid[RMW_GID_STORAGE_SIZE];
+  int64_t sequence_number;
+  int64_t source_timestamp;
 };
 
 ///=============================================================================
-class rmw_subscription_data_t
+class rmw_subscription_data_t final
 {
 public:
   // The Entity generated for the subscription.
@@ -204,7 +217,7 @@ private:
 };
 
 ///=============================================================================
-class rmw_service_data_t
+class rmw_service_data_t final
 {
 public:
   // The Entity generated for the service.
@@ -274,7 +287,7 @@ private:
 };
 
 ///=============================================================================
-class rmw_client_data_t
+class rmw_client_data_t final
 {
 public:
   // The Entity generated for the client.
@@ -298,7 +311,7 @@ public:
 
   rmw_context_t * context;
 
-  uint8_t client_guid[RMW_GID_STORAGE_SIZE];
+  uint8_t client_gid[RMW_GID_STORAGE_SIZE];
 
   size_t get_next_sequence_number();
 
@@ -317,8 +330,8 @@ public:
 private:
   void notify();
 
-  size_t sequence_number{1};
-  std::mutex sequence_number_mutex;
+  size_t sequence_number_{1};
+  std::mutex sequence_number_mutex_;
 
   std::condition_variable * condition_{nullptr};
   std::mutex condition_mutex_;
