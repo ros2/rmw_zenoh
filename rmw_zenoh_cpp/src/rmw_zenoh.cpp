@@ -79,7 +79,7 @@ namespace
 // the old string into it. If this becomes a performance problem, we could consider
 // modifying the topic_name in place. But this means we need to be much more
 // careful about who owns the string.
-z_owned_keyexpr_t ros_topic_name_to_zenoh_key(const char * topic_name, size_t domain_id)
+z_owned_keyexpr_t ros_topic_name_to_zenoh_key(const char * const topic_name, size_t domain_id)
 {
   std::string d = std::to_string(domain_id);
 
@@ -87,7 +87,7 @@ z_owned_keyexpr_t ros_topic_name_to_zenoh_key(const char * topic_name, size_t do
   size_t topic_name_len = strlen(topic_name);
   size_t end_offset = topic_name_len;
 
-  topic_nm = liveliness::mangle_name(topic_name);
+  std::string topic_nm = liveliness::mangle_name(topic_name);
 
   return z_keyexpr_join(
     z_keyexpr(d.c_str()),
