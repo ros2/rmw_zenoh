@@ -87,7 +87,7 @@ z_owned_keyexpr_t ros_topic_name_to_zenoh_key(const char * const topic_name, siz
   size_t topic_name_len = strlen(topic_name);
   size_t end_offset = topic_name_len;
 
-  std::string topic_nm = liveliness::mangle_name(topic_name);
+  const std::string mangled_topic_name = liveliness::mangle_name(topic_name);
 
   return z_keyexpr_join(
     z_keyexpr(d.c_str()),
