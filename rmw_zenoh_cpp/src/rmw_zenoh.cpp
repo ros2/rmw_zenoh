@@ -91,7 +91,7 @@ z_owned_keyexpr_t ros_topic_name_to_zenoh_key(const char * const topic_name, siz
 
   return z_keyexpr_join(
     z_keyexpr(d.c_str()),
-    z_keyexpr(topic_nm.c_str()));
+    z_keyexpr(mangled_topic_name.c_str()));
 }
 
 //==============================================================================
