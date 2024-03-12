@@ -39,8 +39,11 @@
 // TODO(Yadunund): Consider changing this to an array of unordered_set where the index of the
 // array corresponds to the EntityType enum. This way we don't need to mix
 // pub/sub with client/service.
-struct TopicData
+class TopicData;
+using TopicDataPtr = std::shared_ptr<TopicData>;
+class TopicData
 {
+public:
   liveliness::TopicInfo info_;
 
   // The publishers or clients entities.
@@ -49,12 +52,13 @@ struct TopicData
   // The subscriptions or services entities
   std::unordered_set<liveliness::Entity> subs_;
 
-  TopicData(
-    liveliness::TopicInfo info,
-    std::unordered_set<liveliness::Entity> pubs,
-    std::unordered_set<liveliness::Entity> subs);
+  // Returns nullptr if the entity does not contain topic_info.
+  static TopicDataPtr make(liveliness::Entity entity);
+
+private:
+  // Private constructor to force users to rely on make.
+  explicit TopicData(liveliness::Entity entity);
 };
-using TopicDataPtr = std::shared_ptr<TopicData>;
 
 ///=============================================================================
 struct GraphNode
@@ -168,6 +172,9 @@ public:
     const rmw_zenoh_event_type_t & event_type,
     GraphCacheEventCallback callback);
 
+  /// Returns true if the entity is a publisher or client. False otherwise.
+  static bool is_entity_pub(const liveliness::Entity & entity);
+
 private:
   // Helper function to convert an Entity into a GraphNode.
   // Note: this will update bookkeeping variables in GraphCache.
@@ -198,9 +205,6 @@ private:
 
   /// Returns true if the entity was created within the same context / zenoh session.
   bool is_entity_local(const liveliness::Entity & entity) const;
-
-  /// Returns true if the entity is a publisher or client. False otherwise.
-  bool is_entity_pub(const liveliness::Entity & entity) const;
 
   void update_event_counters(
     const std::string & topic_name,

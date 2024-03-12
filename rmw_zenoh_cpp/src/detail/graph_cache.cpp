@@ -41,14 +41,29 @@ using Entity = liveliness::Entity;
 using EntityType = liveliness::EntityType;
 
 ///=============================================================================
-TopicData::TopicData(
-  liveliness::TopicInfo info,
-  std::unordered_set<liveliness::Entity> pubs,
-  std::unordered_set<liveliness::Entity> subs)
-: info_(std::move(info)),
-  pubs_(std::move(pubs)),
-  subs_(std::move(subs))
-{}
+TopicDataPtr TopicData::make(Entity entity)
+{
+  if (!entity.topic_info().has_value()) {
+    return nullptr;
+  }
+
+  std::shared_ptr<TopicData> topic_data(new TopicData{entity});
+
+  return topic_data;
+}
+
+///=============================================================================
+TopicData::TopicData(Entity entity)
+: info_(entity.topic_info().value()),
+  pubs_({}),
+  subs_({})
+{
+  if (GraphCache::is_entity_pub(entity)) {
+    pubs_.emplace(std::move(entity));
+  } else {
+    subs_.emplace(std::move(entity));
+  }
+}
 
 ///=============================================================================
 GraphCache::GraphCache(const z_id_t & zid)
@@ -125,17 +140,8 @@ void GraphCache::update_topic_map_for_put(
   // Initialize a map that will be populated with any QoS events that may be detected.
   std::unordered_map<liveliness::Entity, std::unordered_set<rmw_zenoh_event_type_t>>
   local_entities_with_events = {};
-  std::unordered_set<liveliness::Entity> pubs = {};
-  std::unordered_set<liveliness::Entity> subs = {};
-  if (is_pub) {
-    pubs.insert(entity);
-  } else {
-    subs.insert(entity);
-  }
-  TopicDataPtr graph_topic_data = std::make_shared<TopicData>(
-    topic_info,
-    std::move(pubs),
-    std::move(subs));
+
+  TopicDataPtr graph_topic_data = TopicData::make(entity);
 
   std::string qos_str = liveliness::qos_to_keyexpr(topic_info.qos_);
   GraphNode::TopicQoSMap topic_qos_map = {
@@ -1224,7 +1230,7 @@ bool GraphCache::is_entity_local(const liveliness::Entity & entity) const
 }
 
 ///=============================================================================
-bool GraphCache::is_entity_pub(const liveliness::Entity & entity) const
+bool GraphCache::is_entity_pub(const liveliness::Entity & entity)
 {
   if (entity.type() == EntityType::Publisher ||
     entity.type() == EntityType::Client)
