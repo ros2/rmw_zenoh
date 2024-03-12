@@ -36,9 +36,7 @@
 
 
 ///=============================================================================
-// TODO(Yadunund): Since we reuse pub_count_ and sub_count_ for pub/sub and
-// service/client consider more general names for these fields.
-// Consider changing this to an array of unordered_set where the index of the
+// TODO(Yadunund): Consider changing this to an array of unordered_set where the index of the
 // array corresponds to the EntityType enum. This way we don't need to mix
 // pub/sub with client/service.
 struct TopicData
