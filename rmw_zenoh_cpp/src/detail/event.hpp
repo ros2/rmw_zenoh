@@ -152,8 +152,7 @@ private:
   void notify_event(rmw_zenoh_event_type_t event_id);
 
   /// Mutex to lock when read/writing members.
-  // The mutex is recursive as add_new_event() invokes `trigger_event_callback()`.
-  mutable std::recursive_mutex event_mutex_;
+  mutable std::mutex event_mutex_;
   /// Mutex to lock for event_condition.
   mutable std::mutex event_condition_mutex_;
   /// Condition variable to attach for event notifications.

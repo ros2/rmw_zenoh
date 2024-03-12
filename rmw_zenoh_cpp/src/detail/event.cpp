@@ -67,7 +67,7 @@ void EventsManager::event_set_callback(
     return;
   }
 
-  std::lock_guard<std::recursive_mutex> lock(event_mutex_);
+  std::lock_guard<std::mutex> lock(event_mutex_);
 
   // Set the user callback data
   event_callback_[event_id] = callback;
@@ -92,7 +92,7 @@ void EventsManager::trigger_event_callback(rmw_zenoh_event_type_t event_id)
     return;
   }
 
-  std::lock_guard<std::recursive_mutex> lock(event_mutex_);
+  std::lock_guard<std::mutex> lock(event_mutex_);
 
   if (event_callback_[event_id] != nullptr) {
     event_callback_[event_id](event_data_[event_id], 1);
@@ -113,7 +113,7 @@ bool EventsManager::event_queue_is_empty(rmw_zenoh_event_type_t event_id) const
     return true;
   }
 
-  std::lock_guard<std::recursive_mutex> lock(event_mutex_);
+  std::lock_guard<std::mutex> lock(event_mutex_);
 
   return event_queues_[event_id].empty();
 }
@@ -130,7 +130,7 @@ std::unique_ptr<rmw_zenoh_event_status_t> EventsManager::pop_next_event(
     return nullptr;
   }
 
-  std::lock_guard<std::recursive_mutex> lock(event_mutex_);
+  std::lock_guard<std::mutex> lock(event_mutex_);
 
   if (event_queues_[event_id].empty()) {
     // This tells rcl that the check for a new events was done, but no events have come in yet.
@@ -157,22 +157,24 @@ void EventsManager::add_new_event(
     return;
   }
 
-  std::lock_guard<std::recursive_mutex> lock(event_mutex_);
+  {
+    std::lock_guard<std::mutex> lock(event_mutex_);
 
-  std::deque<std::unique_ptr<rmw_zenoh_event_status_t>> & event_queue = event_queues_[event_id];
-  if (event_queue.size() >= event_queue_depth_) {
-    // Log warning if message is discarded due to hitting the queue depth
-    RCUTILS_LOG_DEBUG_NAMED(
-      "rmw_zenoh_cpp",
-      "Event queue depth of %ld reached, discarding oldest message "
-      "for event type %d",
-      event_queue_depth_,
-      event_id);
+    std::deque<std::unique_ptr<rmw_zenoh_event_status_t>> & event_queue = event_queues_[event_id];
+    if (event_queue.size() >= event_queue_depth_) {
+      // Log warning if message is discarded due to hitting the queue depth
+      RCUTILS_LOG_DEBUG_NAMED(
+        "rmw_zenoh_cpp",
+        "Event queue depth of %ld reached, discarding oldest message "
+        "for event type %d",
+        event_queue_depth_,
+        event_id);
 
-    event_queue.pop_front();
+      event_queue.pop_front();
+    }
+
+    event_queue.emplace_back(std::move(event));
   }
-
-  event_queue.emplace_back(std::move(event));
 
   // Since we added new data, trigger event callback and guard condition if they are available
   trigger_event_callback(event_id);
