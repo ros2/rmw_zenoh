@@ -189,6 +189,18 @@ void rmw_service_data_t::notify()
 void rmw_service_data_t::add_new_query(std::unique_ptr<ZenohQuery> query)
 {
   std::lock_guard<std::mutex> lock(query_queue_mutex_);
+  if (query_queue_.size() >= adapted_qos_profile.depth) {
+    // Log warning if message is discarded due to hitting the queue depth
+    z_owned_str_t keystr = z_keyexpr_to_string(z_loan(this->keyexpr));
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Query queue depth of %ld reached, discarding oldest Query "
+      "for service for %s",
+      adapted_qos_profile.depth,
+      z_loan(keystr));
+    z_drop(z_move(keystr));
+    query_queue_.pop_front();
+  }
   query_queue_.emplace_back(std::move(query));
 
   // Since we added new data, trigger user callback and guard condition if they are available
@@ -238,6 +250,18 @@ void rmw_client_data_t::notify()
 void rmw_client_data_t::add_new_reply(std::unique_ptr<ZenohReply> reply)
 {
   std::lock_guard<std::mutex> lock(reply_queue_mutex_);
+  if (reply_queue_.size() >= adapted_qos_profile.depth) {
+    // Log warning if message is discarded due to hitting the queue depth
+    z_owned_str_t keystr = z_keyexpr_to_string(z_loan(this->keyexpr));
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Reply queue depth of %ld reached, discarding oldest reply "
+      "for client for %s",
+      adapted_qos_profile.depth,
+      z_loan(keystr));
+    z_drop(z_move(keystr));
+    reply_queue_.pop_front();
+  }
   reply_queue_.emplace_back(std::move(reply));
 
   // Since we added new data, trigger user callback and guard condition if they are available

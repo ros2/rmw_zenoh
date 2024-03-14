@@ -1958,6 +1958,15 @@ rmw_create_client(
 
   generate_random_gid(client_data->client_gid);
 
+  // Adapt any 'best available' QoS options
+  client_data->adapted_qos_profile =
+    rmw_dds_common::qos_profile_update_best_available_for_services(*qos_profile);
+  // If a depth of 0 was provided, the RMW implementation should choose a suitable default.
+  client_data->adapted_qos_profile.depth =
+    client_data->adapted_qos_profile.depth > 0 ?
+    client_data->adapted_qos_profile.depth :
+    RMW_ZENOH_DEFAULT_HISTORY_DEPTH;
+
   // Obtain the type support
   const rosidl_service_type_support_t * type_support = find_service_type_support(type_supports);
   if (type_support == nullptr) {
@@ -2480,6 +2489,11 @@ rmw_create_service(
   // Adapt any 'best available' QoS options
   service_data->adapted_qos_profile =
     rmw_dds_common::qos_profile_update_best_available_for_services(*qos_profiles);
+  // If a depth of 0 was provided, the RMW implementation should choose a suitable default.
+  service_data->adapted_qos_profile.depth =
+    service_data->adapted_qos_profile.depth > 0 ?
+    service_data->adapted_qos_profile.depth :
+    RMW_ZENOH_DEFAULT_HISTORY_DEPTH;
 
   // Get the RMW type support.
   const rosidl_service_type_support_t * type_support = find_service_type_support(type_supports);
