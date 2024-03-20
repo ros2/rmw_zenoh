@@ -1046,7 +1046,7 @@ rmw_publish_serialized_message(
 
   uint64_t sequence_number = publisher_data->get_next_sequence_number();
 
-  z_owned_bytes_map_t map = 
+  z_owned_bytes_map_t map =
     create_map_and_set_sequence_num(sequence_number, publisher_data->pub_gid);
 
   if (!z_check(map)) {
