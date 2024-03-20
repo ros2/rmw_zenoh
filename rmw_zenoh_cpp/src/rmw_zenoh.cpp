@@ -1044,6 +1044,20 @@ rmw_publish_serialized_message(
     return RMW_RET_ERROR;
   }
 
+  uint64_t sequence_number = publisher_data->get_next_sequence_number();
+
+  z_owned_bytes_map_t map = 
+    create_map_and_set_sequence_num(sequence_number, publisher_data->pub_gid);
+
+  if (!z_check(map)) {
+    // create_map_and_set_sequence_num already set the error
+    return RMW_RET_ERROR;
+  }
+  auto free_attachment_map = rcpputils::make_scope_exit(
+    [&map]() {
+      z_bytes_map_drop(z_move(map));
+    });
+
   const size_t data_length = ser.getSerializedDataLength();
 
   // The encoding is simply forwarded and is useful when key expressions in the
@@ -1051,6 +1065,7 @@ rmw_publish_serialized_message(
   // will be encoded with CDR so it does not really matter.
   z_publisher_put_options_t options = z_publisher_put_options_default();
   options.encoding = z_encoding(Z_ENCODING_PREFIX_EMPTY, NULL);
+  options.attachment = z_bytes_map_as_attachment(&map);
   // Returns 0 if success.
   int8_t ret = z_publisher_put(
     z_loan(publisher_data->pub),
