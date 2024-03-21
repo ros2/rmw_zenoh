@@ -46,18 +46,21 @@ class TopicData
 public:
   liveliness::TopicInfo info_;
 
+  using EntitySet = std::unordered_set<
+    liveliness::ConstEntityPtr>;
+
   // The publishers or clients entities.
-  std::unordered_set<liveliness::Entity> pubs_;
+  EntitySet pubs_;
 
   // The subscriptions or services entities
-  std::unordered_set<liveliness::Entity> subs_;
+  EntitySet subs_;
 
   // Returns nullptr if the entity does not contain topic_info.
-  static TopicDataPtr make(liveliness::Entity entity);
+  static TopicDataPtr make(liveliness::ConstEntityPtr entity);
 
 private:
   // Private constructor to force users to rely on make.
-  explicit TopicData(liveliness::Entity entity);
+  explicit TopicData(liveliness::ConstEntityPtr entity);
 };
 
 ///=============================================================================
@@ -168,7 +171,7 @@ public:
   /// Set a qos event callback for an entity from the current session.
   /// @note The callback will be removed when the entity is removed from the graph.
   void set_qos_event_callback(
-    const liveliness::Entity & entity,
+    liveliness::ConstEntityPtr entity,
     const rmw_zenoh_event_type_t & event_type,
     GraphCacheEventCallback callback);
 
@@ -183,20 +186,20 @@ private:
   // Helper function to update TopicMap within the node the cache for the entire graph.
   void update_topic_maps_for_put(
     GraphNodePtr graph_node,
-    const liveliness::Entity & entity);
+    liveliness::ConstEntityPtr entity);
 
   void update_topic_map_for_put(
     GraphNode::TopicMap & topic_map,
-    const liveliness::Entity & entity,
+    liveliness::ConstEntityPtr entity,
     bool report_events = false);
 
   void update_topic_maps_for_del(
     GraphNodePtr graph_node,
-    const liveliness::Entity & entity);
+    liveliness::ConstEntityPtr entity);
 
   void update_topic_map_for_del(
     GraphNode::TopicMap & topic_map,
-    const liveliness::Entity & entity,
+    liveliness::ConstEntityPtr entity,
     bool report_events = false);
 
   void remove_topic_map_from_cache(
@@ -217,15 +220,15 @@ private:
     const rmw_zenoh_event_type_t event_id);
 
   void handle_matched_events_for_put(
-    const liveliness::Entity & entity,
+    liveliness::ConstEntityPtr entity,
     const GraphNode::TopicQoSMap & topic_qos_map);
 
   void handle_matched_events_for_del(
-    const liveliness::Entity & entity,
+    liveliness::ConstEntityPtr entity,
     const GraphNode::TopicQoSMap & topic_qos_map);
 
   using EntityEventMap =
-    std::unordered_map<liveliness::Entity, std::unordered_set<rmw_zenoh_event_type_t>>;
+    std::unordered_map<liveliness::ConstEntityPtr, std::unordered_set<rmw_zenoh_event_type_t>>;
   void take_entities_with_events(EntityEventMap & entities_with_events);
 
   std::string zid_str_;
@@ -270,7 +273,7 @@ private:
   // pub/sub with the exact same topic, type & QoS but registers a different callback
   // for the same event type. We could switch to a multimap here but removing the callback
   // will be impossible right now since entities do not have unique IDs.
-  using GraphEventCallbackMap = std::unordered_map<liveliness::Entity, GraphEventCallbacks>;
+  using GraphEventCallbackMap = std::unordered_map<liveliness::ConstEntityPtr, GraphEventCallbacks>;
   // EventCallbackMap for each type of event we support in rmw_zenoh_cpp.
   GraphEventCallbackMap event_callbacks_;
   // Counters to track changes to event statues for each topic.

@@ -288,13 +288,13 @@ rmw_create_node(
   // Initialize liveliness token for the node to advertise that a new node is in town.
   rmw_node_data_t * node_data = static_cast<rmw_node_data_t *>(node->data);
   node_data->id = context->impl->get_next_entity_id();
-  const auto liveliness_entity = liveliness::Entity::make(
+  node_data->entity = liveliness::Entity::make(
     z_info_zid(z_loan(context->impl->session)),
     std::to_string(node_data->id),
     std::to_string(node_data->id),
     liveliness::EntityType::Node,
     liveliness::NodeInfo{context->actual_domain_id, namespace_, name, ""});
-  if (!liveliness_entity.has_value()) {
+  if (node_data->entity == nullptr) {
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to generate keyexpr for liveliness token for the node.");
@@ -302,7 +302,7 @@ rmw_create_node(
   }
   node_data->token = zc_liveliness_declare_token(
     z_loan(node->context->impl->session),
-    z_keyexpr(liveliness_entity->keyexpr().c_str()),
+    z_keyexpr(node_data->entity->keyexpr().c_str()),
     NULL
   );
   auto free_token = rcpputils::make_scope_exit(
@@ -636,7 +636,7 @@ rmw_create_publisher(
     liveliness::TopicInfo{rmw_publisher->topic_name,
       publisher_data->type_support->get_name(), publisher_data->adapted_qos_profile}
   );
-  if (!publisher_data->entity.has_value()) {
+  if (publisher_data->entity == nullptr) {
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to generate keyexpr for liveliness token for the publisher.");
@@ -1450,7 +1450,7 @@ rmw_create_subscription(
     liveliness::TopicInfo{rmw_subscription->topic_name,
       sub_data->type_support->get_name(), sub_data->adapted_qos_profile}
   );
-  if (!sub_data->entity.has_value()) {
+  if (sub_data->entity == nullptr) {
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to generate keyexpr for liveliness token for the subscription.");
@@ -2096,7 +2096,7 @@ rmw_create_client(
     liveliness::TopicInfo{rmw_client->service_name,
       std::move(service_type), client_data->adapted_qos_profile}
   );
-  if (!client_data->entity.has_value()) {
+  if (client_data->entity == nullptr) {
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to generate keyexpr for liveliness token for the client.");
@@ -2640,7 +2640,7 @@ rmw_create_service(
     liveliness::TopicInfo{rmw_service->service_name,
       std::move(service_type), service_data->adapted_qos_profile}
   );
-  if (!service_data->entity.has_value()) {
+  if (service_data->entity == nullptr) {
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to generate keyexpr for liveliness token for the service.");

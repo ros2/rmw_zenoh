@@ -291,7 +291,7 @@ Entity::Entity(
 }
 
 ///=============================================================================
-std::optional<Entity> Entity::make(
+std::shared_ptr<Entity> Entity::make(
   z_id_t zid,
   const std::string & nid,
   const std::string & id,
@@ -301,33 +301,33 @@ std::optional<Entity> Entity::make(
 {
   if (id.empty()) {
     RCUTILS_SET_ERROR_MSG("Invalid id.");
-    return std::nullopt;
+    return nullptr;
   }
   if (entity_to_str.find(type) == entity_to_str.end()) {
     RCUTILS_SET_ERROR_MSG("Invalid entity type.");
-    return std::nullopt;
+    return nullptr;
   }
   if (node_info.ns_.empty() || node_info.name_.empty()) {
     RCUTILS_SET_ERROR_MSG("Invalid node_info for entity.");
-    return std::nullopt;
+    return nullptr;
   }
   if (type != EntityType::Node && !topic_info.has_value()) {
     RCUTILS_SET_ERROR_MSG("Invalid topic_info for entity.");
-    return std::nullopt;
+    return nullptr;
   }
 
-  Entity entity{
-    zid_to_str(zid),
-    std::move(nid),
-    std::move(id),
-    std::move(type),
-    std::move(node_info),
-    std::move(topic_info)};
-  return entity;
+  return std::make_shared<Entity>(
+    Entity{
+      zid_to_str(zid),
+      std::move(nid),
+      std::move(id),
+      std::move(type),
+      std::move(node_info),
+      std::move(topic_info)});
 }
 
 ///=============================================================================
-std::optional<Entity> Entity::make(const std::string & keyexpr)
+std::shared_ptr<Entity> Entity::make(const std::string & keyexpr)
 {
   std::vector<std::string> parts = split_keyexpr(keyexpr);
   // Every token will contain at least 7 parts:
@@ -337,14 +337,14 @@ std::optional<Entity> Entity::make(const std::string & keyexpr)
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Received invalid liveliness token");
-    return std::nullopt;
+    return nullptr;
   }
   for (const std::string & p : parts) {
     if (p.empty()) {
       RCUTILS_LOG_ERROR_NAMED(
         "rmw_zenoh_cpp",
         "Received invalid liveliness token");
-      return std::nullopt;
+      return nullptr;
     }
   }
 
@@ -352,7 +352,7 @@ std::optional<Entity> Entity::make(const std::string & keyexpr)
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Received liveliness token with invalid admin space.");
-    return std::nullopt;
+    return nullptr;
   }
 
   // Get the entity, ie NN, MP, MS, SS, SC.
@@ -363,7 +363,7 @@ std::optional<Entity> Entity::make(const std::string & keyexpr)
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Received liveliness token with invalid entity %s.", entity_str.c_str());
-    return std::nullopt;
+    return nullptr;
   }
 
   EntityType entity_type = entity_it->second;
@@ -381,14 +381,14 @@ std::optional<Entity> Entity::make(const std::string & keyexpr)
       RCUTILS_LOG_ERROR_NAMED(
         "rmw_zenoh_cpp",
         "Received liveliness token for non-node entity without required parameters.");
-      return std::nullopt;
+      return nullptr;
     }
     std::optional<rmw_qos_profile_t> qos = keyexpr_to_qos(parts[KeyexprIndex::TopicQoS]);
     if (!qos.has_value()) {
       RCUTILS_LOG_ERROR_NAMED(
         "rmw_zenoh_cpp",
         "Received liveliness token with invalid qos keyexpr");
-      return std::nullopt;
+      return nullptr;
     }
     topic_info = TopicInfo{
       demangle_name(std::move(parts[KeyexprIndex::TopicName])),
@@ -397,13 +397,14 @@ std::optional<Entity> Entity::make(const std::string & keyexpr)
     };
   }
 
-  return Entity{
-    std::move(zid),
-    std::move(nid),
-    std::move(id),
-    std::move(entity_type),
-    NodeInfo{std::move(domain_id), std::move(ns), std::move(node_name), ""},
-    std::move(topic_info)};
+  return std::make_shared<Entity>(
+    Entity{
+      std::move(zid),
+      std::move(nid),
+      std::move(id),
+      std::move(entity_type),
+      NodeInfo{std::move(domain_id), std::move(ns), std::move(node_name), ""},
+      std::move(topic_info)});
 }
 
 ///=============================================================================

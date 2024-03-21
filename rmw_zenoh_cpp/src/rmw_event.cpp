@@ -40,6 +40,7 @@ rmw_publisher_event_init(
   rmw_publisher_data_t * pub_data = static_cast<rmw_publisher_data_t *>(publisher->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(pub_data, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(pub_data->context, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(pub_data->entity, RMW_RET_INVALID_ARGUMENT);
 
   if (publisher->implementation_identifier != rmw_zenoh_identifier) {
     RMW_SET_ERROR_MSG("Publisher implementation identifier not from this implementation");
@@ -59,7 +60,7 @@ rmw_publisher_event_init(
 
   // Register the event with graph cache.
   pub_data->context->impl->graph_cache->set_qos_event_callback(
-    pub_data->entity.value(),
+    pub_data->entity,
     rmw_event_it->second,
     [pub_data,
     event_id = rmw_event_it->second](std::unique_ptr<rmw_zenoh_event_status_t> zenoh_event)
@@ -91,6 +92,7 @@ rmw_subscription_event_init(
   rmw_subscription_data_t * sub_data = static_cast<rmw_subscription_data_t *>(subscription->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data->context, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(sub_data->entity, RMW_RET_INVALID_ARGUMENT);
 
   if (subscription->implementation_identifier != rmw_zenoh_identifier) {
     RMW_SET_ERROR_MSG(
@@ -116,7 +118,7 @@ rmw_subscription_event_init(
   }
 
   sub_data->context->impl->graph_cache->set_qos_event_callback(
-    sub_data->entity.value(),
+    sub_data->entity,
     rmw_event_it->second,
     [sub_data,
     event_id = rmw_event_it->second](std::unique_ptr<rmw_zenoh_event_status_t> zenoh_event)

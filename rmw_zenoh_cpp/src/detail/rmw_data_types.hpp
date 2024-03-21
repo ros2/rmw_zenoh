@@ -72,8 +72,9 @@ private:
 ///=============================================================================
 struct rmw_node_data_t
 {
-  // TODO(Yadunund): Do we need a token at the node level? Right now I have one
-  // for cases where a node may spin up but does not have any publishers or subscriptions.
+  // The Entity generated for the node.
+  std::shared_ptr<liveliness::Entity> entity;
+
   // Liveliness token for the node.
   zc_owned_liveliness_token_t token;
 
@@ -87,7 +88,7 @@ class rmw_publisher_data_t final
 {
 public:
   // The Entity generated for the publisher.
-  std::optional<liveliness::Entity> entity;
+  std::shared_ptr<liveliness::Entity> entity;
 
   // An owned publisher.
   z_owned_publisher_t pub;
@@ -156,7 +157,7 @@ class rmw_subscription_data_t final
 {
 public:
   // The Entity generated for the subscription.
-  std::optional<liveliness::Entity> entity;
+  std::shared_ptr<liveliness::Entity> entity;
 
   // An owned subscriber or querying_subscriber depending on the QoS settings.
   std::variant<z_owned_subscriber_t, ze_owned_querying_subscriber_t> sub;
@@ -221,7 +222,7 @@ class rmw_service_data_t final
 {
 public:
   // The Entity generated for the service.
-  std::optional<liveliness::Entity> entity;
+  std::shared_ptr<liveliness::Entity> entity;
 
   z_owned_keyexpr_t keyexpr;
   z_owned_queryable_t qable;
@@ -291,7 +292,7 @@ class rmw_client_data_t final
 {
 public:
   // The Entity generated for the client.
-  std::optional<liveliness::Entity> entity;
+  std::shared_ptr<liveliness::Entity> entity;
 
   z_owned_keyexpr_t keyexpr;
   z_owned_closure_reply_t zn_closure_reply;

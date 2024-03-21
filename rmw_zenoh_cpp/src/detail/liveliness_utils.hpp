@@ -18,6 +18,7 @@
 #include <zenoh.h>
 
 #include <functional>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -102,6 +103,9 @@ enum class EntityType : uint8_t
  *  _dds:: prefix in the topic_type is an artifact of the type support implementation and is
  *  removed when reporting the topic_type in graph_cache.cpp (see _demangle_if_ros_type()).
  */
+class Entity;
+using EntityPtr = std::shared_ptr<Entity>;
+using ConstEntityPtr = std::shared_ptr<const Entity>;
 class Entity
 {
 public:
@@ -114,7 +118,7 @@ public:
   /// @param node_info The node information that is required for all entities.
   /// @param topic_info An optional topic information for relevant entities.
   /// @return An entity if all inputs are valid. This way no invalid entities can be created.
-  static std::optional<Entity> make(
+  static EntityPtr make(
     z_id_t zid,
     const std::string & nid,
     const std::string & id,
@@ -123,7 +127,7 @@ public:
     std::optional<TopicInfo> topic_info = std::nullopt);
 
   /// Make an Entity from a liveliness keyexpr.
-  static std::optional<Entity> make(const std::string & keyexpr);
+  static EntityPtr make(const std::string & keyexpr);
 
   // Get the zenoh session id as a string. This is not unique as entities
   // created within the same session, will have the same ids.
@@ -224,6 +228,27 @@ struct hash<liveliness::Entity>
     return entity.guid();
   }
 };
+
+template<>
+struct hash<liveliness::ConstEntityPtr>
+{
+  auto operator()(const liveliness::ConstEntityPtr & entity) const -> size_t
+  {
+    return entity->guid();
+  }
+};
+
+template<>
+struct equal_to<liveliness::ConstEntityPtr>
+{
+  auto operator()(
+    const liveliness::ConstEntityPtr & lhs,
+    const liveliness::ConstEntityPtr & rhs) const -> bool
+  {
+    return lhs->guid() == rhs->guid();
+  }
+};
+
 }  // namespace std
 
 #endif  // DETAIL__LIVELINESS_UTILS_HPP_
