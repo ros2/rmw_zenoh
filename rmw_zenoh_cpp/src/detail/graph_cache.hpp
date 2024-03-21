@@ -216,10 +216,17 @@ private:
     const std::string & topic_name,
     const rmw_zenoh_event_type_t event_id);
 
-  void take_local_entities_with_events(
-    std::unordered_map<liveliness::Entity, std::unordered_set<rmw_zenoh_event_type_t>> &
-    local_entities_with_events);
+  void handle_matched_events_for_put(
+    const liveliness::Entity & entity,
+    const GraphNode::TopicQoSMap & topic_qos_map);
 
+  void handle_matched_events_for_del(
+    const liveliness::Entity & entity,
+    const GraphNode::TopicQoSMap & topic_qos_map);
+
+  using EntityEventMap =
+    std::unordered_map<liveliness::Entity, std::unordered_set<rmw_zenoh_event_type_t>>;
+  void take_entities_with_events(EntityEventMap & entities_with_events);
 
   std::string zid_str_;
   /*

@@ -39,7 +39,6 @@
 ///=============================================================================
 using Entity = liveliness::Entity;
 using EntityType = liveliness::EntityType;
-
 ///=============================================================================
 TopicDataPtr TopicData::make(Entity entity)
 {
@@ -124,143 +123,189 @@ void GraphCache::update_topic_map_for_put(
   const liveliness::Entity & entity,
   bool report_events)
 {
-  if (!entity.topic_info().has_value()) {
-    // This should not happen as topic_info should be populated for all non-node entites.
+  TopicDataPtr graph_topic_data = TopicData::make(entity);
+  if (graph_topic_data == nullptr) {
+    // This should not happen as topic_info should be populated for all non-node entities.
     RCUTILS_LOG_WARN_NAMED(
       "rmw_zenoh_cpp",
       "update_topic_map_for_put() called for non-node entity without valid TopicInfo. "
       "Report this.");
     return;
   }
-  const liveliness::TopicInfo topic_info = entity.topic_info().value();
 
   // For the sake of reusing data structures and lookup functions, we treat publishers and
   // clients as equivalent. Similarly, subscriptions and services are equivalent.
   const bool is_pub = is_entity_pub(entity);
-  // Initialize a map that will be populated with any QoS events that may be detected.
-  std::unordered_map<liveliness::Entity, std::unordered_set<rmw_zenoh_event_type_t>>
-  local_entities_with_events = {};
-
-  TopicDataPtr graph_topic_data = TopicData::make(entity);
-
-  std::string qos_str = liveliness::qos_to_keyexpr(topic_info.qos_);
+  const std::string qos_str = liveliness::qos_to_keyexpr(graph_topic_data->info_.qos_);
   GraphNode::TopicQoSMap topic_qos_map = {
     {qos_str, graph_topic_data}};
+  GraphNode::TopicMap::iterator topic_map_it = topic_map.find(graph_topic_data->info_.name_);
 
-  GraphNode::TopicMap::iterator topic_map_it = topic_map.find(topic_info.name_);
   if (topic_map_it == topic_map.end()) {
-    // First time this topic name is discovered for the node so we insert a TopicTypeMap.
+    // First time this topic name is discovered in the topic_map so we insert a TopicTypeMap.
     GraphNode::TopicTypeMap topic_data_map = {
-      {topic_info.type_, std::move(topic_qos_map)}
+      {graph_topic_data->info_.type_, std::move(topic_qos_map)}
     };
-    topic_map.insert(std::make_pair(topic_info.name_, std::move(topic_data_map)));
-  } else {
-    // The topic exists for the node so we check if the type also exists.
-    GraphNode::TopicTypeMap::iterator topic_type_map_it = topic_map_it->second.find(
-      topic_info.type_);
-    if (topic_type_map_it == topic_map_it->second.end()) {
-      // First time this topic type is added.
-      // TODO(Yadunund) Check for and report an *_INCOMPATIBLE_TYPE events.
-
-      topic_map_it->second.insert(
-        std::make_pair(
-          topic_info.type_,
-          std::move(topic_qos_map)));
-    } else {
-      // The topic type already exists.
-      // With Zenoh, as long as topic name and type match, transport will ensure
-      // payloads are received by subs. Hence, we can check for matched events
-      // without having to check for any qos compatibilities.
-      if (report_events) {
-        // The entity added may be local with callbacks registered but there
-        // may be other local entities in the graph that are matched.
-        std::size_t match_count_for_entity = 0;
-        for (const auto & [_, topic_data_ptr] : topic_type_map_it->second) {
-          if (is_pub) {
-            // Count the number of matching subs for each set of qos settings.
-            if (!topic_data_ptr->subs_.empty()) {
-              match_count_for_entity += topic_data_ptr->subs_.size();
-            }
-            // Also iterate through the subs to check if any are local and if update event counters.
-            for (const liveliness::Entity & sub_entity : topic_data_ptr->subs_) {
-              update_event_counters(
-                topic_info.name_,
-                ZENOH_EVENT_SUBSCRIPTION_MATCHED,
-                static_cast<int32_t>(1));
-              if (is_entity_local(sub_entity)) {
-                local_entities_with_events[sub_entity].insert(ZENOH_EVENT_SUBSCRIPTION_MATCHED);
-              }
-            }
-            // Update event counters for the new entity.
-            update_event_counters(
-              topic_info.name_,
-              ZENOH_EVENT_PUBLICATION_MATCHED,
-              match_count_for_entity);
-            if (is_entity_local(entity) && match_count_for_entity > 0) {
-              local_entities_with_events[entity].insert(ZENOH_EVENT_PUBLICATION_MATCHED);
-            }
-          } else {
-            // Entity is a sub.
-            // Count the number of matching pubs for each set of qos settings.
-            if (!topic_data_ptr->pubs_.empty()) {
-              match_count_for_entity += topic_data_ptr->pubs_.size();
-            }
-            // Also iterate through the pubs to check if any are local and if update event counters.
-            for (const liveliness::Entity & pub_entity : topic_data_ptr->pubs_) {
-              update_event_counters(
-                topic_info.name_,
-                ZENOH_EVENT_PUBLICATION_MATCHED,
-                static_cast<int32_t>(1));
-              if (is_entity_local(pub_entity)) {
-                local_entities_with_events[pub_entity].insert(ZENOH_EVENT_PUBLICATION_MATCHED);
-              }
-            }
-            // Update event counters for the new entity.
-            update_event_counters(
-              topic_info.name_,
-              ZENOH_EVENT_SUBSCRIPTION_MATCHED,
-              match_count_for_entity);
-            if (is_entity_local(entity) && match_count_for_entity > 0) {
-              local_entities_with_events[entity].insert(ZENOH_EVENT_SUBSCRIPTION_MATCHED);
-            }
-          }
-        }
-      }
-      // We check if an entity with the exact same qos also exists.
-      GraphNode::TopicQoSMap::iterator topic_qos_map_it = topic_type_map_it->second.find(
-        qos_str);
-      if (topic_qos_map_it == topic_type_map_it->second.end()) {
-        // First time this qos is added.
-        // Update cache.
-        topic_type_map_it->second.insert(std::make_pair(qos_str, graph_topic_data));
-      } else {
-        // We have another instance of a pub/sub over the same topic,
-        // type and qos so we increment the counters.
-        TopicDataPtr & existing_graph_topic = topic_qos_map_it->second;
-        if (is_pub) {
-          existing_graph_topic->pubs_.insert(entity);
-        } else {
-          existing_graph_topic->subs_.insert(entity);
-        }
-      }
-    }
+    topic_map.insert(std::make_pair(graph_topic_data->info_.name_, std::move(topic_data_map)));
+    // We do not need to check for events since this is the first time and entiry for this topic
+    // was added to the topic map.
+    return;
   }
-  // Take events if any.
+  // The topic exists in the topic_map so we check if the type also exists.
+  GraphNode::TopicTypeMap::iterator topic_type_map_it = topic_map_it->second.find(
+    graph_topic_data->info_.type_);
+  if (topic_type_map_it == topic_map_it->second.end()) {
+    // First time this topic type is added.
+    topic_map_it->second.insert(
+      std::make_pair(
+        graph_topic_data->info_.type_,
+        std::move(topic_qos_map)));
+    // TODO(Yadunund) Check for and report an *_INCOMPATIBLE_TYPE events.
+    return;
+  }
+  // The topic type already exists.
   if (report_events) {
-    take_local_entities_with_events(local_entities_with_events);
+    // With Zenoh, as long as topic name and type match, transport will ensure
+    // payloads are received by subs. Hence, we can check for matched events
+    // without having to check for any qos compatibilities.
+    this->handle_matched_events_for_put(
+      entity,
+      topic_type_map_it->second);
+  }
+  // We check if an entity with the exact same qos also exists.
+  GraphNode::TopicQoSMap::iterator topic_qos_map_it =
+    topic_type_map_it->second.find(qos_str);
+  if (topic_qos_map_it == topic_type_map_it->second.end()) {
+    // First time this qos is added.
+    // Update cache.
+    topic_type_map_it->second.insert(std::make_pair(qos_str, graph_topic_data));
+  } else {
+    // We have another instance of a pub/sub over the same topic,
+    // type and qos so we increment the counters.
+    TopicDataPtr & existing_graph_topic = topic_qos_map_it->second;
+    if (is_pub) {
+      existing_graph_topic->pubs_.insert(entity);
+    } else {
+      existing_graph_topic->subs_.insert(entity);
+    }
   }
 }
 
 ///=============================================================================
-void GraphCache::take_local_entities_with_events(
-  std::unordered_map<liveliness::Entity, std::unordered_set<rmw_zenoh_event_type_t>> &
-  local_entities_with_events)
+void GraphCache::handle_matched_events_for_put(
+  const liveliness::Entity & entity,
+  const GraphNode::TopicQoSMap & topic_qos_map)
 {
-  if (local_entities_with_events.empty()) {
+  if (!entity.topic_info().has_value()) {
     return;
   }
+  const liveliness::TopicInfo topic_info = entity.topic_info().value();
+  const bool is_pub = is_entity_pub(entity);
+  // Initialize a map that will be populated with any QoS events that may be detected.
+  EntityEventMap local_entities_with_events = {};
+  // The entity added may be local with callbacks registered but there
+  // may be other local entities in the graph that are matched.
+  std::size_t match_count_for_entity = 0;
+  for (const auto & [_, topic_data_ptr] : topic_qos_map) {
+    if (is_pub) {
+      // Count the number of matching subs for each set of qos settings.
+      if (!topic_data_ptr->subs_.empty()) {
+        match_count_for_entity += topic_data_ptr->subs_.size();
+      }
+      // Also iterate through the subs to check if any are local and if update event counters.
+      for (const liveliness::Entity & sub_entity : topic_data_ptr->subs_) {
+        update_event_counters(
+          topic_info.name_,
+          ZENOH_EVENT_SUBSCRIPTION_MATCHED,
+          static_cast<int32_t>(1));
+        if (is_entity_local(sub_entity)) {
+          local_entities_with_events[sub_entity].insert(ZENOH_EVENT_SUBSCRIPTION_MATCHED);
+        }
+      }
+      // Update event counters for the new entity.
+      update_event_counters(
+        topic_info.name_,
+        ZENOH_EVENT_PUBLICATION_MATCHED,
+        match_count_for_entity);
+      if (is_entity_local(entity) && match_count_for_entity > 0) {
+        local_entities_with_events[entity].insert(ZENOH_EVENT_PUBLICATION_MATCHED);
+      }
+    } else {
+      // Entity is a sub.
+      // Count the number of matching pubs for each set of qos settings.
+      if (!topic_data_ptr->pubs_.empty()) {
+        match_count_for_entity += topic_data_ptr->pubs_.size();
+      }
+      // Also iterate through the pubs to check if any are local and if update event counters.
+      for (const liveliness::Entity & pub_entity : topic_data_ptr->pubs_) {
+        update_event_counters(
+          topic_info.name_,
+          ZENOH_EVENT_PUBLICATION_MATCHED,
+          static_cast<int32_t>(1));
+        if (is_entity_local(pub_entity)) {
+          local_entities_with_events[pub_entity].insert(ZENOH_EVENT_PUBLICATION_MATCHED);
+        }
+      }
+      // Update event counters for the new entity.
+      update_event_counters(
+        topic_info.name_,
+        ZENOH_EVENT_SUBSCRIPTION_MATCHED,
+        match_count_for_entity);
+      if (is_entity_local(entity) && match_count_for_entity > 0) {
+        local_entities_with_events[entity].insert(ZENOH_EVENT_SUBSCRIPTION_MATCHED);
+      }
+    }
+  }
+  take_entities_with_events(local_entities_with_events);
+}
 
-  for (const auto & [local_entity, event_set] : local_entities_with_events) {
+///=============================================================================
+void GraphCache::handle_matched_events_for_del(
+  const liveliness::Entity & entity,
+  const GraphNode::TopicQoSMap & topic_qos_map)
+{
+  // We do not have to report any events for the entity removed event
+  // as it is already destructed. So we only check for matched entities
+  // in the graph that may be local.
+  if (!entity.topic_info().has_value()) {
+    return;
+  }
+  const liveliness::TopicInfo topic_info = entity.topic_info().value();
+  EntityEventMap local_entities_with_events;
+  if (is_entity_pub(entity)) {
+    // Notify any local subs of a matched event with change -1.
+    for (const auto & [_, topic_data_ptr] : topic_qos_map) {
+      for (const liveliness::Entity & sub_entity : topic_data_ptr->subs_) {
+        update_event_counters(
+          topic_info.name_,
+          ZENOH_EVENT_SUBSCRIPTION_MATCHED,
+          static_cast<int32_t>(-1));
+        if (is_entity_local(sub_entity)) {
+          local_entities_with_events[sub_entity].insert(ZENOH_EVENT_SUBSCRIPTION_MATCHED);
+        }
+      }
+    }
+  } else {
+    // Notify any local pubs of a matched event with change -1.
+    for (const auto & [_, topic_data_ptr] : topic_qos_map) {
+      for (const liveliness::Entity & pub_entity : topic_data_ptr->pubs_) {
+        update_event_counters(
+          topic_info.name_,
+          ZENOH_EVENT_PUBLICATION_MATCHED,
+          static_cast<int32_t>(-1));
+        if (is_entity_local(pub_entity)) {
+          local_entities_with_events[pub_entity].insert(ZENOH_EVENT_PUBLICATION_MATCHED);
+        }
+      }
+    }
+  }
+  take_entities_with_events(local_entities_with_events);
+}
+
+///=============================================================================
+void GraphCache::take_entities_with_events(EntityEventMap & entities_with_events)
+{
+  for (const auto & [local_entity, event_set] : entities_with_events) {
     // Trigger callback set for this entity for the event type.
     GraphEventCallbackMap::const_iterator event_callbacks_it =
       event_callbacks_.find(local_entity);
@@ -403,8 +448,7 @@ void GraphCache::update_topic_map_for_del(
   const liveliness::TopicInfo topic_info = entity.topic_info().value();
   const bool is_pub = is_entity_pub(entity);
   // Initialize a map that will be populated with any QoS events that may be detected.
-  std::unordered_map<liveliness::Entity, std::unordered_set<rmw_zenoh_event_type_t>>
-  local_entities_with_events = {};
+  EntityEventMap local_entities_with_events = {};
 
   GraphNode::TopicMap::iterator cache_topic_it =
     topic_map.find(topic_info.name_);
@@ -414,86 +458,55 @@ void GraphCache::update_topic_map_for_del(
       "rmw_zenoh_cpp", "topic name %s not found in topic_map. Report this.",
       topic_info.name_.c_str());
     return;
-  } else {
-    GraphNode::TopicTypeMap::iterator cache_topic_type_it =
-      cache_topic_it->second.find(topic_info.type_);
-    if (cache_topic_type_it == cache_topic_it->second.end()) {
-      // This should not happen.
-      RCUTILS_LOG_ERROR_NAMED(
-        "rmw_zenoh_cpp", "topic type %s not found in for topic %s. Report this.",
-        topic_info.type_.c_str(), topic_info.name_.c_str());
-      return;
-    } else {
-      const std::string qos_str = liveliness::qos_to_keyexpr(topic_info.qos_);
-      GraphNode::TopicQoSMap::iterator cache_topic_qos_it = cache_topic_type_it->second.find(
-        qos_str);
-      if (cache_topic_qos_it == cache_topic_type_it->second.end()) {
-        // This should not happen.
-        RCUTILS_LOG_ERROR_NAMED(
-          "rmw_zenoh_cpp", "qos %s not found in for topic type %s. Report this.",
-          qos_str.c_str(), topic_info.type_.c_str());
-        return;
-      }
-      // Decrement the relevant counters. If both counters are 0 remove from cache.
-      if (is_pub) {
-        cache_topic_qos_it->second->pubs_.erase(entity);
-      } else {
-        cache_topic_qos_it->second->subs_.erase(entity);
-      }
-      // If after removing the entity, the parent map is empty, then remove parent
-      // map.
-      if (cache_topic_qos_it->second->pubs_.empty() &&
-        cache_topic_qos_it->second->subs_.empty())
-      {
-        cache_topic_type_it->second.erase(qos_str);
-      }
-      // Check for matched events
-      if (report_events) {
-        // TODO(Yadunund): Refactor into lambdas to reduce code duplication.
-        // We do not have to report any events for the entity removed event
-        // as it is already destructed. So we only check for matched entities
-        // in the graph that may be local.
-        if (is_pub) {
-          // Notify any local subs of a matched event with change -1.
-          for (const auto & [_, topic_data_ptr] : cache_topic_type_it->second) {
-            for (const liveliness::Entity & sub_entity : topic_data_ptr->subs_) {
-              update_event_counters(
-                topic_info.name_,
-                ZENOH_EVENT_SUBSCRIPTION_MATCHED,
-                static_cast<int32_t>(-1));
-              if (is_entity_local(sub_entity)) {
-                local_entities_with_events[sub_entity].insert(ZENOH_EVENT_SUBSCRIPTION_MATCHED);
-              }
-            }
-          }
-        } else {
-          // Notify any local pubs of a matched event with change -1.
-          for (const auto & [_, topic_data_ptr] : cache_topic_type_it->second) {
-            for (const liveliness::Entity & pub_entity : topic_data_ptr->pubs_) {
-              update_event_counters(
-                topic_info.name_,
-                ZENOH_EVENT_PUBLICATION_MATCHED,
-                static_cast<int32_t>(-1));
-              if (is_entity_local(pub_entity)) {
-                local_entities_with_events[pub_entity].insert(ZENOH_EVENT_PUBLICATION_MATCHED);
-              }
-            }
-          }
-        }
-      }
-      // If the type does not have any qos entries, erase it from the type map.
-      if (cache_topic_type_it->second.empty()) {
-        cache_topic_it->second.erase(cache_topic_type_it);
-      }
-      // If the topic does not have any TopicData entries, erase the topic from the map.
-      if (cache_topic_it->second.empty()) {
-        topic_map.erase(cache_topic_it);
-      }
-    }
   }
-  // Take events if any.
+
+  GraphNode::TopicTypeMap::iterator cache_topic_type_it =
+    cache_topic_it->second.find(topic_info.type_);
+  if (cache_topic_type_it == cache_topic_it->second.end()) {
+    // This should not happen.
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp", "topic type %s not found in for topic %s. Report this.",
+      topic_info.type_.c_str(), topic_info.name_.c_str());
+    return;
+  }
+
+  const std::string qos_str = liveliness::qos_to_keyexpr(topic_info.qos_);
+  GraphNode::TopicQoSMap::iterator cache_topic_qos_it = cache_topic_type_it->second.find(
+    qos_str);
+  if (cache_topic_qos_it == cache_topic_type_it->second.end()) {
+    // This should not happen.
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp", "qos %s not found in for topic type %s. Report this.",
+      qos_str.c_str(), topic_info.type_.c_str());
+    return;
+  }
+
+  // Decrement the relevant counters. If both counters are 0 remove from cache.
+  if (is_pub) {
+    cache_topic_qos_it->second->pubs_.erase(entity);
+  } else {
+    cache_topic_qos_it->second->subs_.erase(entity);
+  }
+  // If after removing the entity, the parent map is empty, then remove parent
+  // map.
+  if (cache_topic_qos_it->second->pubs_.empty() &&
+    cache_topic_qos_it->second->subs_.empty())
+  {
+    cache_topic_type_it->second.erase(qos_str);
+  }
+  // Check for matched events
   if (report_events) {
-    take_local_entities_with_events(local_entities_with_events);
+    handle_matched_events_for_del(
+      entity,
+      cache_topic_type_it->second);
+  }
+  // If the type does not have any qos entries, erase it from the type map.
+  if (cache_topic_type_it->second.empty()) {
+    cache_topic_it->second.erase(cache_topic_type_it);
+  }
+  // If the topic does not have any TopicData entries, erase the topic from the map.
+  if (cache_topic_it->second.empty()) {
+    topic_map.erase(cache_topic_it);
   }
 }
 
@@ -724,6 +737,7 @@ rmw_ret_t GraphCache::get_node_names(
   return RMW_RET_OK;
 }
 
+///=============================================================================
 namespace
 {
 // Shamelessly copied from https://github.com/ros2/rmw_cyclonedds/blob/f7f67bdef82f59558366aa6ce94ef9af3c5ab569/rmw_cyclonedds_cpp/src/demangle.cpp#L67
@@ -800,7 +814,6 @@ rmw_ret_t fill_names_and_types(
 
   return RMW_RET_OK;
 }
-
 }  // namespace
 
 ///=============================================================================
