@@ -56,6 +56,9 @@ rmw_ret_t zenoh_router_check(z_session_t session)
   // Define callback
   auto callback = [](const struct z_id_t * id, void * ctx) {
       const std::string id_str = zid_to_str(*id);
+      RCUTILS_LOG_INFO_NAMED(
+        "rmw_zenoh_cpp",
+        "Successfully connected to a Zenoh router with id %s!", id_str.c_str());
       // Note: Callback is guaranteed to never be called
       // concurrently according to z_info_routers_zid docstring
       (*(static_cast<int *>(ctx)))++;
@@ -65,17 +68,17 @@ rmw_ret_t zenoh_router_check(z_session_t session)
   z_owned_closure_zid_t router_callback = z_closure(callback, nullptr /* drop */, &context);
   if (z_info_routers_zid(session, z_move(router_callback))) {
     RCUTILS_LOG_ERROR_NAMED(
-      "ZenohRouterCheck",
-      "Failed to evaluate if Zenoh routers are connected to the session");
+      "rmw_zenoh_cpp",
+      "Failed to evaluate if Zenoh routers are connected to the session.");
     ret = RMW_RET_ERROR;
   } else {
     if (context == 0) {
       RCUTILS_LOG_ERROR_NAMED(
-        "ZenohRouterCheck",
-        "No Zenoh router connected to the session");
+        "rmw_zenoh_cpp",
+        "Unable to connect to a Zenoh router. "
+        "Have you started a router with `ros2 run rmw_zenoh_cpp rmw_zenohd`?");
       ret = RMW_RET_ERROR;
     }
   }
-
   return ret;
 }
