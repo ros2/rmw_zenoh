@@ -529,6 +529,12 @@ rmw_create_publisher(
   if (RMW_RET_OK != ret) {
     return nullptr;
   }
+  // If a depth of 0 was provided, the RMW implementation should choose a suitable default.
+  publisher_data->adapted_qos_profile.depth =
+    publisher_data->adapted_qos_profile.depth > 0 ?
+    publisher_data->adapted_qos_profile.depth :
+    RMW_ZENOH_DEFAULT_HISTORY_DEPTH;
+
   publisher_data->typesupport_identifier = type_support->typesupport_identifier;
   publisher_data->type_support_impl = type_support->data;
   auto callbacks = static_cast<const message_type_support_callbacks_t *>(type_support->data);
