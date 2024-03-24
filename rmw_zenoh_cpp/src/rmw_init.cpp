@@ -41,8 +41,6 @@ extern "C"
 // Megabytes of SHM to reserve.
 // TODO(clalancette): Make this configurable, or get it from the configuration
 #define SHM_BUFFER_SIZE_MB 10
-// TODO(Yadunund): Make this configurable, or get it from the configuration.
-#define ROUTER_CONNECTION_RETRY_MAX std::numeric_limits<uint64_t>::max()
 
 static void graph_sub_data_handler(
   const z_sample_t * sample,
@@ -174,21 +172,24 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
       z_close(z_move(context->impl->session));
     });
 
-  // Verify if the zenoh router is running.
-  // Retry until the connection is successful.
-  ret = RMW_RET_ERROR;
-  uint64_t connection_attempts = 0;
-  while (ret != RMW_RET_OK && connection_attempts <= ROUTER_CONNECTION_RETRY_MAX) {
-    if ((ret = zenoh_router_check(z_loan(context->impl->session))) != RMW_RET_OK) {
-      ++connection_attempts;
+  // Verify if the zenoh router is running if configured.
+  const std::optional<uint64_t> configured_connection_attempts = zenoh_router_check_attempts();
+  if (configured_connection_attempts.has_value()) {
+    ret = RMW_RET_ERROR;
+    uint64_t connection_attempts = 0;
+    // Retry until the connection is successful.
+    while (ret != RMW_RET_OK && connection_attempts < configured_connection_attempts.value()) {
+      if ((ret = zenoh_router_check(z_loan(context->impl->session))) != RMW_RET_OK) {
+        ++connection_attempts;
+      }
+      std::this_thread::sleep_for(std::chrono::seconds(1));
     }
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-  }
-  if (ret != RMW_RET_OK) {
-    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
-      "Unable to connect to a Zenoh router after %zu retries.",
-      ROUTER_CONNECTION_RETRY_MAX);
-    return ret;
+    if (ret != RMW_RET_OK) {
+      RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
+        "Unable to connect to a Zenoh router after %zu retries.",
+        configured_connection_attempts.value());
+      return ret;
+    }
   }
 
   // Initialize the shm manager if shared_memory is enabled in the config.

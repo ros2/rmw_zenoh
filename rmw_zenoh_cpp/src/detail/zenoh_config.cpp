@@ -17,6 +17,7 @@
 #include <rcutils/env.h>
 #include <rcutils/logging_macros.h>
 
+#include <limits>
 #include <string>
 
 #include <ament_index_cpp/get_package_share_directory.hpp>
@@ -34,6 +35,8 @@ static const std::unordered_map<ConfigurableEntity,
     {"ZENOH_SESSION_CONFIG_URI", "DEFAULT_RMW_ZENOH_SESSION_CONFIG.json5"}},
   {ConfigurableEntity::Router, {"ZENOH_ROUTER_CONFIG_URI", "DEFAULT_RMW_ZENOH_ROUTER_CONFIG.json5"}}
 };
+
+static const char * router_check_attempts_envar = "ZENOH_ROUTER_CHECK_ATTEMPTS";
 
 rmw_ret_t _get_z_config(
   const char * envar_name,
@@ -88,4 +91,31 @@ rmw_ret_t get_z_config(const ConfigurableEntity & entity, z_owned_config_t * con
   const std::string default_config_path = path_to_config_folder + envar_map_it->second.second;
 
   return _get_z_config(envar_map_it->second.first, default_config_path.c_str(), config);
+}
+
+///==============================================================================
+std::optional<uint64_t> zenoh_router_check_attempts()
+{
+  const char * envar_value;
+  uint64_t default_value = std::numeric_limits<uint64_t>::max();
+
+  if (NULL != rcutils_get_env(router_check_attempts_envar, &envar_value)) {
+    // NULL is returned if everything is ok.
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp", "Envar %s cannot be read. Report this bug.",
+      router_check_attempts_envar);
+    return default_value;
+  }
+  // If the environment variable contains a value, handle it accordingly.
+  if (envar_value[0] != '\0') {
+    const auto read_value = std::stoul(envar_value);
+    if (read_value > 0) {
+      return read_value;
+    }
+    // If the value is 0 or lesser, return std::nullopt to skip router check.
+    return std::nullopt;
+  }
+
+  // If unset, return default value.
+  return default_value;
 }
