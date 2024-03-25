@@ -24,6 +24,14 @@ find_package(ament_cmake_vendor_package REQUIRED)
 # when expanded.
 set(ZENOHC_CARGO_FLAGS "--no-default-features$<SEMICOLON>--features=zenoh/transport_tcp zenoh/shared-memory")
 
+# Apply the patch the zenoh-c CMakeLists.txt only if building an ROS 2 version
+# newer than Iron.
+set(pathces "")
+string(SUBSTRING "$ENV{ROS_DISTRO}" 0 1 first_char)
+if("${first_char}" STRGREATER "i")
+  set(patches "patches")
+endif()
+
 # Set VCS_VERSION to include changes from https://github.com/eclipse-zenoh/zenoh/pull/802
 # which was synced to zenoh-c in https://github.com/eclipse-zenoh/zenoh-c/pull/272.
 ament_vendor(zenoh_c_vendor
