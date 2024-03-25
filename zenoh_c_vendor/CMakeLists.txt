@@ -31,6 +31,7 @@ ament_vendor(zenoh_c_vendor
   VCS_VERSION 10176b911096cb92b8ee46bc491b78079ee26c20
   CMAKE_ARGS
     "-DZENOHC_CARGO_FLAGS=${ZENOHC_CARGO_FLAGS}"
+  PATCHES patches
 )
 
 # set(INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-prefix/install")
