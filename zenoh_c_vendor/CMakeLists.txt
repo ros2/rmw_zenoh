@@ -25,7 +25,7 @@ find_package(ament_cmake_vendor_package REQUIRED)
 set(ZENOHC_CARGO_FLAGS "--no-default-features$<SEMICOLON>--features=zenoh/transport_tcp zenoh/shared-memory")
 
 # Always force rustc 1.75.0.
-# This this is default version of rustc available via apt in Ubuntu Noble.
+# This is the default version of rustc available via apt in Ubuntu Noble.
 # We explictly use the +1.75.0 toolchain when building on Ubuntu Jammy.
 set(ZENOHC_CARGO_CHANNEL "1.75.0")
 
