@@ -23,6 +23,21 @@ find_package(ament_cmake_vendor_package REQUIRED)
 # latter is a list separater in cmake and hence the string will be split into two
 # when expanded.
 set(ZENOHC_CARGO_FLAGS "--no-default-features$<SEMICOLON>--features=zenoh/transport_tcp zenoh/shared-memory")
+
+# Always force rustc 1.75.0.
+# This this is default version of rustc available via apt in Ubuntu Noble.
+# We explictly use the +1.75.0 toolchain when building on Ubuntu Jammy.
+set(ZENOHC_CARGO_CHANNEL "1.75.0")
+
+# Apply the patch the zenoh-c CMakeLists.txt only if building an ROS 2 version
+# newer than Iron. The patch removes the ability to set ZENOHC_CARGO_CHANNEL
+# via cmake args
+set(pathces "")
+string(SUBSTRING "$ENV{ROS_DISTRO}" 0 1 first_char)
+if("${first_char}" STRGREATER "i")
+  set(patches "patches")
+endif()
+
 # Set VCS_VERSION to include changes from https://github.com/eclipse-zenoh/zenoh/pull/802
 # which was synced to zenoh-c in https://github.com/eclipse-zenoh/zenoh-c/pull/272.
 ament_vendor(zenoh_c_vendor
@@ -30,6 +45,7 @@ ament_vendor(zenoh_c_vendor
   VCS_VERSION 10176b911096cb92b8ee46bc491b78079ee26c20
   CMAKE_ARGS
     "-DZENOHC_CARGO_FLAGS=${ZENOHC_CARGO_FLAGS}"
+    "-DZENOHC_CARGO_CHANNEL=${ZENOHC_CARGO_CHANNEL}"
   PATCHES patches
 )
 
