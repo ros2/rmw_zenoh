@@ -66,10 +66,10 @@ static void graph_sub_data_handler(
 
   switch (sample->kind) {
     case z_sample_kind_t::Z_SAMPLE_KIND_PUT:
-      context_impl->graph_cache.parse_put(keystr._cstr);
+      context_impl->graph_cache->parse_put(keystr._cstr);
       break;
     case z_sample_kind_t::Z_SAMPLE_KIND_DELETE:
-      context_impl->graph_cache.parse_del(keystr._cstr);
+      context_impl->graph_cache->parse_del(keystr._cstr);
       break;
     default:
       break;
@@ -171,6 +171,10 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
       z_close(z_move(context->impl->session));
     });
 
+  /// Initialize the graph cache.
+  z_id_t zid = z_info_zid(z_loan(context->impl->session));
+  context->impl->graph_cache = std::make_unique<GraphCache>(zid);
+
   // Verify if the zenoh router is running.
   if ((ret = zenoh_router_check(z_loan(context->impl->session))) != RMW_RET_OK) {
     RMW_SET_ERROR_MSG("Error while checking for Zenoh router");
@@ -181,13 +185,12 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   if (shm_enabled._cstr != nullptr &&
     strcmp(shm_enabled._cstr, "true") == 0)
   {
-    z_id_t id = z_info_zid(z_loan(context->impl->session));
-    char idstr[sizeof(id.id) * 2 + 1];  // 2 bytes for each byte of the id, plus the trailing \0
+    char idstr[sizeof(zid.id) * 2 + 1];  // 2 bytes for each byte of the id, plus the trailing \0
     static constexpr size_t max_size_of_each = 3;  // 2 for each byte, plus the trailing \0
-    for (size_t i = 0; i < sizeof(id.id); ++i) {
-      snprintf(idstr + 2 * i, max_size_of_each, "%02x", id.id[i]);
+    for (size_t i = 0; i < sizeof(zid.id); ++i) {
+      snprintf(idstr + 2 * i, max_size_of_each, "%02x", zid.id[i]);
     }
-    idstr[sizeof(id.id) * 2] = '\0';
+    idstr[sizeof(zid.id) * 2] = '\0';
     // TODO(yadunund): Can we get the size of the shm from the config even though it's not
     // a standard parameter?
     context->impl->shm_manager =
@@ -279,7 +282,9 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
     if (z_reply_is_ok(&reply)) {
       z_sample_t sample = z_reply_ok(&reply);
       z_owned_str_t keystr = z_keyexpr_to_string(sample.keyexpr);
-      context->impl->graph_cache.parse_put(z_loan(keystr));
+      // Ignore tokens from the same session to avoid race conditions from this
+      // query and the liveliness subscription.
+      context->impl->graph_cache->parse_put(z_loan(keystr), true);
       z_drop(z_move(keystr));
     } else {
       printf("[discovery] Received an error\n");
