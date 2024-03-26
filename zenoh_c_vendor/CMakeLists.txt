@@ -32,7 +32,7 @@ set(ZENOHC_CARGO_CHANNEL "1.75.0")
 # Apply the patch to the zenoh-c CMakeLists.txt only if building an ROS 2 version
 # newer than Iron. The patch removes the ability to set ZENOHC_CARGO_CHANNEL
 # via cmake args
-set(pathces "")
+set(patches "")
 string(SUBSTRING "$ENV{ROS_DISTRO}" 0 1 first_char)
 if("${first_char}" STRGREATER "i")
   set(patches "patches")
