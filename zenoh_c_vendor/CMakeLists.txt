@@ -29,7 +29,7 @@ set(ZENOHC_CARGO_FLAGS "--no-default-features$<SEMICOLON>--features=zenoh/transp
 # We explictly use the +1.75.0 toolchain when building on Ubuntu Jammy.
 set(ZENOHC_CARGO_CHANNEL "1.75.0")
 
-# Apply the patch the zenoh-c CMakeLists.txt only if building an ROS 2 version
+# Apply the patch to the zenoh-c CMakeLists.txt only if building an ROS 2 version
 # newer than Iron. The patch removes the ability to set ZENOHC_CARGO_CHANNEL
 # via cmake args
 set(pathces "")
