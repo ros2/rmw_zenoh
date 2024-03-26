@@ -287,11 +287,14 @@ rmw_create_node(
 
   // Initialize liveliness token for the node to advertise that a new node is in town.
   rmw_node_data_t * node_data = static_cast<rmw_node_data_t *>(node->data);
-  const auto liveliness_entity = liveliness::Entity::make(
+  node_data->id = context->impl->get_next_entity_id();
+  node_data->entity = liveliness::Entity::make(
     z_info_zid(z_loan(context->impl->session)),
+    std::to_string(node_data->id),
+    std::to_string(node_data->id),
     liveliness::EntityType::Node,
     liveliness::NodeInfo{context->actual_domain_id, namespace_, name, ""});
-  if (!liveliness_entity.has_value()) {
+  if (node_data->entity == nullptr) {
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to generate keyexpr for liveliness token for the node.");
@@ -299,7 +302,7 @@ rmw_create_node(
   }
   node_data->token = zc_liveliness_declare_token(
     z_loan(node->context->impl->session),
-    z_keyexpr(liveliness_entity->keyexpr().c_str()),
+    z_keyexpr(node_data->entity->keyexpr().c_str()),
     NULL
   );
   auto free_token = rcpputils::make_scope_exit(
@@ -339,7 +342,7 @@ rmw_destroy_node(rmw_node_t * node)
   // Undeclare liveliness token for the node to advertise that the node has ridden
   // off into the sunset.
   rmw_node_data_t * node_data = static_cast<rmw_node_data_t *>(node->data);
-  z_drop(z_move(node_data->token));
+  zc_liveliness_undeclare_token(z_move(node_data->token));
 
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
@@ -450,6 +453,13 @@ rmw_create_publisher(
       "Strict requirement on unique network flow endpoints for publishers not supported");
     return nullptr;
   }
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->data, nullptr);
+  const rmw_node_data_t * node_data = static_cast<rmw_node_data_t *>(node->data);
+  if (node_data == nullptr) {
+    RMW_SET_ERROR_MSG(
+      "Unable to create publisher as node_data is invalid.");
+    return nullptr;
+  }
 
   // Get the RMW type support.
   const rosidl_message_type_support_t * type_support = find_message_type_support(type_supports);
@@ -519,6 +529,12 @@ rmw_create_publisher(
   if (RMW_RET_OK != ret) {
     return nullptr;
   }
+  // If a depth of 0 was provided, the RMW implementation should choose a suitable default.
+  publisher_data->adapted_qos_profile.depth =
+    publisher_data->adapted_qos_profile.depth > 0 ?
+    publisher_data->adapted_qos_profile.depth :
+    RMW_ZENOH_DEFAULT_HISTORY_DEPTH;
+
   publisher_data->typesupport_identifier = type_support->typesupport_identifier;
   publisher_data->type_support_impl = type_support->data;
   auto callbacks = static_cast<const message_type_support_callbacks_t *>(type_support->data);
@@ -617,14 +633,16 @@ rmw_create_publisher(
       z_undeclare_publisher(z_move(publisher_data->pub));
     });
 
-  const auto liveliness_entity = liveliness::Entity::make(
+  publisher_data->entity = liveliness::Entity::make(
     z_info_zid(z_loan(node->context->impl->session)),
+    std::to_string(node_data->id),
+    std::to_string(context_impl->get_next_entity_id()),
     liveliness::EntityType::Publisher,
     liveliness::NodeInfo{node->context->actual_domain_id, node->namespace_, node->name, ""},
     liveliness::TopicInfo{rmw_publisher->topic_name,
       publisher_data->type_support->get_name(), publisher_data->adapted_qos_profile}
   );
-  if (!liveliness_entity.has_value()) {
+  if (publisher_data->entity == nullptr) {
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to generate keyexpr for liveliness token for the publisher.");
@@ -632,7 +650,7 @@ rmw_create_publisher(
   }
   publisher_data->token = zc_liveliness_declare_token(
     z_loan(node->context->impl->session),
-    z_keyexpr(liveliness_entity->keyexpr().c_str()),
+    z_keyexpr(publisher_data->entity->keyexpr().c_str()),
     NULL
   );
   auto free_token = rcpputils::make_scope_exit(
@@ -647,6 +665,7 @@ rmw_create_publisher(
       "Unable to create liveliness token for the publisher.");
     return nullptr;
   }
+  // printf("[rmw_create_publisher] Created pub %s\n", publisher_data->entity->keyexpr().c_str());
 
   free_token.cancel();
   undeclare_z_publisher_cache.cancel();
@@ -686,7 +705,7 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
 
   auto publisher_data = static_cast<rmw_publisher_data_t *>(publisher->data);
   if (publisher_data != nullptr) {
-    z_drop(z_move(publisher_data->token));
+    zc_liveliness_undeclare_token(z_move(publisher_data->token));
     if (publisher_data->pub_cache.has_value()) {
       z_drop(z_move(publisher_data->pub_cache.value()));
     }
@@ -985,7 +1004,7 @@ rmw_publisher_count_matched_subscriptions(
   rmw_context_impl_t * context_impl = static_cast<rmw_context_impl_t *>(pub_data->context->impl);
   RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
 
-  return context_impl->graph_cache.publisher_count_matched_subscriptions(
+  return context_impl->graph_cache->publisher_count_matched_subscriptions(
     publisher, subscription_count);
 }
 
@@ -1232,6 +1251,7 @@ rmw_create_subscription(
     return nullptr;
   }
 
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->data, nullptr);
   auto node_data = static_cast<rmw_node_data_t *>(node->data);
   RMW_CHECK_FOR_NULL_WITH_MSG(
     node_data, "unable to create subscription as node_data is invalid.",
@@ -1334,7 +1354,6 @@ rmw_create_subscription(
   sub_data->context = node->context;
 
   rmw_subscription->implementation_identifier = rmw_zenoh_identifier;
-  rmw_subscription->data = sub_data;
 
   rmw_subscription->topic_name = rcutils_strdup(topic_name, *allocator);
   RMW_CHECK_FOR_NULL_WITH_MSG(
@@ -1428,14 +1447,16 @@ rmw_create_subscription(
     });
 
   // Publish to the graph that a new subscription is in town
-  const auto liveliness_entity = liveliness::Entity::make(
+  sub_data->entity = liveliness::Entity::make(
     z_info_zid(z_loan(node->context->impl->session)),
+    std::to_string(node_data->id),
+    std::to_string(context_impl->get_next_entity_id()),
     liveliness::EntityType::Subscription,
     liveliness::NodeInfo{node->context->actual_domain_id, node->namespace_, node->name, ""},
     liveliness::TopicInfo{rmw_subscription->topic_name,
       sub_data->type_support->get_name(), sub_data->adapted_qos_profile}
   );
-  if (!liveliness_entity.has_value()) {
+  if (sub_data->entity == nullptr) {
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to generate keyexpr for liveliness token for the subscription.");
@@ -1443,7 +1464,7 @@ rmw_create_subscription(
   }
   sub_data->token = zc_liveliness_declare_token(
     z_loan(context_impl->session),
-    z_keyexpr(liveliness_entity->keyexpr().c_str()),
+    z_keyexpr(sub_data->entity->keyexpr().c_str()),
     NULL
   );
   auto free_token = rcpputils::make_scope_exit(
@@ -1458,6 +1479,8 @@ rmw_create_subscription(
       "Unable to create liveliness token for the subscription.");
     return nullptr;
   }
+
+  rmw_subscription->data = sub_data;
 
   free_token.cancel();
   undeclare_z_sub.cancel();
@@ -1496,7 +1519,7 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
   auto sub_data = static_cast<rmw_subscription_data_t *>(subscription->data);
   if (sub_data != nullptr) {
     // Publish to the graph that a subscription has ridden off into the sunset
-    z_drop(z_move(sub_data->token));
+    zc_liveliness_undeclare_token(z_move(sub_data->token));
 
     RMW_TRY_DESTRUCTOR(sub_data->type_support->~MessageTypeSupport(), MessageTypeSupport, );
     allocator->deallocate(sub_data->type_support, allocator->state);
@@ -1547,7 +1570,7 @@ rmw_subscription_count_matched_publishers(
   rmw_context_impl_t * context_impl = static_cast<rmw_context_impl_t *>(sub_data->context->impl);
   RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
 
-  return context_impl->graph_cache.subscription_count_matched_publishers(
+  return context_impl->graph_cache->subscription_count_matched_publishers(
     subscription, publisher_count);
 }
 
@@ -1897,6 +1920,13 @@ rmw_create_client(
     RMW_SET_ERROR_MSG("zenoh session is invalid");
     return nullptr;
   }
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->data, nullptr);
+  const rmw_node_data_t * node_data = static_cast<rmw_node_data_t *>(node->data);
+  if (node_data == nullptr) {
+    RMW_SET_ERROR_MSG(
+      "Unable to create client as node data is invalid.");
+    return nullptr;
+  }
 
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
@@ -1948,6 +1978,15 @@ rmw_create_client(
     });
 
   generate_random_gid(client_data->client_gid);
+
+  // Adapt any 'best available' QoS options
+  client_data->adapted_qos_profile =
+    rmw_dds_common::qos_profile_update_best_available_for_services(*qos_profile);
+  // If a depth of 0 was provided, the RMW implementation should choose a suitable default.
+  client_data->adapted_qos_profile.depth =
+    client_data->adapted_qos_profile.depth > 0 ?
+    client_data->adapted_qos_profile.depth :
+    RMW_ZENOH_DEFAULT_HISTORY_DEPTH;
 
   // Obtain the type support
   const rosidl_service_type_support_t * type_support = find_service_type_support(type_supports);
@@ -2054,14 +2093,16 @@ rmw_create_client(
       service_type.c_str(), rmw_client->service_name);
     return nullptr;
   }
-  const auto liveliness_entity = liveliness::Entity::make(
+  client_data->entity = liveliness::Entity::make(
     z_info_zid(z_loan(node->context->impl->session)),
+    std::to_string(node_data->id),
+    std::to_string(context_impl->get_next_entity_id()),
     liveliness::EntityType::Client,
     liveliness::NodeInfo{node->context->actual_domain_id, node->namespace_, node->name, ""},
     liveliness::TopicInfo{rmw_client->service_name,
       std::move(service_type), client_data->adapted_qos_profile}
   );
-  if (!liveliness_entity.has_value()) {
+  if (client_data->entity == nullptr) {
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to generate keyexpr for liveliness token for the client.");
@@ -2069,7 +2110,7 @@ rmw_create_client(
   }
   client_data->token = zc_liveliness_declare_token(
     z_loan(node->context->impl->session),
-    z_keyexpr(liveliness_entity->keyexpr().c_str()),
+    z_keyexpr(client_data->entity->keyexpr().c_str()),
     NULL
   );
   auto free_token = rcpputils::make_scope_exit(
@@ -2131,7 +2172,7 @@ rmw_destroy_client(rmw_node_t * node, rmw_client_t * client)
   // CLEANUP ===================================================================
   z_drop(z_move(client_data->zn_closure_reply));
   z_drop(z_move(client_data->keyexpr));
-  z_drop(z_move(client_data->token));
+  zc_liveliness_undeclare_token(z_move(client_data->token));
 
   RMW_TRY_DESTRUCTOR(
     client_data->request_type_support->~RequestTypeSupport(), RequestTypeSupport, );
@@ -2410,7 +2451,13 @@ rmw_create_service(
       return nullptr;
     }
   }
-
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->data, nullptr);
+  const rmw_node_data_t * node_data = static_cast<rmw_node_data_t *>(node->data);
+  if (node_data == nullptr) {
+    RMW_SET_ERROR_MSG(
+      "Unable to create service as node data is invalid.");
+    return nullptr;
+  }
   RMW_CHECK_FOR_NULL_WITH_MSG(
     node->context,
     "expected initialized context",
@@ -2468,6 +2515,11 @@ rmw_create_service(
   // Adapt any 'best available' QoS options
   service_data->adapted_qos_profile =
     rmw_dds_common::qos_profile_update_best_available_for_services(*qos_profiles);
+  // If a depth of 0 was provided, the RMW implementation should choose a suitable default.
+  service_data->adapted_qos_profile.depth =
+    service_data->adapted_qos_profile.depth > 0 ?
+    service_data->adapted_qos_profile.depth :
+    RMW_ZENOH_DEFAULT_HISTORY_DEPTH;
 
   // Get the RMW type support.
   const rosidl_service_type_support_t * type_support = find_service_type_support(type_supports);
@@ -2590,14 +2642,16 @@ rmw_create_service(
       service_type.c_str(), rmw_service->service_name);
     return nullptr;
   }
-  const auto liveliness_entity = liveliness::Entity::make(
+  service_data->entity = liveliness::Entity::make(
     z_info_zid(z_loan(node->context->impl->session)),
+    std::to_string(node_data->id),
+    std::to_string(context_impl->get_next_entity_id()),
     liveliness::EntityType::Service,
     liveliness::NodeInfo{node->context->actual_domain_id, node->namespace_, node->name, ""},
     liveliness::TopicInfo{rmw_service->service_name,
       std::move(service_type), service_data->adapted_qos_profile}
   );
-  if (!liveliness_entity.has_value()) {
+  if (service_data->entity == nullptr) {
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to generate keyexpr for liveliness token for the service.");
@@ -2605,7 +2659,7 @@ rmw_create_service(
   }
   service_data->token = zc_liveliness_declare_token(
     z_loan(node->context->impl->session),
-    z_keyexpr(liveliness_entity->keyexpr().c_str()),
+    z_keyexpr(service_data->entity->keyexpr().c_str()),
     NULL
   );
   auto free_token = rcpputils::make_scope_exit(
@@ -2669,7 +2723,7 @@ rmw_destroy_service(rmw_node_t * node, rmw_service_t * service)
   // CLEANUP ================================================================
   z_drop(z_move(service_data->keyexpr));
   z_undeclare_queryable(z_move(service_data->qable));
-  z_drop(z_move(service_data->token));
+  zc_liveliness_undeclare_token(z_move(service_data->token));
 
   RMW_TRY_DESTRUCTOR(
     service_data->request_type_support->~RequestTypeSupport(), RequestTypeSupport, );
@@ -3097,7 +3151,25 @@ static bool has_triggered_condition(
     }
   }
 
-  // TODO(clalancette): Deal with events
+  if (events) {
+    for (size_t i = 0; i < events->event_count; ++i) {
+      auto event = static_cast<rmw_event_t *>(events->events[i]);
+      const rmw_event_type_t & event_type = event->event_type;
+      // Check if the event queue for this event type is empty.
+      auto zenoh_event_it = event_map.find(event_type);
+      if (zenoh_event_it != event_map.end()) {
+        auto event_data = static_cast<EventsManager *>(event->data);
+        if (event_data != nullptr) {
+          if (!event_data->event_queue_is_empty(zenoh_event_it->second)) {
+            return true;
+          }
+        }
+      } else {
+        RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
+          "has_triggered_condition() called with unknown event %u. Report this bug.", event_type);
+      }
+    }
+  }
 
   if (subscriptions) {
     for (size_t i = 0; i < subscriptions->subscriber_count; ++i) {
@@ -3227,6 +3299,21 @@ rmw_wait(
       }
     }
 
+    if (events) {
+      for (size_t i = 0; i < events->event_count; ++i) {
+        auto event = static_cast<rmw_event_t *>(events->events[i]);
+        auto event_data = static_cast<EventsManager *>(event->data);
+        if (event_data != nullptr) {
+          auto zenoh_event_it = event_map.find(event->event_type);
+          if (zenoh_event_it != event_map.end()) {
+            event_data->attach_event_condition(
+              zenoh_event_it->second,
+              &wait_set_data->condition_variable);
+          }
+        }
+      }
+    }
+
     std::unique_lock<std::mutex> lock(wait_set_data->condition_mutex);
 
     // According to the RMW documentation, if wait_timeout is NULL that means
@@ -3253,6 +3340,26 @@ rmw_wait(
         // array that have *not* been triggered should be set to NULL
         if (!gc->get_and_reset_trigger()) {
           guard_conditions->guard_conditions[i] = nullptr;
+        }
+      }
+    }
+  }
+
+  if (events) {
+    // Now detach the condition variable and mutex from each of the subscriptions
+    for (size_t i = 0; i < events->event_count; ++i) {
+      auto event = static_cast<rmw_event_t *>(events->events[i]);
+      auto event_data = static_cast<EventsManager *>(event->data);
+      if (event_data != nullptr) {
+        auto zenoh_event_it = event_map.find(event->event_type);
+        if (zenoh_event_it != event_map.end()) {
+          event_data->detach_event_condition(zenoh_event_it->second);
+          // According to the documentation for rmw_wait in rmw.h, entries in the
+          // array that have *not* been triggered should be set to NULL
+          if (event_data->event_queue_is_empty(zenoh_event_it->second)) {
+            // Setting to nullptr lets rcl know that this subscription is not ready
+            events->events[i] = nullptr;
+          }
         }
       }
     }
@@ -3326,7 +3433,7 @@ rmw_get_node_names(
   rcutils_allocator_t * allocator = &node->context->options.allocator;
   RMW_CHECK_ARGUMENT_FOR_NULL(allocator, RMW_RET_INVALID_ARGUMENT);
 
-  return node->context->impl->graph_cache.get_node_names(
+  return node->context->impl->graph_cache->get_node_names(
     node_names, node_namespaces, nullptr, allocator);
 }
 
@@ -3349,7 +3456,7 @@ rmw_get_node_names_with_enclaves(
   rcutils_allocator_t * allocator = &node->context->options.allocator;
   RMW_CHECK_ARGUMENT_FOR_NULL(allocator, RMW_RET_INVALID_ARGUMENT);
 
-  return node->context->impl->graph_cache.get_node_names(
+  return node->context->impl->graph_cache->get_node_names(
     node_names, node_namespaces, enclaves, allocator);
 }
 
@@ -3380,7 +3487,7 @@ rmw_count_publishers(
   }
   RMW_CHECK_ARGUMENT_FOR_NULL(count, RMW_RET_INVALID_ARGUMENT);
 
-  return node->context->impl->graph_cache.count_publishers(topic_name, count);
+  return node->context->impl->graph_cache->count_publishers(topic_name, count);
 }
 
 //==============================================================================
@@ -3410,7 +3517,7 @@ rmw_count_subscribers(
   }
   RMW_CHECK_ARGUMENT_FOR_NULL(count, RMW_RET_INVALID_ARGUMENT);
 
-  return node->context->impl->graph_cache.count_subscriptions(topic_name, count);
+  return node->context->impl->graph_cache->count_subscriptions(topic_name, count);
 }
 
 //==============================================================================
@@ -3440,7 +3547,7 @@ rmw_count_clients(
   }
   RMW_CHECK_ARGUMENT_FOR_NULL(count, RMW_RET_INVALID_ARGUMENT);
 
-  return node->context->impl->graph_cache.count_clients(service_name, count);
+  return node->context->impl->graph_cache->count_clients(service_name, count);
 }
 
 //==============================================================================
@@ -3470,7 +3577,7 @@ rmw_count_services(
   }
   RMW_CHECK_ARGUMENT_FOR_NULL(count, RMW_RET_INVALID_ARGUMENT);
 
-  return node->context->impl->graph_cache.count_services(service_name, count);
+  return node->context->impl->graph_cache->count_services(service_name, count);
 }
 
 //==============================================================================
@@ -3566,7 +3673,7 @@ rmw_service_server_is_available(
     return RMW_RET_INVALID_ARGUMENT;
   }
 
-  return node->context->impl->graph_cache.service_server_is_available(
+  return node->context->impl->graph_cache->service_server_is_available(
     client->service_name, service_type.c_str(), is_available);
 }
 
@@ -3587,10 +3694,13 @@ rmw_subscription_set_on_new_message_callback(
   rmw_event_callback_t callback,
   const void * user_data)
 {
-  static_cast<void>(subscription);
-  static_cast<void>(callback);
-  static_cast<void>(user_data);
-  return RMW_RET_UNSUPPORTED;
+  RMW_CHECK_ARGUMENT_FOR_NULL(subscription, RMW_RET_INVALID_ARGUMENT);
+  rmw_subscription_data_t * sub_data =
+    static_cast<rmw_subscription_data_t *>(subscription->data);
+  RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
+  sub_data->data_callback_mgr.set_callback(
+    user_data, callback);
+  return RMW_RET_OK;
 }
 
 //==============================================================================
@@ -3601,10 +3711,13 @@ rmw_service_set_on_new_request_callback(
   rmw_event_callback_t callback,
   const void * user_data)
 {
-  static_cast<void>(service);
-  static_cast<void>(callback);
-  static_cast<void>(user_data);
-  return RMW_RET_UNSUPPORTED;
+  RMW_CHECK_ARGUMENT_FOR_NULL(service, RMW_RET_INVALID_ARGUMENT);
+  rmw_service_data_t * service_data =
+    static_cast<rmw_service_data_t *>(service->data);
+  RMW_CHECK_ARGUMENT_FOR_NULL(service_data, RMW_RET_INVALID_ARGUMENT);
+  service_data->data_callback_mgr.set_callback(
+    user_data, callback);
+  return RMW_RET_OK;
 }
 
 //==============================================================================
@@ -3615,23 +3728,12 @@ rmw_client_set_on_new_response_callback(
   rmw_event_callback_t callback,
   const void * user_data)
 {
-  static_cast<void>(client);
-  static_cast<void>(callback);
-  static_cast<void>(user_data);
-  return RMW_RET_UNSUPPORTED;
-}
-
-//==============================================================================
-/// Set the callback function for the event.
-rmw_ret_t
-rmw_event_set_callback(
-  rmw_event_t * event,
-  rmw_event_callback_t callback,
-  const void * user_data)
-{
-  static_cast<void>(event);
-  static_cast<void>(callback);
-  static_cast<void>(user_data);
-  return RMW_RET_UNSUPPORTED;
+  RMW_CHECK_ARGUMENT_FOR_NULL(client, RMW_RET_INVALID_ARGUMENT);
+  rmw_client_data_t * client_data =
+    static_cast<rmw_client_data_t *>(client->data);
+  RMW_CHECK_ARGUMENT_FOR_NULL(client_data, RMW_RET_INVALID_ARGUMENT);
+  client_data->data_callback_mgr.set_callback(
+    user_data, callback);
+  return RMW_RET_OK;
 }
 }  // extern "C"

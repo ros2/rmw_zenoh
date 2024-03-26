@@ -37,7 +37,7 @@ rmw_get_topic_names_and_types(
   RMW_CHECK_ARGUMENT_FOR_NULL(allocator, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(topic_names_and_types, RMW_RET_INVALID_ARGUMENT);
 
-  return node->context->impl->graph_cache.get_topic_names_and_types(
+  return node->context->impl->graph_cache->get_topic_names_and_types(
     allocator, no_demangle, topic_names_and_types);
 }
 }  // extern "C"

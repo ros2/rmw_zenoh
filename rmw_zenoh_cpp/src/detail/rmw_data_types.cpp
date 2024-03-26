@@ -25,10 +25,18 @@
 #include "rcpputils/scope_exit.hpp"
 #include "rcutils/logging_macros.h"
 
+#include "rmw/error_handling.h"
+
 #include "attachment_helpers.hpp"
 #include "rmw_data_types.hpp"
 
-///==============================================================================
+///=============================================================================
+size_t rmw_context_impl_s::get_next_entity_id()
+{
+  return next_entity_id_++;
+}
+
+///=============================================================================
 saved_msg_data::saved_msg_data(
   zc_owned_payload_t p,
   uint64_t recv_ts,
@@ -40,23 +48,27 @@ saved_msg_data::saved_msg_data(
   memcpy(publisher_gid, pub_gid, RMW_GID_STORAGE_SIZE);
 }
 
+///=============================================================================
 saved_msg_data::~saved_msg_data()
 {
   z_drop(z_move(payload));
 }
 
+///=============================================================================
 size_t rmw_publisher_data_t::get_next_sequence_number()
 {
   std::lock_guard<std::mutex> lock(sequence_number_mutex_);
   return sequence_number_++;
 }
 
+///=============================================================================
 void rmw_subscription_data_t::attach_condition(std::condition_variable * condition_variable)
 {
   std::lock_guard<std::mutex> lock(condition_mutex_);
   condition_ = condition_variable;
 }
 
+///=============================================================================
 void rmw_subscription_data_t::notify()
 {
   std::lock_guard<std::mutex> lock(condition_mutex_);
@@ -65,18 +77,21 @@ void rmw_subscription_data_t::notify()
   }
 }
 
+///=============================================================================
 void rmw_subscription_data_t::detach_condition()
 {
   std::lock_guard<std::mutex> lock(condition_mutex_);
   condition_ = nullptr;
 }
 
+///=============================================================================
 bool rmw_subscription_data_t::message_queue_is_empty() const
 {
   std::lock_guard<std::mutex> lock(message_queue_mutex_);
   return message_queue_.empty();
 }
 
+///=============================================================================
 std::unique_ptr<saved_msg_data> rmw_subscription_data_t::pop_next_message()
 {
   std::lock_guard<std::mutex> lock(message_queue_mutex_);
@@ -92,6 +107,7 @@ std::unique_ptr<saved_msg_data> rmw_subscription_data_t::pop_next_message()
   return msg_data;
 }
 
+///=============================================================================
 void rmw_subscription_data_t::add_new_message(
   std::unique_ptr<saved_msg_data> msg, const std::string & topic_name)
 {
@@ -116,30 +132,37 @@ void rmw_subscription_data_t::add_new_message(
     }
   }
 
+  // TODO(Yadunund): Check for ZENOH_EVENT_MESSAGE_LOST.
+
   message_queue_.emplace_back(std::move(msg));
 
-  // Since we added new data, trigger the guard condition if it is available
+  // Since we added new data, trigger user callback and guard condition if they are available
+  data_callback_mgr.trigger_callback();
   notify();
 }
 
+///=============================================================================
 bool rmw_service_data_t::query_queue_is_empty() const
 {
   std::lock_guard<std::mutex> lock(query_queue_mutex_);
   return query_queue_.empty();
 }
 
+///=============================================================================
 void rmw_service_data_t::attach_condition(std::condition_variable * condition_variable)
 {
   std::lock_guard<std::mutex> lock(condition_mutex_);
   condition_ = condition_variable;
 }
 
+///=============================================================================
 void rmw_service_data_t::detach_condition()
 {
   std::lock_guard<std::mutex> lock(condition_mutex_);
   condition_ = nullptr;
 }
 
+///=============================================================================
 std::unique_ptr<ZenohQuery> rmw_service_data_t::pop_next_query()
 {
   std::lock_guard<std::mutex> lock(query_queue_mutex_);
@@ -153,6 +176,7 @@ std::unique_ptr<ZenohQuery> rmw_service_data_t::pop_next_query()
   return query;
 }
 
+///=============================================================================
 void rmw_service_data_t::notify()
 {
   std::lock_guard<std::mutex> lock(condition_mutex_);
@@ -161,15 +185,30 @@ void rmw_service_data_t::notify()
   }
 }
 
+///=============================================================================
 void rmw_service_data_t::add_new_query(std::unique_ptr<ZenohQuery> query)
 {
   std::lock_guard<std::mutex> lock(query_queue_mutex_);
+  if (query_queue_.size() >= adapted_qos_profile.depth) {
+    // Log warning if message is discarded due to hitting the queue depth
+    z_owned_str_t keystr = z_keyexpr_to_string(z_loan(this->keyexpr));
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Query queue depth of %ld reached, discarding oldest Query "
+      "for service for %s",
+      adapted_qos_profile.depth,
+      z_loan(keystr));
+    z_drop(z_move(keystr));
+    query_queue_.pop_front();
+  }
   query_queue_.emplace_back(std::move(query));
 
-  // Since we added new data, trigger the guard condition if it is available
+  // Since we added new data, trigger user callback and guard condition if they are available
+  data_callback_mgr.trigger_callback();
   notify();
 }
 
+///=============================================================================
 bool rmw_service_data_t::add_to_query_map(
   int64_t sequence_number, std::unique_ptr<ZenohQuery> query)
 {
@@ -183,6 +222,7 @@ bool rmw_service_data_t::add_to_query_map(
   return true;
 }
 
+///=============================================================================
 std::unique_ptr<ZenohQuery> rmw_service_data_t::take_from_query_map(int64_t sequence_number)
 {
   std::lock_guard<std::mutex> lock(sequence_to_query_map_mutex_);
@@ -197,6 +237,7 @@ std::unique_ptr<ZenohQuery> rmw_service_data_t::take_from_query_map(int64_t sequ
   return query;
 }
 
+///=============================================================================
 void rmw_client_data_t::notify()
 {
   std::lock_guard<std::mutex> lock(condition_mutex_);
@@ -205,14 +246,30 @@ void rmw_client_data_t::notify()
   }
 }
 
+///=============================================================================
 void rmw_client_data_t::add_new_reply(std::unique_ptr<ZenohReply> reply)
 {
   std::lock_guard<std::mutex> lock(reply_queue_mutex_);
+  if (reply_queue_.size() >= adapted_qos_profile.depth) {
+    // Log warning if message is discarded due to hitting the queue depth
+    z_owned_str_t keystr = z_keyexpr_to_string(z_loan(this->keyexpr));
+    RCUTILS_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Reply queue depth of %ld reached, discarding oldest reply "
+      "for client for %s",
+      adapted_qos_profile.depth,
+      z_loan(keystr));
+    z_drop(z_move(keystr));
+    reply_queue_.pop_front();
+  }
   reply_queue_.emplace_back(std::move(reply));
 
+  // Since we added new data, trigger user callback and guard condition if they are available
+  data_callback_mgr.trigger_callback();
   notify();
 }
 
+///=============================================================================
 bool rmw_client_data_t::reply_queue_is_empty() const
 {
   std::lock_guard<std::mutex> lock(reply_queue_mutex_);
@@ -220,18 +277,21 @@ bool rmw_client_data_t::reply_queue_is_empty() const
   return reply_queue_.empty();
 }
 
+///=============================================================================
 void rmw_client_data_t::attach_condition(std::condition_variable * condition_variable)
 {
   std::lock_guard<std::mutex> lock(condition_mutex_);
   condition_ = condition_variable;
 }
 
+///=============================================================================
 void rmw_client_data_t::detach_condition()
 {
   std::lock_guard<std::mutex> lock(condition_mutex_);
   condition_ = nullptr;
 }
 
+///=============================================================================
 std::unique_ptr<ZenohReply> rmw_client_data_t::pop_next_reply()
 {
   std::lock_guard<std::mutex> lock(reply_queue_mutex_);
@@ -300,16 +360,19 @@ void sub_data_handler(
       sample->timestamp.time, pub_gid, sequence_number, source_timestamp), z_loan(keystr));
 }
 
+///=============================================================================
 ZenohQuery::ZenohQuery(const z_query_t * query)
 {
   query_ = z_query_clone(query);
 }
 
+///=============================================================================
 ZenohQuery::~ZenohQuery()
 {
   z_drop(z_move(query_));
 }
 
+///=============================================================================
 const z_query_t ZenohQuery::get_query() const
 {
   return z_query_loan(&query_);
@@ -338,16 +401,19 @@ void service_data_handler(const z_query_t * query, void * data)
   service_data->add_new_query(std::make_unique<ZenohQuery>(query));
 }
 
+///=============================================================================
 ZenohReply::ZenohReply(const z_owned_reply_t * reply)
 {
   reply_ = *reply;
 }
 
+///=============================================================================
 ZenohReply::~ZenohReply()
 {
   z_reply_drop(z_move(reply_));
 }
 
+///=============================================================================
 std::optional<z_sample_t> ZenohReply::get_sample() const
 {
   if (z_reply_is_ok(&reply_)) {
@@ -357,6 +423,7 @@ std::optional<z_sample_t> ZenohReply::get_sample() const
   return std::nullopt;
 }
 
+///=============================================================================
 size_t rmw_client_data_t::get_next_sequence_number()
 {
   std::lock_guard<std::mutex> lock(sequence_number_mutex_);
@@ -382,10 +449,16 @@ void client_data_handler(z_owned_reply_t * reply, void * data)
     return;
   }
   if (!z_reply_is_ok(reply)) {
+    z_owned_str_t keystr = z_keyexpr_to_string(z_loan(client_data->keyexpr));
+    z_value_t err = z_reply_err(reply);
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
-      "z_reply_is_ok returned False"
-    );
+      "z_reply_is_ok returned False for keyexpr %s. Reason: %.*s",
+      z_loan(keystr),
+      (int)err.payload.len,
+      err.payload.start);
+    z_drop(z_move(keystr));
+
     return;
   }
 
