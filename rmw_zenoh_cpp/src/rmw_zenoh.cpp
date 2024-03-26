@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <fastcdr/FastBuffer.h>
+#include <fastcdr/CdrEncoding.hpp>
 #include <fastcdr/Cdr.h>
 
 #include <zenoh.h>
@@ -915,7 +916,7 @@ rmw_publish(
   eprosima::fastcdr::Cdr ser(
     fastbuffer,
     eprosima::fastcdr::Cdr::DEFAULT_ENDIAN,
-    eprosima::fastcdr::Cdr::DDS_CDR);
+    eprosima::fastcdr::CdrVersion::DDS_CDR);
   if (!publisher_data->type_support->serialize_ros_message(
       ros_message,
       ser,
@@ -925,7 +926,7 @@ rmw_publish(
     return RMW_RET_ERROR;
   }
 
-  const size_t data_length = ser.getSerializedDataLength();
+  const size_t data_length = ser.get_serialized_data_length();
 
   int64_t sequence_number = publisher_data->get_next_sequence_number();
 
@@ -1057,7 +1058,7 @@ rmw_publish_serialized_message(
   eprosima::fastcdr::FastBuffer buffer(
     reinterpret_cast<char *>(serialized_message->buffer), serialized_message->buffer_length);
   eprosima::fastcdr::Cdr ser(
-    buffer, eprosima::fastcdr::Cdr::DEFAULT_ENDIAN, eprosima::fastcdr::Cdr::DDS_CDR);
+    buffer, eprosima::fastcdr::Cdr::DEFAULT_ENDIAN, eprosima::fastcdr::CdrVersion::DDS_CDR);
   if (!ser.jump(serialized_message->buffer_length)) {
     RMW_SET_ERROR_MSG("cannot correctly set serialized buffer");
     return RMW_RET_ERROR;
@@ -1077,7 +1078,7 @@ rmw_publish_serialized_message(
       z_bytes_map_drop(z_move(map));
     });
 
-  const size_t data_length = ser.getSerializedDataLength();
+  const size_t data_length = ser.get_serialized_data_length();
 
   // The encoding is simply forwarded and is useful when key expressions in the
   // session use different encoding formats. In our case, all key expressions
@@ -1162,7 +1163,7 @@ rmw_serialize(
   eprosima::fastcdr::FastBuffer buffer(
     reinterpret_cast<char *>(serialized_message->buffer), data_length);
   eprosima::fastcdr::Cdr ser(
-    buffer, eprosima::fastcdr::Cdr::DEFAULT_ENDIAN, eprosima::fastcdr::Cdr::DDS_CDR);
+    buffer, eprosima::fastcdr::Cdr::DEFAULT_ENDIAN, eprosima::fastcdr::CdrVersion::DDS_CDR);
 
   auto ret = tss.serialize_ros_message(ros_message, ser, callbacks);
   serialized_message->buffer_length = data_length;
@@ -1189,7 +1190,7 @@ rmw_deserialize(
   eprosima::fastcdr::FastBuffer buffer(
     reinterpret_cast<char *>(serialized_message->buffer), serialized_message->buffer_length);
   eprosima::fastcdr::Cdr deser(buffer, eprosima::fastcdr::Cdr::DEFAULT_ENDIAN,
-    eprosima::fastcdr::Cdr::DDS_CDR);
+    eprosima::fastcdr::CdrVersion::DDS_CDR);
 
   auto ret = tss.deserialize_ros_message(deser, ros_message, callbacks);
   return ret == true ? RMW_RET_OK : RMW_RET_ERROR;
@@ -1665,7 +1666,7 @@ static rmw_ret_t __rmw_take(
   eprosima::fastcdr::Cdr deser(
     fastbuffer,
     eprosima::fastcdr::Cdr::DEFAULT_ENDIAN,
-    eprosima::fastcdr::Cdr::DDS_CDR);
+    eprosima::fastcdr::CdrVersion::DDS_CDR);
   if (!sub_data->type_support->deserialize_ros_message(
       deser,
       ros_message,
@@ -2246,7 +2247,7 @@ rmw_send_request(
   eprosima::fastcdr::Cdr ser(
     fastbuffer,
     eprosima::fastcdr::Cdr::DEFAULT_ENDIAN,
-    eprosima::fastcdr::Cdr::DDS_CDR);
+    eprosima::fastcdr::CdrVersion::DDS_CDR);
   if (!client_data->request_type_support->serialize_ros_message(
       ros_request,
       ser,
@@ -2255,7 +2256,7 @@ rmw_send_request(
     return RMW_RET_ERROR;
   }
 
-  size_t data_length = ser.getSerializedDataLength();
+  size_t data_length = ser.get_serialized_data_length();
 
   *sequence_id = client_data->get_next_sequence_number();
 
@@ -2342,7 +2343,7 @@ rmw_take_response(
   eprosima::fastcdr::Cdr deser(
     fastbuffer,
     eprosima::fastcdr::Cdr::DEFAULT_ENDIAN,
-    eprosima::fastcdr::Cdr::DDS_CDR);
+    eprosima::fastcdr::CdrVersion::DDS_CDR);
   if (!client_data->response_type_support->deserialize_ros_message(
       deser,
       ros_response,
@@ -2791,7 +2792,7 @@ rmw_take_request(
   eprosima::fastcdr::Cdr deser(
     fastbuffer,
     eprosima::fastcdr::Cdr::DEFAULT_ENDIAN,
-    eprosima::fastcdr::Cdr::DDS_CDR);
+    eprosima::fastcdr::CdrVersion::DDS_CDR);
   if (!service_data->request_type_support->deserialize_ros_message(
       deser,
       ros_request,
@@ -2893,7 +2894,7 @@ rmw_send_response(
   eprosima::fastcdr::Cdr ser(
     fastbuffer,
     eprosima::fastcdr::Cdr::DEFAULT_ENDIAN,
-    eprosima::fastcdr::Cdr::DDS_CDR);
+    eprosima::fastcdr::CdrVersion::DDS_CDR);
   if (!service_data->response_type_support->serialize_ros_message(
       ros_response,
       ser,
@@ -2902,7 +2903,7 @@ rmw_send_response(
     return RMW_RET_ERROR;
   }
 
-  size_t data_length = ser.getSerializedDataLength();
+  size_t data_length = ser.get_serialized_data_length();
 
   // Create the queryable payload
   std::unique_ptr<ZenohQuery> query =
