@@ -12,8 +12,7 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
   <buildtool_depend>ament_cmake_vendor_package</buildtool_depend>
 
-  <!-- TODO(Yadunund) switch condition such that it checks if $ROS_DISTRO[0] > 'i' -->
-  <build_depend condition="$ROS_DISTRO == rolling">cargo</build_depend>
+  <build_depend>cargo</build_depend>
   <build_depend>clang</build_depend>
 
   <export>

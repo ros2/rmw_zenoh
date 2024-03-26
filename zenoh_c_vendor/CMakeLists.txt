@@ -24,18 +24,24 @@ find_package(ament_cmake_vendor_package REQUIRED)
 # when expanded.
 set(ZENOHC_CARGO_FLAGS "--no-default-features$<SEMICOLON>--features=zenoh/transport_tcp zenoh/shared-memory")
 
-# Always force rustc 1.75.0.
-# This is the default version of rustc available via apt in Ubuntu Noble.
-# We explictly use the +1.75.0 toolchain when building on Ubuntu Jammy.
-set(ZENOHC_CARGO_CHANNEL "1.75.0")
-
-# Apply the patch to the zenoh-c CMakeLists.txt only if building an ROS 2 version
-# newer than Iron. The patch removes the ability to set ZENOHC_CARGO_CHANNEL
-# via cmake args
+# Depending on how cargo is installed, the +stable toolchain may be unavailable.
+# In such cases we patch zenoh-c to not set ZENOHC_CARGO_CHANNEL to +stable.
 set(patches "")
-string(SUBSTRING "$ENV{ROS_DISTRO}" 0 1 first_char)
-if("${first_char}" STRGREATER "i")
+set(toolchain_error "")
+set(CARGO_CMD "cargo")
+set(CARGO_ARG "+stable")
+execute_process(
+  COMMAND ${CARGO_CMD} ${CARGO_ARG}
+  ERROR_VARIABLE toolchain_error
+)
+if(NOT "${toolchain_error}" STREQUAL "")
+  # The stable toolchain is unavailable and hence we patch zenoh-c.
   set(patches "patches")
+else()
+  # Always force rustc 1.75.0.
+  # This is the default version of rustc available via apt in Ubuntu Noble.
+  # We explictly use the +1.75.0 toolchain when building on Ubuntu Jammy.
+  set(ZENOHC_CARGO_CHANNEL "-DZENOHC_CARGO_CHANNEL=1.75.0")
 endif()
 
 # Set VCS_VERSION to include changes from https://github.com/eclipse-zenoh/zenoh/pull/802
@@ -45,7 +51,7 @@ ament_vendor(zenoh_c_vendor
   VCS_VERSION 10176b911096cb92b8ee46bc491b78079ee26c20
   CMAKE_ARGS
     "-DZENOHC_CARGO_FLAGS=${ZENOHC_CARGO_FLAGS}"
-    "-DZENOHC_CARGO_CHANNEL=${ZENOHC_CARGO_CHANNEL}"
+    "${ZENOHC_CARGO_CHANNEL}"
   PATCHES patches
 )
 
