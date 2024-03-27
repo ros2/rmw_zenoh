@@ -11,6 +11,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         docker_image: ['ros:iron-ros-base', 'ros:rolling-ros-base']
     container:
@@ -21,7 +22,7 @@ jobs:
       run: |
         apt update && apt install -y curl
     - name: Setup Rust
-      uses: dtolnay/rust-toolchain@stable
+      uses: dtolnay/rust-toolchain@1.75.0
     - uses: actions/checkout@v2
     - name: rosdep
       run: |
