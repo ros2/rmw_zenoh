@@ -97,6 +97,7 @@ rmw_ret_t get_z_config(const ConfigurableEntity & entity, z_owned_config_t * con
 std::optional<uint64_t> zenoh_router_check_attempts()
 {
   const char * envar_value;
+  // The default value is to check indefinitely.
   uint64_t default_value = std::numeric_limits<uint64_t>::max();
 
   if (NULL != rcutils_get_env(router_check_attempts_envar, &envar_value)) {
@@ -108,14 +109,17 @@ std::optional<uint64_t> zenoh_router_check_attempts()
   }
   // If the environment variable contains a value, handle it accordingly.
   if (envar_value[0] != '\0') {
-    const auto read_value = std::stoul(envar_value);
+    const auto read_value = std::strtol(envar_value, nullptr, 10);
     if (read_value > 0) {
       return read_value;
+    } else if (read_value < 0) {
+      // If less than 0, we skip the check.
+      return std::nullopt;
     }
-    // If the value is 0 or lesser, return std::nullopt to skip router check.
-    return std::nullopt;
+    // If the value is 0, check indefinitely.
+    return default_value;
   }
 
-  // If unset, return default value.
+  // If unset, check indefinitely.
   return default_value;
 }

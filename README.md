@@ -77,8 +77,8 @@ The behavior is explained in the table below.
 
 | ZENOH_ROUTER_CHECK_ATTEMPTS |                                                 Session behavior                                                 |
 |:---------------------------:|:----------------------------------------------------------------------------------------------------------------:|
-|            unset            |                                                             Indefinitely waits for connection to a Zenoh router. |
-|             <= 0            |                                                                                        Skips Zenoh router check. |
+|            unset or 0           |                                                             Indefinitely waits for connection to a Zenoh router. |
+|             < 0            |                                                                                        Skips Zenoh router check. |
 |             > 0             | Attempts to connect to a Zenoh router in `ZENOH_ROUTER_CHECK_ATTEMPTS` attempts with 1 second wait between checks. |
 
 ### Session and Router configs
