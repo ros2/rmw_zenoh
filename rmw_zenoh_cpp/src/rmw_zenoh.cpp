@@ -2277,7 +2277,7 @@ rmw_send_request(
   opts.target = Z_QUERY_TARGET_ALL_COMPLETE;
   // The default timeout for a z_get query is 10 seconds and if a response is not received within
   // this window, the queryable will return an invalid reply. However, it is common for actions,
-  // which are implemented using services, to take an extended duration to complete.Hence, we set
+  // which are implemented using services, to take an extended duration to complete. Hence, we set
   // the timeout_ms to the largest supported value to account for most realistic scenarios.
   opts.timeout_ms = std::numeric_limits<uint64_t>::max();
   // Latest consolidation guarantees unicity of replies for the same key expression,
