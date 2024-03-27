@@ -80,5 +80,6 @@ rmw_ret_t zenoh_router_check(z_session_t session)
       ret = RMW_RET_ERROR;
     }
   }
+
   return ret;
 }
