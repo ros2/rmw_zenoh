@@ -24,34 +24,15 @@ find_package(ament_cmake_vendor_package REQUIRED)
 # when expanded.
 set(ZENOHC_CARGO_FLAGS "--no-default-features$<SEMICOLON>--features=zenoh/transport_tcp zenoh/shared-memory")
 
-# Depending on how cargo is installed, the +stable toolchain may be unavailable.
-# In such cases we patch zenoh-c to not set ZENOHC_CARGO_CHANNEL to +stable.
-set(patches "")
-set(toolchain_error "")
-set(CARGO_CMD "cargo")
-set(CARGO_ARG "+stable")
-execute_process(
-  COMMAND ${CARGO_CMD} ${CARGO_ARG}
-  ERROR_VARIABLE toolchain_error
-)
-if(NOT "${toolchain_error}" STREQUAL "")
-  # The stable toolchain is unavailable and hence we patch zenoh-c.
-  set(patches "patches")
-else()
-  # Always force rustc 1.75.0.
-  # This is the default version of rustc available via apt in Ubuntu Noble.
-  # We explictly use the +1.75.0 toolchain when building on Ubuntu Jammy.
-  set(ZENOHC_CARGO_CHANNEL "-DZENOHC_CARGO_CHANNEL=1.75.0")
-endif()
-
 # Set VCS_VERSION to include changes from https://github.com/eclipse-zenoh/zenoh/pull/802
 # which was synced to zenoh-c in https://github.com/eclipse-zenoh/zenoh-c/pull/272.
+# Apply patches:
+# - https://github.com/eclipse-zenoh/zenoh-c/pull/301
 ament_vendor(zenoh_c_vendor
   VCS_URL https://github.com/eclipse-zenoh/zenoh-c.git
   VCS_VERSION 10176b911096cb92b8ee46bc491b78079ee26c20
   CMAKE_ARGS
     "-DZENOHC_CARGO_FLAGS=${ZENOHC_CARGO_FLAGS}"
-    "${ZENOHC_CARGO_CHANNEL}"
   PATCHES patches
 )
 

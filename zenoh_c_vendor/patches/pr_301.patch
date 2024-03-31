@@ -1,0 +1,24 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 00aa5ca..d236e99 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -27,7 +27,7 @@ declare_cache_var_true_if_vscode(ZENOHC_BUILD_IN_SOURCE_TREE "Do build inside so
+ declare_cache_var(ZENOHC_BUILD_WITH_LOGGER_AUTOINIT TRUE BOOL "Enable logger-autoinit zenoh-c feature")
+ declare_cache_var(ZENOHC_BUILD_WITH_SHARED_MEMORY TRUE BOOL "Enable shared-memory zenoh-c feature")
+ declare_cache_var(ZENOHC_CUSTOM_TARGET "" STRING "Rust target for cross compilation, 'aarch64-unknown-linux-gnu' for example")
+-declare_cache_var(ZENOHC_CARGO_CHANNEL "stable" STRING "Cargo channel selected: stable or nightly")
++declare_cache_var(ZENOHC_CARGO_CHANNEL "" STRING "Cargo channel parameter. Should be '+stable', '+nightly' or empty value")
+ declare_cache_var(ZENOHC_CARGO_FLAGS "" STRING "Additional cargo flags")
+ declare_cache_var(ZENOHC_LIB_STATIC FALSE BOOL "Alias zenohc::lib target to zenohc::static if TRUE, to zenohc::shared if FALSE")
+ 
+@@ -198,8 +198,8 @@ file(GLOB_RECURSE rust_sources "Cargo.toml.in" "src/*.rs" "build.rs" "splitguide
+ add_custom_command(
+ 	OUTPUT ${libs}
+ 	COMMAND ${CMAKE_COMMAND} -E echo \"RUSTFLAGS = $$RUSTFLAGS\"
+-	COMMAND ${CMAKE_COMMAND} -E echo \"cargo +${ZENOHC_CARGO_CHANNEL} build ${cargo_flags}\"
+-	COMMAND cargo +${ZENOHC_CARGO_CHANNEL} build ${cargo_flags}
++	COMMAND ${CMAKE_COMMAND} -E echo \"cargo ${ZENOHC_CARGO_CHANNEL} build ${cargo_flags}\"
++	COMMAND cargo ${ZENOHC_CARGO_CHANNEL} build ${cargo_flags}
+ 	VERBATIM
+ 	COMMAND_EXPAND_LISTS
+ 	DEPENDS "${rust_sources}"
