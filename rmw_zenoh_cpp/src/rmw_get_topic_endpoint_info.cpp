@@ -43,7 +43,7 @@ rmw_get_publishers_info_by_topic(
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
-  return node->context->impl->graph_cache.get_entities_info_by_topic(
+  return node->context->impl->graph_cache->get_entities_info_by_topic(
     liveliness::EntityType::Publisher,
     allocator,
     topic_name,
@@ -69,7 +69,7 @@ rmw_get_subscriptions_info_by_topic(
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
-  return node->context->impl->graph_cache.get_entities_info_by_topic(
+  return node->context->impl->graph_cache->get_entities_info_by_topic(
     liveliness::EntityType::Subscription,
     allocator,
     topic_name,
