@@ -26,11 +26,14 @@ set(ZENOHC_CARGO_FLAGS "--no-default-features$<SEMICOLON>--features=zenoh/transp
 
 # Set VCS_VERSION to include changes from https://github.com/eclipse-zenoh/zenoh/pull/802
 # which was synced to zenoh-c in https://github.com/eclipse-zenoh/zenoh-c/pull/272.
+# Apply patches:
+# - https://github.com/eclipse-zenoh/zenoh-c/pull/301
 ament_vendor(zenoh_c_vendor
   VCS_URL https://github.com/eclipse-zenoh/zenoh-c.git
   VCS_VERSION 10176b911096cb92b8ee46bc491b78079ee26c20
   CMAKE_ARGS
     "-DZENOHC_CARGO_FLAGS=${ZENOHC_CARGO_FLAGS}"
+  PATCHES patches
 )
 
 # set(INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-prefix/install")
