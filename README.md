@@ -15,10 +15,12 @@ For information about the Design please visit [design](docs/design.md) page.
 
 ## Setup
 
-Install latest rustc.
-> Note: The version of rustc that can be installed via apt is outdated.
+Install latest rustc via `rustup` if building on Ubuntu Jammy.
+Skip this step if building on Ubuntu Noble as `cargo` and `rustc` will be
+installed via `rosdep`.
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+rustup install 1.75.0
 ```
 
 Build `rmw_zenoh_cpp`

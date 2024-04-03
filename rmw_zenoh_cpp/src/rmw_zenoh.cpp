@@ -878,7 +878,7 @@ rmw_publish(
       }
     });
   auto free_msg_bytes = rcpputils::make_scope_exit(
-    [msg_bytes, allocator, &shmbuf]() {
+    [&msg_bytes, allocator, &shmbuf]() {
       if (msg_bytes && !shmbuf.has_value()) {
         allocator->deallocate(msg_bytes, allocator->state);
       }
