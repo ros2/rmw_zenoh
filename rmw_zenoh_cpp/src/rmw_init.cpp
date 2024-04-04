@@ -362,15 +362,6 @@ rmw_shutdown(rmw_context_t * context)
     return RMW_RET_ERROR;
   }
 
-  const rcutils_allocator_t * allocator = &context->options.allocator;
-
-  RMW_TRY_DESTRUCTOR(
-    static_cast<GuardCondition *>(context->impl->graph_guard_condition->data)->~GuardCondition(),
-    GuardCondition, );
-  allocator->deallocate(context->impl->graph_guard_condition->data, allocator->state);
-
-  allocator->deallocate(context->impl->graph_guard_condition, allocator->state);
-
   context->impl->is_shutdown = true;
 
   return RMW_RET_OK;
@@ -396,9 +387,17 @@ rmw_context_fini(rmw_context_t * context)
     return RMW_RET_INVALID_ARGUMENT;
   }
 
-  RMW_TRY_DESTRUCTOR(context->impl->~rmw_context_impl_t(), rmw_context_impl_t, );
-
   const rcutils_allocator_t * allocator = &context->options.allocator;
+
+  RMW_TRY_DESTRUCTOR(
+    static_cast<GuardCondition *>(context->impl->graph_guard_condition->data)->~GuardCondition(),
+    GuardCondition, );
+  allocator->deallocate(context->impl->graph_guard_condition->data, allocator->state);
+
+  allocator->deallocate(context->impl->graph_guard_condition, allocator->state);
+  context->impl->graph_guard_condition = nullptr;
+
+  RMW_TRY_DESTRUCTOR(context->impl->~rmw_context_impl_t(), rmw_context_impl_t, );
 
   allocator->deallocate(context->impl, allocator->state);
 
