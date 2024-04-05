@@ -3240,7 +3240,7 @@ rmw_wait(
         // rmw_guard_condition_t.  So we can directly cast it to GuardCondition.
         GuardCondition * gc = static_cast<GuardCondition *>(guard_conditions->guard_conditions[i]);
         if (gc != nullptr) {
-          gc->attach_condition(&wait_set_data->condition_variable);
+          gc->attach_condition(&wait_set_data->condition_mutex, &wait_set_data->condition_variable);
         }
       }
     }
@@ -3251,7 +3251,7 @@ rmw_wait(
       for (size_t i = 0; i < subscriptions->subscriber_count; ++i) {
         auto sub_data = static_cast<rmw_subscription_data_t *>(subscriptions->subscribers[i]);
         if (sub_data != nullptr) {
-          sub_data->attach_condition(&wait_set_data->condition_variable);
+          sub_data->attach_condition(&wait_set_data->condition_mutex, &wait_set_data->condition_variable);
         }
       }
     }
@@ -3262,7 +3262,7 @@ rmw_wait(
       for (size_t i = 0; i < services->service_count; ++i) {
         auto serv_data = static_cast<rmw_service_data_t *>(services->services[i]);
         if (serv_data != nullptr) {
-          serv_data->attach_condition(&wait_set_data->condition_variable);
+          serv_data->attach_condition(&wait_set_data->condition_mutex, &wait_set_data->condition_variable);
         }
       }
     }
@@ -3273,7 +3273,7 @@ rmw_wait(
       for (size_t i = 0; i < clients->client_count; ++i) {
         rmw_client_data_t * client_data = static_cast<rmw_client_data_t *>(clients->clients[i]);
         if (client_data != nullptr) {
-          client_data->attach_condition(&wait_set_data->condition_variable);
+          client_data->attach_condition(&wait_set_data->condition_mutex, &wait_set_data->condition_variable);
         }
       }
     }
@@ -3287,6 +3287,7 @@ rmw_wait(
           if (zenoh_event_it != event_map.end()) {
             event_data->attach_event_condition(
               zenoh_event_it->second,
+              &wait_set_data->condition_mutex,
               &wait_set_data->condition_variable);
           }
         }
@@ -3295,16 +3296,22 @@ rmw_wait(
 
     std::unique_lock<std::mutex> lock(wait_set_data->condition_mutex);
 
-    // According to the RMW documentation, if wait_timeout is NULL that means
-    // "wait forever", if it specified by 0 it means "never wait", and if it is anything else wait
-    // for that amount of time.
-    if (wait_timeout == nullptr) {
-      wait_set_data->condition_variable.wait(lock);
-    } else {
-      if (wait_timeout->sec != 0 || wait_timeout->nsec != 0) {
-        std::cv_status wait_status = wait_set_data->condition_variable.wait_for(
-          lock, std::chrono::nanoseconds(wait_timeout->nsec + RCUTILS_S_TO_NS(wait_timeout->sec)));
-        wait_result = wait_status == std::cv_status::no_timeout;
+    // We have to check the triggered condition *again* under the lock so we don't miss notifications.
+    skip_wait = has_triggered_condition(
+      subscriptions, guard_conditions, services, clients, events);
+
+    if (!skip_wait) {
+      // According to the RMW documentation, if wait_timeout is NULL that means
+      // "wait forever", if it specified by 0 it means "never wait", and if it is anything else wait
+      // for that amount of time.
+      if (wait_timeout == nullptr) {
+        wait_set_data->condition_variable.wait(lock);
+      } else {
+        if (wait_timeout->sec != 0 || wait_timeout->nsec != 0) {
+          std::cv_status wait_status = wait_set_data->condition_variable.wait_for(
+            lock, std::chrono::nanoseconds(wait_timeout->nsec + RCUTILS_S_TO_NS(wait_timeout->sec)));
+          wait_result = wait_status == std::cv_status::no_timeout;
+        }
       }
     }
   }
