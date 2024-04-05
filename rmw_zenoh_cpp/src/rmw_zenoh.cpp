@@ -2849,6 +2849,15 @@ rmw_send_response(
 
   rmw_service_data_t * service_data = static_cast<rmw_service_data_t *>(service->data);
 
+  // Create the queryable payload
+  std::unique_ptr<ZenohQuery> query =
+    service_data->take_from_query_map(request_header->sequence_number);
+  if (query == nullptr) {
+    // If there is no data associated with this request, the higher layers of
+    // ROS 2 seem to expect that we just silently return with no work.
+    return RMW_RET_OK;
+  }
+
   rcutils_allocator_t * allocator = &(service_data->context->options.allocator);
 
   size_t max_data_length = (
@@ -2860,7 +2869,7 @@ rmw_send_response(
       max_data_length,
       allocator->state));
   if (!response_bytes) {
-    RMW_SET_ERROR_MSG("failed allocate response message bytes");
+    RMW_SET_ERROR_MSG("failed to allocate response message bytes");
     return RMW_RET_ERROR;
   }
   auto free_response_bytes = rcpputils::make_scope_exit(
@@ -2882,14 +2891,6 @@ rmw_send_response(
   }
 
   size_t data_length = ser.get_serialized_data_length();
-
-  // Create the queryable payload
-  std::unique_ptr<ZenohQuery> query =
-    service_data->take_from_query_map(request_header->sequence_number);
-  if (query == nullptr) {
-    RMW_SET_ERROR_MSG("Unable to find taken request. Report this bug.");
-    return RMW_RET_ERROR;
-  }
 
   const z_query_t loaned_query = query->get_query();
   z_query_reply_options_t options = z_query_reply_options_default();
