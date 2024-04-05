@@ -208,31 +208,70 @@ void rmw_service_data_t::add_new_query(std::unique_ptr<ZenohQuery> query)
   notify();
 }
 
+static size_t hash_gid(uint8_t client_gid[RMW_GID_STORAGE_SIZE])
+{
+  size_t h = 0;
+
+  for (size_t i = 0; i < RMW_GID_STORAGE_SIZE; ++i) {
+    h ^= std::hash<uint8_t>{}(client_gid[i])  + 0x9e3779b9 + (h << 6) + (h >> 2);
+  }
+  return h;
+}
+
 ///=============================================================================
 bool rmw_service_data_t::add_to_query_map(
-  int64_t sequence_number, std::unique_ptr<ZenohQuery> query)
+  uint8_t client_gid[RMW_GID_STORAGE_SIZE], int64_t sequence_number, std::unique_ptr<ZenohQuery> query)
 {
+  size_t hash = hash_gid(client_gid);
+
   std::lock_guard<std::mutex> lock(sequence_to_query_map_mutex_);
-  if (sequence_to_query_map_.find(sequence_number) != sequence_to_query_map_.end()) {
-    return false;
+
+  std::unordered_map<size_t, SequenceToQuery>::iterator it = sequence_to_query_map_.find(hash);
+
+  if (it == sequence_to_query_map_.end()) {
+    SequenceToQuery stq;
+
+    sequence_to_query_map_.insert(std::make_pair(hash, std::move(stq)));
+
+    it = sequence_to_query_map_.find(hash);
+  } else {
+    // Client already in the map
+
+    if (it->second.find(sequence_number) != it->second.end()) {
+      return false;
+    }
   }
-  sequence_to_query_map_.emplace(
-    std::pair(sequence_number, std::move(query)));
+
+  it->second.insert(std::make_pair(sequence_number, std::move(query)));
 
   return true;
 }
 
 ///=============================================================================
-std::unique_ptr<ZenohQuery> rmw_service_data_t::take_from_query_map(int64_t sequence_number)
+std::unique_ptr<ZenohQuery> rmw_service_data_t::take_from_query_map(uint8_t client_gid[RMW_GID_STORAGE_SIZE], int64_t sequence_number)
 {
+  size_t hash = hash_gid(client_gid);
+
   std::lock_guard<std::mutex> lock(sequence_to_query_map_mutex_);
-  auto query_it = sequence_to_query_map_.find(sequence_number);
-  if (query_it == sequence_to_query_map_.end()) {
+
+  std::unordered_map<size_t, SequenceToQuery>::iterator it = sequence_to_query_map_.find(hash);
+
+  if (it == sequence_to_query_map_.end()) {
+    return nullptr;
+  }
+
+  SequenceToQuery::iterator query_it = it->second.find(sequence_number);
+
+  if (query_it == it->second.end()) {
     return nullptr;
   }
 
   std::unique_ptr<ZenohQuery> query = std::move(query_it->second);
-  sequence_to_query_map_.erase(query_it);
+  it->second.erase(query_it);
+
+  if (sequence_to_query_map_[hash].size() == 0) {
+    sequence_to_query_map_.erase(hash);
+  }
 
   return query;
 }
