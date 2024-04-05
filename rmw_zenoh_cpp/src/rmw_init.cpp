@@ -16,6 +16,7 @@
 
 #include <new>
 #include <string>
+#include <thread>
 
 #include "detail/guard_condition.hpp"
 #include "detail/identifier.hpp"
@@ -175,10 +176,24 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   z_id_t zid = z_info_zid(z_loan(context->impl->session));
   context->impl->graph_cache = std::make_unique<GraphCache>(zid);
 
-  // Verify if the zenoh router is running.
-  if ((ret = zenoh_router_check(z_loan(context->impl->session))) != RMW_RET_OK) {
-    RMW_SET_ERROR_MSG("Error while checking for Zenoh router");
-    return ret;
+  // Verify if the zenoh router is running if configured.
+  const std::optional<uint64_t> configured_connection_attempts = zenoh_router_check_attempts();
+  if (configured_connection_attempts.has_value()) {
+    ret = RMW_RET_ERROR;
+    uint64_t connection_attempts = 0;
+    // Retry until the connection is successful.
+    while (ret != RMW_RET_OK && connection_attempts < configured_connection_attempts.value()) {
+      if ((ret = zenoh_router_check(z_loan(context->impl->session))) != RMW_RET_OK) {
+        ++connection_attempts;
+      }
+      std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+    if (ret != RMW_RET_OK) {
+      RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
+        "Unable to connect to a Zenoh router after %zu retries.",
+        configured_connection_attempts.value());
+      return ret;
+    }
   }
 
   // Initialize the shm manager if shared_memory is enabled in the config.
@@ -362,15 +377,6 @@ rmw_shutdown(rmw_context_t * context)
     return RMW_RET_ERROR;
   }
 
-  const rcutils_allocator_t * allocator = &context->options.allocator;
-
-  RMW_TRY_DESTRUCTOR(
-    static_cast<GuardCondition *>(context->impl->graph_guard_condition->data)->~GuardCondition(),
-    GuardCondition, );
-  allocator->deallocate(context->impl->graph_guard_condition->data, allocator->state);
-
-  allocator->deallocate(context->impl->graph_guard_condition, allocator->state);
-
   context->impl->is_shutdown = true;
 
   return RMW_RET_OK;
@@ -396,9 +402,17 @@ rmw_context_fini(rmw_context_t * context)
     return RMW_RET_INVALID_ARGUMENT;
   }
 
-  RMW_TRY_DESTRUCTOR(context->impl->~rmw_context_impl_t(), rmw_context_impl_t, );
-
   const rcutils_allocator_t * allocator = &context->options.allocator;
+
+  RMW_TRY_DESTRUCTOR(
+    static_cast<GuardCondition *>(context->impl->graph_guard_condition->data)->~GuardCondition(),
+    GuardCondition, );
+  allocator->deallocate(context->impl->graph_guard_condition->data, allocator->state);
+
+  allocator->deallocate(context->impl->graph_guard_condition, allocator->state);
+  context->impl->graph_guard_condition = nullptr;
+
+  RMW_TRY_DESTRUCTOR(context->impl->~rmw_context_impl_t(), rmw_context_impl_t, );
 
   allocator->deallocate(context->impl, allocator->state);
 

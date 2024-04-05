@@ -68,11 +68,26 @@ ros2 run demo_nodes_cpp listener
 The listener node should start receiving messages over the `/chatter` topic.
 
 ## Configuration
-`rmw_zenoh` relies on separate configurations files to configure the Zenoh `router` and `session` respectively.
-To understand more about `routers` and `sessions`, see [Zenoh documentation](https://zenoh.io/docs/getting-started/deployment/).
+
+By default, `Zenoh sessions` created by `rmw_zenoh` will attempt to connect to a Zenoh router to receive discovery information.
+To understand more about `Zenoh routers` and `Zenoh sessions`, see [Zenoh documentation](https://zenoh.io/docs/getting-started/deployment/).
+
+### Checking for a Zenoh router.
+The `ZENOH_ROUTER_CHECK_ATTEMPTS` environment variable can be used to configure if and how a `Zenoh session` checks for the presence of a `Zenoh router`.
+The behavior is explained in the table below.
+
+
+| ZENOH_ROUTER_CHECK_ATTEMPTS |                                                 Session behavior                                                 |
+|:---------------------------:|:----------------------------------------------------------------------------------------------------------------:|
+|            unset or 0           |                                                             Indefinitely waits for connection to a Zenoh router. |
+|             < 0            |                                                                                        Skips Zenoh router check. |
+|             > 0             | Attempts to connect to a Zenoh router in `ZENOH_ROUTER_CHECK_ATTEMPTS` attempts with 1 second wait between checks. |
+
+### Session and Router configs
+`rmw_zenoh` relies on separate configurations files to configure the `Zenoh router` and `Zenoh session` respectively.
 For more information on the topology of Zenoh adopted in `rmw_zenoh`, please see [Design](#design).
 Default configuration files are used by `rmw_zenoh` however certain environment variables may be set to provide absolute paths to custom configuration files.
-The table below summarizes the default files and the environment variables for the `router` and `session`.
+The table below summarizes the default files and the environment variables for the `Zenoh router` and `Zenoh session`.
 For a complete list of configurable parameters, see [zenoh/DEFAULT_CONFIG.json5](https://github.com/eclipse-zenoh/zenoh/blob/main/DEFAULT_CONFIG.json5).
 
 |         |                                            Default config                                            |   Envar for custom config  |
@@ -80,16 +95,16 @@ For a complete list of configurable parameters, see [zenoh/DEFAULT_CONFIG.json5]
 | Router  |  [DEFAULT_RMW_ZENOH_ROUTER_CONFIG.json5](rmw_zenoh_cpp/config/DEFAULT_RMW_ZENOH_ROUTER_CONFIG.json5)  |  `ZENOH_ROUTER_CONFIG_URI` |
 | Session | [DEFAULT_RMW_ZENOH_SESSION_CONFIG.json5](rmw_zenoh_cpp/config/DEFAULT_RMW_ZENOH_SESSION_CONFIG.json5) | `ZENOH_SESSION_CONFIG_URI` |
 
-For example, to set the path to a custom `router` configuration file,
+For example, to set the path to a custom `Zenoh router` configuration file,
 ```bash
 export ZENOH_ROUTER_CONFIG_URI=$HOME/MY_ZENOH_ROUTER_CONFIG.json5
 ```
 
 ### Connecting multiple hosts
-By default, all discovery traffic is local per host, where the host is the PC running a Zenoh `router`.
-To bridge communications across two hosts, the `router` configuration for one the hosts must be updated to connect to the other `router` at startup.
-This is done by specifying an endpoint in host's `router` configuration file to as seen below.
-In this example, the `router` will connect to the `router` running on a second host with IP address `192.168.1.1` and port `7447`.
+By default, all discovery traffic is local per host, where the host is the PC running a `Zenoh router`.
+To bridge communications across two hosts, the `Zenoh router` configuration for one the hosts must be updated to connect to the other `Zenoh router` at startup.
+This is done by specifying an endpoint in host's `Zenoh router` configuration file to as seen below.
+In this example, the `Zenoh router` will connect to the `Zenoh router` running on a second host with IP address `192.168.1.1` and port `7447`.
 
 ```json
 {
@@ -99,4 +114,4 @@ In this example, the `router` will connect to the `router` running on a second h
 }
 ```
 
-> Note: To connect multiple hosts, include the endpoints of all routers in the network.
+> Note: To connect multiple hosts, include the endpoints of all `Zenoh routers` in the network.
