@@ -3424,7 +3424,7 @@ rmw_get_node_names(
 }
 
 //==============================================================================
-/// Return the name, namespae, and enclave name of all nodes in the ROS graph.
+/// Return the name, namespace, and enclave name of all nodes in the ROS graph.
 rmw_ret_t
 rmw_get_node_names_with_enclaves(
   const rmw_node_t * node,
