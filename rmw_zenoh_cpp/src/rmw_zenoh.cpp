@@ -2851,7 +2851,7 @@ rmw_send_response(
 
   // Create the queryable payload
   std::unique_ptr<ZenohQuery> query =
-    service_data->take_from_query_map(request_header->sequence_number);
+    service_data->take_from_query_map(request_header->writer_guid, request_header->sequence_number);
   if (query == nullptr) {
     // If there is no data associated with this request, the higher layers of
     // ROS 2 seem to expect that we just silently return with no work.
