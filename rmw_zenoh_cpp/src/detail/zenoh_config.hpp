@@ -17,6 +17,7 @@
 
 #include <zenoh.h>
 
+#include <optional>
 #include <unordered_map>
 #include <utility>
 
@@ -42,5 +43,16 @@ enum class ConfigurableEntity : uint8_t
 /// @returns `RMW_RET_OK` if the configuration was successfully loaded.
 [[nodiscard]]
 rmw_ret_t get_z_config(const ConfigurableEntity & entity, z_owned_config_t * config);
+
+///==============================================================================
+/// Get the number of times rmw_init should try to connect to a zenoh router
+/// based on the environment variable ZENOH_ROUTER_CHECK_ATTEMPTS.
+/// @details The behavior is as follows:
+///   - If not set or 0, the max value is returned.
+///   - If less than 0, std::nullopt is returned.
+///   - Else value of environemnt variable is returned.
+/// @return The number of times to try connecting to a zenoh router and
+///   std::nullopt if establishing a connection to a router is not required.
+std::optional<uint64_t> zenoh_router_check_attempts();
 
 #endif  // DETAIL__ZENOH_CONFIG_HPP_
