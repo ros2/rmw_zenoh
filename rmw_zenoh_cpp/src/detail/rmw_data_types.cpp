@@ -63,17 +63,21 @@ size_t rmw_publisher_data_t::get_next_sequence_number()
 }
 
 ///=============================================================================
-void rmw_subscription_data_t::attach_condition(std::condition_variable * condition_variable)
+void rmw_subscription_data_t::attach_condition(std::mutex * condition_mutex, std::condition_variable * condition_variable)
 {
-  std::lock_guard<std::mutex> lock(condition_mutex_);
+  std::lock_guard<std::mutex> lock(update_condition_mutex_);
+  condition_mutex_ = condition_mutex;
   condition_ = condition_variable;
 }
 
 ///=============================================================================
 void rmw_subscription_data_t::notify()
 {
-  std::lock_guard<std::mutex> lock(condition_mutex_);
+  std::lock_guard<std::mutex> lock(update_condition_mutex_);
   if (condition_ != nullptr) {
+    // We also need to take the mutex for the condition_variable; see the comment
+    // in rmw_wait for more information
+    std::lock_guard<std::mutex> cvlk(*condition_mutex_);
     condition_->notify_one();
   }
 }
@@ -81,7 +85,8 @@ void rmw_subscription_data_t::notify()
 ///=============================================================================
 void rmw_subscription_data_t::detach_condition()
 {
-  std::lock_guard<std::mutex> lock(condition_mutex_);
+  std::lock_guard<std::mutex> lock(update_condition_mutex_);
+  condition_mutex_ = nullptr;
   condition_ = nullptr;
 }
 
@@ -150,16 +155,18 @@ bool rmw_service_data_t::query_queue_is_empty() const
 }
 
 ///=============================================================================
-void rmw_service_data_t::attach_condition(std::condition_variable * condition_variable)
+void rmw_service_data_t::attach_condition(std::mutex * condition_mutex, std::condition_variable * condition_variable)
 {
-  std::lock_guard<std::mutex> lock(condition_mutex_);
+  std::lock_guard<std::mutex> lock(update_condition_mutex_);
+  condition_mutex_ = condition_mutex;
   condition_ = condition_variable;
 }
 
 ///=============================================================================
 void rmw_service_data_t::detach_condition()
 {
-  std::lock_guard<std::mutex> lock(condition_mutex_);
+  std::lock_guard<std::mutex> lock(update_condition_mutex_);
+  condition_mutex_ = nullptr;
   condition_ = nullptr;
 }
 
@@ -180,8 +187,11 @@ std::unique_ptr<ZenohQuery> rmw_service_data_t::pop_next_query()
 ///=============================================================================
 void rmw_service_data_t::notify()
 {
-  std::lock_guard<std::mutex> lock(condition_mutex_);
+  std::lock_guard<std::mutex> lock(update_condition_mutex_);
   if (condition_ != nullptr) {
+    // We also need to take the mutex for the condition_variable; see the comment
+    // in rmw_wait for more information
+    std::lock_guard<std::mutex> cvlk(*condition_mutex_);
     condition_->notify_one();
   }
 }
@@ -282,8 +292,11 @@ std::unique_ptr<ZenohQuery> rmw_service_data_t::take_from_query_map(
 ///=============================================================================
 void rmw_client_data_t::notify()
 {
-  std::lock_guard<std::mutex> lock(condition_mutex_);
+  std::lock_guard<std::mutex> lock(update_condition_mutex_);
   if (condition_ != nullptr) {
+    // We also need to take the mutex for the condition_variable; see the comment
+    // in rmw_wait for more information
+    std::lock_guard<std::mutex> cvlk(*condition_mutex_);
     condition_->notify_one();
   }
 }
@@ -320,16 +333,18 @@ bool rmw_client_data_t::reply_queue_is_empty() const
 }
 
 ///=============================================================================
-void rmw_client_data_t::attach_condition(std::condition_variable * condition_variable)
+void rmw_client_data_t::attach_condition(std::mutex * condition_mutex, std::condition_variable * condition_variable)
 {
-  std::lock_guard<std::mutex> lock(condition_mutex_);
+  std::lock_guard<std::mutex> lock(update_condition_mutex_);
+  condition_mutex_ = condition_mutex;
   condition_ = condition_variable;
 }
 
 ///=============================================================================
 void rmw_client_data_t::detach_condition()
 {
-  std::lock_guard<std::mutex> lock(condition_mutex_);
+  std::lock_guard<std::mutex> lock(update_condition_mutex_);
+  condition_mutex_ = nullptr;
   condition_ = nullptr;
 }
 
