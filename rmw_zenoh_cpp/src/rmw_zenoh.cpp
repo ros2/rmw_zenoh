@@ -2812,6 +2812,7 @@ rmw_take_request(
 
   // Add this query to the map, so that rmw_send_response can quickly look it up later
   if (!service_data->add_to_query_map(
+      request_header->request_id.writer_guid,
       request_header->request_id.sequence_number, std::move(query)))
   {
     RMW_SET_ERROR_MSG("duplicate sequence number in the map");
