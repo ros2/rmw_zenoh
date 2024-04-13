@@ -63,7 +63,9 @@ size_t rmw_publisher_data_t::get_next_sequence_number()
 }
 
 ///=============================================================================
-void rmw_subscription_data_t::attach_condition(std::mutex * condition_mutex, std::condition_variable * condition_variable)
+void rmw_subscription_data_t::attach_condition(
+  std::mutex * condition_mutex,
+  std::condition_variable * condition_variable)
 {
   std::lock_guard<std::mutex> lock(update_condition_mutex_);
   condition_mutex_ = condition_mutex;
@@ -155,7 +157,9 @@ bool rmw_service_data_t::query_queue_is_empty() const
 }
 
 ///=============================================================================
-void rmw_service_data_t::attach_condition(std::mutex * condition_mutex, std::condition_variable * condition_variable)
+void rmw_service_data_t::attach_condition(
+  std::mutex * condition_mutex,
+  std::condition_variable * condition_variable)
 {
   std::lock_guard<std::mutex> lock(update_condition_mutex_);
   condition_mutex_ = condition_mutex;
@@ -238,7 +242,8 @@ bool rmw_service_data_t::add_to_query_map(
 
   std::lock_guard<std::mutex> lock(sequence_to_query_map_mutex_);
 
-  std::unordered_map<size_t, SequenceToQuery>::iterator it = sequence_to_query_map_.find(hash);
+  std::unordered_map<size_t, SequenceToQuery>::iterator it =
+    sequence_to_query_map_.find(hash);
 
   if (it == sequence_to_query_map_.end()) {
     SequenceToQuery stq;
@@ -254,7 +259,8 @@ bool rmw_service_data_t::add_to_query_map(
     }
   }
 
-  it->second.insert(std::make_pair(request_id.sequence_number, std::move(query)));
+  it->second.insert(
+    std::make_pair(request_id.sequence_number, std::move(query)));
 
   return true;
 }
@@ -333,7 +339,9 @@ bool rmw_client_data_t::reply_queue_is_empty() const
 }
 
 ///=============================================================================
-void rmw_client_data_t::attach_condition(std::mutex * condition_mutex, std::condition_variable * condition_variable)
+void rmw_client_data_t::attach_condition(
+  std::mutex * condition_mutex,
+  std::condition_variable * condition_variable)
 {
   std::lock_guard<std::mutex> lock(update_condition_mutex_);
   condition_mutex_ = condition_mutex;
