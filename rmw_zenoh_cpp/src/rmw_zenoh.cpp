@@ -2811,9 +2811,7 @@ rmw_take_request(
   request_header->received_timestamp = now_ns.count();
 
   // Add this query to the map, so that rmw_send_response can quickly look it up later
-  if (!service_data->add_to_query_map(
-      request_header->request_id.writer_guid,
-      request_header->request_id.sequence_number, std::move(query)))
+  if (!service_data->add_to_query_map(request_header->request_id, std::move(query)))
   {
     RMW_SET_ERROR_MSG("duplicate sequence number in the map");
     return RMW_RET_ERROR;
@@ -2852,7 +2850,7 @@ rmw_send_response(
 
   // Create the queryable payload
   std::unique_ptr<ZenohQuery> query =
-    service_data->take_from_query_map(request_header->writer_guid, request_header->sequence_number);
+    service_data->take_from_query_map(*request_header);
   if (query == nullptr) {
     // If there is no data associated with this request, the higher layers of
     // ROS 2 seem to expect that we just silently return with no work.
