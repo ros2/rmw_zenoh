@@ -2811,7 +2811,9 @@ rmw_take_request(
   request_header->received_timestamp = now_ns.count();
 
   // Add this query to the map, so that rmw_send_response can quickly look it up later
-  if (!service_data->add_to_query_map(request_header->request_id, std::move(query))) {
+  if (!service_data->add_to_query_map(
+      request_header->request_id.sequence_number, std::move(query)))
+  {
     RMW_SET_ERROR_MSG("duplicate sequence number in the map");
     return RMW_RET_ERROR;
   }
@@ -2847,15 +2849,6 @@ rmw_send_response(
 
   rmw_service_data_t * service_data = static_cast<rmw_service_data_t *>(service->data);
 
-  // Create the queryable payload
-  std::unique_ptr<ZenohQuery> query =
-    service_data->take_from_query_map(*request_header);
-  if (query == nullptr) {
-    // If there is no data associated with this request, the higher layers of
-    // ROS 2 seem to expect that we just silently return with no work.
-    return RMW_RET_OK;
-  }
-
   rcutils_allocator_t * allocator = &(service_data->context->options.allocator);
 
   size_t max_data_length = (
@@ -2867,7 +2860,7 @@ rmw_send_response(
       max_data_length,
       allocator->state));
   if (!response_bytes) {
-    RMW_SET_ERROR_MSG("failed to allocate response message bytes");
+    RMW_SET_ERROR_MSG("failed allocate response message bytes");
     return RMW_RET_ERROR;
   }
   auto free_response_bytes = rcpputils::make_scope_exit(
@@ -2889,6 +2882,14 @@ rmw_send_response(
   }
 
   size_t data_length = ser.get_serialized_data_length();
+
+  // Create the queryable payload
+  std::unique_ptr<ZenohQuery> query =
+    service_data->take_from_query_map(request_header->sequence_number);
+  if (query == nullptr) {
+    RMW_SET_ERROR_MSG("Unable to find taken request. Report this bug.");
+    return RMW_RET_ERROR;
+  }
 
   const z_query_t loaned_query = query->get_query();
   z_query_reply_options_t options = z_query_reply_options_default();
@@ -3239,7 +3240,7 @@ rmw_wait(
         // rmw_guard_condition_t.  So we can directly cast it to GuardCondition.
         GuardCondition * gc = static_cast<GuardCondition *>(guard_conditions->guard_conditions[i]);
         if (gc != nullptr) {
-          gc->attach_condition(&wait_set_data->condition_mutex, &wait_set_data->condition_variable);
+          gc->attach_condition(&wait_set_data->condition_variable);
         }
       }
     }
@@ -3250,9 +3251,7 @@ rmw_wait(
       for (size_t i = 0; i < subscriptions->subscriber_count; ++i) {
         auto sub_data = static_cast<rmw_subscription_data_t *>(subscriptions->subscribers[i]);
         if (sub_data != nullptr) {
-          sub_data->attach_condition(
-            &wait_set_data->condition_mutex,
-            &wait_set_data->condition_variable);
+          sub_data->attach_condition(&wait_set_data->condition_variable);
         }
       }
     }
@@ -3263,9 +3262,7 @@ rmw_wait(
       for (size_t i = 0; i < services->service_count; ++i) {
         auto serv_data = static_cast<rmw_service_data_t *>(services->services[i]);
         if (serv_data != nullptr) {
-          serv_data->attach_condition(
-            &wait_set_data->condition_mutex,
-            &wait_set_data->condition_variable);
+          serv_data->attach_condition(&wait_set_data->condition_variable);
         }
       }
     }
@@ -3276,9 +3273,7 @@ rmw_wait(
       for (size_t i = 0; i < clients->client_count; ++i) {
         rmw_client_data_t * client_data = static_cast<rmw_client_data_t *>(clients->clients[i]);
         if (client_data != nullptr) {
-          client_data->attach_condition(
-            &wait_set_data->condition_mutex,
-            &wait_set_data->condition_variable);
+          client_data->attach_condition(&wait_set_data->condition_variable);
         }
       }
     }
@@ -3292,7 +3287,6 @@ rmw_wait(
           if (zenoh_event_it != event_map.end()) {
             event_data->attach_event_condition(
               zenoh_event_it->second,
-              &wait_set_data->condition_mutex,
               &wait_set_data->condition_variable);
           }
         }
@@ -3301,24 +3295,16 @@ rmw_wait(
 
     std::unique_lock<std::mutex> lock(wait_set_data->condition_mutex);
 
-    // We have to check the triggered condition *again* under the lock so we
-    // don't miss notifications.
-    skip_wait = has_triggered_condition(
-      subscriptions, guard_conditions, services, clients, events);
-
-    if (!skip_wait) {
-      // According to the RMW documentation, if wait_timeout is NULL that means
-      // "wait forever", if it specified by 0 it means "never wait", and if it is anything else wait
-      // for that amount of time.
-      if (wait_timeout == nullptr) {
-        wait_set_data->condition_variable.wait(lock);
-      } else {
-        if (wait_timeout->sec != 0 || wait_timeout->nsec != 0) {
-          std::cv_status wait_status = wait_set_data->condition_variable.wait_for(
-            lock,
-            std::chrono::nanoseconds(wait_timeout->nsec + RCUTILS_S_TO_NS(wait_timeout->sec)));
-          wait_result = wait_status == std::cv_status::no_timeout;
-        }
+    // According to the RMW documentation, if wait_timeout is NULL that means
+    // "wait forever", if it specified by 0 it means "never wait", and if it is anything else wait
+    // for that amount of time.
+    if (wait_timeout == nullptr) {
+      wait_set_data->condition_variable.wait(lock);
+    } else {
+      if (wait_timeout->sec != 0 || wait_timeout->nsec != 0) {
+        std::cv_status wait_status = wait_set_data->condition_variable.wait_for(
+          lock, std::chrono::nanoseconds(wait_timeout->nsec + RCUTILS_S_TO_NS(wait_timeout->sec)));
+        wait_result = wait_status == std::cv_status::no_timeout;
       }
     }
   }
@@ -3431,7 +3417,7 @@ rmw_get_node_names(
 }
 
 //==============================================================================
-/// Return the name, namespace, and enclave name of all nodes in the ROS graph.
+/// Return the name, namespae, and enclave name of all nodes in the ROS graph.
 rmw_ret_t
 rmw_get_node_names_with_enclaves(
   const rmw_node_t * node,
