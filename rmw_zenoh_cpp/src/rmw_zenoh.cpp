@@ -2811,8 +2811,7 @@ rmw_take_request(
   request_header->received_timestamp = now_ns.count();
 
   // Add this query to the map, so that rmw_send_response can quickly look it up later
-  if (!service_data->add_to_query_map(request_header->request_id, std::move(query)))
-  {
+  if (!service_data->add_to_query_map(request_header->request_id, std::move(query))) {
     RMW_SET_ERROR_MSG("duplicate sequence number in the map");
     return RMW_RET_ERROR;
   }
