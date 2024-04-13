@@ -33,14 +33,18 @@ void GuardCondition::trigger()
   has_triggered_ = true;
 
   if (condition_variable_ != nullptr) {
+    std::lock_guard<std::mutex> cvlk(*condition_mutex_);
     condition_variable_->notify_one();
   }
 }
 
 ///==============================================================================
-void GuardCondition::attach_condition(std::condition_variable * condition_variable)
+void GuardCondition::attach_condition(
+  std::mutex * condition_mutex,
+  std::condition_variable * condition_variable)
 {
   std::lock_guard<std::mutex> lock(internal_mutex_);
+  condition_mutex_ = condition_mutex;
   condition_variable_ = condition_variable;
 }
 
@@ -48,6 +52,7 @@ void GuardCondition::attach_condition(std::condition_variable * condition_variab
 void GuardCondition::detach_condition()
 {
   std::lock_guard<std::mutex> lock(internal_mutex_);
+  condition_mutex_ = nullptr;
   condition_variable_ = nullptr;
 }
 

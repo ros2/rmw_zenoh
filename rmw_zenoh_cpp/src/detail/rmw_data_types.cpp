@@ -19,6 +19,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <utility>
 
@@ -62,17 +63,23 @@ size_t rmw_publisher_data_t::get_next_sequence_number()
 }
 
 ///=============================================================================
-void rmw_subscription_data_t::attach_condition(std::condition_variable * condition_variable)
+void rmw_subscription_data_t::attach_condition(
+  std::mutex * condition_mutex,
+  std::condition_variable * condition_variable)
 {
-  std::lock_guard<std::mutex> lock(condition_mutex_);
+  std::lock_guard<std::mutex> lock(update_condition_mutex_);
+  condition_mutex_ = condition_mutex;
   condition_ = condition_variable;
 }
 
 ///=============================================================================
 void rmw_subscription_data_t::notify()
 {
-  std::lock_guard<std::mutex> lock(condition_mutex_);
+  std::lock_guard<std::mutex> lock(update_condition_mutex_);
   if (condition_ != nullptr) {
+    // We also need to take the mutex for the condition_variable; see the comment
+    // in rmw_wait for more information
+    std::lock_guard<std::mutex> cvlk(*condition_mutex_);
     condition_->notify_one();
   }
 }
@@ -80,7 +87,8 @@ void rmw_subscription_data_t::notify()
 ///=============================================================================
 void rmw_subscription_data_t::detach_condition()
 {
-  std::lock_guard<std::mutex> lock(condition_mutex_);
+  std::lock_guard<std::mutex> lock(update_condition_mutex_);
+  condition_mutex_ = nullptr;
   condition_ = nullptr;
 }
 
@@ -149,16 +157,20 @@ bool rmw_service_data_t::query_queue_is_empty() const
 }
 
 ///=============================================================================
-void rmw_service_data_t::attach_condition(std::condition_variable * condition_variable)
+void rmw_service_data_t::attach_condition(
+  std::mutex * condition_mutex,
+  std::condition_variable * condition_variable)
 {
-  std::lock_guard<std::mutex> lock(condition_mutex_);
+  std::lock_guard<std::mutex> lock(update_condition_mutex_);
+  condition_mutex_ = condition_mutex;
   condition_ = condition_variable;
 }
 
 ///=============================================================================
 void rmw_service_data_t::detach_condition()
 {
-  std::lock_guard<std::mutex> lock(condition_mutex_);
+  std::lock_guard<std::mutex> lock(update_condition_mutex_);
+  condition_mutex_ = nullptr;
   condition_ = nullptr;
 }
 
@@ -179,8 +191,11 @@ std::unique_ptr<ZenohQuery> rmw_service_data_t::pop_next_query()
 ///=============================================================================
 void rmw_service_data_t::notify()
 {
-  std::lock_guard<std::mutex> lock(condition_mutex_);
+  std::lock_guard<std::mutex> lock(update_condition_mutex_);
   if (condition_ != nullptr) {
+    // We also need to take the mutex for the condition_variable; see the comment
+    // in rmw_wait for more information
+    std::lock_guard<std::mutex> cvlk(*condition_mutex_);
     condition_->notify_one();
   }
 }
@@ -208,31 +223,74 @@ void rmw_service_data_t::add_new_query(std::unique_ptr<ZenohQuery> query)
   notify();
 }
 
+static size_t hash_gid(const rmw_request_id_t & request_id)
+{
+  std::stringstream hash_str;
+  hash_str << std::hex;
+  size_t i = 0;
+  for (; i < (RMW_GID_STORAGE_SIZE - 1); i++) {
+    hash_str << static_cast<int>(request_id.writer_guid[i]);
+  }
+  return std::hash<std::string>{}(hash_str.str());
+}
+
 ///=============================================================================
 bool rmw_service_data_t::add_to_query_map(
-  int64_t sequence_number, std::unique_ptr<ZenohQuery> query)
+  const rmw_request_id_t & request_id, std::unique_ptr<ZenohQuery> query)
 {
+  size_t hash = hash_gid(request_id);
+
   std::lock_guard<std::mutex> lock(sequence_to_query_map_mutex_);
-  if (sequence_to_query_map_.find(sequence_number) != sequence_to_query_map_.end()) {
-    return false;
+
+  std::unordered_map<size_t, SequenceToQuery>::iterator it =
+    sequence_to_query_map_.find(hash);
+
+  if (it == sequence_to_query_map_.end()) {
+    SequenceToQuery stq;
+
+    sequence_to_query_map_.insert(std::make_pair(hash, std::move(stq)));
+
+    it = sequence_to_query_map_.find(hash);
+  } else {
+    // Client already in the map
+
+    if (it->second.find(request_id.sequence_number) != it->second.end()) {
+      return false;
+    }
   }
-  sequence_to_query_map_.emplace(
-    std::pair(sequence_number, std::move(query)));
+
+  it->second.insert(
+    std::make_pair(request_id.sequence_number, std::move(query)));
 
   return true;
 }
 
 ///=============================================================================
-std::unique_ptr<ZenohQuery> rmw_service_data_t::take_from_query_map(int64_t sequence_number)
+std::unique_ptr<ZenohQuery> rmw_service_data_t::take_from_query_map(
+  const rmw_request_id_t & request_id)
 {
+  size_t hash = hash_gid(request_id);
+
   std::lock_guard<std::mutex> lock(sequence_to_query_map_mutex_);
-  auto query_it = sequence_to_query_map_.find(sequence_number);
-  if (query_it == sequence_to_query_map_.end()) {
+
+  std::unordered_map<size_t, SequenceToQuery>::iterator it = sequence_to_query_map_.find(hash);
+
+  if (it == sequence_to_query_map_.end()) {
+    return nullptr;
+  }
+
+  SequenceToQuery::iterator query_it = it->second.find(request_id.sequence_number);
+
+  if (query_it == it->second.end()) {
     return nullptr;
   }
 
   std::unique_ptr<ZenohQuery> query = std::move(query_it->second);
-  sequence_to_query_map_.erase(query_it);
+  it->second.erase(query_it);
+
+  if (sequence_to_query_map_[hash].size() == 0) {
+    sequence_to_query_map_.erase(hash);
+  }
 
   return query;
 }
@@ -240,8 +298,11 @@ std::unique_ptr<ZenohQuery> rmw_service_data_t::take_from_query_map(int64_t sequ
 ///=============================================================================
 void rmw_client_data_t::notify()
 {
-  std::lock_guard<std::mutex> lock(condition_mutex_);
+  std::lock_guard<std::mutex> lock(update_condition_mutex_);
   if (condition_ != nullptr) {
+    // We also need to take the mutex for the condition_variable; see the comment
+    // in rmw_wait for more information
+    std::lock_guard<std::mutex> cvlk(*condition_mutex_);
     condition_->notify_one();
   }
 }
@@ -278,16 +339,20 @@ bool rmw_client_data_t::reply_queue_is_empty() const
 }
 
 ///=============================================================================
-void rmw_client_data_t::attach_condition(std::condition_variable * condition_variable)
+void rmw_client_data_t::attach_condition(
+  std::mutex * condition_mutex,
+  std::condition_variable * condition_variable)
 {
-  std::lock_guard<std::mutex> lock(condition_mutex_);
+  std::lock_guard<std::mutex> lock(update_condition_mutex_);
+  condition_mutex_ = condition_mutex;
   condition_ = condition_variable;
 }
 
 ///=============================================================================
 void rmw_client_data_t::detach_condition()
 {
-  std::lock_guard<std::mutex> lock(condition_mutex_);
+  std::lock_guard<std::mutex> lock(update_condition_mutex_);
+  condition_mutex_ = nullptr;
   condition_ = nullptr;
 }
 
