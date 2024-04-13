@@ -19,6 +19,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <utility>
 
@@ -208,21 +209,22 @@ void rmw_service_data_t::add_new_query(std::unique_ptr<ZenohQuery> query)
   notify();
 }
 
-static size_t hash_gid(uint8_t client_gid[RMW_GID_STORAGE_SIZE])
+static size_t hash_gid(const rmw_request_id_t & request_id)
 {
-  size_t h = 0;
-
-  for (size_t i = 0; i < RMW_GID_STORAGE_SIZE; ++i) {
-    h ^= std::hash<uint8_t>{}(client_gid[i])  + 0x9e3779b9 + (h << 6) + (h >> 2);
+  std::stringstream hash_str;
+  hash_str << std::hex;
+  size_t i = 0;
+  for (; i < (RMW_GID_STORAGE_SIZE - 1); i++) {
+    hash_str << static_cast<int>(request_id.writer_guid[i]);
   }
-  return h;
+  return std::hash<std::string>{}(hash_str.str());
 }
 
 ///=============================================================================
 bool rmw_service_data_t::add_to_query_map(
-  uint8_t client_gid[RMW_GID_STORAGE_SIZE], int64_t sequence_number, std::unique_ptr<ZenohQuery> query)
+  const rmw_request_id_t & request_id, std::unique_ptr<ZenohQuery> query)
 {
-  size_t hash = hash_gid(client_gid);
+  size_t hash = hash_gid(request_id);
 
   std::lock_guard<std::mutex> lock(sequence_to_query_map_mutex_);
 
@@ -237,20 +239,21 @@ bool rmw_service_data_t::add_to_query_map(
   } else {
     // Client already in the map
 
-    if (it->second.find(sequence_number) != it->second.end()) {
+    if (it->second.find(request_id.sequence_number) != it->second.end()) {
       return false;
     }
   }
 
-  it->second.insert(std::make_pair(sequence_number, std::move(query)));
+  it->second.insert(std::make_pair(request_id.sequence_number, std::move(query)));
 
   return true;
 }
 
 ///=============================================================================
-std::unique_ptr<ZenohQuery> rmw_service_data_t::take_from_query_map(uint8_t client_gid[RMW_GID_STORAGE_SIZE], int64_t sequence_number)
+std::unique_ptr<ZenohQuery> rmw_service_data_t::take_from_query_map(
+  const rmw_request_id_t & request_id)
 {
-  size_t hash = hash_gid(client_gid);
+  size_t hash = hash_gid(request_id);
 
   std::lock_guard<std::mutex> lock(sequence_to_query_map_mutex_);
 
@@ -260,7 +263,7 @@ std::unique_ptr<ZenohQuery> rmw_service_data_t::take_from_query_map(uint8_t clie
     return nullptr;
   }
 
-  SequenceToQuery::iterator query_it = it->second.find(sequence_number);
+  SequenceToQuery::iterator query_it = it->second.find(request_id.sequence_number);
 
   if (query_it == it->second.end()) {
     return nullptr;

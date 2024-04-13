@@ -251,9 +251,9 @@ public:
 
   void add_new_query(std::unique_ptr<ZenohQuery> query);
 
-  bool add_to_query_map(uint8_t client_gid[RMW_GID_STORAGE_SIZE], int64_t sequence_number, std::unique_ptr<ZenohQuery> query);
+  bool add_to_query_map(const rmw_request_id_t & request_id, std::unique_ptr<ZenohQuery> query);
 
-  std::unique_ptr<ZenohQuery> take_from_query_map(uint8_t client_gid[RMW_GID_STORAGE_SIZE], int64_t sequence_number);
+  std::unique_ptr<ZenohQuery> take_from_query_map(const rmw_request_id_t & request_id);
 
   DataCallbackManager data_callback_mgr;
 
