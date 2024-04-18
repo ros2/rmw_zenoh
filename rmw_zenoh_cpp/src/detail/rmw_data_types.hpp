@@ -24,6 +24,7 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -172,7 +173,7 @@ public:
   MessageTypeSupport * type_support;
   rmw_context_t * context;
 
-  void attach_condition(std::mutex * condition_mutex, std::condition_variable * condition_variable);
+  void attach_condition(std::condition_variable * condition_variable);
 
   void detach_condition();
 
@@ -191,9 +192,8 @@ private:
 
   void notify();
 
-  std::mutex * condition_mutex_{nullptr};
   std::condition_variable * condition_{nullptr};
-  std::mutex update_condition_mutex_;
+  std::mutex condition_mutex_;
 };
 
 
@@ -244,7 +244,7 @@ public:
 
   bool query_queue_is_empty() const;
 
-  void attach_condition(std::mutex * condition_mutex, std::condition_variable * condition_variable);
+  void attach_condition(std::condition_variable * condition_variable);
 
   void detach_condition();
 
@@ -252,9 +252,9 @@ public:
 
   void add_new_query(std::unique_ptr<ZenohQuery> query);
 
-  bool add_to_query_map(const rmw_request_id_t & request_id, std::unique_ptr<ZenohQuery> query);
+  bool add_to_query_map(int64_t sequence_number, std::unique_ptr<ZenohQuery> query);
 
-  std::unique_ptr<ZenohQuery> take_from_query_map(const rmw_request_id_t & request_id);
+  std::unique_ptr<ZenohQuery> take_from_query_map(int64_t sequence_number);
 
   DataCallbackManager data_callback_mgr;
 
@@ -265,14 +265,12 @@ private:
   std::deque<std::unique_ptr<ZenohQuery>> query_queue_;
   mutable std::mutex query_queue_mutex_;
 
-  // Map to store the sequence_number (as given by the client) -> ZenohQuery
-  using SequenceToQuery = std::unordered_map<int64_t, std::unique_ptr<ZenohQuery>>;
-  std::unordered_map<size_t, SequenceToQuery> sequence_to_query_map_;
+  // Map to store the sequence_number -> query_id
+  std::unordered_map<int64_t, std::unique_ptr<ZenohQuery>> sequence_to_query_map_;
   std::mutex sequence_to_query_map_mutex_;
 
-  std::mutex * condition_mutex_{nullptr};
   std::condition_variable * condition_{nullptr};
-  std::mutex update_condition_mutex_;
+  std::mutex condition_mutex_;
 };
 
 ///=============================================================================
@@ -322,7 +320,7 @@ public:
 
   bool reply_queue_is_empty() const;
 
-  void attach_condition(std::mutex * condition_mutex, std::condition_variable * condition_variable);
+  void attach_condition(std::condition_variable * condition_variable);
 
   void detach_condition();
 
@@ -336,9 +334,8 @@ private:
   size_t sequence_number_{1};
   std::mutex sequence_number_mutex_;
 
-  std::mutex * condition_mutex_{nullptr};
   std::condition_variable * condition_{nullptr};
-  std::mutex update_condition_mutex_;
+  std::mutex condition_mutex_;
 
   std::deque<std::unique_ptr<ZenohReply>> reply_queue_;
   mutable std::mutex reply_queue_mutex_;
