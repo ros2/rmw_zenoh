@@ -81,7 +81,8 @@ namespace
 // careful about who owns the string.
 z_owned_keyexpr_t ros_topic_name_to_zenoh_key(const char * const topic_name, size_t domain_id)
 {
-  const std::string keyexpr_str = std::to_string(domain_id) + "/" + liveliness::mangle_name(topic_name);
+  const std::string keyexpr_str = std::to_string(domain_id) + "/" + liveliness::mangle_name(
+    topic_name);
   return z_keyexpr_new(keyexpr_str.c_str());
 }
 
