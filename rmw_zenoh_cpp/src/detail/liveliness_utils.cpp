@@ -319,8 +319,8 @@ std::shared_ptr<Entity> Entity::make(
   return std::make_shared<Entity>(
     Entity{
       zid_to_str(zid),
-      std::move(nid),
-      std::move(id),
+      nid,
+      id,
       std::move(type),
       std::move(node_info),
       std::move(topic_info)});
