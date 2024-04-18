@@ -39,7 +39,9 @@ void GuardCondition::trigger()
 }
 
 ///==============================================================================
-void GuardCondition::attach_condition(std::mutex * condition_mutex, std::condition_variable * condition_variable)
+void GuardCondition::attach_condition(
+  std::mutex * condition_mutex,
+  std::condition_variable * condition_variable)
 {
   std::lock_guard<std::mutex> lock(internal_mutex_);
   condition_mutex_ = condition_mutex;
