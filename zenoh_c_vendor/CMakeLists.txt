@@ -28,7 +28,7 @@ set(ZENOHC_CARGO_FLAGS "--no-default-features$<SEMICOLON>--features=zenoh/transp
 # which was synced to zenoh-c in https://github.com/eclipse-zenoh/zenoh-c/pull/307.
 ament_vendor(zenoh_c_vendor
   VCS_URL https://github.com/eclipse-zenoh/zenoh-c.git
-  VCS_VERSION c1498fcaf08d3dad15e49b1ac15cd380c0dc175c
+  VCS_VERSION 68ab0c1faa2c3521680352778e618d95f15e2e95
   CMAKE_ARGS
     "-DZENOHC_CARGO_FLAGS=${ZENOHC_CARGO_FLAGS}"
 )
