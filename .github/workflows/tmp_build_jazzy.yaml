@@ -1,4 +1,4 @@
-name: build_noble
+name: build_jazzy
 on:
   pull_request:
   push:
@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        docker_image: ['ubuntu:noble-20240225']
+        docker_image: ['ubuntu:24.04']
     container:
       image: ${{ matrix.docker_image }}
     timeout-minutes: 30
@@ -21,9 +21,9 @@ jobs:
       run: |
         apt update && apt install curl -y
         curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
-        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2-testing/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null
         apt update && apt install ros-dev-tools -y
-        apt install ros-rolling-ros-base -y
+        apt install ros-jazzy-ros-base -y
     - uses: actions/checkout@v2
     - name: rosdep
       run: |
