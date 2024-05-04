@@ -25,7 +25,8 @@
 #include "rmw/event.h"
 #include "rmw/event_callback_type.h"
 
-
+namespace rmw_zenoh_cpp
+{
 ///=============================================================================
 // A struct that represents an event status in rmw_zenoh.
 enum rmw_zenoh_event_type_t
@@ -170,5 +171,6 @@ private:
   std::deque<std::unique_ptr<rmw_zenoh_event_status_t>> event_queues_[ZENOH_EVENT_ID_MAX + 1] {};
   const std::size_t event_queue_depth_ = 10;
 };
+}  // namespace rmw_zenoh_cpp
 
 #endif  // DETAIL__EVENT_HPP_

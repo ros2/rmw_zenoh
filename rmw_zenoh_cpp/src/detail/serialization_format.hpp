@@ -15,6 +15,9 @@
 #ifndef DETAIL__SERIALIZATION_FORMAT_HPP_
 #define DETAIL__SERIALIZATION_FORMAT_HPP_
 
+namespace rmw_zenoh_cpp
+{
 extern inline const char * const rmw_zenoh_serialization_format = "cdr";
+}  // namespace rmw_zenoh_cpp
 
 #endif  // DETAIL__SERIALIZATION_FORMAT_HPP_

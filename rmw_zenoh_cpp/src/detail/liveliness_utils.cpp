@@ -28,10 +28,10 @@
 
 #include "rmw/error_handling.h"
 
-
+namespace rmw_zenoh_cpp
+{
 namespace liveliness
 {
-
 ///=============================================================================
 NodeInfo::NodeInfo(
   std::size_t domain_id,
@@ -499,5 +499,5 @@ std::string demangle_name(const std::string & input)
   }
   return output;
 }
-
 }  // namespace liveliness
+}  // namespace rmw_zenoh_cpp

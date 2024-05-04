@@ -25,7 +25,7 @@
 
 extern "C"
 {
-///==============================================================================
+///=============================================================================
 /// Initialize a rmw publisher event
 rmw_ret_t
 rmw_publisher_event_init(
@@ -42,7 +42,7 @@ rmw_publisher_event_init(
   RMW_CHECK_ARGUMENT_FOR_NULL(pub_data->context, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(pub_data->entity, RMW_RET_INVALID_ARGUMENT);
 
-  if (publisher->implementation_identifier != rmw_zenoh_identifier) {
+  if (publisher->implementation_identifier != rmw_zenoh_cpp::rmw_zenoh_identifier) {
     RMW_SET_ERROR_MSG("Publisher implementation identifier not from this implementation");
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION;
   }
@@ -77,7 +77,7 @@ rmw_publisher_event_init(
   return RMW_RET_OK;
 }
 
-///==============================================================================
+///=============================================================================
 /// Take an event from the event handle.
 rmw_ret_t
 rmw_subscription_event_init(
@@ -94,7 +94,7 @@ rmw_subscription_event_init(
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data->context, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data->entity, RMW_RET_INVALID_ARGUMENT);
 
-  if (subscription->implementation_identifier != rmw_zenoh_identifier) {
+  if (subscription->implementation_identifier != rmw_zenoh_cpp::rmw_zenoh_identifier) {
     RMW_SET_ERROR_MSG(
       "Subscription implementation identifier not from this implementation");
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION;
@@ -165,7 +165,7 @@ rmw_event_set_callback(
   return RMW_RET_OK;
 }
 
-///==============================================================================
+///=============================================================================
 rmw_ret_t
 rmw_take_event(
   const rmw_event_t * event_handle,
@@ -178,7 +178,7 @@ rmw_take_event(
 
   *taken = false;
 
-  if (event_handle->implementation_identifier != rmw_zenoh_identifier) {
+  if (event_handle->implementation_identifier != rmw_zenoh_cpp::rmw_zenoh_identifier) {
     RMW_SET_ERROR_MSG(
       "Event implementation identifier not from this implementation");
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION;

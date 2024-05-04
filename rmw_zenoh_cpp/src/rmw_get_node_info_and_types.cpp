@@ -24,7 +24,7 @@
 
 extern "C"
 {
-///==============================================================================
+///=============================================================================
 // Return all topic names and types for which a given remote node has subscriptions.
 rmw_ret_t
 rmw_get_subscriber_names_and_types_by_node(
@@ -39,7 +39,7 @@ rmw_get_subscriber_names_and_types_by_node(
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node,
     node->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
@@ -52,7 +52,7 @@ rmw_get_subscriber_names_and_types_by_node(
     topic_names_and_types);
 }
 
-///==============================================================================
+///=============================================================================
 /// Return all topic names and types for which a given remote node has publishers.
 rmw_ret_t
 rmw_get_publisher_names_and_types_by_node(
@@ -67,7 +67,7 @@ rmw_get_publisher_names_and_types_by_node(
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node,
     node->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
@@ -80,7 +80,7 @@ rmw_get_publisher_names_and_types_by_node(
     topic_names_and_types);
 }
 
-///==============================================================================
+///=============================================================================
 /// Return all service names and types for which a given remote node has servers.
 rmw_ret_t
 rmw_get_service_names_and_types_by_node(
@@ -94,7 +94,7 @@ rmw_get_service_names_and_types_by_node(
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node,
     node->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
@@ -107,7 +107,7 @@ rmw_get_service_names_and_types_by_node(
     service_names_and_types);
 }
 
-///==============================================================================
+///=============================================================================
 /// Return all service names and types for which a given remote node has clients.
 rmw_ret_t
 rmw_get_client_names_and_types_by_node(
@@ -121,7 +121,7 @@ rmw_get_client_names_and_types_by_node(
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node,
     node->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);

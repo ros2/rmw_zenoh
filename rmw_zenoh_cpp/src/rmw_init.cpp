@@ -91,7 +91,7 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     options,
     options->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_FOR_NULL_WITH_MSG(
     options->enclave,
@@ -106,7 +106,7 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
     [context]() {*context = rmw_get_zero_initialized_context();});
 
   context->instance_id = options->instance_id;
-  context->implementation_identifier = rmw_zenoh_identifier;
+  context->implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
   // No custom handling of RMW_DEFAULT_DOMAIN_ID. Simply use a reasonable domain id.
   context->actual_domain_id =
     RMW_DEFAULT_DOMAIN_ID != options->domain_id ? options->domain_id : 0u;
@@ -240,7 +240,7 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
       allocator->deallocate(context->impl->graph_guard_condition, allocator->state);
     });
 
-  context->impl->graph_guard_condition->implementation_identifier = rmw_zenoh_identifier;
+  context->impl->graph_guard_condition->implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
 
   context->impl->graph_guard_condition->data =
     allocator->zero_allocate(1, sizeof(GuardCondition), allocator->state);
@@ -364,7 +364,7 @@ rmw_shutdown(rmw_context_t * context)
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     context,
     context->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   z_undeclare_subscriber(z_move(context->impl->graph_subscriber));
@@ -395,7 +395,7 @@ rmw_context_fini(rmw_context_t * context)
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     context,
     context->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   if (!context->impl->is_shutdown) {
     RCUTILS_SET_ERROR_MSG("context has not been shutdown");

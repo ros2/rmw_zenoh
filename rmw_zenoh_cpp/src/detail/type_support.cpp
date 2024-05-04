@@ -24,6 +24,9 @@
 
 #include "type_support.hpp"
 
+namespace rmw_zenoh_cpp
+{
+///=============================================================================
 TypeSupport::TypeSupport()
 : max_size_bound_(false), is_plain_(false), type_size_(0) {}
 
@@ -66,6 +69,7 @@ void TypeSupport::set_members(const message_type_support_callbacks_t * members)
   type_size_ = (type_size_ + 3) & ~3;
 }
 
+///=============================================================================
 size_t TypeSupport::get_estimated_serialized_size(const void * ros_message, const void * impl) const
 {
   if (is_plain_) {
@@ -81,6 +85,7 @@ size_t TypeSupport::get_estimated_serialized_size(const void * ros_message, cons
   return 4 + callbacks->get_serialized_size(ros_message);
 }
 
+///=============================================================================
 bool TypeSupport::serialize_ros_message(
   const void * ros_message,
   eprosima::fastcdr::Cdr & ser,
@@ -103,6 +108,7 @@ bool TypeSupport::serialize_ros_message(
   return true;
 }
 
+///=============================================================================
 bool TypeSupport::deserialize_ros_message(
   eprosima::fastcdr::Cdr & deser,
   void * ros_message,
@@ -134,3 +140,4 @@ bool TypeSupport::deserialize_ros_message(
 
   return true;
 }
+}  // namespace rmw_zenoh_cpp

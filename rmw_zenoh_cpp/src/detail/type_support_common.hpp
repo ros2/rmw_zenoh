@@ -28,6 +28,10 @@
 #define RMW_ZENOH_CPP_TYPESUPPORT_C rosidl_typesupport_fastrtps_c__identifier
 #define RMW_ZENOH_CPP_TYPESUPPORT_CPP rosidl_typesupport_fastrtps_cpp::typesupport_identifier
 
+namespace rmw_zenoh_cpp
+{
+///=============================================================================
 std::string _create_type_name(const message_type_support_callbacks_t * members);
+}  // namespace rmw_zenoh_cpp
 
 #endif  // DETAIL__TYPE_SUPPORT_COMMON_HPP_

@@ -19,7 +19,7 @@
 
 extern "C"
 {
-///==============================================================================
+///=============================================================================
 /// Get network flow endpoints of a publisher
 rmw_ret_t
 rmw_publisher_get_network_flow_endpoints(
@@ -33,7 +33,7 @@ rmw_publisher_get_network_flow_endpoints(
   return RMW_RET_UNSUPPORTED;
 }
 
-///==============================================================================
+///=============================================================================
 /// Get network flow endpoints of a subscription
 rmw_ret_t
 rmw_subscription_get_network_flow_endpoints(

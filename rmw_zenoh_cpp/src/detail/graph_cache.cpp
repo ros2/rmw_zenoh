@@ -36,6 +36,8 @@
 #include "graph_cache.hpp"
 #include "rmw_data_types.hpp"
 
+namespace rmw_zenoh_cpp
+{
 ///=============================================================================
 using Entity = liveliness::Entity;
 using ConstEntityPtr = liveliness::ConstEntityPtr;
@@ -1297,3 +1299,4 @@ std::unique_ptr<rmw_zenoh_event_status_t> GraphCache::take_event_status(
   status_to_take.current_count_change = 0;
   return result;
 }
+}  // namespace rmw_zenoh_cpp

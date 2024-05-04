@@ -22,23 +22,28 @@
 #include "rosidl_typesupport_fastrtps_cpp/service_type_support.h"
 #include "type_support.hpp"
 
-///==============================================================================
+namespace rmw_zenoh_cpp
+{
+///=============================================================================
 class ServiceTypeSupport : public TypeSupport
 {
 protected:
   ServiceTypeSupport();
 };
 
+///=============================================================================
 class RequestTypeSupport final : public ServiceTypeSupport
 {
 public:
   explicit RequestTypeSupport(const service_type_support_callbacks_t * members);
 };
 
+///=============================================================================
 class ResponseTypeSupport final : public ServiceTypeSupport
 {
 public:
   explicit ResponseTypeSupport(const service_type_support_callbacks_t * members);
 };
+}  // namespace rmw_zenoh_cpp
 
 #endif  // DETAIL__SERVICE_TYPE_SUPPORT_HPP_

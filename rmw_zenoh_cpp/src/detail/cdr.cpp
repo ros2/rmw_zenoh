@@ -18,7 +18,9 @@
 
 #include "cdr.hpp"
 
-rmw_zenoh_cpp::Cdr::Cdr(eprosima::fastcdr::FastBuffer & fastbuffer)
+namespace rmw_zenoh_cpp
+{
+Cdr::Cdr(eprosima::fastcdr::FastBuffer & fastbuffer)
 #if FASTCDR_VERSION_MAJOR == 1
 : cdr_(fastbuffer, eprosima::fastcdr::Cdr::DEFAULT_ENDIAN, eprosima::fastcdr::Cdr::DDS_CDR)
 #else
@@ -27,7 +29,7 @@ rmw_zenoh_cpp::Cdr::Cdr(eprosima::fastcdr::FastBuffer & fastbuffer)
 {
 }
 
-size_t rmw_zenoh_cpp::Cdr::get_serialized_data_length() const
+size_t Cdr::get_serialized_data_length() const
 {
 #if FASTCDR_VERSION_MAJOR == 1
   return cdr_.getSerializedDataLength();
@@ -36,7 +38,8 @@ size_t rmw_zenoh_cpp::Cdr::get_serialized_data_length() const
 #endif
 }
 
-eprosima::fastcdr::Cdr & rmw_zenoh_cpp::Cdr::get_cdr()
+eprosima::fastcdr::Cdr & Cdr::get_cdr()
 {
   return cdr_;
 }
+}  // namespace rmw_zenoh_cpp

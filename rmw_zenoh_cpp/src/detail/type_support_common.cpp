@@ -25,6 +25,9 @@
 
 #include "type_support_common.hpp"
 
+namespace rmw_zenoh_cpp
+{
+///=============================================================================
 std::string
 _create_type_name(
   const message_type_support_callbacks_t * members)
@@ -44,3 +47,4 @@ _create_type_name(
 
   return ss.str();
 }
+}  // namespace rmw_zenoh_cpp

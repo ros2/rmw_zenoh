@@ -38,7 +38,8 @@
 #include "service_type_support.hpp"
 
 /// Structs for various type erased data fields.
-
+namespace rmw_zenoh_cpp
+{
 ///=============================================================================
 class rmw_context_impl_s final
 {
@@ -340,5 +341,6 @@ private:
   std::deque<std::unique_ptr<ZenohReply>> reply_queue_;
   mutable std::mutex reply_queue_mutex_;
 };
+}  // namespace rmw_zenoh_cpp
 
 #endif  // DETAIL__RMW_DATA_TYPES_HPP_

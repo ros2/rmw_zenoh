@@ -165,7 +165,7 @@ extern "C"
 const char *
 rmw_get_implementation_identifier(void)
 {
-  return rmw_zenoh_identifier;
+  return rmw_zenoh_cpp::rmw_zenoh_identifier;
 }
 
 //==============================================================================
@@ -205,7 +205,7 @@ rmw_create_node(
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     context,
     context->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return nullptr);
   RMW_CHECK_FOR_NULL_WITH_MSG(
     context->impl,
@@ -282,7 +282,7 @@ rmw_create_node(
       allocator->deallocate(node->data, allocator->state);
     });
 
-  node->implementation_identifier = rmw_zenoh_identifier;
+  node->implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
   node->context = context;
 
   // Initialize liveliness token for the node to advertise that a new node is in town.
@@ -336,7 +336,7 @@ rmw_destroy_node(rmw_node_t * node)
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node,
     node->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   // Undeclare liveliness token for the node to advertise that the node has ridden
@@ -363,7 +363,7 @@ rmw_node_get_graph_guard_condition(const rmw_node_t * node)
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node,
     node->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return nullptr);
 
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context, nullptr);
@@ -424,7 +424,7 @@ rmw_create_publisher(
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node,
     node->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return nullptr);
   RMW_CHECK_ARGUMENT_FOR_NULL(type_supports, nullptr);
   RMW_CHECK_ARGUMENT_FOR_NULL(topic_name, nullptr);
@@ -563,7 +563,7 @@ rmw_create_publisher(
 
   publisher_data->context = node->context;
   rmw_publisher->data = publisher_data;
-  rmw_publisher->implementation_identifier = rmw_zenoh_identifier;
+  rmw_publisher->implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
   rmw_publisher->options = *publisher_options;
   rmw_publisher->can_loan_messages = false;
 
@@ -691,12 +691,12 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node,
     node->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     publisher,
     publisher->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   rmw_ret_t ret = RMW_RET_OK;
@@ -850,7 +850,7 @@ rmw_publish(
     publisher, "publisher handle is null",
     return RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
-    publisher, publisher->implementation_identifier, rmw_zenoh_identifier,
+    publisher, publisher->implementation_identifier, rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_FOR_NULL_WITH_MSG(
     ros_message, "ros message handle is null",
@@ -991,7 +991,7 @@ rmw_publisher_count_matched_subscriptions(
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     publisher,
     publisher->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription_count, RMW_RET_INVALID_ARGUMENT);
 
@@ -1016,7 +1016,7 @@ rmw_publisher_get_actual_qos(
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     publisher,
     publisher->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_ARGUMENT_FOR_NULL(qos, RMW_RET_INVALID_ARGUMENT);
 
@@ -1040,7 +1040,7 @@ rmw_publish_serialized_message(
     publisher, "publisher handle is null",
     return RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
-    publisher, publisher->implementation_identifier, rmw_zenoh_identifier,
+    publisher, publisher->implementation_identifier, rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_FOR_NULL_WITH_MSG(
     serialized_message, "serialized message handle is null",
@@ -1228,7 +1228,7 @@ rmw_create_subscription(
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node,
     node->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return nullptr);
   RMW_CHECK_ARGUMENT_FOR_NULL(type_supports, nullptr);
   RMW_CHECK_ARGUMENT_FOR_NULL(topic_name, nullptr);
@@ -1347,7 +1347,7 @@ rmw_create_subscription(
 
   sub_data->context = node->context;
 
-  rmw_subscription->implementation_identifier = rmw_zenoh_identifier;
+  rmw_subscription->implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
 
   rmw_subscription->topic_name = rcutils_strdup(topic_name, *allocator);
   RMW_CHECK_FOR_NULL_WITH_MSG(
@@ -1498,12 +1498,12 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node,
     node->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     subscription,
     subscription->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   rmw_ret_t ret = RMW_RET_OK;
@@ -1554,7 +1554,7 @@ rmw_subscription_count_matched_publishers(
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     subscription,
     subscription->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_ARGUMENT_FOR_NULL(publisher_count, RMW_RET_INVALID_ARGUMENT);
 
@@ -1579,7 +1579,7 @@ rmw_subscription_get_actual_qos(
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     subscription,
     subscription->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_ARGUMENT_FOR_NULL(qos, RMW_RET_INVALID_ARGUMENT);
 
@@ -1630,7 +1630,7 @@ static rmw_ret_t __rmw_take(
   RMW_CHECK_ARGUMENT_FOR_NULL(message_info, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     subscription handle,
-    subscription->implementation_identifier, rmw_zenoh_identifier,
+    subscription->implementation_identifier, rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   *taken = false;
@@ -1673,7 +1673,7 @@ static rmw_ret_t __rmw_take(
   message_info->publication_sequence_number = msg_data->sequence_number;
   // TODO(clalancette): fill in reception_sequence_number
   message_info->reception_sequence_number = 0;
-  message_info->publisher_gid.implementation_identifier = rmw_zenoh_identifier;
+  message_info->publisher_gid.implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
   memcpy(message_info->publisher_gid.data, msg_data->publisher_gid, RMW_GID_STORAGE_SIZE);
   message_info->from_intra_process = false;
 
@@ -1745,7 +1745,7 @@ static rmw_ret_t __rmw_take_serialized(
   RMW_CHECK_ARGUMENT_FOR_NULL(message_info, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     subscription handle,
-    subscription->implementation_identifier, rmw_zenoh_identifier,
+    subscription->implementation_identifier, rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   *taken = false;
@@ -1784,7 +1784,7 @@ static rmw_ret_t __rmw_take_serialized(
   message_info->publication_sequence_number = msg_data->sequence_number;
   // TODO(clalancette): fill in reception_sequence_number
   message_info->reception_sequence_number = 0;
-  message_info->publisher_gid.implementation_identifier = rmw_zenoh_identifier;
+  message_info->publisher_gid.implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
   memcpy(message_info->publisher_gid.data, msg_data->publisher_gid, RMW_GID_STORAGE_SIZE);
   message_info->from_intra_process = false;
 
@@ -1882,7 +1882,7 @@ rmw_create_client(
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node,
     node->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return nullptr);
 
   RMW_CHECK_ARGUMENT_FOR_NULL(service_name, nullptr);
@@ -2048,7 +2048,7 @@ rmw_create_client(
     });
 
   // Populate the rmw_client.
-  rmw_client->implementation_identifier = rmw_zenoh_identifier;
+  rmw_client->implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
   rmw_client->service_name = rcutils_strdup(service_name, *allocator);
   RMW_CHECK_FOR_NULL_WITH_MSG(
     rmw_client->service_name,
@@ -2144,12 +2144,12 @@ rmw_destroy_client(rmw_node_t * node, rmw_client_t * client)
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node,
     node->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     client,
     client->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   rcutils_allocator_t * allocator = &node->context->options.allocator;
@@ -2197,7 +2197,7 @@ rmw_send_request(
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     client,
     client->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   rmw_client_data_t * client_data = static_cast<rmw_client_data_t *>(client->data);
@@ -2300,7 +2300,7 @@ rmw_take_response(
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     client,
     client->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_FOR_NULL_WITH_MSG(
     client->service_name, "client has no service name", RMW_RET_INVALID_ARGUMENT);
@@ -2378,7 +2378,7 @@ rmw_client_request_publisher_get_actual_qos(
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     client,
     client->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_ARGUMENT_FOR_NULL(qos, RMW_RET_INVALID_ARGUMENT);
 
@@ -2414,7 +2414,7 @@ rmw_create_service(
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node,
     node->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return nullptr);
   RMW_CHECK_ARGUMENT_FOR_NULL(type_supports, nullptr);
   RMW_CHECK_ARGUMENT_FOR_NULL(service_name, nullptr);
@@ -2571,7 +2571,7 @@ rmw_create_service(
     });
 
   // Populate the rmw_service.
-  rmw_service->implementation_identifier = rmw_zenoh_identifier;
+  rmw_service->implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
   rmw_service->service_name = rcutils_strdup(service_name, *allocator);
   RMW_CHECK_FOR_NULL_WITH_MSG(
     rmw_service->service_name,
@@ -2689,12 +2689,12 @@ rmw_destroy_service(rmw_node_t * node, rmw_service_t * service)
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node,
     node->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     service,
     service->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   rcutils_allocator_t * allocator = &node->context->options.allocator;
@@ -2746,7 +2746,7 @@ rmw_take_request(
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     service,
     service->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   RMW_CHECK_FOR_NULL_WITH_MSG(
@@ -2837,7 +2837,7 @@ rmw_send_response(
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     service,
     service->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   RMW_CHECK_FOR_NULL_WITH_MSG(
@@ -2925,7 +2925,7 @@ rmw_service_request_subscription_get_actual_qos(
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     service,
     service->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_ARGUMENT_FOR_NULL(qos, RMW_RET_INVALID_ARGUMENT);
 
@@ -2966,7 +2966,7 @@ rmw_create_guard_condition(rmw_context_t * context)
       allocator->deallocate(guard_condition, allocator->state);
     });
 
-  guard_condition->implementation_identifier = rmw_zenoh_identifier;
+  guard_condition->implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
   guard_condition->context = context;
 
   guard_condition->data = allocator->zero_allocate(1, sizeof(GuardCondition), allocator->state);
@@ -3019,7 +3019,7 @@ rmw_trigger_guard_condition(const rmw_guard_condition_t * guard_condition)
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     guard_condition,
     guard_condition->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   static_cast<GuardCondition *>(guard_condition->data)->trigger();
@@ -3038,7 +3038,7 @@ rmw_create_wait_set(rmw_context_t * context, size_t max_conditions)
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     context,
     context->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return nullptr);
 
   rcutils_allocator_t * allocator = &context->options.allocator;
@@ -3054,7 +3054,7 @@ rmw_create_wait_set(rmw_context_t * context, size_t max_conditions)
       allocator->deallocate(wait_set, allocator->state);
     });
 
-  wait_set->implementation_identifier = rmw_zenoh_identifier;
+  wait_set->implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
 
   wait_set->data = allocator->zero_allocate(1, sizeof(rmw_wait_set_data_t), allocator->state);
   RMW_CHECK_FOR_NULL_WITH_MSG(
@@ -3094,7 +3094,7 @@ rmw_destroy_wait_set(rmw_wait_set_t * wait_set)
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     wait_set,
     wait_set->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   auto wait_set_data = static_cast<rmw_wait_set_data_t *>(wait_set->data);
@@ -3200,7 +3200,7 @@ rmw_wait(
   RMW_CHECK_ARGUMENT_FOR_NULL(wait_set, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     wait set handle,
-    wait_set->implementation_identifier, rmw_zenoh_identifier,
+    wait_set->implementation_identifier, rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   auto wait_set_data = static_cast<rmw_wait_set_data_t *>(wait_set->data);
@@ -3450,7 +3450,7 @@ rmw_count_publishers(
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node,
     node->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_ARGUMENT_FOR_NULL(topic_name, RMW_RET_INVALID_ARGUMENT);
   int validation_result = RMW_TOPIC_VALID;
@@ -3480,7 +3480,7 @@ rmw_count_subscribers(
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node,
     node->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_ARGUMENT_FOR_NULL(topic_name, RMW_RET_INVALID_ARGUMENT);
   int validation_result = RMW_TOPIC_VALID;
@@ -3510,7 +3510,7 @@ rmw_count_clients(
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node,
     node->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_ARGUMENT_FOR_NULL(service_name, RMW_RET_INVALID_ARGUMENT);
   int validation_result = RMW_TOPIC_VALID;
@@ -3540,7 +3540,7 @@ rmw_count_services(
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node,
     node->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_ARGUMENT_FOR_NULL(service_name, RMW_RET_INVALID_ARGUMENT);
   int validation_result = RMW_TOPIC_VALID;
@@ -3568,7 +3568,7 @@ rmw_get_gid_for_publisher(const rmw_publisher_t * publisher, rmw_gid_t * gid)
 
   rmw_publisher_data_t * pub_data = static_cast<rmw_publisher_data_t *>(publisher->data);
 
-  gid->implementation_identifier = rmw_zenoh_identifier;
+  gid->implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
   memcpy(gid->data, pub_data->pub_gid, RMW_GID_STORAGE_SIZE);
 
   return RMW_RET_OK;
@@ -3584,7 +3584,7 @@ rmw_get_gid_for_client(const rmw_client_t * client, rmw_gid_t * gid)
 
   rmw_client_data_t * client_data = static_cast<rmw_client_data_t *>(client->data);
 
-  gid->implementation_identifier = rmw_zenoh_identifier;
+  gid->implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
   memcpy(gid->data, client_data->client_gid, RMW_GID_STORAGE_SIZE);
 
   return RMW_RET_OK;
@@ -3599,13 +3599,13 @@ rmw_compare_gids_equal(const rmw_gid_t * gid1, const rmw_gid_t * gid2, bool * re
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     gid1,
     gid1->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_ARGUMENT_FOR_NULL(gid2, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     gid2,
     gid2->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_ARGUMENT_FOR_NULL(result, RMW_RET_INVALID_ARGUMENT);
 
@@ -3626,7 +3626,7 @@ rmw_service_server_is_available(
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node,
     node->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_ARGUMENT_FOR_NULL(client, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(client->data, RMW_RET_INVALID_ARGUMENT);

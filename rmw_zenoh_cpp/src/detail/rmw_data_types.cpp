@@ -31,6 +31,8 @@
 #include "attachment_helpers.hpp"
 #include "rmw_data_types.hpp"
 
+namespace rmw_zenoh_cpp
+{
 ///=============================================================================
 size_t rmw_context_impl_s::get_next_entity_id()
 {
@@ -508,3 +510,4 @@ void client_data_handler(z_owned_reply_t * reply, void * data)
   // Since we took ownership of the reply, null it out here
   *reply = z_reply_null();
 }
+}  // namespace rmw_zenoh_cpp

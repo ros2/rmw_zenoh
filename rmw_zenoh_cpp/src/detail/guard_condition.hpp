@@ -20,7 +20,9 @@
 #include <condition_variable>
 #include <mutex>
 
-///==============================================================================
+namespace rmw_zenoh_cpp
+{
+///=============================================================================
 class GuardCondition final
 {
 public:
@@ -40,5 +42,6 @@ private:
   std::atomic_bool has_triggered_;
   std::condition_variable * condition_variable_;
 };
+}  // namespace rmw_zenoh_cpp
 
 #endif  // DETAIL__GUARD_CONDITION_HPP_

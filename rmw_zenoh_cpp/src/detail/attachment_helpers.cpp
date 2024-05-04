@@ -22,6 +22,8 @@
 
 #include "attachment_helpers.hpp"
 
+namespace rmw_zenoh_cpp
+{
 bool get_gid_from_attachment(
   const z_attachment_t * const attachment, uint8_t gid[RMW_GID_STORAGE_SIZE])
 {
@@ -91,3 +93,4 @@ int64_t get_int64_from_attachment(
 
   return num;
 }
+}  // namespace rmw_zenoh_cpp
