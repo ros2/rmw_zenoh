@@ -44,7 +44,7 @@ rmw_get_publishers_info_by_topic(
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
   return node->context->impl->graph_cache->get_entities_info_by_topic(
-    liveliness::EntityType::Publisher,
+    rmw_zenoh_cpp::liveliness::EntityType::Publisher,
     allocator,
     topic_name,
     no_mangle,
@@ -70,7 +70,7 @@ rmw_get_subscriptions_info_by_topic(
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
   return node->context->impl->graph_cache->get_entities_info_by_topic(
-    liveliness::EntityType::Subscription,
+    rmw_zenoh_cpp::liveliness::EntityType::Subscription,
     allocator,
     topic_name,
     no_mangle,

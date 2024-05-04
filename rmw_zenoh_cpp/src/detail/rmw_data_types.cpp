@@ -31,14 +31,14 @@
 #include "attachment_helpers.hpp"
 #include "rmw_data_types.hpp"
 
-namespace rmw_zenoh_cpp
-{
 ///=============================================================================
 size_t rmw_context_impl_s::get_next_entity_id()
 {
   return next_entity_id_++;
 }
 
+namespace rmw_zenoh_cpp
+{
 ///=============================================================================
 saved_msg_data::saved_msg_data(
   zc_owned_payload_t p,
@@ -104,7 +104,7 @@ std::unique_ptr<saved_msg_data> rmw_subscription_data_t::pop_next_message()
     return nullptr;
   }
 
-  std::unique_ptr<saved_msg_data> msg_data = std::move(message_queue_.front());
+  std::unique_ptr<rmw_zenoh_cpp::saved_msg_data> msg_data = std::move(message_queue_.front());
   message_queue_.pop_front();
 
   return msg_data;
@@ -291,7 +291,7 @@ void rmw_client_data_t::notify()
 }
 
 ///=============================================================================
-void rmw_client_data_t::add_new_reply(std::unique_ptr<ZenohReply> reply)
+void rmw_client_data_t::add_new_reply(std::unique_ptr<rmw_zenoh_cpp::ZenohReply> reply)
 {
   std::lock_guard<std::mutex> lock(reply_queue_mutex_);
   if (reply_queue_.size() >= adapted_qos_profile.depth) {
@@ -336,7 +336,7 @@ void rmw_client_data_t::detach_condition()
 }
 
 ///=============================================================================
-std::unique_ptr<ZenohReply> rmw_client_data_t::pop_next_reply()
+std::unique_ptr<rmw_zenoh_cpp::ZenohReply> rmw_client_data_t::pop_next_reply()
 {
   std::lock_guard<std::mutex> lock(reply_queue_mutex_);
 
@@ -344,7 +344,7 @@ std::unique_ptr<ZenohReply> rmw_client_data_t::pop_next_reply()
     return nullptr;
   }
 
-  std::unique_ptr<ZenohReply> latest_reply = std::move(reply_queue_.front());
+  std::unique_ptr<rmw_zenoh_cpp::ZenohReply> latest_reply = std::move(reply_queue_.front());
   reply_queue_.pop_front();
 
   return latest_reply;
@@ -361,7 +361,7 @@ void sub_data_handler(
       z_drop(z_move(keystr));
     });
 
-  auto sub_data = static_cast<rmw_subscription_data_t *>(data);
+  auto sub_data = static_cast<rmw_zenoh_cpp::rmw_subscription_data_t *>(data);
   if (sub_data == nullptr) {
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
@@ -431,7 +431,8 @@ void service_data_handler(const z_query_t * query, void * data)
       z_drop(z_move(keystr));
     });
 
-  rmw_service_data_t * service_data = static_cast<rmw_service_data_t *>(data);
+  rmw_zenoh_cpp::rmw_service_data_t * service_data =
+    static_cast<rmw_zenoh_cpp::rmw_service_data_t *>(data);
   if (service_data == nullptr) {
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
@@ -477,7 +478,7 @@ size_t rmw_client_data_t::get_next_sequence_number()
 //==============================================================================
 void client_data_handler(z_owned_reply_t * reply, void * data)
 {
-  auto client_data = static_cast<rmw_client_data_t *>(data);
+  auto client_data = static_cast<rmw_zenoh_cpp::rmw_client_data_t *>(data);
   if (client_data == nullptr) {
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
@@ -506,7 +507,7 @@ void client_data_handler(z_owned_reply_t * reply, void * data)
     return;
   }
 
-  client_data->add_new_reply(std::make_unique<ZenohReply>(reply));
+  client_data->add_new_reply(std::make_unique<rmw_zenoh_cpp::ZenohReply>(reply));
   // Since we took ownership of the reply, null it out here
   *reply = z_reply_null();
 }

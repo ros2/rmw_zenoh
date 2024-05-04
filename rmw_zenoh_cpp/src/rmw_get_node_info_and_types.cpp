@@ -44,7 +44,7 @@ rmw_get_subscriber_names_and_types_by_node(
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
   return node->context->impl->graph_cache->get_entity_names_and_types_by_node(
-    liveliness::EntityType::Subscription,
+    rmw_zenoh_cpp::liveliness::EntityType::Subscription,
     allocator,
     node_name,
     node_namespace,
@@ -72,7 +72,7 @@ rmw_get_publisher_names_and_types_by_node(
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
   return node->context->impl->graph_cache->get_entity_names_and_types_by_node(
-    liveliness::EntityType::Publisher,
+    rmw_zenoh_cpp::liveliness::EntityType::Publisher,
     allocator,
     node_name,
     node_namespace,
@@ -99,7 +99,7 @@ rmw_get_service_names_and_types_by_node(
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
   return node->context->impl->graph_cache->get_entity_names_and_types_by_node(
-    liveliness::EntityType::Service,
+    rmw_zenoh_cpp::liveliness::EntityType::Service,
     allocator,
     node_name,
     node_namespace,
@@ -126,7 +126,7 @@ rmw_get_client_names_and_types_by_node(
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
   return node->context->impl->graph_cache->get_entity_names_and_types_by_node(
-    liveliness::EntityType::Client,
+    rmw_zenoh_cpp::liveliness::EntityType::Client,
     allocator,
     node_name,
     node_namespace,

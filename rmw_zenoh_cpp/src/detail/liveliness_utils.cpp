@@ -318,12 +318,12 @@ std::shared_ptr<Entity> Entity::make(
 
   return std::make_shared<Entity>(
     Entity{
-      zid_to_str(zid),
-      nid,
-      id,
-      std::move(type),
-      std::move(node_info),
-      std::move(topic_info)});
+        zid_to_str(zid),
+        nid,
+        id,
+        std::move(type),
+        std::move(node_info),
+        std::move(topic_info)});
 }
 
 ///=============================================================================
@@ -399,12 +399,12 @@ std::shared_ptr<Entity> Entity::make(const std::string & keyexpr)
 
   return std::make_shared<Entity>(
     Entity{
-      std::move(zid),
-      std::move(nid),
-      std::move(id),
-      std::move(entity_type),
-      NodeInfo{std::move(domain_id), std::move(ns), std::move(node_name), ""},
-      std::move(topic_info)});
+        std::move(zid),
+        std::move(nid),
+        std::move(id),
+        std::move(entity_type),
+        NodeInfo{std::move(domain_id), std::move(ns), std::move(node_name), ""},
+        std::move(topic_info)});
 }
 
 ///=============================================================================
