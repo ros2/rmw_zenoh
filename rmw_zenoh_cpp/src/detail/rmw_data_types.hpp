@@ -191,6 +191,10 @@ private:
   std::deque<std::unique_ptr<saved_msg_data>> message_queue_;
   mutable std::mutex message_queue_mutex_;
 
+  // Map GID of a publisher to the sequence number of the message it published.
+  std::unordered_map<size_t, int64_t> last_known_published_msg_;
+  size_t total_messages_lost_{0};
+
   void notify();
 
   std::condition_variable * condition_{nullptr};

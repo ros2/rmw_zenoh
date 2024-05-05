@@ -158,12 +158,7 @@ private:
   mutable std::mutex event_condition_mutex_;
   /// Condition variable to attach for event notifications.
   std::condition_variable * event_conditions_[ZENOH_EVENT_ID_MAX + 1]{nullptr};
-  /// User callback that can be set via data_callback_mgr.set_callback().
-  rmw_event_callback_t callback_ {nullptr};
-  /// User data that should be passed to the user callback.
-  const void * user_data_ {nullptr};
-  /// Count for
-  size_t unread_count_ {0};
+
   rmw_event_callback_t event_callback_[ZENOH_EVENT_ID_MAX + 1] {nullptr};
   const void * event_data_[ZENOH_EVENT_ID_MAX + 1] {nullptr};
   size_t event_unread_count_[ZENOH_EVENT_ID_MAX + 1] {0};
