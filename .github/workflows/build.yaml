@@ -21,8 +21,6 @@ jobs:
     - name: Deps
       run: |
         apt update && apt install -y curl
-    - name: Setup Rust
-      uses: dtolnay/rust-toolchain@1.75.0
     - uses: actions/checkout@v2
     - name: rosdep
       run: |
