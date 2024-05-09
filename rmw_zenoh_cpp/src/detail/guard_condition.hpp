@@ -33,6 +33,8 @@ public:
 
   void detach_condition();
 
+  bool get_trigger() const;
+
   bool get_and_reset_trigger();
 
 private:

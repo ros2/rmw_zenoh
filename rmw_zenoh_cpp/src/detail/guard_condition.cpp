@@ -57,6 +57,13 @@ void GuardCondition::detach_condition()
 }
 
 ///==============================================================================
+bool GuardCondition::get_trigger() const
+{
+  std::lock_guard<std::mutex> lock(internal_mutex_);
+  return has_triggered_;
+}
+
+///==============================================================================
 bool GuardCondition::get_and_reset_trigger()
 {
   std::lock_guard<std::mutex> lock(internal_mutex_);
