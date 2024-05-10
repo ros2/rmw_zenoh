@@ -81,26 +81,9 @@ namespace
 // careful about who owns the string.
 z_owned_keyexpr_t ros_topic_name_to_zenoh_key(const char * const topic_name, size_t domain_id)
 {
-  std::string d = std::to_string(domain_id);
-
-  size_t start_offset = 0;
-  size_t topic_name_len = strlen(topic_name);
-  size_t end_offset = topic_name_len;
-
-  if (topic_name_len > 0) {
-    if (topic_name[0] == '/') {
-      // Strip the leading '/'
-      start_offset = 1;
-    }
-    if (topic_name[end_offset - 1] == '/') {
-      // Strip the trailing '/'
-      end_offset -= 1;
-    }
-  }
-
-  return z_keyexpr_join(
-    z_keyexpr(d.c_str()),
-    zc_keyexpr_from_slice(&topic_name[start_offset], end_offset - start_offset));
+  const std::string keyexpr_str = std::to_string(domain_id) + "/" + liveliness::mangle_name(
+    topic_name);
+  return z_keyexpr_new(keyexpr_str.c_str());
 }
 
 //==============================================================================
