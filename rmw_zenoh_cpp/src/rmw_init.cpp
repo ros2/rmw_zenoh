@@ -16,6 +16,7 @@
 
 #include <new>
 #include <string>
+#include <thread>
 
 #include "detail/guard_condition.hpp"
 #include "detail/identifier.hpp"
@@ -66,10 +67,10 @@ static void graph_sub_data_handler(
 
   switch (sample->kind) {
     case z_sample_kind_t::Z_SAMPLE_KIND_PUT:
-      context_impl->graph_cache.parse_put(keystr._cstr);
+      context_impl->graph_cache->parse_put(keystr._cstr);
       break;
     case z_sample_kind_t::Z_SAMPLE_KIND_DELETE:
-      context_impl->graph_cache.parse_del(keystr._cstr);
+      context_impl->graph_cache->parse_del(keystr._cstr);
       break;
     default:
       break;
@@ -171,23 +172,40 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
       z_close(z_move(context->impl->session));
     });
 
-  // Verify if the zenoh router is running.
-  if ((ret = zenoh_router_check(z_loan(context->impl->session))) != RMW_RET_OK) {
-    RMW_SET_ERROR_MSG("Error while checking for Zenoh router");
-    return ret;
+  /// Initialize the graph cache.
+  z_id_t zid = z_info_zid(z_loan(context->impl->session));
+  context->impl->graph_cache = std::make_unique<GraphCache>(zid);
+
+  // Verify if the zenoh router is running if configured.
+  const std::optional<uint64_t> configured_connection_attempts = zenoh_router_check_attempts();
+  if (configured_connection_attempts.has_value()) {
+    ret = RMW_RET_ERROR;
+    uint64_t connection_attempts = 0;
+    // Retry until the connection is successful.
+    while (ret != RMW_RET_OK && connection_attempts < configured_connection_attempts.value()) {
+      if ((ret = zenoh_router_check(z_loan(context->impl->session))) != RMW_RET_OK) {
+        ++connection_attempts;
+      }
+      std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+    if (ret != RMW_RET_OK) {
+      RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
+        "Unable to connect to a Zenoh router after %zu retries.",
+        configured_connection_attempts.value());
+      return ret;
+    }
   }
 
   // Initialize the shm manager if shared_memory is enabled in the config.
   if (shm_enabled._cstr != nullptr &&
     strcmp(shm_enabled._cstr, "true") == 0)
   {
-    z_id_t id = z_info_zid(z_loan(context->impl->session));
-    char idstr[sizeof(id.id) * 2 + 1];  // 2 bytes for each byte of the id, plus the trailing \0
+    char idstr[sizeof(zid.id) * 2 + 1];  // 2 bytes for each byte of the id, plus the trailing \0
     static constexpr size_t max_size_of_each = 3;  // 2 for each byte, plus the trailing \0
-    for (size_t i = 0; i < sizeof(id.id); ++i) {
-      snprintf(idstr + 2 * i, max_size_of_each, "%02x", id.id[i]);
+    for (size_t i = 0; i < sizeof(zid.id); ++i) {
+      snprintf(idstr + 2 * i, max_size_of_each, "%02x", zid.id[i]);
     }
-    idstr[sizeof(id.id) * 2] = '\0';
+    idstr[sizeof(zid.id) * 2] = '\0';
     // TODO(yadunund): Can we get the size of the shm from the config even though it's not
     // a standard parameter?
     context->impl->shm_manager =
@@ -279,7 +297,9 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
     if (z_reply_is_ok(&reply)) {
       z_sample_t sample = z_reply_ok(&reply);
       z_owned_str_t keystr = z_keyexpr_to_string(sample.keyexpr);
-      context->impl->graph_cache.parse_put(z_loan(keystr));
+      // Ignore tokens from the same session to avoid race conditions from this
+      // query and the liveliness subscription.
+      context->impl->graph_cache->parse_put(z_loan(keystr), true);
       z_drop(z_move(keystr));
     } else {
       printf("[discovery] Received an error\n");
@@ -357,15 +377,6 @@ rmw_shutdown(rmw_context_t * context)
     return RMW_RET_ERROR;
   }
 
-  const rcutils_allocator_t * allocator = &context->options.allocator;
-
-  RMW_TRY_DESTRUCTOR(
-    static_cast<GuardCondition *>(context->impl->graph_guard_condition->data)->~GuardCondition(),
-    GuardCondition, );
-  allocator->deallocate(context->impl->graph_guard_condition->data, allocator->state);
-
-  allocator->deallocate(context->impl->graph_guard_condition, allocator->state);
-
   context->impl->is_shutdown = true;
 
   return RMW_RET_OK;
@@ -391,9 +402,17 @@ rmw_context_fini(rmw_context_t * context)
     return RMW_RET_INVALID_ARGUMENT;
   }
 
-  RMW_TRY_DESTRUCTOR(context->impl->~rmw_context_impl_t(), rmw_context_impl_t, );
-
   const rcutils_allocator_t * allocator = &context->options.allocator;
+
+  RMW_TRY_DESTRUCTOR(
+    static_cast<GuardCondition *>(context->impl->graph_guard_condition->data)->~GuardCondition(),
+    GuardCondition, );
+  allocator->deallocate(context->impl->graph_guard_condition->data, allocator->state);
+
+  allocator->deallocate(context->impl->graph_guard_condition, allocator->state);
+  context->impl->graph_guard_condition = nullptr;
+
+  RMW_TRY_DESTRUCTOR(context->impl->~rmw_context_impl_t(), rmw_context_impl_t, );
 
   allocator->deallocate(context->impl, allocator->state);
 

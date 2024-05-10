@@ -24,10 +24,10 @@ find_package(ament_cmake_vendor_package REQUIRED)
 # when expanded.
 set(ZENOHC_CARGO_FLAGS "--no-default-features$<SEMICOLON>--features=zenoh/transport_tcp zenoh/shared-memory")
 
-# Set VCS_VERSION to include changes from https://github.com/eclipse-zenoh/zenoh-c/pull/243.
+# Set VCS_VERSION to include latest changes from zenoh-c https://github.com/eclipse-zenoh/zenoh-c/pull/340.
 ament_vendor(zenoh_c_vendor
   VCS_URL https://github.com/eclipse-zenoh/zenoh-c.git
-  VCS_VERSION de57b3fed5b1c3f4a83a2c0c0cb6a642c09a6210
+  VCS_VERSION 68ab0c1faa2c3521680352778e618d95f15e2e95
   CMAKE_ARGS
     "-DZENOHC_CARGO_FLAGS=${ZENOHC_CARGO_FLAGS}"
 )
@@ -38,5 +38,4 @@ ament_vendor(zenoh_c_vendor
 #   DESTINATION "lib/${PROJECT_NAME}"
 #   USE_SOURCE_PERMISSIONS
 # )
-
 ament_package()

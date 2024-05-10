@@ -14,6 +14,7 @@
 
 #include "liveliness_utils.hpp"
 
+#include <functional>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
@@ -60,6 +61,25 @@ TopicInfo::TopicInfo(
 ///=============================================================================
 namespace
 {
+/// Enum of liveliness key-expression components.
+enum KeyexprIndex
+{
+  AdminSpace,
+  DomainId,
+  Zid,
+  Nid,
+  Id,
+  EntityStr,
+  Namespace,
+  NodeName,
+  TopicName,
+  TopicType,
+  TopicQoS
+};
+
+// Every keyexpression will have components upto node name.
+#define KEYEXPR_INDEX_MIN KeyexprIndex::NodeName
+#define KEYEXPR_INDEX_MAX KeyexprIndex::TopicQoS
 
 /// The admin space used to prefix the liveliness tokens.
 static const char ADMIN_SPACE[] = "@ros2_lv";
@@ -68,6 +88,8 @@ static const char PUB_STR[] = "MP";
 static const char SUB_STR[] = "MS";
 static const char SRV_STR[] = "SS";
 static const char CLI_STR[] = "SC";
+static const char EMPTY_NAMESPACE_REPLACEMENT = '_';
+static const char KEYEXPR_DELIMITER = '/';
 static const char SLASH_REPLACEMENT = '%';
 static const char QOS_DELIMITER = ':';
 static const char QOS_HISTORY_DELIMITER = ',';
@@ -113,20 +135,9 @@ static const std::unordered_map<std::string, rmw_qos_durability_policy_e> str_to
   {std::to_string(RMW_QOS_POLICY_DURABILITY_UNKNOWN), RMW_QOS_POLICY_DURABILITY_UNKNOWN}
 };
 
-std::string zid_to_str(z_id_t id)
-{
-  std::stringstream ss;
-  ss << std::hex;
-  size_t i = 0;
-  for (; i < (sizeof(id.id)); i++) {
-    ss << static_cast<int>(id.id[i]);
-  }
-  return ss.str();
-}
-
 std::vector<std::string> split_keyexpr(
   const std::string & keyexpr,
-  const char delim = '/')
+  const char delim = KEYEXPR_DELIMITER)
 {
   std::vector<std::string> result = {};
   size_t start = 0;
@@ -140,20 +151,9 @@ std::vector<std::string> split_keyexpr(
   result.push_back(keyexpr.substr(start));
   return result;
 }
+}  // namespace
 
-/**
- * Convert a rmw_qos_profile_t to a string with format:
- *
- * <ReliabilityKind>:<DurabilityKind>:<HistoryKind>,<HistoryDepth>"
- * Where:
- *  <ReliabilityKind> - enum value from rmw_qos_reliability_policy_e.
- *  <DurabilityKind> - enum value from rmw_qos_durability_policy_e.
- *  <HistoryKind> - enum value from rmw_qos_history_policy_e.
- *  <HistoryDepth> - The depth number.
- * For example, the liveliness substring for a topic with Reliability policy: reliable,
- * Durability policy: volatile, History policy: keep_last, and depth: 10, would be
- * "1:2:1,10". See rmw/types.h for the values of each policy enum.
- */
+///=============================================================================
 // TODO(Yadunund): Rely on maps to retrieve strings.
 std::string qos_to_keyexpr(rmw_qos_profile_t qos)
 {
@@ -168,7 +168,7 @@ std::string qos_to_keyexpr(rmw_qos_profile_t qos)
   return keyexpr;
 }
 
-/// Convert a rmw_qos_profile_t from a keyexpr. Return std::nullopt if invalid.
+///=============================================================================
 std::optional<rmw_qos_profile_t> keyexpr_to_qos(const std::string & keyexpr)
 {
   rmw_qos_profile_t qos;
@@ -218,7 +218,18 @@ std::optional<rmw_qos_profile_t> keyexpr_to_qos(const std::string & keyexpr)
   qos.lifespan = RMW_QOS_LIFESPAN_DEFAULT;
   return qos;
 }
-}  // namespace
+
+///=============================================================================
+std::string zid_to_str(const z_id_t & id)
+{
+  std::stringstream ss;
+  ss << std::hex;
+  size_t i = 0;
+  for (; i < (sizeof(id.id)); i++) {
+    ss << static_cast<int>(id.id[i]);
+  }
+  return ss.str();
+}
 
 ///=============================================================================
 std::string subscription_token(size_t domain_id)
@@ -229,174 +240,195 @@ std::string subscription_token(size_t domain_id)
 
 ///=============================================================================
 Entity::Entity(
+  std::string zid,
+  std::string nid,
   std::string id,
   EntityType type,
   NodeInfo node_info,
   std::optional<TopicInfo> topic_info)
-: id_(std::move(id)),
+: zid_(std::move(zid)),
+  nid_(std::move(nid)),
+  id_(std::move(id)),
   type_(std::move(type)),
   node_info_(std::move(node_info)),
   topic_info_(std::move(topic_info))
 {
-  /**
-   * Set the liveliness token for the particular entity.
-   *
-   * The liveliness token keyexprs are in the form:
-   *
-   * <ADMIN_SPACE>/<domainid>/<id>/<entity>/<namespace>/<nodename>
-   *
-   * Where:
-   *  <domainid> - A number set by the user to "partition" graphs.  Roughly equivalent to the domain ID in DDS.
-   *  <id> - A unique ID to identify this entity. Currently the id is the zenoh session's id with elements concatenated into a string using '.' as separator.
-   *  <entity> - The type of entity.  This can be one of "NN" for a node, "MP" for a publisher, "MS" for a subscription, "SS" for a service server, or "SC" for a service client.
-   *  <namespace> - The ROS namespace for this entity.  If the namespace is absolute, this function will add in an _ for later parsing reasons.
-   *  <nodename> - The ROS node name for this entity.
-   *
-   * For entities with topic infomation, the liveliness token keyexpr have additional fields:
-   *
-   * <ADMIN_SPACE>/<domainid>/<id>/<entity>/<namespace>/<nodename>/<topic_name>/<topic_type>/<topic_qos>
-   *  <topic_name> - The ROS topic name for this entity.
-   *  <topic_type> - The type for the topic.
-   *  <topic_qos> - The qos for the topic (see qos_to_keyexpr() docstring for more information).
-   *
-   * For example, the liveliness expression for a publisher within a /talker node that publishes
-   * an std_msgs/msg/String over topic /chatter and with QoS settings of Reliability: best_effort,
-   * Durability: transient_local, History: keep_all, and depth: 10, would be
-   * "@ros2_lv/0/q1w2e3r4t5y6/MP/_/talker/dds_::std_msgs::msg::String/2:1:2,10".
-   * Note: The domain_id is assumed to be 0 and a random id is used in the example. Also the
-   *  _dds:: prefix in the topic_type is an artifact of the type support implementation and is
-   *  removed when reporting the topic_type in graph_cache.cpp (see _demangle_if_ros_type()).
-   */
-  std::stringstream token_ss;
-  const std::string & ns = node_info_.ns_;
-  token_ss << ADMIN_SPACE << "/" << node_info_.domain_id_ << "/" << id_ << "/" << entity_to_str.at(
-    type_) << ns;
+  std::string keyexpr_parts[KEYEXPR_INDEX_MAX + 1] {};
+  keyexpr_parts[KeyexprIndex::AdminSpace] = ADMIN_SPACE;
+  keyexpr_parts[KeyexprIndex::DomainId] = std::to_string(node_info_.domain_id_);
+  keyexpr_parts[KeyexprIndex::Zid] = zid_;
+  keyexpr_parts[KeyexprIndex::Nid] = nid_;
+  keyexpr_parts[KeyexprIndex::Id] = id_;
+  keyexpr_parts[KeyexprIndex::EntityStr] = entity_to_str.at(type_);
   // An empty namespace from rcl will contain "/" but zenoh does not allow keys with "//".
   // Hence we add an "_" to denote an empty namespace such that splitting the key
   // will always result in 5 parts.
-  if (ns == "/") {
-    token_ss << "_/";
-  } else {
-    token_ss << "/";
-  }
-  // Finally append node name.
-  token_ss << mangle_name(node_info_.name_);
+  keyexpr_parts[KeyexprIndex::Namespace] = mangle_name(node_info_.ns_);
+  keyexpr_parts[KeyexprIndex::NodeName] = mangle_name(node_info_.name_);
   // If this entity has a topic info, append it to the token.
   if (topic_info_.has_value()) {
     const auto & topic_info = this->topic_info_.value();
-    // Note: We don't append a leading "/" as we expect the ROS topic name to start with a "/".
-    token_ss <<
-      "/" + mangle_name(topic_info.name_) + "/" + topic_info.type_ + "/" + qos_to_keyexpr(
-      topic_info.qos_);
+    keyexpr_parts[KeyexprIndex::TopicName] = mangle_name(topic_info.name_);
+    keyexpr_parts[KeyexprIndex::TopicType] = mangle_name(topic_info.type_);
+    keyexpr_parts[KeyexprIndex::TopicQoS] = qos_to_keyexpr(topic_info.qos_);
   }
 
-  this->keyexpr_ = token_ss.str();
+  for (std::size_t i = 0; i < KEYEXPR_INDEX_MAX + 1; ++i) {
+    bool last = false;
+    if (!keyexpr_parts[i].empty()) {
+      this->keyexpr_ += std::move(keyexpr_parts[i]);
+    }
+    if (i == KEYEXPR_INDEX_MAX || keyexpr_parts[i + 1].empty()) {
+      last = true;
+    }
+    if (last) {
+      break;
+    }
+    // Append the delimiter unless it is the last component.
+    this->keyexpr_ += KEYEXPR_DELIMITER;
+  }
+  this->guid_ = std::hash<std::string>{}(this->keyexpr_);
 }
 
 ///=============================================================================
-std::optional<Entity> Entity::make(
-  z_id_t id,
+std::shared_ptr<Entity> Entity::make(
+  z_id_t zid,
+  const std::string & nid,
+  const std::string & id,
   EntityType type,
   NodeInfo node_info,
   std::optional<TopicInfo> topic_info)
 {
+  if (id.empty()) {
+    RCUTILS_SET_ERROR_MSG("Invalid id.");
+    return nullptr;
+  }
   if (entity_to_str.find(type) == entity_to_str.end()) {
     RCUTILS_SET_ERROR_MSG("Invalid entity type.");
-    return std::nullopt;
+    return nullptr;
   }
   if (node_info.ns_.empty() || node_info.name_.empty()) {
     RCUTILS_SET_ERROR_MSG("Invalid node_info for entity.");
-    return std::nullopt;
+    return nullptr;
   }
   if (type != EntityType::Node && !topic_info.has_value()) {
     RCUTILS_SET_ERROR_MSG("Invalid topic_info for entity.");
-    return std::nullopt;
+    return nullptr;
   }
 
-  Entity entity{zid_to_str(id), std::move(type), std::move(node_info), std::move(topic_info)};
-  return entity;
+  return std::make_shared<Entity>(
+    Entity{
+      zid_to_str(zid),
+      nid,
+      id,
+      std::move(type),
+      std::move(node_info),
+      std::move(topic_info)});
 }
 
 ///=============================================================================
-std::optional<Entity> Entity::make(const std::string & keyexpr)
+std::shared_ptr<Entity> Entity::make(const std::string & keyexpr)
 {
   std::vector<std::string> parts = split_keyexpr(keyexpr);
-  // A token will contain at least 5 parts:
-  // (ADMIN_SPACE, domain_id, entity_str, namespace, node_name).
+  // Every token will contain at least 7 parts:
+  // (ADMIN_SPACE, domain_id, zid, id, entity_type, namespace, node_name).
   // Basic validation.
-  if (parts.size() < 6) {
+  if (parts.size() < KEYEXPR_INDEX_MIN + 1) {
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Received invalid liveliness token");
-    return std::nullopt;
+    return nullptr;
   }
   for (const std::string & p : parts) {
     if (p.empty()) {
       RCUTILS_LOG_ERROR_NAMED(
         "rmw_zenoh_cpp",
         "Received invalid liveliness token");
-      return std::nullopt;
+      return nullptr;
     }
   }
 
-  if (parts[0] != ADMIN_SPACE) {
+  if (parts[KeyexprIndex::AdminSpace] != ADMIN_SPACE) {
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Received liveliness token with invalid admin space.");
-    return std::nullopt;
+    return nullptr;
   }
 
   // Get the entity, ie NN, MP, MS, SS, SC.
-  std::string & entity_str = parts[3];
+  std::string & entity_str = parts[KeyexprIndex::EntityStr];
   std::unordered_map<std::string, EntityType>::const_iterator entity_it =
     str_to_entity.find(entity_str);
   if (entity_it == str_to_entity.end()) {
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Received liveliness token with invalid entity %s.", entity_str.c_str());
-    return std::nullopt;
+    return nullptr;
   }
 
   EntityType entity_type = entity_it->second;
-  std::size_t domain_id = std::stoul(parts[1]);
-  std::string & id = parts[2];
-  std::string ns = parts[4] == "_" ? "/" : "/" + std::move(parts[4]);
-  std::string node_name = demangle_name(std::move(parts[5]));
+  std::size_t domain_id = std::stoul(parts[KeyexprIndex::DomainId]);
+  std::string & zid = parts[KeyexprIndex::Zid];
+  std::string & nid = parts[KeyexprIndex::Nid];
+  std::string & id = parts[KeyexprIndex::Id];
+  std::string ns = demangle_name(std::move(parts[KeyexprIndex::Namespace]));
+  std::string node_name = demangle_name(std::move(parts[KeyexprIndex::NodeName]));
   std::optional<TopicInfo> topic_info = std::nullopt;
 
   // Populate topic_info if we have a token for an entity other than a node.
   if (entity_type != EntityType::Node) {
-    if (parts.size() < 9) {
+    if (parts.size() < KEYEXPR_INDEX_MAX + 1) {
       RCUTILS_LOG_ERROR_NAMED(
         "rmw_zenoh_cpp",
         "Received liveliness token for non-node entity without required parameters.");
-      return std::nullopt;
+      return nullptr;
     }
-    std::optional<rmw_qos_profile_t> qos = keyexpr_to_qos(parts[8]);
+    std::optional<rmw_qos_profile_t> qos = keyexpr_to_qos(parts[KeyexprIndex::TopicQoS]);
     if (!qos.has_value()) {
       RCUTILS_LOG_ERROR_NAMED(
         "rmw_zenoh_cpp",
         "Received liveliness token with invalid qos keyexpr");
-      return std::nullopt;
+      return nullptr;
     }
     topic_info = TopicInfo{
-      demangle_name(std::move(parts[6])),
-      std::move(parts[7]),
+      demangle_name(std::move(parts[KeyexprIndex::TopicName])),
+      demangle_name(std::move(parts[KeyexprIndex::TopicType])),
       std::move(qos.value())
     };
   }
 
-  return Entity{
-    std::move(id),
-    std::move(entity_type),
-    NodeInfo{std::move(domain_id), std::move(ns), std::move(node_name), ""},
-    std::move(topic_info)};
+  return std::make_shared<Entity>(
+    Entity{
+      std::move(zid),
+      std::move(nid),
+      std::move(id),
+      std::move(entity_type),
+      NodeInfo{std::move(domain_id), std::move(ns), std::move(node_name), ""},
+      std::move(topic_info)});
+}
+
+///=============================================================================
+std::string Entity::zid() const
+{
+  return this->zid_;
+}
+
+///=============================================================================
+std::string Entity::nid() const
+{
+  return this->nid_;
 }
 
 ///=============================================================================
 std::string Entity::id() const
 {
   return this->id_;
+}
+
+///=============================================================================
+std::size_t Entity::guid() const
+{
+  return this->guid_;
 }
 
 ///=============================================================================
@@ -430,6 +462,14 @@ std::optional<TopicInfo> Entity::topic_info() const
 std::string Entity::keyexpr() const
 {
   return this->keyexpr_;
+}
+
+///=============================================================================
+bool Entity::operator==(const Entity & other) const
+{
+  // TODO(Yadunund): If we decide to directly store the guid as a
+  // rmw_gid_t type, we should rely on rmw_compare_gids_equal() instead.
+  return other.guid() == guid_;
 }
 
 ///=============================================================================
