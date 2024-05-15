@@ -27,7 +27,7 @@ set(ZENOHC_CARGO_FLAGS "--no-default-features$<SEMICOLON>--features=zenoh/transp
 # Set VCS_VERSION to include latest changes from zenoh-c to benefit from :
 # - https://github.com/eclipse-zenoh/zenoh-c/pull/340 (fix build issue)
 # - https://github.com/eclipse-zenoh/zenoh/pull/1021 (fix timeout issue with queries)
-# - https://github.com/eclipse-zenoh/zenoh/pull/1022 (perf improvements with big payloads)
+# - https://github.com/eclipse-zenoh/zenoh/pull/1022 (fix empty messages received if payload >btach size)
 # - https://github.com/eclipse-zenoh/zenoh-c/pull/358 (fix debian packaging issue: https://github.com/jspricke/ros-deb-builder-action/issues/49)
 ament_vendor(zenoh_c_vendor
   VCS_URL https://github.com/eclipse-zenoh/zenoh-c.git
