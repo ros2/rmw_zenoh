@@ -16,9 +16,9 @@
 #ifndef DETAIL__GUARD_CONDITION_HPP_
 #define DETAIL__GUARD_CONDITION_HPP_
 
-#include <atomic>
-#include <condition_variable>
 #include <mutex>
+
+#include "rmw_data_types.hpp"
 
 namespace rmw_zenoh_cpp
 {
@@ -26,21 +26,19 @@ namespace rmw_zenoh_cpp
 class GuardCondition final
 {
 public:
-  GuardCondition();
+  explicit GuardCondition(rmw_context_impl_s * context_impl);
 
   // Sets has_triggered_ to true and calls notify_one() on condition_variable_ if set.
   void trigger();
 
-  void attach_condition(std::condition_variable * condition_variable);
-
-  void detach_condition();
+  bool get_trigger() const;
 
   bool get_and_reset_trigger();
 
 private:
   mutable std::mutex internal_mutex_;
-  std::atomic_bool has_triggered_;
-  std::condition_variable * condition_variable_;
+  bool has_triggered_;
+  rmw_context_impl_s * context_impl_;
 };
 }  // namespace rmw_zenoh_cpp
 

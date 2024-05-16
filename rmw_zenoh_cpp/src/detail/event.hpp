@@ -21,6 +21,7 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "rmw/event.h"
 #include "rmw/event_callback_type.h"
@@ -111,6 +112,8 @@ private:
 class EventsManager
 {
 public:
+  explicit EventsManager(rmw_context_impl_s * context_impl);
+
   /// @brief  Set the callback to be triggered when the relevant event is triggered.
   /// @param event_id the id of the event
   /// @param callback the callback to trigger for this event.
@@ -135,36 +138,25 @@ public:
     rmw_zenoh_event_type_t event_id,
     std::unique_ptr<rmw_zenoh_event_status_t> event);
 
-  /// @brief Attach the condition variable provided by rmw_wait.
-  /// @param condition_variable to attach.
-  void attach_event_condition(
-    rmw_zenoh_event_type_t event_id,
-    std::condition_variable * condition_variable);
+  void register_wake_event(rmw_zenoh_event_type_t event_id);
 
-  /// @brief Detach the condition variable provided by rmw_wait.
-  void detach_event_condition(rmw_zenoh_event_type_t event_id);
+  void deregister_wake_event(rmw_zenoh_event_type_t event_id);
 
 private:
   /// @brief Trigger the callback for an event.
   /// @param event_id the event id whose callback should be triggered.
   void trigger_event_callback(rmw_zenoh_event_type_t event_id);
 
-  /// Notify once event is added to an event queue.
-  void notify_event(rmw_zenoh_event_type_t event_id);
-
   /// Mutex to lock when read/writing members.
   mutable std::mutex event_mutex_;
-  /// Mutex to lock for event_condition.
-  mutable std::mutex event_condition_mutex_;
-  /// Condition variable to attach for event notifications.
-  std::condition_variable * event_conditions_[ZENOH_EVENT_ID_MAX + 1]{nullptr};
-
   rmw_event_callback_t event_callback_[ZENOH_EVENT_ID_MAX + 1] {nullptr};
   const void * event_data_[ZENOH_EVENT_ID_MAX + 1] {nullptr};
   size_t event_unread_count_[ZENOH_EVENT_ID_MAX + 1] {0};
+  std::unordered_set<rmw_zenoh_event_type_t> wake_events_;
   // A dequeue of events for each type of event this RMW supports.
   std::deque<std::unique_ptr<rmw_zenoh_event_status_t>> event_queues_[ZENOH_EVENT_ID_MAX + 1] {};
   const std::size_t event_queue_depth_ = 10;
+  rmw_context_impl_s * context_impl_;
 };
 }  // namespace rmw_zenoh_cpp
 

@@ -30,6 +30,7 @@
 
 #include "rcutils/allocator.h"
 
+#include "rmw/init.h"
 #include "rmw/rmw.h"
 
 #include "event.hpp"
@@ -63,6 +64,9 @@ public:
 
   size_t get_next_entity_id();
 
+  std::condition_variable handles_condition_variable;
+  std::mutex handles_condition_mutex;
+
 private:
   // A counter to assign a local id for every entity created in this session.
   size_t next_entity_id_{0};
@@ -88,6 +92,8 @@ struct rmw_node_data_t
 class rmw_publisher_data_t final
 {
 public:
+  explicit rmw_publisher_data_t(rmw_context_t * context);
+
   // The Entity generated for the publisher.
   std::shared_ptr<liveliness::Entity> entity;
 
@@ -125,9 +131,6 @@ private:
 ///=============================================================================
 struct rmw_wait_set_data_t
 {
-  std::condition_variable condition_variable;
-  std::mutex condition_mutex;
-
   rmw_context_t * context;
 };
 
@@ -157,6 +160,8 @@ struct saved_msg_data
 class rmw_subscription_data_t final
 {
 public:
+  explicit rmw_subscription_data_t(rmw_context_t * context);
+
   // The Entity generated for the subscription.
   std::shared_ptr<liveliness::Entity> entity;
 
@@ -174,10 +179,6 @@ public:
   MessageTypeSupport * type_support;
   rmw_context_t * context;
 
-  void attach_condition(std::condition_variable * condition_variable);
-
-  void detach_condition();
-
   bool message_queue_is_empty() const;
 
   std::unique_ptr<saved_msg_data> pop_next_message();
@@ -194,11 +195,6 @@ private:
   // Map GID of a publisher to the sequence number of the message it published.
   std::unordered_map<size_t, int64_t> last_known_published_msg_;
   size_t total_messages_lost_{0};
-
-  void notify();
-
-  std::condition_variable * condition_{nullptr};
-  std::mutex condition_mutex_;
 };
 
 
@@ -249,10 +245,6 @@ public:
 
   bool query_queue_is_empty() const;
 
-  void attach_condition(std::condition_variable * condition_variable);
-
-  void detach_condition();
-
   std::unique_ptr<ZenohQuery> pop_next_query();
 
   void add_new_query(std::unique_ptr<ZenohQuery> query);
@@ -264,8 +256,6 @@ public:
   DataCallbackManager data_callback_mgr;
 
 private:
-  void notify();
-
   // Deque to store the queries in the order they arrive.
   std::deque<std::unique_ptr<ZenohQuery>> query_queue_;
   mutable std::mutex query_queue_mutex_;
@@ -274,9 +264,6 @@ private:
   using SequenceToQuery = std::unordered_map<int64_t, std::unique_ptr<ZenohQuery>>;
   std::unordered_map<size_t, SequenceToQuery> sequence_to_query_map_;
   std::mutex sequence_to_query_map_mutex_;
-
-  std::condition_variable * condition_{nullptr};
-  std::mutex condition_mutex_;
 };
 
 ///=============================================================================
@@ -326,22 +313,13 @@ public:
 
   bool reply_queue_is_empty() const;
 
-  void attach_condition(std::condition_variable * condition_variable);
-
-  void detach_condition();
-
   std::unique_ptr<rmw_zenoh_cpp::ZenohReply> pop_next_reply();
 
   DataCallbackManager data_callback_mgr;
 
 private:
-  void notify();
-
   size_t sequence_number_{1};
   std::mutex sequence_number_mutex_;
-
-  std::condition_variable * condition_{nullptr};
-  std::mutex condition_mutex_;
 
   std::deque<std::unique_ptr<rmw_zenoh_cpp::ZenohReply>> reply_queue_;
   mutable std::mutex reply_queue_mutex_;

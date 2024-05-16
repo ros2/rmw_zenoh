@@ -503,7 +503,7 @@ rmw_create_publisher(
 
   RMW_TRY_PLACEMENT_NEW(
     publisher_data, publisher_data, return nullptr,
-    rmw_zenoh_cpp::rmw_publisher_data_t);
+    rmw_zenoh_cpp::rmw_publisher_data_t, node->context);
   auto destruct_publisher_data = rcpputils::make_scope_exit(
     [publisher_data]() {
       RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(
@@ -551,7 +551,6 @@ rmw_create_publisher(
         rmw_zenoh_cpp::MessageTypeSupport);
     });
 
-  publisher_data->context = node->context;
   rmw_publisher->data = publisher_data;
   rmw_publisher->implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
   rmw_publisher->options = *publisher_options;
@@ -1289,7 +1288,8 @@ rmw_create_subscription(
       allocator->deallocate(sub_data, allocator->state);
     });
 
-  RMW_TRY_PLACEMENT_NEW(sub_data, sub_data, return nullptr, rmw_zenoh_cpp::rmw_subscription_data_t);
+  RMW_TRY_PLACEMENT_NEW(
+    sub_data, sub_data, return nullptr, rmw_zenoh_cpp::rmw_subscription_data_t, node->context);
   auto destruct_sub_data = rcpputils::make_scope_exit(
     [sub_data]() {
       RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(
@@ -1336,8 +1336,6 @@ rmw_create_subscription(
         sub_data->type_support->~MessageTypeSupport(),
         rmw_zenoh_cpp::MessageTypeSupport);
     });
-
-  sub_data->context = node->context;
 
   rmw_subscription->implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
 
@@ -3003,7 +3001,7 @@ rmw_create_guard_condition(rmw_context_t * context)
       allocator->deallocate(guard_condition->data, allocator->state);
     });
 
-  new(guard_condition->data) rmw_zenoh_cpp::GuardCondition;
+  new(guard_condition->data) rmw_zenoh_cpp::GuardCondition(context->impl);
   auto destruct_guard_condition = rcpputils::make_scope_exit(
     [guard_condition]() {
       RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(
@@ -3143,14 +3141,12 @@ static bool has_triggered_condition(
   rmw_clients_t * clients,
   rmw_events_t * events)
 {
-  static_cast<void>(events);
-
   if (guard_conditions) {
     for (size_t i = 0; i < guard_conditions->guard_condition_count; ++i) {
       rmw_zenoh_cpp::GuardCondition * gc =
         static_cast<rmw_zenoh_cpp::GuardCondition *>(guard_conditions->guard_conditions[i]);
       if (gc != nullptr) {
-        if (gc->get_and_reset_trigger()) {
+        if (gc->get_trigger()) {
           return true;
         }
       }
@@ -3243,73 +3239,24 @@ rmw_wait(
   // how to handle them.
   //
   // If there is no data currently available in any of the entities we were told to wait on, we
-  // we attach a context-global condition variable to each entity, calculate a timeout based on
-  // wait_timeout, and then sleep on the condition variable.  If any of the entities has an event
-  // during that time, it will wake up from that sleep.
+  // calculate a timeout based on wait_timeout and then sleep on the condition variable.  If any of
+  // the entities has an event during that time, it will wake up from that sleep.
   //
-  // If there is data currently available in one or more of the entities, then we'll skip attaching
-  // the condition variable, and skip the sleep, and instead just go to the last part.
+  // If there is data currently available in one or more of the entities, then we'll skip the sleep,
+  // and instead just go to the last part.
   //
   // In the last part, we check every entity and see if there are conditions that make it ready.
   // If that entity is not ready, then we set the pointer to it to nullptr in the wait set, which
   // signals to the upper layers that it isn't ready.  If something is ready, then we leave it as
   // a valid pointer.
 
+  std::unique_lock<std::mutex> lock(wait_set_data->context->impl->handles_condition_mutex);
+
   bool skip_wait = has_triggered_condition(
     subscriptions, guard_conditions, services, clients, events);
   bool wait_result = true;
 
   if (!skip_wait) {
-    if (guard_conditions) {
-      // Attach the wait set condition variable to each guard condition.
-      // That way they can wake it up if they are triggered while we are waiting.
-      for (size_t i = 0; i < guard_conditions->guard_condition_count; ++i) {
-        // This is hard to track down, but each of the (void *) pointers in
-        // guard_conditions->guard_conditions points to the data field of the related
-        // rmw_guard_condition_t.  So we can directly cast it to GuardCondition.
-        rmw_zenoh_cpp::GuardCondition * gc =
-          static_cast<rmw_zenoh_cpp::GuardCondition *>(guard_conditions->guard_conditions[i]);
-        if (gc != nullptr) {
-          gc->attach_condition(&wait_set_data->condition_variable);
-        }
-      }
-    }
-
-    if (subscriptions) {
-      // Attach the wait set condition variable to each subscription.
-      // That way they can wake it up if they are triggered while we are waiting.
-      for (size_t i = 0; i < subscriptions->subscriber_count; ++i) {
-        auto sub_data =
-          static_cast<rmw_zenoh_cpp::rmw_subscription_data_t *>(subscriptions->subscribers[i]);
-        if (sub_data != nullptr) {
-          sub_data->attach_condition(&wait_set_data->condition_variable);
-        }
-      }
-    }
-
-    if (services) {
-      // Attach the wait set condition variable to each service.
-      // That way they can wake it up if they are triggered while we are waiting.
-      for (size_t i = 0; i < services->service_count; ++i) {
-        auto serv_data = static_cast<rmw_zenoh_cpp::rmw_service_data_t *>(services->services[i]);
-        if (serv_data != nullptr) {
-          serv_data->attach_condition(&wait_set_data->condition_variable);
-        }
-      }
-    }
-
-    if (clients) {
-      // Attach the wait set condition variable to each client.
-      // That way they can wake it up if they are triggered while we are waiting.
-      for (size_t i = 0; i < clients->client_count; ++i) {
-        rmw_zenoh_cpp::rmw_client_data_t * client_data =
-          static_cast<rmw_zenoh_cpp::rmw_client_data_t *>(clients->clients[i]);
-        if (client_data != nullptr) {
-          client_data->attach_condition(&wait_set_data->condition_variable);
-        }
-      }
-    }
-
     if (events) {
       for (size_t i = 0; i < events->event_count; ++i) {
         auto event = static_cast<rmw_event_t *>(events->events[i]);
@@ -3317,24 +3264,21 @@ rmw_wait(
         if (event_data != nullptr) {
           auto zenoh_event_it = rmw_zenoh_cpp::event_map.find(event->event_type);
           if (zenoh_event_it != rmw_zenoh_cpp::event_map.end()) {
-            event_data->attach_event_condition(
-              zenoh_event_it->second,
-              &wait_set_data->condition_variable);
+            event_data->register_wake_event(zenoh_event_it->second);
           }
         }
       }
     }
 
-    std::unique_lock<std::mutex> lock(wait_set_data->condition_mutex);
-
     // According to the RMW documentation, if wait_timeout is NULL that means
     // "wait forever", if it specified by 0 it means "never wait", and if it is anything else wait
     // for that amount of time.
     if (wait_timeout == nullptr) {
-      wait_set_data->condition_variable.wait(lock);
+      wait_set_data->context->impl->handles_condition_variable.wait(lock);
     } else {
       if (wait_timeout->sec != 0 || wait_timeout->nsec != 0) {
-        std::cv_status wait_status = wait_set_data->condition_variable.wait_for(
+        std::cv_status wait_status =
+          wait_set_data->context->impl->handles_condition_variable.wait_for(
           lock, std::chrono::nanoseconds(wait_timeout->nsec + RCUTILS_S_TO_NS(wait_timeout->sec)));
         wait_result = wait_status == std::cv_status::no_timeout;
       }
@@ -3342,12 +3286,10 @@ rmw_wait(
   }
 
   if (guard_conditions) {
-    // Now detach the condition variable and mutex from each of the guard conditions
     for (size_t i = 0; i < guard_conditions->guard_condition_count; ++i) {
       rmw_zenoh_cpp::GuardCondition * gc =
         static_cast<rmw_zenoh_cpp::GuardCondition *>(guard_conditions->guard_conditions[i]);
       if (gc != nullptr) {
-        gc->detach_condition();
         // According to the documentation for rmw_wait in rmw.h, entries in the
         // array that have *not* been triggered should be set to NULL
         if (!gc->get_and_reset_trigger()) {
@@ -3358,14 +3300,13 @@ rmw_wait(
   }
 
   if (events) {
-    // Now detach the condition variable and mutex from each of the subscriptions
     for (size_t i = 0; i < events->event_count; ++i) {
       auto event = static_cast<rmw_event_t *>(events->events[i]);
       auto event_data = static_cast<rmw_zenoh_cpp::EventsManager *>(event->data);
       if (event_data != nullptr) {
         auto zenoh_event_it = rmw_zenoh_cpp::event_map.find(event->event_type);
         if (zenoh_event_it != rmw_zenoh_cpp::event_map.end()) {
-          event_data->detach_event_condition(zenoh_event_it->second);
+          event_data->deregister_wake_event(zenoh_event_it->second);
           // According to the documentation for rmw_wait in rmw.h, entries in the
           // array that have *not* been triggered should be set to NULL
           if (event_data->event_queue_is_empty(zenoh_event_it->second)) {
@@ -3378,12 +3319,10 @@ rmw_wait(
   }
 
   if (subscriptions) {
-    // Now detach the condition variable and mutex from each of the subscriptions
     for (size_t i = 0; i < subscriptions->subscriber_count; ++i) {
       auto sub_data =
         static_cast<rmw_zenoh_cpp::rmw_subscription_data_t *>(subscriptions->subscribers[i]);
       if (sub_data != nullptr) {
-        sub_data->detach_condition();
         // According to the documentation for rmw_wait in rmw.h, entries in the
         // array that have *not* been triggered should be set to NULL
         if (sub_data->message_queue_is_empty()) {
@@ -3395,11 +3334,9 @@ rmw_wait(
   }
 
   if (services) {
-    // Now detach the condition variable and mutex from each of the services
     for (size_t i = 0; i < services->service_count; ++i) {
       auto serv_data = static_cast<rmw_zenoh_cpp::rmw_service_data_t *>(services->services[i]);
       if (serv_data != nullptr) {
-        serv_data->detach_condition();
         // According to the documentation for rmw_wait in rmw.h, entries in the
         // array that have *not* been triggered should be set to NULL
         if (serv_data->query_queue_is_empty()) {
@@ -3411,12 +3348,10 @@ rmw_wait(
   }
 
   if (clients) {
-    // Now detach the condition variable and mutex from each of the clients
     for (size_t i = 0; i < clients->client_count; ++i) {
       rmw_zenoh_cpp::rmw_client_data_t * client_data =
         static_cast<rmw_zenoh_cpp::rmw_client_data_t *>(clients->clients[i]);
       if (client_data != nullptr) {
-        client_data->detach_condition();
         // According to the documentation for rmw_wait in rmw.h, entries in the
         // array that have *not* been triggered should be set to NULL
         if (client_data->reply_queue_is_empty()) {

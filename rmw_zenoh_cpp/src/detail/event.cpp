@@ -15,6 +15,7 @@
 #include <utility>
 
 #include "event.hpp"
+#include "rmw_data_types.hpp"
 
 #include "rcutils/logging_macros.h"
 
@@ -52,6 +53,11 @@ void DataCallbackManager::trigger_callback()
   } else {
     ++unread_count_;
   }
+}
+
+EventsManager::EventsManager(rmw_context_impl_s * context_impl)
+: context_impl_(context_impl)
+{
 }
 
 ///=============================================================================
@@ -175,17 +181,17 @@ void EventsManager::add_new_event(
     }
 
     event_queue.emplace_back(std::move(event));
+
+    if (wake_events_.count(event_id) == 1) {
+      context_impl_->handles_condition_variable.notify_all();
+    }
   }
 
   // Since we added new data, trigger event callback and guard condition if they are available
   trigger_event_callback(event_id);
-  notify_event(event_id);
 }
 
-///=============================================================================
-void EventsManager::attach_event_condition(
-  rmw_zenoh_event_type_t event_id,
-  std::condition_variable * condition_variable)
+void EventsManager::register_wake_event(rmw_zenoh_event_type_t event_id)
 {
   if (event_id > ZENOH_EVENT_ID_MAX) {
     RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
@@ -195,12 +201,11 @@ void EventsManager::attach_event_condition(
     return;
   }
 
-  std::lock_guard<std::mutex> lock(event_condition_mutex_);
-  event_conditions_[event_id] = condition_variable;
+  std::lock_guard<std::mutex> lock(event_mutex_);
+  wake_events_.insert(event_id);
 }
 
-///=============================================================================
-void EventsManager::detach_event_condition(rmw_zenoh_event_type_t event_id)
+void EventsManager::deregister_wake_event(rmw_zenoh_event_type_t event_id)
 {
   if (event_id > ZENOH_EVENT_ID_MAX) {
     RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
@@ -210,24 +215,7 @@ void EventsManager::detach_event_condition(rmw_zenoh_event_type_t event_id)
     return;
   }
 
-  std::lock_guard<std::mutex> lock(event_condition_mutex_);
-  event_conditions_[event_id] = nullptr;
-}
-
-///=============================================================================
-void EventsManager::notify_event(rmw_zenoh_event_type_t event_id)
-{
-  if (event_id > ZENOH_EVENT_ID_MAX) {
-    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
-      "RMW Zenoh is not correctly configured to handle rmw_zenoh_event_type_t [%d]. "
-      "Report this bug.",
-      event_id);
-    return;
-  }
-
-  std::lock_guard<std::mutex> lock(event_condition_mutex_);
-  if (event_conditions_[event_id] != nullptr) {
-    event_conditions_[event_id]->notify_one();
-  }
+  std::lock_guard<std::mutex> lock(event_mutex_);
+  wake_events_.erase(event_id);
 }
 }  // namespace rmw_zenoh_cpp

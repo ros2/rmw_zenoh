@@ -14,13 +14,14 @@
 // limitations under the License.
 
 #include "guard_condition.hpp"
+#include "rmw_data_types.hpp"
 
 namespace rmw_zenoh_cpp
 {
 ///=============================================================================
-GuardCondition::GuardCondition()
+GuardCondition::GuardCondition(rmw_context_impl_s * context_impl)
 : has_triggered_(false),
-  condition_variable_(nullptr)
+  context_impl_(context_impl)
 {
 }
 
@@ -34,23 +35,13 @@ void GuardCondition::trigger()
   // be called
   has_triggered_ = true;
 
-  if (condition_variable_ != nullptr) {
-    condition_variable_->notify_one();
-  }
+  context_impl_->handles_condition_variable.notify_all();
 }
 
-///=============================================================================
-void GuardCondition::attach_condition(std::condition_variable * condition_variable)
+bool GuardCondition::get_trigger() const
 {
   std::lock_guard<std::mutex> lock(internal_mutex_);
-  condition_variable_ = condition_variable;
-}
-
-///=============================================================================
-void GuardCondition::detach_condition()
-{
-  std::lock_guard<std::mutex> lock(internal_mutex_);
-  condition_variable_ = nullptr;
+  return has_triggered_;
 }
 
 ///=============================================================================

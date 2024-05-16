@@ -75,6 +75,12 @@ saved_msg_data::~saved_msg_data()
   z_drop(z_move(payload));
 }
 
+rmw_publisher_data_t::rmw_publisher_data_t(rmw_context_t * context)
+: context(context),
+  events_mgr(context->impl)
+{
+}
+
 ///=============================================================================
 size_t rmw_publisher_data_t::get_next_sequence_number()
 {
@@ -82,27 +88,10 @@ size_t rmw_publisher_data_t::get_next_sequence_number()
   return sequence_number_++;
 }
 
-///=============================================================================
-void rmw_subscription_data_t::attach_condition(std::condition_variable * condition_variable)
+rmw_subscription_data_t::rmw_subscription_data_t(rmw_context_t * context)
+: context(context),
+  events_mgr(context->impl)
 {
-  std::lock_guard<std::mutex> lock(condition_mutex_);
-  condition_ = condition_variable;
-}
-
-///=============================================================================
-void rmw_subscription_data_t::notify()
-{
-  std::lock_guard<std::mutex> lock(condition_mutex_);
-  if (condition_ != nullptr) {
-    condition_->notify_one();
-  }
-}
-
-///=============================================================================
-void rmw_subscription_data_t::detach_condition()
-{
-  std::lock_guard<std::mutex> lock(condition_mutex_);
-  condition_ = nullptr;
 }
 
 ///=============================================================================
@@ -176,7 +165,6 @@ void rmw_subscription_data_t::add_new_message(
 
   // Since we added new data, trigger user callback and guard condition if they are available
   data_callback_mgr.trigger_callback();
-  notify();
 }
 
 ///=============================================================================
@@ -184,20 +172,6 @@ bool rmw_service_data_t::query_queue_is_empty() const
 {
   std::lock_guard<std::mutex> lock(query_queue_mutex_);
   return query_queue_.empty();
-}
-
-///=============================================================================
-void rmw_service_data_t::attach_condition(std::condition_variable * condition_variable)
-{
-  std::lock_guard<std::mutex> lock(condition_mutex_);
-  condition_ = condition_variable;
-}
-
-///=============================================================================
-void rmw_service_data_t::detach_condition()
-{
-  std::lock_guard<std::mutex> lock(condition_mutex_);
-  condition_ = nullptr;
 }
 
 ///=============================================================================
@@ -212,15 +186,6 @@ std::unique_ptr<ZenohQuery> rmw_service_data_t::pop_next_query()
   query_queue_.pop_front();
 
   return query;
-}
-
-///=============================================================================
-void rmw_service_data_t::notify()
-{
-  std::lock_guard<std::mutex> lock(condition_mutex_);
-  if (condition_ != nullptr) {
-    condition_->notify_one();
-  }
 }
 
 ///=============================================================================
@@ -243,7 +208,6 @@ void rmw_service_data_t::add_new_query(std::unique_ptr<ZenohQuery> query)
 
   // Since we added new data, trigger user callback and guard condition if they are available
   data_callback_mgr.trigger_callback();
-  notify();
 }
 
 ///=============================================================================
@@ -306,15 +270,6 @@ std::unique_ptr<ZenohQuery> rmw_service_data_t::take_from_query_map(
 }
 
 ///=============================================================================
-void rmw_client_data_t::notify()
-{
-  std::lock_guard<std::mutex> lock(condition_mutex_);
-  if (condition_ != nullptr) {
-    condition_->notify_one();
-  }
-}
-
-///=============================================================================
 void rmw_client_data_t::add_new_reply(std::unique_ptr<ZenohReply> reply)
 {
   std::lock_guard<std::mutex> lock(reply_queue_mutex_);
@@ -334,7 +289,6 @@ void rmw_client_data_t::add_new_reply(std::unique_ptr<ZenohReply> reply)
 
   // Since we added new data, trigger user callback and guard condition if they are available
   data_callback_mgr.trigger_callback();
-  notify();
 }
 
 ///=============================================================================
@@ -343,20 +297,6 @@ bool rmw_client_data_t::reply_queue_is_empty() const
   std::lock_guard<std::mutex> lock(reply_queue_mutex_);
 
   return reply_queue_.empty();
-}
-
-///=============================================================================
-void rmw_client_data_t::attach_condition(std::condition_variable * condition_variable)
-{
-  std::lock_guard<std::mutex> lock(condition_mutex_);
-  condition_ = condition_variable;
-}
-
-///=============================================================================
-void rmw_client_data_t::detach_condition()
-{
-  std::lock_guard<std::mutex> lock(condition_mutex_);
-  condition_ = nullptr;
 }
 
 ///=============================================================================
@@ -426,6 +366,8 @@ void sub_data_handler(
     std::make_unique<saved_msg_data>(
       zc_sample_payload_rcinc(sample),
       sample->timestamp.time, pub_gid, sequence_number, source_timestamp), z_loan(keystr));
+
+  sub_data->context->impl->handles_condition_variable.notify_all();
 }
 
 ///=============================================================================
@@ -468,6 +410,8 @@ void service_data_handler(const z_query_t * query, void * data)
   }
 
   service_data->add_new_query(std::make_unique<ZenohQuery>(query));
+
+  service_data->context->impl->handles_condition_variable.notify_all();
 }
 
 ///=============================================================================
@@ -534,5 +478,7 @@ void client_data_handler(z_owned_reply_t * reply, void * data)
   client_data->add_new_reply(std::make_unique<ZenohReply>(reply));
   // Since we took ownership of the reply, null it out here
   *reply = z_reply_null();
+
+  client_data->context->impl->handles_condition_variable.notify_all();
 }
 }  // namespace rmw_zenoh_cpp
