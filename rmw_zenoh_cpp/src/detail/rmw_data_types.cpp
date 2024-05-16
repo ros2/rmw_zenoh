@@ -32,6 +32,24 @@
 #include "rmw_data_types.hpp"
 
 ///=============================================================================
+static size_t hash_gid(const uint8_t * gid)
+{
+  std::stringstream hash_str;
+  hash_str << std::hex;
+  size_t i = 0;
+  for (; i < (RMW_GID_STORAGE_SIZE - 1); i++) {
+    hash_str << static_cast<int>(gid[i]);
+  }
+  return std::hash<std::string>{}(hash_str.str());
+}
+
+///=============================================================================
+static size_t hash_gid(const rmw_request_id_t & request_id)
+{
+  return hash_gid(request_id.writer_guid);
+}
+
+///=============================================================================
 size_t rmw_context_impl_s::get_next_entity_id()
 {
   return next_entity_id_++;
@@ -135,7 +153,24 @@ void rmw_subscription_data_t::add_new_message(
     }
   }
 
-  // TODO(Yadunund): Check for ZENOH_EVENT_MESSAGE_LOST.
+  // Check for messages lost if the new sequence number is not monotonically increasing.
+  const size_t gid_hash = hash_gid(msg->publisher_gid);
+  auto last_known_pub_it = last_known_published_msg_.find(gid_hash);
+  if (last_known_pub_it != last_known_published_msg_.end()) {
+    const int64_t seq_increment = std::abs(msg->sequence_number - last_known_pub_it->second);
+    if (seq_increment > 1) {
+      const size_t num_msg_lost = seq_increment - 1;
+      total_messages_lost_ += num_msg_lost;
+      auto event_status = std::make_unique<rmw_zenoh_event_status_t>();
+      event_status->total_count_change = num_msg_lost;
+      event_status->total_count = total_messages_lost_;
+      events_mgr.add_new_event(
+        rmw_zenoh_cpp::ZENOH_EVENT_MESSAGE_LOST,
+        std::move(event_status));
+    }
+  }
+  // Always update the last known sequence number for the publisher
+  last_known_published_msg_[gid_hash] = msg->sequence_number;
 
   message_queue_.emplace_back(std::move(msg));
 
@@ -209,17 +244,6 @@ void rmw_service_data_t::add_new_query(std::unique_ptr<ZenohQuery> query)
   // Since we added new data, trigger user callback and guard condition if they are available
   data_callback_mgr.trigger_callback();
   notify();
-}
-
-static size_t hash_gid(const rmw_request_id_t & request_id)
-{
-  std::stringstream hash_str;
-  hash_str << std::hex;
-  size_t i = 0;
-  for (; i < (RMW_GID_STORAGE_SIZE - 1); i++) {
-    hash_str << static_cast<int>(request_id.writer_guid[i]);
-  }
-  return std::hash<std::string>{}(hash_str.str());
 }
 
 ///=============================================================================
