@@ -15,14 +15,16 @@
 
 #include "guard_condition.hpp"
 
-///==============================================================================
+namespace rmw_zenoh_cpp
+{
+///=============================================================================
 GuardCondition::GuardCondition()
 : has_triggered_(false),
   condition_variable_(nullptr)
 {
 }
 
-///==============================================================================
+///=============================================================================
 void GuardCondition::trigger()
 {
   std::lock_guard<std::mutex> lock(internal_mutex_);
@@ -37,21 +39,21 @@ void GuardCondition::trigger()
   }
 }
 
-///==============================================================================
+///=============================================================================
 void GuardCondition::attach_condition(std::condition_variable * condition_variable)
 {
   std::lock_guard<std::mutex> lock(internal_mutex_);
   condition_variable_ = condition_variable;
 }
 
-///==============================================================================
+///=============================================================================
 void GuardCondition::detach_condition()
 {
   std::lock_guard<std::mutex> lock(internal_mutex_);
   condition_variable_ = nullptr;
 }
 
-///==============================================================================
+///=============================================================================
 bool GuardCondition::get_and_reset_trigger()
 {
   std::lock_guard<std::mutex> lock(internal_mutex_);
@@ -63,3 +65,4 @@ bool GuardCondition::get_and_reset_trigger()
 
   return ret;
 }
+}  // namespace rmw_zenoh_cpp

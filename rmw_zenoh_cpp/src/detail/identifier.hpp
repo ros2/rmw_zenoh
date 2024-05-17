@@ -15,6 +15,9 @@
 #ifndef DETAIL__IDENTIFIER_HPP_
 #define DETAIL__IDENTIFIER_HPP_
 
+namespace rmw_zenoh_cpp
+{
 extern const char * const rmw_zenoh_identifier;
+}  // namespace rmw_zenoh_cpp
 
 #endif  // DETAIL__IDENTIFIER_HPP_

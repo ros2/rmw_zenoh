@@ -20,7 +20,8 @@
 
 #include "rmw/error_handling.h"
 
-
+namespace rmw_zenoh_cpp
+{
 ///=============================================================================
 void DataCallbackManager::set_callback(
   const void * user_data, rmw_event_callback_t callback)
@@ -229,3 +230,4 @@ void EventsManager::notify_event(rmw_zenoh_event_type_t event_id)
     event_conditions_[event_id]->notify_one();
   }
 }
+}  // namespace rmw_zenoh_cpp

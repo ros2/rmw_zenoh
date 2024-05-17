@@ -22,11 +22,14 @@
 #include "rosidl_typesupport_fastrtps_cpp/message_type_support.h"
 #include "type_support.hpp"
 
-///==============================================================================
+namespace rmw_zenoh_cpp
+{
+///=============================================================================
 class MessageTypeSupport final : public TypeSupport
 {
 public:
   explicit MessageTypeSupport(const message_type_support_callbacks_t * members);
 };
+}  // namespace rmw_zenoh_cpp
 
 #endif  // DETAIL__MESSAGE_TYPE_SUPPORT_HPP_

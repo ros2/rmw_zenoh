@@ -175,7 +175,10 @@ int main(int argc, char ** argv)
 
   // Initialize the zenoh configuration for the router.
   z_owned_config_t config;
-  if ((get_z_config(ConfigurableEntity::Router, &config)) != RMW_RET_OK) {
+  if ((rmw_zenoh_cpp::get_z_config(
+      rmw_zenoh_cpp::ConfigurableEntity::Router,
+      &config)) != RMW_RET_OK)
+  {
     RMW_SET_ERROR_MSG("Error configuring Zenoh router.");
     return 1;
   }

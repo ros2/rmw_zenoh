@@ -36,6 +36,8 @@
 #include "graph_cache.hpp"
 #include "rmw_data_types.hpp"
 
+namespace rmw_zenoh_cpp
+{
 ///=============================================================================
 using Entity = liveliness::Entity;
 using ConstEntityPtr = liveliness::ConstEntityPtr;
@@ -836,7 +838,8 @@ rmw_ret_t GraphCache::publisher_count_matched_subscriptions(
   *subscription_count = 0;
   GraphNode::TopicMap::const_iterator topic_it = graph_topics_.find(publisher->topic_name);
   if (topic_it != graph_topics_.end()) {
-    rmw_publisher_data_t * pub_data = static_cast<rmw_publisher_data_t *>(publisher->data);
+    rmw_publisher_data_t * pub_data =
+      static_cast<rmw_publisher_data_t *>(publisher->data);
     GraphNode::TopicTypeMap::const_iterator topic_data_it = topic_it->second.find(
       pub_data->type_support->get_name());
     if (topic_data_it != topic_it->second.end()) {
@@ -871,7 +874,8 @@ rmw_ret_t GraphCache::subscription_count_matched_publishers(
   *publisher_count = 0;
   GraphNode::TopicMap::const_iterator topic_it = graph_topics_.find(subscription->topic_name);
   if (topic_it != graph_topics_.end()) {
-    rmw_subscription_data_t * sub_data = static_cast<rmw_subscription_data_t *>(subscription->data);
+    rmw_subscription_data_t * sub_data =
+      static_cast<rmw_subscription_data_t *>(subscription->data);
     GraphNode::TopicTypeMap::const_iterator topic_data_it = topic_it->second.find(
       sub_data->type_support->get_name());
     if (topic_data_it != topic_it->second.end()) {
@@ -1297,3 +1301,4 @@ std::unique_ptr<rmw_zenoh_event_status_t> GraphCache::take_event_status(
   status_to_take.current_count_change = 0;
   return result;
 }
+}  // namespace rmw_zenoh_cpp

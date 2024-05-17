@@ -25,9 +25,10 @@
 
 #include "rmw/types.h"
 
+namespace rmw_zenoh_cpp
+{
 namespace liveliness
 {
-
 ///=============================================================================
 struct NodeInfo
 {
@@ -213,42 +214,41 @@ std::optional<rmw_qos_profile_t> keyexpr_to_qos(const std::string & keyexpr);
 ///=============================================================================
 /// Convert a Zenoh id to a string.
 std::string zid_to_str(const z_id_t & id);
-
 }  // namespace liveliness
+}  // namespace rmw_zenoh_cpp
 
 ///=============================================================================
 // Allow Entity to be hashed and used as a key in unordered_maps/sets
 namespace std
 {
 template<>
-struct hash<liveliness::Entity>
+struct hash<rmw_zenoh_cpp::liveliness::Entity>
 {
-  auto operator()(const liveliness::Entity & entity) const -> size_t
+  auto operator()(const rmw_zenoh_cpp::liveliness::Entity & entity) const -> size_t
   {
     return entity.guid();
   }
 };
 
 template<>
-struct hash<liveliness::ConstEntityPtr>
+struct hash<rmw_zenoh_cpp::liveliness::ConstEntityPtr>
 {
-  auto operator()(const liveliness::ConstEntityPtr & entity) const -> size_t
+  auto operator()(const rmw_zenoh_cpp::liveliness::ConstEntityPtr & entity) const -> size_t
   {
     return entity->guid();
   }
 };
 
 template<>
-struct equal_to<liveliness::ConstEntityPtr>
+struct equal_to<rmw_zenoh_cpp::liveliness::ConstEntityPtr>
 {
   auto operator()(
-    const liveliness::ConstEntityPtr & lhs,
-    const liveliness::ConstEntityPtr & rhs) const -> bool
+    const rmw_zenoh_cpp::liveliness::ConstEntityPtr & lhs,
+    const rmw_zenoh_cpp::liveliness::ConstEntityPtr & rhs) const -> bool
   {
     return lhs->guid() == rhs->guid();
   }
 };
-
 }  // namespace std
 
 #endif  // DETAIL__LIVELINESS_UTILS_HPP_

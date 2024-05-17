@@ -17,11 +17,14 @@
 
 #include <zenoh.h>
 
+namespace rmw_zenoh_cpp
+{
 // TODO(YV): Consider using this again.
 struct rmw_init_options_impl_s
 {
   // An owned config.
   z_owned_config_t config;
 };
+}  // namespace rmw_zenoh_cpp
 
 #endif  // DETAIL__RMW_INIT_OPTIONS_IMPL_HPP_
