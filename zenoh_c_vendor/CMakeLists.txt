@@ -24,14 +24,17 @@ find_package(ament_cmake_vendor_package REQUIRED)
 # when expanded.
 set(ZENOHC_CARGO_FLAGS "--no-default-features$<SEMICOLON>--features=zenoh/transport_tcp zenoh/shared-memory")
 
-# Set VCS_VERSION to include latest changes from zenoh-c https://github.com/eclipse-zenoh/zenoh-c/pull/340.
+# Set VCS_VERSION to include latest changes from zenoh-c to benefit from :
+# - https://github.com/eclipse-zenoh/zenoh-c/pull/340 (fix build issue)
+# - https://github.com/eclipse-zenoh/zenoh/pull/1021 (fix timeout issue with queries)
+# - https://github.com/eclipse-zenoh/zenoh/pull/1022 (fix empty messages received if payload >btach size)
+# - https://github.com/eclipse-zenoh/zenoh-c/pull/358 (fix debian packaging issue: https://github.com/jspricke/ros-deb-builder-action/issues/49)
 ament_vendor(zenoh_c_vendor
   VCS_URL https://github.com/eclipse-zenoh/zenoh-c.git
-  VCS_VERSION 68ab0c1faa2c3521680352778e618d95f15e2e95
+  VCS_VERSION 390ec14e1b3785cd771bd6931db65062222bb735
   CMAKE_ARGS
     "-DZENOHC_CARGO_FLAGS=${ZENOHC_CARGO_FLAGS}"
 )
-
 # set(INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-prefix/install")
 # install(
 #   DIRECTORY "${INSTALL_DIR}/lib/"
