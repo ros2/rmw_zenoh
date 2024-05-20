@@ -28,3 +28,5 @@ jobs:
         rosdep install --from-paths . -yir
     - name: build
       run: /ros_entrypoint.sh colcon build
+    - name: test
+      run: /ros_entrypoint.sh colcon test --packages-select rmw_zenoh_cpp
