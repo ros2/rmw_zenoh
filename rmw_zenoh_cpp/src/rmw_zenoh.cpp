@@ -1291,27 +1291,32 @@ rmw_create_subscription(
       allocator->deallocate(sub_data, allocator->state);
     });
 
-  RMW_TRY_PLACEMENT_NEW(sub_data, sub_data, return nullptr, rmw_zenoh_cpp::rmw_subscription_data_t);
+  // Adapt any 'best available' QoS options
+  auto adapted_qos_profile = *qos_profile;
+  rmw_ret_t ret = rmw_dds_common::qos_profile_get_best_available_for_topic_subscription(
+    node, topic_name, &adapted_qos_profile, rmw_get_publishers_info_by_topic);
+  if (RMW_RET_OK != ret) {
+    RMW_SET_ERROR_MSG("Failed to obtain adapted_qos_profile.");
+    return nullptr;
+  }
+  // If a depth of 0 was provided, the RMW implementation should choose a suitable default.
+  adapted_qos_profile.depth =
+    adapted_qos_profile.depth > 0 ?
+    adapted_qos_profile.depth :
+    RMW_ZENOH_DEFAULT_HISTORY_DEPTH;
+
+  RMW_TRY_PLACEMENT_NEW(
+    sub_data,
+    sub_data,
+    return nullptr,
+    rmw_zenoh_cpp::rmw_subscription_data_t,
+    adapted_qos_profile);
   auto destruct_sub_data = rcpputils::make_scope_exit(
     [sub_data]() {
       RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(
         sub_data->~rmw_subscription_data_t(),
         rmw_zenoh_cpp::rmw_subscription_data_t);
     });
-
-  // Adapt any 'best available' QoS options
-  sub_data->adapted_qos_profile = *qos_profile;
-  rmw_ret_t ret = rmw_dds_common::qos_profile_get_best_available_for_topic_subscription(
-    node, topic_name, &sub_data->adapted_qos_profile, rmw_get_publishers_info_by_topic);
-  if (RMW_RET_OK != ret) {
-    RMW_SET_ERROR_MSG("Failed to obtain adapted_qos_profile.");
-    return nullptr;
-  }
-  // If a depth of 0 was provided, the RMW implementation should choose a suitable default.
-  sub_data->adapted_qos_profile.depth =
-    sub_data->adapted_qos_profile.depth > 0 ?
-    sub_data->adapted_qos_profile.depth :
-    RMW_ZENOH_DEFAULT_HISTORY_DEPTH;
 
   sub_data->typesupport_identifier = type_support->typesupport_identifier;
   sub_data->type_support_impl = type_support->data;
@@ -1381,7 +1386,7 @@ rmw_create_subscription(
       z_drop(z_move(owned_key_str));
     });
 
-  if (sub_data->adapted_qos_profile.durability == RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL) {
+  if (adapted_qos_profile.durability == RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL) {
     ze_querying_subscriber_options_t sub_options = ze_querying_subscriber_options_default();
     // Target all complete publication caches which are queryables.
     sub_options.query_target = Z_QUERY_TARGET_ALL_COMPLETE;
@@ -1389,7 +1394,7 @@ rmw_create_subscription(
     // from a number of publishers. Eg: To receive TF data published over /tf_static
     // by various publishers.
     sub_options.query_consolidation = z_query_consolidation_none();
-    if (sub_data->adapted_qos_profile.reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE) {
+    if (adapted_qos_profile.reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE) {
       sub_options.reliability = Z_RELIABILITY_RELIABLE;
     }
     sub_data->sub = ze_declare_querying_subscriber(
@@ -1444,7 +1449,7 @@ rmw_create_subscription(
     rmw_zenoh_cpp::liveliness::NodeInfo{
       node->context->actual_domain_id, node->namespace_, node->name, ""},
     rmw_zenoh_cpp::liveliness::TopicInfo{rmw_subscription->topic_name,
-      sub_data->type_support->get_name(), sub_data->adapted_qos_profile}
+      sub_data->type_support->get_name(), adapted_qos_profile}
   );
   if (sub_data->entity == nullptr) {
     RCUTILS_LOG_ERROR_NAMED(
@@ -1583,7 +1588,7 @@ rmw_subscription_get_actual_qos(
   auto sub_data = static_cast<rmw_zenoh_cpp::rmw_subscription_data_t *>(subscription->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
 
-  *qos = sub_data->adapted_qos_profile;
+  *qos = sub_data->adapted_qos_profile();
   return RMW_RET_OK;
 }
 

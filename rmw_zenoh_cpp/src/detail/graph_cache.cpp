@@ -884,7 +884,7 @@ rmw_ret_t GraphCache::subscription_count_matched_publishers(
         if (!topic_data->pubs_.empty()) {
           rmw_qos_compatibility_type_t is_compatible;
           rmw_ret_t ret = rmw_qos_profile_check_compatible(
-            sub_data->adapted_qos_profile,
+            sub_data->adapted_qos_profile(),
             topic_data->info_.qos_,
             &is_compatible,
             nullptr,

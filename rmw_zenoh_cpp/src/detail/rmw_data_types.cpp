@@ -83,6 +83,21 @@ size_t rmw_publisher_data_t::get_next_sequence_number()
 }
 
 ///=============================================================================
+rmw_subscription_data_t::rmw_subscription_data_t(
+  rmw_qos_profile_t adapted_qos_profile)
+  : adapted_qos_profile_(std::move(adapted_qos_profile))
+{
+  message_queue_ =
+    std::make_unique<RingBuffer<std::unique_ptr<saved_msg_data>>>(adapted_qos_profile_.depth);
+}
+
+///=============================================================================
+const rmw_qos_profile_t & rmw_subscription_data_t::adapted_qos_profile() const
+{
+  return adapted_qos_profile_;
+}
+
+///=============================================================================
 void rmw_subscription_data_t::attach_condition(std::condition_variable * condition_variable)
 {
   std::lock_guard<std::mutex> lock(condition_mutex_);
@@ -109,7 +124,7 @@ void rmw_subscription_data_t::detach_condition()
 bool rmw_subscription_data_t::message_queue_is_empty() const
 {
   std::lock_guard<std::mutex> lock(message_queue_mutex_);
-  return message_queue_.empty();
+  return message_queue_->empty();
 }
 
 ///=============================================================================
@@ -117,41 +132,21 @@ std::unique_ptr<saved_msg_data> rmw_subscription_data_t::pop_next_message()
 {
   std::lock_guard<std::mutex> lock(message_queue_mutex_);
 
-  if (message_queue_.empty()) {
+  if (message_queue_->empty()) {
     // This tells rcl that the check for a new message was done, but no messages have come in yet.
     return nullptr;
   }
 
-  std::unique_ptr<rmw_zenoh_cpp::saved_msg_data> msg_data = std::move(message_queue_.front());
-  message_queue_.pop_front();
+  std::unique_ptr<rmw_zenoh_cpp::saved_msg_data> msg_data = message_queue_->pop();
 
   return msg_data;
 }
 
 ///=============================================================================
 void rmw_subscription_data_t::add_new_message(
-  std::unique_ptr<saved_msg_data> msg, const std::string & topic_name)
+  std::unique_ptr<saved_msg_data> msg)
 {
   std::lock_guard<std::mutex> lock(message_queue_mutex_);
-
-  if (message_queue_.size() >= adapted_qos_profile.depth) {
-    // Log warning if message is discarded due to hitting the queue depth
-    RCUTILS_LOG_DEBUG_NAMED(
-      "rmw_zenoh_cpp",
-      "Message queue depth of %ld reached, discarding oldest message "
-      "for subscription for %s",
-      adapted_qos_profile.depth,
-      topic_name.c_str());
-
-    // If the adapted_qos_profile.depth is 0, the std::move command below will result
-    // in UB and the z_drop will segfault. We explicitly set the depth to a minimum of 1
-    // in rmw_create_subscription() but to be safe, we only attempt to discard from the
-    // queue if it is non-empty.
-    if (!message_queue_.empty()) {
-      std::unique_ptr<saved_msg_data> old = std::move(message_queue_.front());
-      message_queue_.pop_front();
-    }
-  }
 
   // Check for messages lost if the new sequence number is not monotonically increasing.
   const size_t gid_hash = hash_gid(msg->publisher_gid);
@@ -172,7 +167,7 @@ void rmw_subscription_data_t::add_new_message(
   // Always update the last known sequence number for the publisher
   last_known_published_msg_[gid_hash] = msg->sequence_number;
 
-  message_queue_.emplace_back(std::move(msg));
+  message_queue_->append(std::move(msg));
 
   // Since we added new data, trigger user callback and guard condition if they are available
   data_callback_mgr.trigger_callback();
@@ -425,7 +420,7 @@ void sub_data_handler(
   sub_data->add_new_message(
     std::make_unique<saved_msg_data>(
       zc_sample_payload_rcinc(sample),
-      sample->timestamp.time, pub_gid, sequence_number, source_timestamp), z_loan(keystr));
+      sample->timestamp.time, pub_gid, sequence_number, source_timestamp));
 }
 
 ///=============================================================================

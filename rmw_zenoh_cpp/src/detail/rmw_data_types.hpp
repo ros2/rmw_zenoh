@@ -35,6 +35,7 @@
 #include "event.hpp"
 #include "graph_cache.hpp"
 #include "message_type_support.hpp"
+#include "ring_buffer.hpp"
 #include "service_type_support.hpp"
 
 /// Structs for various type erased data fields.
@@ -157,14 +158,21 @@ struct saved_msg_data
 class rmw_subscription_data_t final
 {
 public:
+  // Constructor.
+  explicit rmw_subscription_data_t(
+    rmw_qos_profile_t adapted_qos_profile
+  );
+
+  // Get a const reference to the qos profile for this subscription.
+  const rmw_qos_profile_t & adapted_qos_profile() const;
+
+  // TODO(Yadunund): Move all member variables to private scope.
+
   // The Entity generated for the subscription.
   std::shared_ptr<liveliness::Entity> entity;
 
   // An owned subscriber or querying_subscriber depending on the QoS settings.
   std::variant<z_owned_subscriber_t, ze_owned_querying_subscriber_t> sub;
-
-  // Store the actual QoS profile used to configure this subscription.
-  rmw_qos_profile_t adapted_qos_profile;
 
   // Liveliness token for the subscription.
   zc_owned_liveliness_token_t token;
@@ -182,13 +190,16 @@ public:
 
   std::unique_ptr<saved_msg_data> pop_next_message();
 
-  void add_new_message(std::unique_ptr<saved_msg_data> msg, const std::string & topic_name);
+  void add_new_message(std::unique_ptr<saved_msg_data> msg);
 
   DataCallbackManager data_callback_mgr;
   EventsManager events_mgr;
 
 private:
-  std::deque<std::unique_ptr<saved_msg_data>> message_queue_;
+  // Store the actual QoS profile used to configure this subscription.
+  rmw_qos_profile_t adapted_qos_profile_;
+
+  std::unique_ptr<RingBuffer<std::unique_ptr<saved_msg_data>>> message_queue_;
   mutable std::mutex message_queue_mutex_;
 
   // Map GID of a publisher to the sequence number of the message it published.

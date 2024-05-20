@@ -45,6 +45,12 @@ public:
     return std::min(size_, max_length_);
   }
 
+  /// Utility function to check if the buffer is empty.
+  bool empty() const
+  {
+    return this->size() == 0;
+  }
+
   /// Return the earliest entry from this buffer.
   /// Note: Throws an std::out_of_range exception if the buffer is empty.
   T pop()
