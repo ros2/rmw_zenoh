@@ -934,7 +934,6 @@ rmw_publish(
   // session use different encoding formats. In our case, all key expressions
   // will be encoded with CDR so it does not really matter.
   z_publisher_put_options_t options = z_publisher_put_options_default();
-  options.encoding = z_encoding(Z_ENCODING_PREFIX_EMPTY, NULL);
   options.attachment = z_bytes_map_as_attachment(&map);
 
   if (shmbuf.has_value()) {
@@ -1073,7 +1072,6 @@ rmw_publish_serialized_message(
   // session use different encoding formats. In our case, all key expressions
   // will be encoded with CDR so it does not really matter.
   z_publisher_put_options_t options = z_publisher_put_options_default();
-  options.encoding = z_encoding(Z_ENCODING_PREFIX_EMPTY, NULL);
   options.attachment = z_bytes_map_as_attachment(&map);
   // Returns 0 if success.
   int8_t ret = z_publisher_put(
@@ -2276,7 +2274,6 @@ rmw_send_request(
   // and any number.
   opts.consolidation = z_query_consolidation_latest();
   opts.value.payload = z_bytes_t{data_length, reinterpret_cast<const uint8_t *>(request_bytes)};
-  opts.value.encoding = z_encoding(Z_ENCODING_PREFIX_EMPTY, NULL);
   client_data->zn_closure_reply =
     z_closure(rmw_zenoh_cpp::client_data_handler, nullptr, client_data);
   z_get(
@@ -2931,7 +2928,6 @@ rmw_send_response(
 
   options.attachment = z_bytes_map_as_attachment(&map);
 
-  options.encoding = z_encoding(Z_ENCODING_PREFIX_EMPTY, NULL);
   z_query_reply(
     &loaned_query, z_loan(service_data->keyexpr), reinterpret_cast<const uint8_t *>(
       response_bytes), data_length, &options);
