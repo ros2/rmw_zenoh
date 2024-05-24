@@ -17,6 +17,10 @@ For information about the Design please visit [design](docs/design.md) page.
 
 Build `rmw_zenoh_cpp`
 
+>Note: By default, we vendor and compile `zenoh-c` with a subset of `zenoh` features.
+The `ZENOHC_CARGO_FLAGS` CMake argument may be overwritten with other features included if required.
+See [zenoh_c_vendor/CMakeLists.txt](./zenoh_c_vendor/CMakeLists.txt) for more details.
+
 ```bash
 mkdir ~/ws_rmw_zenoh/src -p && cd ~/ws_rmw_zenoh/src
 git clone https://github.com/ros2/rmw_zenoh.git
