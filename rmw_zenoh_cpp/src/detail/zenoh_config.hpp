@@ -23,7 +23,9 @@
 
 #include "rmw/ret_types.h"
 
-///==============================================================================
+namespace rmw_zenoh_cpp
+{
+///=============================================================================
 enum class ConfigurableEntity : uint8_t
 {
   Invalid = 0,
@@ -31,7 +33,7 @@ enum class ConfigurableEntity : uint8_t
   Router
 };
 
-///==============================================================================
+///=============================================================================
 /// Get the zenoh configuration for a configurable entity.
 /// @details The behavior is as follows:
 ///   - If the environment variable for the entity is set, the z_owned_config_t
@@ -44,7 +46,7 @@ enum class ConfigurableEntity : uint8_t
 [[nodiscard]]
 rmw_ret_t get_z_config(const ConfigurableEntity & entity, z_owned_config_t * config);
 
-///==============================================================================
+///=============================================================================
 /// Get the number of times rmw_init should try to connect to a zenoh router
 /// based on the environment variable ZENOH_ROUTER_CHECK_ATTEMPTS.
 /// @details The behavior is as follows:
@@ -54,5 +56,6 @@ rmw_ret_t get_z_config(const ConfigurableEntity & entity, z_owned_config_t * con
 /// @return The number of times to try connecting to a zenoh router and
 ///   std::nullopt if establishing a connection to a router is not required.
 std::optional<uint64_t> zenoh_router_check_attempts();
+}  // namespace rmw_zenoh_cpp
 
 #endif  // DETAIL__ZENOH_CONFIG_HPP_

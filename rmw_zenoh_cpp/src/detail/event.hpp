@@ -25,7 +25,8 @@
 #include "rmw/event.h"
 #include "rmw/event_callback_type.h"
 
-
+namespace rmw_zenoh_cpp
+{
 ///=============================================================================
 // A struct that represents an event status in rmw_zenoh.
 enum rmw_zenoh_event_type_t
@@ -157,12 +158,7 @@ private:
   mutable std::mutex event_condition_mutex_;
   /// Condition variable to attach for event notifications.
   std::condition_variable * event_conditions_[ZENOH_EVENT_ID_MAX + 1]{nullptr};
-  /// User callback that can be set via data_callback_mgr.set_callback().
-  rmw_event_callback_t callback_ {nullptr};
-  /// User data that should be passed to the user callback.
-  const void * user_data_ {nullptr};
-  /// Count for
-  size_t unread_count_ {0};
+
   rmw_event_callback_t event_callback_[ZENOH_EVENT_ID_MAX + 1] {nullptr};
   const void * event_data_[ZENOH_EVENT_ID_MAX + 1] {nullptr};
   size_t event_unread_count_[ZENOH_EVENT_ID_MAX + 1] {0};
@@ -170,5 +166,6 @@ private:
   std::deque<std::unique_ptr<rmw_zenoh_event_status_t>> event_queues_[ZENOH_EVENT_ID_MAX + 1] {};
   const std::size_t event_queue_depth_ = 10;
 };
+}  // namespace rmw_zenoh_cpp
 
 #endif  // DETAIL__EVENT_HPP_

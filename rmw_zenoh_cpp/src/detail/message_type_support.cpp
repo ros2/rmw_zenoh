@@ -24,6 +24,8 @@
 #include "message_type_support.hpp"
 #include "type_support_common.hpp"
 
+namespace rmw_zenoh_cpp
+{
 MessageTypeSupport::MessageTypeSupport(const message_type_support_callbacks_t * members)
 {
   assert(members);
@@ -33,3 +35,4 @@ MessageTypeSupport::MessageTypeSupport(const message_type_support_callbacks_t * 
 
   set_members(members);
 }
+}  // namespace rmw_zenoh_cpp

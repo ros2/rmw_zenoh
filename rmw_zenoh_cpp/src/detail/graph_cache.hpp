@@ -35,6 +35,8 @@
 #include "rmw/names_and_types.h"
 
 
+namespace rmw_zenoh_cpp
+{
 ///=============================================================================
 // TODO(Yadunund): Consider changing this to an array of unordered_set where the index of the
 // array corresponds to the EntityType enum. This way we don't need to mix
@@ -284,5 +286,6 @@ private:
   // Mutex to lock before modifying the members above.
   mutable std::mutex graph_mutex_;
 };
+}  // namespace rmw_zenoh_cpp
 
 #endif  // DETAIL__GRAPH_CACHE_HPP_

@@ -59,7 +59,7 @@ public:
   /// Guard condition that should be triggered when the graph changes.
   rmw_guard_condition_t * graph_guard_condition;
 
-  std::unique_ptr<GraphCache> graph_cache;
+  std::unique_ptr<rmw_zenoh_cpp::GraphCache> graph_cache;
 
   size_t get_next_entity_id();
 
@@ -68,6 +68,8 @@ private:
   size_t next_entity_id_{0};
 };
 
+namespace rmw_zenoh_cpp
+{
 ///=============================================================================
 struct rmw_node_data_t
 {
@@ -188,6 +190,10 @@ public:
 private:
   std::deque<std::unique_ptr<saved_msg_data>> message_queue_;
   mutable std::mutex message_queue_mutex_;
+
+  // Map GID of a publisher to the sequence number of the message it published.
+  std::unordered_map<size_t, int64_t> last_known_published_msg_;
+  size_t total_messages_lost_{0};
 
   void notify();
 
@@ -316,7 +322,7 @@ public:
 
   size_t get_next_sequence_number();
 
-  void add_new_reply(std::unique_ptr<ZenohReply> reply);
+  void add_new_reply(std::unique_ptr<rmw_zenoh_cpp::ZenohReply> reply);
 
   bool reply_queue_is_empty() const;
 
@@ -324,7 +330,7 @@ public:
 
   void detach_condition();
 
-  std::unique_ptr<ZenohReply> pop_next_reply();
+  std::unique_ptr<rmw_zenoh_cpp::ZenohReply> pop_next_reply();
 
   DataCallbackManager data_callback_mgr;
 
@@ -337,8 +343,9 @@ private:
   std::condition_variable * condition_{nullptr};
   std::mutex condition_mutex_;
 
-  std::deque<std::unique_ptr<ZenohReply>> reply_queue_;
+  std::deque<std::unique_ptr<rmw_zenoh_cpp::ZenohReply>> reply_queue_;
   mutable std::mutex reply_queue_mutex_;
 };
+}  // namespace rmw_zenoh_cpp
 
 #endif  // DETAIL__RMW_DATA_TYPES_HPP_

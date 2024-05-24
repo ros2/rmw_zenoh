@@ -25,7 +25,7 @@
 
 extern "C"
 {
-///==============================================================================
+///=============================================================================
 /// Retrieve endpoint information for each known publisher of a given topic.
 rmw_ret_t
 rmw_get_publishers_info_by_topic(
@@ -39,19 +39,19 @@ rmw_get_publishers_info_by_topic(
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node,
     node->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
   return node->context->impl->graph_cache->get_entities_info_by_topic(
-    liveliness::EntityType::Publisher,
+    rmw_zenoh_cpp::liveliness::EntityType::Publisher,
     allocator,
     topic_name,
     no_mangle,
     publishers_info);
 }
 
-///==============================================================================
+///=============================================================================
 /// Retrieve endpoint information for each known subscription of a given topic.
 rmw_ret_t
 rmw_get_subscriptions_info_by_topic(
@@ -65,12 +65,12 @@ rmw_get_subscriptions_info_by_topic(
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node,
     node->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
   return node->context->impl->graph_cache->get_entities_info_by_topic(
-    liveliness::EntityType::Subscription,
+    rmw_zenoh_cpp::liveliness::EntityType::Subscription,
     allocator,
     topic_name,
     no_mangle,

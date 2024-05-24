@@ -39,7 +39,7 @@ rmw_init_options_init(rmw_init_options_t * init_options, rcutils_allocator_t all
   }
 
   init_options->instance_id = 0;
-  init_options->implementation_identifier = rmw_zenoh_identifier;
+  init_options->implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
   init_options->allocator = allocator;
   init_options->impl = nullptr;
   init_options->enclave = NULL;
@@ -64,7 +64,7 @@ rmw_init_options_copy(const rmw_init_options_t * src, rmw_init_options_t * dst)
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     src,
     src->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   if (NULL != dst->implementation_identifier) {
     RMW_SET_ERROR_MSG("expected zero-initialized dst");
@@ -106,7 +106,7 @@ rmw_init_options_fini(rmw_init_options_t * init_options)
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     init_options,
     init_options->implementation_identifier,
-    rmw_zenoh_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   rcutils_allocator_t * allocator = &init_options->allocator;
   RCUTILS_CHECK_ALLOCATOR(allocator, return RMW_RET_INVALID_ARGUMENT);

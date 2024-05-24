@@ -23,7 +23,9 @@
 #include <ament_index_cpp/get_package_share_directory.hpp>
 #include <rmw/impl/cpp/macros.hpp>
 
-///==============================================================================
+///=============================================================================
+namespace rmw_zenoh_cpp
+{
 namespace
 {
 /// Map the configurable entity to a pair of environment variable name that
@@ -76,7 +78,7 @@ rmw_ret_t _get_z_config(
 }
 }  // namespace
 
-///==============================================================================
+///=============================================================================
 rmw_ret_t get_z_config(const ConfigurableEntity & entity, z_owned_config_t * config)
 {
   auto envar_map_it = envar_map.find(entity);
@@ -93,7 +95,7 @@ rmw_ret_t get_z_config(const ConfigurableEntity & entity, z_owned_config_t * con
   return _get_z_config(envar_map_it->second.first, default_config_path.c_str(), config);
 }
 
-///==============================================================================
+///=============================================================================
 std::optional<uint64_t> zenoh_router_check_attempts()
 {
   const char * envar_value;
@@ -123,3 +125,4 @@ std::optional<uint64_t> zenoh_router_check_attempts()
   // If unset, check indefinitely.
   return default_value;
 }
+}  // namespace rmw_zenoh_cpp

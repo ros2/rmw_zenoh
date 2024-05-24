@@ -26,6 +26,9 @@
 
 #include "rosidl_typesupport_fastrtps_cpp/message_type_support.h"
 
+namespace rmw_zenoh_cpp
+{
+///=============================================================================
 enum SerializedDataType
 {
   FASTRTPS_SERIALIZED_DATA_TYPE_CDR_BUFFER,
@@ -33,6 +36,7 @@ enum SerializedDataType
   FASTRTPS_SERIALIZED_DATA_TYPE_ROS_MESSAGE
 };
 
+///=============================================================================
 // Publishers write method will receive a pointer to this struct
 struct SerializedData
 {
@@ -41,6 +45,7 @@ struct SerializedData
   const void * impl;  // RMW implementation specific data
 };
 
+///=============================================================================
 class TypeSupport
 {
 public:
@@ -74,5 +79,6 @@ private:
 
   std::string topic_data_type_name_;
 };
+}  // namespace rmw_zenoh_cpp
 
 #endif  // DETAIL__TYPE_SUPPORT_HPP_
