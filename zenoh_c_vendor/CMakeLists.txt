@@ -10,15 +10,8 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_vendor_package REQUIRED)
 
-# Disable default features and only enable tcp, tls and shared-memory transport for zenoh.
-# This reduces build time but more importantly allows us to limit the number of threads that
-# the zenoh session can spin via the session config as well as the ASYNC_STD_THREAD_COUNT
-# environment variable. Without this limit, applications with multiple zenoh sessions can
-# encounter system resource errors when trying to create new threads.
-# Once zenoh migrates to relying on tokio for its async runtime,
-# see https://github.com/eclipse-zenoh/zenoh/pull/566, we can consider
-# removing these flags since with tokio, zenoh can better manage the threads it spins
-# with the help of thread pools.
+# Disable default features and enable only the most useful ones. This reduces build time and footprint.
+# You can add here any Zenoh feature that are listed in this file: https://github.com/eclipse-zenoh/zenoh/blob/main/zenoh/Cargo.toml
 # Note: We separate the two args needed for cargo with "$<SEMICOLON>" and not ";" as the
 # latter is a list separater in cmake and hence the string will be split into two
 # when expanded.
@@ -34,8 +27,7 @@ ament_vendor(zenoh_c_vendor
   VCS_VERSION 390ec14e1b3785cd771bd6931db65062222bb735
   CMAKE_ARGS
   "-DZENOHC_CARGO_FLAGS=${ZENOHC_CARGO_FLAGS}"
-)
-# set(INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-prefix/install")
+)# set(INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-prefix/install")
 # install(
 # DIRECTORY "${INSTALL_DIR}/lib/"
 # DESTINATION "lib/${PROJECT_NAME}"
