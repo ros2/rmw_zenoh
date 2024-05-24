@@ -20,7 +20,9 @@
 #include <condition_variable>
 #include <mutex>
 
-///==============================================================================
+namespace rmw_zenoh_cpp
+{
+///=============================================================================
 class GuardCondition final
 {
 public:
@@ -29,7 +31,7 @@ public:
   // Sets has_triggered_ to true and calls notify_one() on condition_variable_ if set.
   void trigger();
 
-  void attach_condition(std::mutex * condition_mutex, std::condition_variable * condition_variable);
+  void attach_condition(std::condition_variable * condition_variable);
 
   void detach_condition();
 
@@ -38,8 +40,8 @@ public:
 private:
   mutable std::mutex internal_mutex_;
   std::atomic_bool has_triggered_;
-  std::mutex * condition_mutex_{nullptr};
-  std::condition_variable * condition_variable_{nullptr};
+  std::condition_variable * condition_variable_;
 };
+}  // namespace rmw_zenoh_cpp
 
 #endif  // DETAIL__GUARD_CONDITION_HPP_

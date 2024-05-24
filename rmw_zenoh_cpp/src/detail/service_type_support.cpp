@@ -23,10 +23,14 @@
 #include "service_type_support.hpp"
 #include "type_support_common.hpp"
 
+namespace rmw_zenoh_cpp
+{
+///=============================================================================
 ServiceTypeSupport::ServiceTypeSupport()
 {
 }
 
+///=============================================================================
 RequestTypeSupport::RequestTypeSupport(const service_type_support_callbacks_t * members)
 {
   assert(members);
@@ -39,6 +43,7 @@ RequestTypeSupport::RequestTypeSupport(const service_type_support_callbacks_t * 
   set_members(msg);
 }
 
+///=============================================================================
 ResponseTypeSupport::ResponseTypeSupport(const service_type_support_callbacks_t * members)
 {
   assert(members);
@@ -50,3 +55,4 @@ ResponseTypeSupport::ResponseTypeSupport(const service_type_support_callbacks_t 
 
   set_members(msg);
 }
+}  // namespace rmw_zenoh_cpp

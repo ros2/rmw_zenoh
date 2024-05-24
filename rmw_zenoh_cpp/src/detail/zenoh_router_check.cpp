@@ -23,6 +23,8 @@
 
 #include "liveliness_utils.hpp"
 
+namespace rmw_zenoh_cpp
+{
 ///=============================================================================
 rmw_ret_t zenoh_router_check(z_session_t session)
 {
@@ -59,3 +61,4 @@ rmw_ret_t zenoh_router_check(z_session_t session)
 
   return ret;
 }
+}  // namespace rmw_zenoh_cpp

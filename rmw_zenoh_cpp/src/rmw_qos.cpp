@@ -24,6 +24,7 @@
 
 extern "C"
 {
+///=============================================================================
 // Copied from rmw_dds_common::qos.cpp.
 // Returns RMW_RET_OK if successful or no buffer was provided
 // Returns RMW_RET_ERROR if there as an error copying the message to the buffer
@@ -48,6 +49,7 @@ _append_to_buffer(char * buffer, size_t buffer_size, const char * format, ...)
   return RMW_RET_OK;
 }
 
+///=============================================================================
 rmw_ret_t
 rmw_qos_profile_check_compatible(
   const rmw_qos_profile_t publisher_profile,

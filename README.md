@@ -10,20 +10,16 @@ A ROS 2 RMW implementation based on Zenoh that is written using the zenoh-c bind
 For information about the Design please visit [design](docs/design.md) page.
 
 ## Requirements
-- [ROS 2](https://docs.ros.org): Rolling/Iron
+- [ROS 2](https://docs.ros.org): Rolling/Jazzy/Iron
 
 
 ## Setup
 
-Install latest rustc via `rustup` if building on Ubuntu Jammy.
-Skip this step if building on Ubuntu Noble as `cargo` and `rustc` will be
-installed via `rosdep`.
-```bash
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-rustup install 1.75.0
-```
-
 Build `rmw_zenoh_cpp`
+
+>Note: By default, we vendor and compile `zenoh-c` with a subset of `zenoh` features.
+The `ZENOHC_CARGO_FLAGS` CMake argument may be overwritten with other features included if required.
+See [zenoh_c_vendor/CMakeLists.txt](./zenoh_c_vendor/CMakeLists.txt) for more details.
 
 ```bash
 mkdir ~/ws_rmw_zenoh/src -p && cd ~/ws_rmw_zenoh/src

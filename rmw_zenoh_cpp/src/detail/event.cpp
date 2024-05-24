@@ -20,7 +20,8 @@
 
 #include "rmw/error_handling.h"
 
-
+namespace rmw_zenoh_cpp
+{
 ///=============================================================================
 void DataCallbackManager::set_callback(
   const void * user_data, rmw_event_callback_t callback)
@@ -184,7 +185,6 @@ void EventsManager::add_new_event(
 ///=============================================================================
 void EventsManager::attach_event_condition(
   rmw_zenoh_event_type_t event_id,
-  std::mutex * condition_mutex,
   std::condition_variable * condition_variable)
 {
   if (event_id > ZENOH_EVENT_ID_MAX) {
@@ -195,8 +195,7 @@ void EventsManager::attach_event_condition(
     return;
   }
 
-  std::lock_guard<std::mutex> lock(update_event_condition_mutex_);
-  event_condition_mutexes_[event_id] = condition_mutex;
+  std::lock_guard<std::mutex> lock(event_condition_mutex_);
   event_conditions_[event_id] = condition_variable;
 }
 
@@ -211,8 +210,7 @@ void EventsManager::detach_event_condition(rmw_zenoh_event_type_t event_id)
     return;
   }
 
-  std::lock_guard<std::mutex> lock(update_event_condition_mutex_);
-  event_condition_mutexes_[event_id] = nullptr;
+  std::lock_guard<std::mutex> lock(event_condition_mutex_);
   event_conditions_[event_id] = nullptr;
 }
 
@@ -227,9 +225,9 @@ void EventsManager::notify_event(rmw_zenoh_event_type_t event_id)
     return;
   }
 
-  std::lock_guard<std::mutex> lock(update_event_condition_mutex_);
+  std::lock_guard<std::mutex> lock(event_condition_mutex_);
   if (event_conditions_[event_id] != nullptr) {
-    std::lock_guard<std::mutex> cvlk(*event_condition_mutexes_[event_id]);
     event_conditions_[event_id]->notify_one();
   }
 }
+}  // namespace rmw_zenoh_cpp

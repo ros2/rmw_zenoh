@@ -28,10 +28,10 @@
 
 #include "rmw/error_handling.h"
 
-
+namespace rmw_zenoh_cpp
+{
 namespace liveliness
 {
-
 ///=============================================================================
 NodeInfo::NodeInfo(
   std::size_t domain_id,
@@ -88,7 +88,6 @@ static const char PUB_STR[] = "MP";
 static const char SUB_STR[] = "MS";
 static const char SRV_STR[] = "SS";
 static const char CLI_STR[] = "SC";
-static const char EMPTY_NAMESPACE_REPLACEMENT = '_';
 static const char KEYEXPR_DELIMITER = '/';
 static const char SLASH_REPLACEMENT = '%';
 static const char QOS_DELIMITER = ':';
@@ -261,7 +260,7 @@ Entity::Entity(
   keyexpr_parts[KeyexprIndex::Id] = id_;
   keyexpr_parts[KeyexprIndex::EntityStr] = entity_to_str.at(type_);
   // An empty namespace from rcl will contain "/" but zenoh does not allow keys with "//".
-  // Hence we add an "_" to denote an empty namespace such that splitting the key
+  // Hence we mangle the empty namespace such that splitting the key
   // will always result in 5 parts.
   keyexpr_parts[KeyexprIndex::Namespace] = mangle_name(node_info_.ns_);
   keyexpr_parts[KeyexprIndex::NodeName] = mangle_name(node_info_.name_);
@@ -318,12 +317,12 @@ std::shared_ptr<Entity> Entity::make(
 
   return std::make_shared<Entity>(
     Entity{
-      zid_to_str(zid),
-      nid,
-      id,
-      std::move(type),
-      std::move(node_info),
-      std::move(topic_info)});
+        zid_to_str(zid),
+        nid,
+        id,
+        std::move(type),
+        std::move(node_info),
+        std::move(topic_info)});
 }
 
 ///=============================================================================
@@ -399,12 +398,12 @@ std::shared_ptr<Entity> Entity::make(const std::string & keyexpr)
 
   return std::make_shared<Entity>(
     Entity{
-      std::move(zid),
-      std::move(nid),
-      std::move(id),
-      std::move(entity_type),
-      NodeInfo{std::move(domain_id), std::move(ns), std::move(node_name), ""},
-      std::move(topic_info)});
+        std::move(zid),
+        std::move(nid),
+        std::move(id),
+        std::move(entity_type),
+        NodeInfo{std::move(domain_id), std::move(ns), std::move(node_name), ""},
+        std::move(topic_info)});
 }
 
 ///=============================================================================
@@ -499,5 +498,5 @@ std::string demangle_name(const std::string & input)
   }
   return output;
 }
-
 }  // namespace liveliness
+}  // namespace rmw_zenoh_cpp

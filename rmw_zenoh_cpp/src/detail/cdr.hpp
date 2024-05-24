@@ -33,7 +33,6 @@ public:
 private:
   eprosima::fastcdr::Cdr cdr_;
 };
-
 }  // namespace rmw_zenoh_cpp
 
 #endif  // DETAIL__CDR_HPP_
