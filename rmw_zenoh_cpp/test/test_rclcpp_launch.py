@@ -26,10 +26,23 @@ import launch_testing.actions
 import launch_testing.markers
 import pytest
 
+from ament_index_python.packages import get_package_share_directory
 
 proc_env = os.environ.copy()
 proc_env['PYTHONUNBUFFERED'] = '1'
 proc_env['RMW_IMPLEMENTATION'] = 'rmw_zenoh_cpp'
+# To run all the tests in test_rclcpp, we switch to multicast discovery
+# and skip the router checks. This is to avoid having to start the router
+# in a separate process and make sure it is killed as soon as the tests complete.
+# Else the test will timeout.
+proc_env['ZENOH_ROUTER_CHECK_ATTEMPTS'] = '-1'
+multicast_config_path = os.path.join(
+    get_package_share_directory('rmw_zenoh_cpp'),
+    'test',
+    'MULTICAST_RMW_ZENOH_SESSION_CONFIG.json5')
+proc_env['ZENOH_SESSION_CONFIG_URI'] = str(multicast_config_path)
+
+
 
 @pytest.mark.launch_test
 @launch_testing.markers.keep_alive
@@ -50,7 +63,6 @@ def generate_test_description():
     )
 
     return launch.LaunchDescription([
-        # rmw_zenohd,
         dut_process,
         # In tests where all of the procs under tests terminate themselves, it's necessary
         # to add a dummy process not under test to keep the launch alive. launch_test
@@ -62,20 +74,20 @@ def generate_test_description():
 class TestTerminatingProcessStops(unittest.TestCase):
 
     def test_proc_terminates(self, proc_info, dut_process):
-        cmd=[
-            'ros2',
-            'run ',
-            'rmw_zenoh_cpp',
-            'rmw_zenohd',
-        ]
-        process_group = subprocess.Popen(
-            cmd, stdout=subprocess.PIPE,
-            shell=True, env=proc_env, preexec_fn=os.setsid)
-        print(f'Started rmw_zenohd with pid [{process_group.pid}]')
+        # cmd=[
+        #     'ros2',
+        #     'run ',
+        #     'rmw_zenoh_cpp',
+        #     'rmw_zenohd',
+        # ]
+        # process_group = subprocess.Popen(
+        #     cmd, stdout=subprocess.PIPE,
+        #     shell=True, env=proc_env, preexec_fn=os.setsid)
+        # print(f'Started rmw_zenohd with pid [{process_group.pid}]')
 
         proc_info.assertWaitForShutdown(process=dut_process, timeout=400)
 
-        os.killpg(os.getpgid(process_group.pid), signal.SIGTERM)
+        # os.killpg(os.getpgid(process_group.pid), signal.SIGTERM)
 
 
 # These tests are run after the processes in generate_test_description() have shutdown.
