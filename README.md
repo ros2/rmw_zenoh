@@ -47,7 +47,7 @@ ros2 run rmw_zenoh_cpp rmw_zenohd
 
 > Note: Without the zenoh router, nodes will not be able to discover each other since multicast discovery is disabled by default in the node's session config. Instead, nodes will receive discovery information about other peers via the zenoh router's gossip functionality. See more information on the session configs [below](#config).
 
-### Clear stale ros2 daemons
+### Terminate ROS 2 daemon started with another RMW
 ```bash
 pkill -9 -f ros && ros2 daemon stop
 ```
