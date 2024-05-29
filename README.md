@@ -53,7 +53,7 @@ pkill -9 -f ros && ros2 daemon stop
 ```
 Without this step, ROS 2 CLI commands (e.g. `ros2 node list`) may
 not work properly since they would query ROS graph information from the ROS 2 daemon that
-is running on a different RMW.
+may have been started with different a RMW.
 
 ### Run the `talker`
 ```bash
