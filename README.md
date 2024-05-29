@@ -51,7 +51,7 @@ ros2 run rmw_zenoh_cpp rmw_zenohd
 ```bash
 pkill -9 -f ros && ros2 daemon stop
 ```
-Without this step the ROS2 CLI commands (e.g. ``ros2 node list``) may
+Without this step, ROS 2 CLI commands (e.g. `ros2 node list`) may
 not work properly since they could still be using a ros2 daemon that
 is running on a different RMW.
 
