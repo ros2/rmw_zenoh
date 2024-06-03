@@ -223,8 +223,9 @@ std::string zid_to_str(const z_id_t & id)
 {
   std::stringstream ss;
   ss << std::hex;
-  size_t i = 0;
-  for (; i < (sizeof(id.id)); i++) {
+  // By Zenoh convention a z_id_t is a little endian u128
+  size_t i = sizeof(id.id)-1;
+  for (; i >= 0; i--) {
     ss << static_cast<int>(id.id[i]);
   }
   return ss.str();
