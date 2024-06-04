@@ -38,14 +38,14 @@ cd ~/ws_rmw_zenoh
 source install/setup.bash
 ```
 
-### Start the zenoh router
-> Note: Manually launching zenoh router won't be necessary in the future.
+### Start the Zenoh router
+> Note: Manually launching Zenoh router won't be necessary in the future.
 ```bash
 # terminal 1
 ros2 run rmw_zenoh_cpp rmw_zenohd
 ```
 
-> Note: Without the zenoh router, nodes will not be able to discover each other since multicast discovery is disabled by default in the node's session config. Instead, nodes will receive discovery information about other peers via the zenoh router's gossip functionality. See more information on the session configs [below](#config).
+> Note: Without the Zenoh router, nodes will not be able to discover each other since multicast discovery is disabled by default in the node's session config. Instead, nodes will receive discovery information about other peers via the Zenoh router's gossip functionality. See more information on the session configs [below](#config).
 
 ### Terminate ROS 2 daemon started with another RMW
 ```bash
@@ -119,3 +119,15 @@ In this example, the `Zenoh router` will connect to the `Zenoh router` running o
 ```
 
 > Note: To connect multiple hosts, include the endpoints of all `Zenoh routers` in the network.
+
+### Logging
+
+The core of Zenoh is implemented in Rust and uses a logging library that can be configured via a `RUST_LOG` environment variable.
+This variable can be configured independently for each Node and the Zenoh router.
+For instance:
+- `RUST_LOG=zenoh=info` activates information logs about Zenoh initialisation and the endpoints it's listening on.
+- `RUST_LOG=zenoh=info,zenoh_transport=debug` adds some debug logs about the connectivity events in Zenoh
+- `RUST_LOG=zenoh=info,zenoh::net::routing::queries=trace` adds some trace logs for each query (i.e. calls to services and actions)
+- `RUST_LOG=zenoh=debug` activates all the all the debug logs
+
+For more information on the `RUST_LOG` syntax, see https://docs.rs/env_logger/latest/env_logger/#enabling-logging
