@@ -125,9 +125,9 @@ In this example, the `Zenoh router` will connect to the `Zenoh router` running o
 The core of Zenoh is implemented in Rust and uses a logging library that can be configured via a `RUST_LOG` environment variable.
 This variable can be configured independently for each Node and the Zenoh router.
 For instance:
-- `RUST_LOG=zenoh=info` activates information logs about Zenoh initialisation and the endpoints it's listening on.
-- `RUST_LOG=zenoh=info,zenoh_transport=debug` adds some debug logs about the connectivity events in Zenoh
-- `RUST_LOG=zenoh=info,zenoh::net::routing::queries=trace` adds some trace logs for each query (i.e. calls to services and actions)
-- `RUST_LOG=zenoh=debug` activates all the all the debug logs
+- `RUST_LOG=zenoh=info` activates information logs about Zenoh initialization and the endpoints it's listening on.
+- `RUST_LOG=zenoh=info,zenoh_transport=debug` adds some debug logs about the connectivity events in Zenoh.
+- `RUST_LOG=zenoh=info,zenoh::net::routing::queries=trace` adds some trace logs for each query (i.e. calls to services and actions).
+- `RUST_LOG=zenoh=debug` activates all the debug logs.
 
-For more information on the `RUST_LOG` syntax, see https://docs.rs/env_logger/latest/env_logger/#enabling-logging
+For more information on the `RUST_LOG` syntax, see https://docs.rs/env_logger/latest/env_logger/#enabling-logging.
