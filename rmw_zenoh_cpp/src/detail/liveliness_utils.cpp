@@ -223,10 +223,10 @@ std::string zid_to_str(const z_id_t & id)
 {
   std::stringstream ss;
   ss << std::hex;
-  // By Zenoh convention a z_id_t is a little endian u128
-  int i = static_cast<int>(sizeof(id.id) - 1);
-  for (; i >= 0; i--) {
-    ss << static_cast<int>(id.id[i]);
+  for (std::size_t i = 0; i < sizeof(id.id); i++) {
+    // By Zenoh convention a z_id_t is a little endian u128.
+    const std::size_t le_idx = sizeof(id.id) - 1 - i;
+    ss << static_cast<int>(id.id[le_idx]);
   }
   return ss.str();
 }
