@@ -184,12 +184,20 @@ static const char* LOG_LEVELS[LOG_LEVEL_MAX+1] = {
   "zenoh=debug",
 };
 
+// Command line options
+static const char * SHORT_OPTS = "hv";
+static const struct option LONG_OPTS[] = {
+  {"help", no_argument, nullptr, 'h'},
+  {nullptr, 0, nullptr, 0}
+};
 
 void print_usage(const char* progname) {
   printf("Usage: %s [-h|--help] [-v]\n", progname);
   printf("Options:\n");
   printf("  -h, --help   Show this help\n");
-  printf("  -v           Increase log level (can be used several time - max:%d). Ignored if 'RUST_LOG' environment variable is set\n", LOG_LEVEL_MAX);
+  printf(
+    "  -v           Increase log level (can be used several time - max:%d). Ignored if 'RUST_LOG' environment variable is set\n",
+    LOG_LEVEL_MAX);
 }
 
 int main(int argc, char ** argv)
@@ -200,13 +208,7 @@ int main(int argc, char ** argv)
   int verbosity = 0;
 
   // Parse arguments
-  const char* short_opts = "hv";
-  const struct option long_opts[] = {
-    {nullptr, 0, nullptr, 0},
-    {"help", no_argument, nullptr, 'h'}
-  };
-
-  while ((opt = getopt_long(argc, argv, short_opts, long_opts, nullptr)) != -1) {
+  while ((opt = getopt_long(argc, argv, SHORT_OPTS, LONG_OPTS, nullptr)) != -1) {
     switch (opt) {
       case 'v':
         verbosity++;
@@ -222,7 +224,7 @@ int main(int argc, char ** argv)
   }
 
   // check if "RUST_LOG" is set
-  char* rust_log = getenv(LOG_ENV_VAR);
+  char * rust_log = getenv(LOG_ENV_VAR);
   if (rust_log == nullptr) {
     if (verbosity <= LOG_LEVEL_MAX) {
       setenv(LOG_ENV_VAR, LOG_LEVELS[verbosity], 1);
