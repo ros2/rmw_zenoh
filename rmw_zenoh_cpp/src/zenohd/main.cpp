@@ -197,7 +197,8 @@ void print_usage(const char * progname)
   printf("Options:\n");
   printf("  -h, --help   Show this help\n");
   printf(
-    "  -v           Increase log level (can be used several time - max:%d). Ignored if 'RUST_LOG' environment variable is set\n",
+    "  -v           Increase log level (can be used several time - max:%d). "
+    "Ignored if 'RUST_LOG' environment variable is set\n",
     LOG_LEVEL_MAX);
 }
 
