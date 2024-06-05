@@ -25,6 +25,7 @@
 #include <signal.h>
 #include <termios.h>
 #include <unistd.h>
+#include <getopt.h>
 #endif
 
 #include <zenoh.h>
@@ -168,10 +169,71 @@ void quit(int sig)
 }
 #endif
 
+// "RUST_LOG" environment variable used to configure Zenoh logging
+static const char* LOG_ENV_VAR = "RUST_LOG";
+// Values for this environment variables depending the verbosity level
+static const int LOG_LEVEL_MAX = 3;
+static const char* LOG_LEVELS[LOG_LEVEL_MAX+1] = {
+  // 0: only error logs
+  "zenoh=error",
+  // 1: add warning and info logs
+  "zenoh=info",
+  // 2: add session and connectivity events at debug level
+  "zenoh=info,zenoh::session=debug,zenoh_transport=debug",
+  // 3: add all debug logs
+  "zenoh=debug",
+};
+
+
+void print_usage(const char* progname) {
+  printf("Usage: %s [-h|--help] [-v]\n", progname);
+  printf("Options:\n");
+  printf("  -h, --help   Show this help\n");
+  printf("  -v           Increase log level (can be used several time - max:%d). Ignored if 'RUST_LOG' environment variable is set\n", LOG_LEVEL_MAX);
+}
+
 int main(int argc, char ** argv)
 {
   (void)argc;
   (void)argv;
+  int opt;
+  int verbosity = 0;
+
+  // Parse arguments
+  const char* short_opts = "hv";
+  const struct option long_opts[] = {
+    {nullptr, 0, nullptr, 0},
+    {"help", no_argument, nullptr, 'h'}
+  };
+
+  while ((opt = getopt_long(argc, argv, short_opts, long_opts, nullptr)) != -1) {
+    switch (opt) {
+      case 'v':
+        verbosity++;
+        break;
+      case 'h':
+        print_usage(argv[0]);
+        return 0;
+      default:
+        printf("ERROR: unkown option\n");
+        print_usage(argv[0]);
+        return 1;
+    }
+  }
+
+  // check if "RUST_LOG" is set
+  char* rust_log = getenv(LOG_ENV_VAR);
+  if (rust_log == nullptr) {
+    if (verbosity <= LOG_LEVEL_MAX) {
+      setenv(LOG_ENV_VAR, LOG_LEVELS[verbosity], 1);
+    } else {
+      setenv(LOG_ENV_VAR, LOG_LEVELS[LOG_LEVEL_MAX], 1);
+    }
+  } else {
+    if (verbosity > 0) {
+      printf("\"%s\" is already defined - ignoring -v options\n", LOG_ENV_VAR);
+    }
+  }
 
   // Initialize the zenoh configuration for the router.
   z_owned_config_t config;
