@@ -170,10 +170,10 @@ void quit(int sig)
 #endif
 
 // "RUST_LOG" environment variable used to configure Zenoh logging
-static const char* LOG_ENV_VAR = "RUST_LOG";
+static const char * LOG_ENV_VAR = "RUST_LOG";
 // Values for this environment variables depending the verbosity level
 static const int LOG_LEVEL_MAX = 3;
-static const char* LOG_LEVELS[LOG_LEVEL_MAX+1] = {
+static const char * LOG_LEVELS[LOG_LEVEL_MAX+1] = {
   // 0: only error logs
   "zenoh=error",
   // 1: add warning and info logs
@@ -191,7 +191,8 @@ static const struct option LONG_OPTS[] = {
   {nullptr, 0, nullptr, 0}
 };
 
-void print_usage(const char* progname) {
+void print_usage(const char* progname)
+{
   printf("Usage: %s [-h|--help] [-v]\n", progname);
   printf("Options:\n");
   printf("  -h, --help   Show this help\n");
