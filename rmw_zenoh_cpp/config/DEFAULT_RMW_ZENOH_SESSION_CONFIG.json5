@@ -13,7 +13,7 @@
 
   /// Which endpoints to connect to. E.g. tcp/localhost:7447.
   /// By configuring the endpoints, it is possible to tell zenoh which router/peer to connect to at startup.
-  /// ROS setting: By default connect to the Zenoh router on localhost on port 7447
+  /// ROS setting: By default connect to the Zenoh router on localhost on port 7447.
   connect: {
     endpoints: [
       "tcp/localhost:7447",
