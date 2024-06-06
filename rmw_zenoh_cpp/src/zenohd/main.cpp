@@ -190,7 +190,7 @@ int main(int argc, char ** argv)
     return 1;
   }
   printf(
-    "Started Zenoh router with id: %s.\n",
+    "Started Zenoh router with id %s.\n",
     rmw_zenoh_cpp::liveliness::zid_to_str(z_info_zid(z_session_loan(&s))).c_str());
 #ifdef _WIN32
   SetConsoleCtrlHandler(quit, TRUE);
