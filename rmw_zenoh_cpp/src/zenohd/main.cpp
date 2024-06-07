@@ -33,6 +33,7 @@
 #include <ament_index_cpp/get_package_share_directory.hpp>
 
 #include "../detail/zenoh_config.hpp"
+#include "../detail/liveliness_utils.hpp"
 
 #include "rmw/error_handling.h"
 
@@ -254,7 +255,9 @@ int main(int argc, char ** argv)
     printf("Unable to open router session!\n");
     return 1;
   }
-
+  printf(
+    "Started Zenoh router with id %s.\n",
+    rmw_zenoh_cpp::liveliness::zid_to_str(z_info_zid(z_session_loan(&s))).c_str());
 #ifdef _WIN32
   SetConsoleCtrlHandler(quit, TRUE);
 #else
