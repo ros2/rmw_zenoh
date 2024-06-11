@@ -22,10 +22,10 @@ set(ZENOHC_CARGO_FLAGS "--no-default-features$<SEMICOLON>--features=zenoh/shared
 # - https://github.com/eclipse-zenoh/zenoh/pull/1021 (fix timeout issue with queries)
 # - https://github.com/eclipse-zenoh/zenoh/pull/1022 (fix empty messages received if payload >btach size)
 # - https://github.com/eclipse-zenoh/zenoh-c/pull/358 (fix debian packaging issue: https://github.com/jspricke/ros-deb-builder-action/issues/49)
-# - https://github.com/eclipse-zenoh/zenoh/pull/xxxx (fix deadlock issue https://github.com/ros2/rmw_zenoh/issues/198)
+# - https://github.com/eclipse-zenoh/zenoh/pull/xxxx (fix deadlock issue https://github.com/ros2/rmw_zenoh/issues/182)
 ament_vendor(zenoh_c_vendor
   VCS_URL https://github.com/eclipse-zenoh/zenoh-c.git
-  VCS_VERSION ce07cb5461944017c07fc9b42fe0ce7769543ecc
+  VCS_VERSION 87b515b4c3dd028f9e9476e3bb60016f7acc3489
   CMAKE_ARGS
     "-DZENOHC_CARGO_FLAGS=${ZENOHC_CARGO_FLAGS}"
 )
