@@ -686,8 +686,11 @@ rmw_create_publisher(
     rmw_zenoh_cpp::liveliness::EntityType::Publisher,
     rmw_zenoh_cpp::liveliness::NodeInfo{
       node->context->actual_domain_id, node->namespace_, node->name, context_impl->enclave},
-    rmw_zenoh_cpp::liveliness::TopicInfo{rmw_publisher->topic_name,
-      publisher_data->type_support->get_name(), publisher_data->adapted_qos_profile}
+    rmw_zenoh_cpp::liveliness::TopicInfo{
+      rmw_publisher->topic_name,
+      publisher_data->type_support->get_name(),
+      type_hash_c_str,
+      publisher_data->adapted_qos_profile}
   );
   if (publisher_data->entity == nullptr) {
     RCUTILS_LOG_ERROR_NAMED(
@@ -1519,8 +1522,11 @@ rmw_create_subscription(
     rmw_zenoh_cpp::liveliness::EntityType::Subscription,
     rmw_zenoh_cpp::liveliness::NodeInfo{
       node->context->actual_domain_id, node->namespace_, node->name, context_impl->enclave},
-    rmw_zenoh_cpp::liveliness::TopicInfo{rmw_subscription->topic_name,
-      sub_data->type_support->get_name(), sub_data->adapted_qos_profile}
+    rmw_zenoh_cpp::liveliness::TopicInfo{
+      rmw_subscription->topic_name,
+      sub_data->type_support->get_name(),
+      type_hash_c_str,
+      sub_data->adapted_qos_profile}
   );
   if (sub_data->entity == nullptr) {
     RCUTILS_LOG_ERROR_NAMED(
@@ -2191,8 +2197,11 @@ rmw_create_client(
     rmw_zenoh_cpp::liveliness::EntityType::Client,
     rmw_zenoh_cpp::liveliness::NodeInfo{
       node->context->actual_domain_id, node->namespace_, node->name, context_impl->enclave},
-    rmw_zenoh_cpp::liveliness::TopicInfo{rmw_client->service_name,
-      std::move(service_type), client_data->adapted_qos_profile}
+    rmw_zenoh_cpp::liveliness::TopicInfo{
+      rmw_client->service_name,
+      std::move(service_type),
+      type_hash_c_str,
+      client_data->adapted_qos_profile}
   );
   if (client_data->entity == nullptr) {
     RCUTILS_LOG_ERROR_NAMED(
@@ -2775,8 +2784,11 @@ rmw_create_service(
     rmw_zenoh_cpp::liveliness::EntityType::Service,
     rmw_zenoh_cpp::liveliness::NodeInfo{
       node->context->actual_domain_id, node->namespace_, node->name, context_impl->enclave},
-    rmw_zenoh_cpp::liveliness::TopicInfo{rmw_service->service_name,
-      std::move(service_type), service_data->adapted_qos_profile}
+    rmw_zenoh_cpp::liveliness::TopicInfo{
+      rmw_service->service_name,
+      std::move(service_type),
+      type_hash_c_str,
+      service_data->adapted_qos_profile}
   );
   if (service_data->entity == nullptr) {
     RCUTILS_LOG_ERROR_NAMED(

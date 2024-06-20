@@ -49,11 +49,13 @@ struct TopicInfo
 {
   std::string name_;
   std::string type_;
+  std::string type_hash_;
   rmw_qos_profile_t qos_;
 
   TopicInfo(
     std::string name,
     std::string type,
+    std::string type_hash,
     rmw_qos_profile_t qos);
 };
 
@@ -91,9 +93,10 @@ enum class EntityType : uint8_t
  *
  * For entities with topic infomation, the liveliness token keyexpr have additional fields:
  *
- * <ADMIN_SPACE>/<domainid>/<zid>/<id>/<entity>/<namespace>/<nodename>/<topic_name>/<topic_type>/<topic_qos>
+ * <ADMIN_SPACE>/<domainid>/<zid>/<id>/<entity>/<namespace>/<nodename>/<topic_name>/<topic_type>/<topic_type_hash>/<topic_qos>
  *  <topic_name> - The ROS topic name for this entity.
  *  <topic_type> - The type for the topic.
+ *  <topic_type_hash> - The type hash for the topic.
  *  <topic_qos> - The qos for the topic (see qos_to_keyexpr() docstring for more information).
  *
  * For example, the liveliness expression for a publisher within a /talker node that publishes
