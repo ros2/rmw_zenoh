@@ -120,10 +120,6 @@ public:
     rmw_event_callback_t callback,
     const void * user_data);
 
-  /// @brief  Returns true if the event queue is empty.
-  /// @param event_id the event id whose event queue should be checked.
-  bool event_queue_is_empty(rmw_zenoh_event_type_t event_id) const;
-
   /// Pop the next event in the queue.
   /// @param event_id the event id whose queue should be popped.
   std::unique_ptr<rmw_zenoh_event_status_t> pop_next_event(
@@ -137,12 +133,12 @@ public:
 
   /// @brief Attach the condition variable provided by rmw_wait.
   /// @param condition_variable to attach.
-  void attach_event_condition(
+  bool queue_has_data_and_attach_condition_if_not(
     rmw_zenoh_event_type_t event_id,
     std::condition_variable * condition_variable);
 
   /// @brief Detach the condition variable provided by rmw_wait.
-  void detach_event_condition(rmw_zenoh_event_type_t event_id);
+  bool detach_condition_and_event_queue_is_empty(rmw_zenoh_event_type_t event_id);
 
 private:
   /// @brief Trigger the callback for an event.

@@ -181,11 +181,9 @@ public:
   MessageTypeSupport * type_support;
   rmw_context_t * context;
 
-  void attach_condition(std::condition_variable * condition_variable);
+  bool queue_has_data_and_attach_condition_if_not(std::condition_variable * condition_variable);
 
-  void detach_condition();
-
-  bool message_queue_is_empty() const;
+  bool detach_condition_and_queue_is_empty();
 
   std::unique_ptr<saved_msg_data> pop_next_message();
 
@@ -255,11 +253,9 @@ public:
 
   rmw_context_t * context;
 
-  bool query_queue_is_empty() const;
+  bool queue_has_data_and_attach_condition_if_not(std::condition_variable * condition_variable);
 
-  void attach_condition(std::condition_variable * condition_variable);
-
-  void detach_condition();
+  bool detach_condition_and_queue_is_empty();
 
   std::unique_ptr<ZenohQuery> pop_next_query();
 
@@ -333,11 +329,9 @@ public:
 
   void add_new_reply(std::unique_ptr<rmw_zenoh_cpp::ZenohReply> reply);
 
-  bool reply_queue_is_empty() const;
+  bool queue_has_data_and_attach_condition_if_not(std::condition_variable * condition_variable);
 
-  void attach_condition(std::condition_variable * condition_variable);
-
-  void detach_condition();
+  bool detach_condition_and_queue_is_empty();
 
   std::unique_ptr<rmw_zenoh_cpp::ZenohReply> pop_next_reply();
 
