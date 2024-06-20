@@ -3143,14 +3143,12 @@ static bool has_triggered_condition(
   rmw_clients_t * clients,
   rmw_events_t * events)
 {
-  static_cast<void>(events);
-
   if (guard_conditions) {
     for (size_t i = 0; i < guard_conditions->guard_condition_count; ++i) {
       rmw_zenoh_cpp::GuardCondition * gc =
         static_cast<rmw_zenoh_cpp::GuardCondition *>(guard_conditions->guard_conditions[i]);
       if (gc != nullptr) {
-        if (gc->get_and_reset_trigger()) {
+        if (gc->has_triggered()) {
           return true;
         }
       }
