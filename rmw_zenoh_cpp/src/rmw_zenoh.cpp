@@ -3135,11 +3135,11 @@ rmw_destroy_wait_set(rmw_wait_set_t * wait_set)
 }
 
 static bool has_triggered_condition(
-  rmw_subscriptions_t * subscriptions,
-  rmw_guard_conditions_t * guard_conditions,
-  rmw_services_t * services,
-  rmw_clients_t * clients,
-  rmw_events_t * events)
+  const rmw_subscriptions_t * const subscriptions,
+  const rmw_guard_conditions_t * const guard_conditions,
+  const rmw_services_t * const services,
+  const rmw_clients_t * const clients,
+  const rmw_events_t * const events)
 {
   if (guard_conditions) {
     for (size_t i = 0; i < guard_conditions->guard_condition_count; ++i) {
