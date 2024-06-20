@@ -72,7 +72,6 @@ namespace
 //==============================================================================
 // A function that generates a key expression for message transport of the format
 // <ros_domain_id>/<topic_name>/<topic_type>/<topic_hash>
-
 // In particular, Zenoh keys cannot start or end with a /, so this function
 // will strip them out.
 // The Zenoh key is also prefixed with the ros_domain_id.
@@ -83,7 +82,8 @@ namespace
 z_owned_keyexpr_t ros_topic_name_to_zenoh_key(
   const std::size_t domain_id,
   const char * const topic_name,
-  const char * const topic_type)
+  const char * const topic_type,
+  const char * const type_hash)
 {
   auto strip_slashes =
     [](const char * const str) -> std::string
@@ -103,7 +103,8 @@ z_owned_keyexpr_t ros_topic_name_to_zenoh_key(
 
   const std::string keyexpr_str = std::to_string(domain_id) + "/" +
     strip_slashes(topic_name) + "/" +
-    std::string(topic_type);
+    std::string(topic_type) + "/" +
+    std::string(type_hash);
 
   return z_keyexpr_new(keyexpr_str.c_str());
 }
@@ -547,6 +548,7 @@ rmw_create_publisher(
     RMW_ZENOH_DEFAULT_HISTORY_DEPTH;
 
   publisher_data->typesupport_identifier = type_support->typesupport_identifier;
+  publisher_data->type_hash = type_support->get_type_hash_func(type_support);
   publisher_data->type_support_impl = type_support->data;
   auto callbacks = static_cast<const message_type_support_callbacks_t *>(type_support->data);
   publisher_data->type_support = static_cast<rmw_zenoh_cpp::MessageTypeSupport *>(
@@ -588,10 +590,23 @@ rmw_create_publisher(
       allocator->deallocate(const_cast<char *>(rmw_publisher->topic_name), allocator->state);
     });
 
+  // Convert the type hash to a string so that it can be included in
+  // the keyexpr.
+  char * type_hash_c_str = nullptr;
+  rcutils_ret_t stringify_ret = rosidl_stringify_type_hash(
+    publisher_data->type_hash,
+    *allocator,
+    &type_hash_c_str);
+  if (RCUTILS_RET_BAD_ALLOC == stringify_ret) {
+    RMW_SET_ERROR_MSG("Failed to allocate type_hash_c_str.");
+    return nullptr;
+  }
+
   z_owned_keyexpr_t keyexpr = ros_topic_name_to_zenoh_key(
     node->context->actual_domain_id,
     topic_name,
-    publisher_data->type_support->get_name());
+    publisher_data->type_support->get_name(),
+    type_hash_c_str);
   auto always_free_ros_keyexpr = rcpputils::make_scope_exit(
     [&keyexpr]() {
       z_keyexpr_drop(z_move(keyexpr));
@@ -1335,6 +1350,7 @@ rmw_create_subscription(
     RMW_ZENOH_DEFAULT_HISTORY_DEPTH;
 
   sub_data->typesupport_identifier = type_support->typesupport_identifier;
+  sub_data->type_hash = type_support->get_type_hash_func(type_support);
   sub_data->type_support_impl = type_support->data;
   auto callbacks = static_cast<const message_type_support_callbacks_t *>(type_support->data);
   sub_data->type_support = static_cast<rmw_zenoh_cpp::MessageTypeSupport *>(
@@ -1378,14 +1394,26 @@ rmw_create_subscription(
   rmw_subscription->can_loan_messages = false;
   rmw_subscription->is_cft_enabled = false;
 
+  // Convert the type hash to a string so that it can be included in
+  // the keyexpr.
+  char * type_hash_c_str = nullptr;
+  rcutils_ret_t stringify_ret = rosidl_stringify_type_hash(
+    sub_data->type_hash,
+    *allocator,
+    &type_hash_c_str);
+  if (RCUTILS_RET_BAD_ALLOC == stringify_ret) {
+    RMW_SET_ERROR_MSG("Failed to allocate type_hash_c_str.");
+    return nullptr;
+  }
+
   // Everything above succeeded and is setup properly.  Now declare a subscriber
   // with Zenoh; after this, callbacks may come in at any time.
-
   z_owned_closure_sample_t callback = z_closure(rmw_zenoh_cpp::sub_data_handler, nullptr, sub_data);
   z_owned_keyexpr_t keyexpr = ros_topic_name_to_zenoh_key(
     node->context->actual_domain_id,
     topic_name,
-    sub_data->type_support->get_name());
+    sub_data->type_support->get_name(),
+    type_hash_c_str);
   auto always_free_ros_keyexpr = rcpputils::make_scope_exit(
     [&keyexpr]() {
       z_keyexpr_drop(z_move(keyexpr));
@@ -2015,6 +2043,7 @@ rmw_create_client(
 
   client_data->context = node->context;
   client_data->typesupport_identifier = type_support->typesupport_identifier;
+  client_data->type_hash = type_support->get_type_hash_func(type_support);
   client_data->request_type_support_impl = request_members;
   client_data->response_type_support_impl = response_members;
 
@@ -2095,11 +2124,23 @@ rmw_create_client(
     return nullptr;
   }
 
+  // Convert the type hash to a string so that it can be included in
+  // the keyexpr.
+  char * type_hash_c_str = nullptr;
+  rcutils_ret_t stringify_ret = rosidl_stringify_type_hash(
+    client_data->type_hash,
+    *allocator,
+    &type_hash_c_str);
+  if (RCUTILS_RET_BAD_ALLOC == stringify_ret) {
+    RMW_SET_ERROR_MSG("Failed to allocate type_hash_c_str.");
+    return nullptr;
+  }
 
   client_data->keyexpr = ros_topic_name_to_zenoh_key(
     node->context->actual_domain_id,
     rmw_client->service_name,
-    service_type.c_str());
+    service_type.c_str(),
+    type_hash_c_str);
   auto free_ros_keyexpr = rcpputils::make_scope_exit(
     [client_data]() {
       z_keyexpr_drop(z_move(client_data->keyexpr));
@@ -2559,6 +2600,7 @@ rmw_create_service(
 
   service_data->context = node->context;
   service_data->typesupport_identifier = type_support->typesupport_identifier;
+  service_data->type_hash = type_support->get_type_hash_func(type_support);
   service_data->request_type_support_impl = request_members;
   service_data->response_type_support_impl = response_members;
 
@@ -2635,10 +2677,23 @@ rmw_create_service(
     return nullptr;
   }
 
+  // Convert the type hash to a string so that it can be included in
+  // the keyexpr.
+  char * type_hash_c_str = nullptr;
+  rcutils_ret_t stringify_ret = rosidl_stringify_type_hash(
+    service_data->type_hash,
+    *allocator,
+    &type_hash_c_str);
+  if (RCUTILS_RET_BAD_ALLOC == stringify_ret) {
+    RMW_SET_ERROR_MSG("Failed to allocate type_hash_c_str.");
+    return nullptr;
+  }
+
   service_data->keyexpr = ros_topic_name_to_zenoh_key(
     node->context->actual_domain_id,
     rmw_service->service_name,
-    service_type.c_str());
+    service_type.c_str(),
+    type_hash_c_str);
   auto free_ros_keyexpr = rcpputils::make_scope_exit(
     [service_data]() {
       if (service_data) {
