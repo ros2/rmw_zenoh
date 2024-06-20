@@ -15,7 +15,7 @@ find_package(ament_cmake_vendor_package REQUIRED)
 # Note: We separate the two args needed for cargo with "$<SEMICOLON>" and not ";" as the
 # latter is a list separater in cmake and hence the string will be split into two
 # when expanded.
-set(ZENOHC_CARGO_FLAGS "--no-default-features$<SEMICOLON>--features=zenoh/shared-memory zenoh/transport_compression zenoh/transport_tcp zenoh/transport_tls")
+set(ZENOHC_CARGO_FLAGS "--no-default-features$<SEMICOLON>--features=shared-memory zenoh/transport_compression zenoh/transport_tcp zenoh/transport_tls")
 
 # Set VCS_VERSION to include latest changes from zenoh-c to benefit from :
 # - https://github.com/eclipse-zenoh/zenoh-c/pull/340 (fix build issue)
@@ -24,8 +24,8 @@ set(ZENOHC_CARGO_FLAGS "--no-default-features$<SEMICOLON>--features=zenoh/shared
 # - https://github.com/eclipse-zenoh/zenoh-c/pull/358 (fix debian packaging issue: https://github.com/jspricke/ros-deb-builder-action/issues/49)
 # - https://github.com/eclipse-zenoh/zenoh/pull/1150 (fix deadlock issue https://github.com/ros2/rmw_zenoh/issues/182)
 ament_vendor(zenoh_c_vendor
-  VCS_URL https://github.com/eclipse-zenoh/zenoh-c.git
-  VCS_VERSION 548ee8dde0f53a58c06e68a2949949b31140c36c
+  VCS_URL https://github.com/eclipse-zenoh/zenoh-c
+  VCS_VERSION dev/1.0.0
   CMAKE_ARGS
     "-DZENOHC_CARGO_FLAGS=${ZENOHC_CARGO_FLAGS}"
 )
