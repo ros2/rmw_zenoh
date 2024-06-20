@@ -217,7 +217,7 @@ rmw_create_node(
     return nullptr;
   }
   if (RMW_NAMESPACE_VALID != validation_result) {
-    const char * reason = rmw_node_name_validation_result_string(validation_result);
+    const char * reason = rmw_namespace_validation_result_string(validation_result);
     RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("invalid node namespace: %s", reason);
     return nullptr;
   }
