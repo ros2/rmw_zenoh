@@ -35,6 +35,8 @@ public:
 
   void detach_condition();
 
+  bool has_triggered() const;
+
   bool get_and_reset_trigger();
 
 private:
