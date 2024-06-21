@@ -3292,7 +3292,7 @@ static bool check_and_attach_condition(
       if (gc == nullptr) {
         continue;
       }
-      if (gc->check_and_attach_condition_if_not(&wait_set_data->condition_variable)) {
+      if (gc->check_and_attach_condition_if_not(wait_set_data)) {
         return true;
       }
     }
@@ -3307,7 +3307,7 @@ static bool check_and_attach_condition(
         if (event_data != nullptr) {
           if (event_data->queue_has_data_and_attach_condition_if_not(
               zenoh_event_it->second,
-              &wait_set_data->condition_variable))
+              wait_set_data))
           {
             return true;
           }
@@ -3327,9 +3327,7 @@ static bool check_and_attach_condition(
       if (sub_data == nullptr) {
         continue;
       }
-      if (sub_data->queue_has_data_and_attach_condition_if_not(
-          &wait_set_data->condition_variable))
-      {
+      if (sub_data->queue_has_data_and_attach_condition_if_not(wait_set_data)) {
         return true;
       }
     }
@@ -3341,9 +3339,7 @@ static bool check_and_attach_condition(
       if (serv_data == nullptr) {
         continue;
       }
-      if (serv_data->queue_has_data_and_attach_condition_if_not(
-          &wait_set_data->condition_variable))
-      {
+      if (serv_data->queue_has_data_and_attach_condition_if_not(wait_set_data)) {
         return true;
       }
     }
@@ -3356,9 +3352,7 @@ static bool check_and_attach_condition(
       if (client_data == nullptr) {
         continue;
       }
-      if (client_data->queue_has_data_and_attach_condition_if_not(
-          &wait_set_data->condition_variable))
-      {
+      if (client_data->queue_has_data_and_attach_condition_if_not(wait_set_data)) {
         return true;
       }
     }
@@ -3416,13 +3410,22 @@ rmw_wait(
     // "wait forever", if it specified as 0 it means "never wait", and if it is anything else wait
     // for that amount of time.
     if (wait_timeout == nullptr) {
-      wait_set_data->condition_variable.wait(lock);
+      wait_set_data->condition_variable.wait(
+        lock, [wait_set_data]() {
+          return wait_set_data->triggered;
+        });
     } else {
       if (wait_timeout->sec != 0 || wait_timeout->nsec != 0) {
         wait_set_data->condition_variable.wait_for(
-          lock, std::chrono::nanoseconds(wait_timeout->nsec + RCUTILS_S_TO_NS(wait_timeout->sec)));
+          lock,
+          std::chrono::nanoseconds(wait_timeout->nsec + RCUTILS_S_TO_NS(wait_timeout->sec)),
+          [wait_set_data]() {return wait_set_data->triggered;});
       }
     }
+
+    // We reset here (while still holding the lock) because we only cared about this through this
+    // particular call.
+    wait_set_data->triggered = false;
   }
 
   bool wait_result = false;
@@ -3436,7 +3439,7 @@ rmw_wait(
       if (gc == nullptr) {
         continue;
       }
-      if (!gc->detach_condition_and_trigger_set()) {
+      if (!gc->detach_condition_and_is_trigger_set()) {
         // Setting to nullptr lets rcl know that this guard condition is not ready
         guard_conditions->guard_conditions[i] = nullptr;
       } else {

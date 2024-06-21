@@ -169,7 +169,7 @@ void EventsManager::add_new_event(
 ///=============================================================================
 bool EventsManager::queue_has_data_and_attach_condition_if_not(
   rmw_zenoh_event_type_t event_id,
-  std::condition_variable * condition_variable)
+  rmw_wait_set_data_t * wait_set_data)
 {
   if (event_id > ZENOH_EVENT_ID_MAX) {
     RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
@@ -185,7 +185,7 @@ bool EventsManager::queue_has_data_and_attach_condition_if_not(
     return true;
   }
 
-  event_conditions_[event_id] = condition_variable;
+  wait_set_data_[event_id] = wait_set_data;
 
   return false;
 }
@@ -203,7 +203,7 @@ bool EventsManager::detach_condition_and_event_queue_is_empty(rmw_zenoh_event_ty
 
   std::lock_guard<std::mutex> lock(event_condition_mutex_);
 
-  event_conditions_[event_id] = nullptr;
+  wait_set_data_[event_id] = nullptr;
 
   return event_queues_[event_id].empty();
 }
@@ -220,8 +220,10 @@ void EventsManager::notify_event(rmw_zenoh_event_type_t event_id)
   }
 
   std::lock_guard<std::mutex> lock(event_condition_mutex_);
-  if (event_conditions_[event_id] != nullptr) {
-    event_conditions_[event_id]->notify_one();
+  if (wait_set_data_[event_id] != nullptr) {
+    std::lock_guard<std::mutex> wait_set_lock(wait_set_data_[event_id]->condition_mutex);
+    wait_set_data_[event_id]->triggered = true;
+    wait_set_data_[event_id]->condition_variable.notify_one();
   }
 }
 }  // namespace rmw_zenoh_cpp
