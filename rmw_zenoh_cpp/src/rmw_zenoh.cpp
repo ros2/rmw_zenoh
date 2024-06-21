@@ -74,7 +74,6 @@ namespace
 // <ros_domain_id>/<topic_name>/<topic_type>/<topic_hash>
 // In particular, Zenoh keys cannot start or end with a /, so this function
 // will strip them out.
-// The Zenoh key is also prefixed with the ros_domain_id.
 // Performance note: at present, this function allocates a new string and copies
 // the old string into it. If this becomes a performance problem, we could consider
 // modifying the topic_name in place. But this means we need to be much more
