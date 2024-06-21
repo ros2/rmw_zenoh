@@ -70,6 +70,24 @@
 namespace
 {
 //==============================================================================
+// Helper function to create a copy of a string after removing any
+// leading or trailing slashes.
+std::string strip_slashes(const char * const str)
+{
+  std::string ret = std::string(str);
+  const std::size_t len = strlen(str);
+  std::size_t start = 0;
+  std::size_t end = len - 1;
+  if (str[0] == '/') {
+    ++start;
+  }
+  if (str[end] == '/') {
+    --end;
+  }
+  return ret.substr(start, end - start);
+}
+
+//==============================================================================
 // A function that generates a key expression for message transport of the format
 // <ros_domain_id>/<topic_name>/<topic_type>/<topic_hash>
 // In particular, Zenoh keys cannot start or end with a /, so this function
@@ -84,22 +102,6 @@ z_owned_keyexpr_t ros_topic_name_to_zenoh_key(
   const char * const topic_type,
   const char * const type_hash)
 {
-  auto strip_slashes =
-    [](const char * const str) -> std::string
-    {
-      std::string ret = std::string(str);
-      const std::size_t len = strlen(str);
-      std::size_t start = 0;
-      std::size_t end = len - 1;
-      if (str[0] == '/') {
-        ++start;
-      }
-      if (str[end] == '/') {
-        --end;
-      }
-      return ret.substr(start, end - start);
-    };
-
   const std::string keyexpr_str = std::to_string(domain_id) + "/" +
     strip_slashes(topic_name) + "/" +
     std::string(topic_type) + "/" +
@@ -600,6 +602,10 @@ rmw_create_publisher(
     RMW_SET_ERROR_MSG("Failed to allocate type_hash_c_str.");
     return nullptr;
   }
+  auto free_type_hash_c_str = rcpputils::make_scope_exit(
+    [&allocator, &type_hash_c_str]() {
+      allocator->deallocate(type_hash_c_str, allocator->state);
+    });
 
   z_owned_keyexpr_t keyexpr = ros_topic_name_to_zenoh_key(
     node->context->actual_domain_id,
@@ -1404,6 +1410,10 @@ rmw_create_subscription(
     RMW_SET_ERROR_MSG("Failed to allocate type_hash_c_str.");
     return nullptr;
   }
+  auto free_type_hash_c_str = rcpputils::make_scope_exit(
+    [&allocator, &type_hash_c_str]() {
+      allocator->deallocate(type_hash_c_str, allocator->state);
+    });
 
   // Everything above succeeded and is setup properly.  Now declare a subscriber
   // with Zenoh; after this, callbacks may come in at any time.
@@ -2134,6 +2144,10 @@ rmw_create_client(
     RMW_SET_ERROR_MSG("Failed to allocate type_hash_c_str.");
     return nullptr;
   }
+  auto free_type_hash_c_str = rcpputils::make_scope_exit(
+    [&allocator, &type_hash_c_str]() {
+      allocator->deallocate(type_hash_c_str, allocator->state);
+    });
 
   client_data->keyexpr = ros_topic_name_to_zenoh_key(
     node->context->actual_domain_id,
@@ -2687,6 +2701,10 @@ rmw_create_service(
     RMW_SET_ERROR_MSG("Failed to allocate type_hash_c_str.");
     return nullptr;
   }
+  auto free_type_hash_c_str = rcpputils::make_scope_exit(
+    [&allocator, &type_hash_c_str]() {
+      allocator->deallocate(type_hash_c_str, allocator->state);
+    });
 
   service_data->keyexpr = ros_topic_name_to_zenoh_key(
     node->context->actual_domain_id,
