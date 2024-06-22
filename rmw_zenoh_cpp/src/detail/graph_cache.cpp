@@ -1038,7 +1038,7 @@ rmw_ret_t GraphCache::get_entity_names_and_types_by_node(
   // Check if namespace exists.
   NamespaceMap::const_iterator ns_it = graph_.find(node_namespace);
   if (ns_it == graph_.end()) {
-    return RMW_RET_OK;
+    return RMW_RET_NODE_NAME_NON_EXISTENT;
   }
 
   // Check if node exists.
@@ -1046,7 +1046,7 @@ rmw_ret_t GraphCache::get_entity_names_and_types_by_node(
   // name that is found.
   NodeMap::const_iterator node_it = ns_it->second.find(node_name);
   if (node_it == ns_it->second.end()) {
-    return RMW_RET_OK;
+    return RMW_RET_NODE_NAME_NON_EXISTENT;
   }
 
   // TODO(Yadunund): Support service and client when ready.
@@ -1059,10 +1059,8 @@ rmw_ret_t GraphCache::get_entity_names_and_types_by_node(
   } else if (entity_type == EntityType::Client) {
     return fill_names_and_types(node_it->second->clients_, allocator, names_and_types);
   } else {
-    return RMW_RET_OK;
+    return RMW_RET_UNSUPPORTED;
   }
-
-  return RMW_RET_OK;
 }
 
 

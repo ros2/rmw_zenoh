@@ -195,6 +195,10 @@ rmw_create_node(
     context->impl,
     "expected initialized context",
     return nullptr);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    context->impl->enclave,
+    "expected initialized enclave",
+    return nullptr);
   if (context->impl->is_shutdown) {
     RCUTILS_SET_ERROR_MSG("context has been shutdown");
     return nullptr;
@@ -279,7 +283,8 @@ rmw_create_node(
     std::to_string(node_data->id),
     std::to_string(node_data->id),
     rmw_zenoh_cpp::liveliness::EntityType::Node,
-    rmw_zenoh_cpp::liveliness::NodeInfo{context->actual_domain_id, namespace_, name, ""});
+    rmw_zenoh_cpp::liveliness::NodeInfo{context->actual_domain_id, namespace_, name,
+      context->impl->enclave});
   if (node_data->entity == nullptr) {
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
@@ -470,6 +475,10 @@ rmw_create_publisher(
     context_impl,
     "unable to get rmw_context_impl_s",
     return nullptr);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    context_impl->enclave,
+    "expected initialized enclave",
+    return nullptr);
   if (!z_check(context_impl->session)) {
     RMW_SET_ERROR_MSG("zenoh session is invalid");
     return nullptr;
@@ -630,7 +639,7 @@ rmw_create_publisher(
       context_impl->get_next_entity_id()),
     rmw_zenoh_cpp::liveliness::EntityType::Publisher,
     rmw_zenoh_cpp::liveliness::NodeInfo{
-      node->context->actual_domain_id, node->namespace_, node->name, ""},
+      node->context->actual_domain_id, node->namespace_, node->name, context_impl->enclave},
     rmw_zenoh_cpp::liveliness::TopicInfo{rmw_publisher->topic_name,
       publisher_data->type_support->get_name(), publisher_data->adapted_qos_profile}
   );
@@ -1258,6 +1267,10 @@ rmw_create_subscription(
     context_impl,
     "unable to get rmw_context_impl_s",
     return nullptr);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    context_impl->enclave,
+    "expected initialized enclave",
+    return nullptr);
   if (!z_check(context_impl->session)) {
     RMW_SET_ERROR_MSG("zenoh session is invalid");
     return nullptr;
@@ -1440,7 +1453,7 @@ rmw_create_subscription(
       context_impl->get_next_entity_id()),
     rmw_zenoh_cpp::liveliness::EntityType::Subscription,
     rmw_zenoh_cpp::liveliness::NodeInfo{
-      node->context->actual_domain_id, node->namespace_, node->name, ""},
+      node->context->actual_domain_id, node->namespace_, node->name, context_impl->enclave},
     rmw_zenoh_cpp::liveliness::TopicInfo{rmw_subscription->topic_name,
       sub_data->type_support->get_name(), sub_data->adapted_qos_profile}
   );
@@ -1902,6 +1915,10 @@ rmw_create_client(
     context_impl,
     "unable to get rmw_context_impl_s",
     return nullptr);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    context_impl->enclave,
+    "expected initialized enclave",
+    return nullptr);
   if (!z_check(context_impl->session)) {
     RMW_SET_ERROR_MSG("zenoh session is invalid");
     return nullptr;
@@ -2087,7 +2104,7 @@ rmw_create_client(
       context_impl->get_next_entity_id()),
     rmw_zenoh_cpp::liveliness::EntityType::Client,
     rmw_zenoh_cpp::liveliness::NodeInfo{
-      node->context->actual_domain_id, node->namespace_, node->name, ""},
+      node->context->actual_domain_id, node->namespace_, node->name, context_impl->enclave},
     rmw_zenoh_cpp::liveliness::TopicInfo{rmw_client->service_name,
       std::move(service_type), client_data->adapted_qos_profile}
   );
@@ -2464,6 +2481,10 @@ rmw_create_service(
     context_impl,
     "unable to get rmw_context_impl_s",
     return nullptr);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    context_impl->enclave,
+    "expected initialized enclave",
+    return nullptr);
   if (!z_check(context_impl->session)) {
     RMW_SET_ERROR_MSG("zenoh session is invalid");
     return nullptr;
@@ -2645,7 +2666,7 @@ rmw_create_service(
       context_impl->get_next_entity_id()),
     rmw_zenoh_cpp::liveliness::EntityType::Service,
     rmw_zenoh_cpp::liveliness::NodeInfo{
-      node->context->actual_domain_id, node->namespace_, node->name, ""},
+      node->context->actual_domain_id, node->namespace_, node->name, context_impl->enclave},
     rmw_zenoh_cpp::liveliness::TopicInfo{rmw_service->service_name,
       std::move(service_type), service_data->adapted_qos_profile}
   );

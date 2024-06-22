@@ -144,6 +144,9 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
       }
     });
 
+  // Set the enclave.
+  context->impl->enclave = options->enclave;
+
   // Initialize context's implementation
   context->impl->is_shutdown = false;
 

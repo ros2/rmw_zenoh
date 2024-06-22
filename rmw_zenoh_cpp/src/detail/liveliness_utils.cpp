@@ -70,6 +70,7 @@ enum KeyexprIndex
   Nid,
   Id,
   EntityStr,
+  Enclave,
   Namespace,
   NodeName,
   TopicName,
@@ -263,6 +264,7 @@ Entity::Entity(
   // An empty namespace from rcl will contain "/" but zenoh does not allow keys with "//".
   // Hence we mangle the empty namespace such that splitting the key
   // will always result in 5 parts.
+  keyexpr_parts[KeyexprIndex::Enclave] = mangle_name(node_info_.enclave_);
   keyexpr_parts[KeyexprIndex::Namespace] = mangle_name(node_info_.ns_);
   keyexpr_parts[KeyexprIndex::NodeName] = mangle_name(node_info_.name_);
   // If this entity has a topic info, append it to the token.
@@ -336,14 +338,16 @@ std::shared_ptr<Entity> Entity::make(const std::string & keyexpr)
   if (parts.size() < KEYEXPR_INDEX_MIN + 1) {
     RCUTILS_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
-      "Received invalid liveliness token");
+      "Received invalid liveliness token with %lu/%d parts: %s",
+      parts.size(),
+      KEYEXPR_INDEX_MIN + 1, keyexpr.c_str());
     return nullptr;
   }
   for (const std::string & p : parts) {
     if (p.empty()) {
       RCUTILS_LOG_ERROR_NAMED(
         "rmw_zenoh_cpp",
-        "Received invalid liveliness token");
+        "Received invalid liveliness token with empty parts: %s", keyexpr.c_str());
       return nullptr;
     }
   }
@@ -371,6 +375,7 @@ std::shared_ptr<Entity> Entity::make(const std::string & keyexpr)
   std::string & zid = parts[KeyexprIndex::Zid];
   std::string & nid = parts[KeyexprIndex::Nid];
   std::string & id = parts[KeyexprIndex::Id];
+  std::string enclave = demangle_name(std::move(parts[KeyexprIndex::Enclave]));
   std::string ns = demangle_name(std::move(parts[KeyexprIndex::Namespace]));
   std::string node_name = demangle_name(std::move(parts[KeyexprIndex::NodeName]));
   std::optional<TopicInfo> topic_info = std::nullopt;
@@ -403,7 +408,7 @@ std::shared_ptr<Entity> Entity::make(const std::string & keyexpr)
         std::move(nid),
         std::move(id),
         std::move(entity_type),
-        NodeInfo{std::move(domain_id), std::move(ns), std::move(node_name), ""},
+        NodeInfo{std::move(domain_id), std::move(ns), std::move(node_name), std::move(enclave)},
         std::move(topic_info)});
 }
 

@@ -43,6 +43,9 @@
 class rmw_context_impl_s final
 {
 public:
+  // Enclave, name used to find security artifacts in a sros2 keystore.
+  char * enclave;
+
   // An owned session.
   z_owned_session_t session;
 
