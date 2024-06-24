@@ -32,6 +32,8 @@
 
 #include "rmw/rmw.h"
 
+#include "rosidl_runtime_c/type_hash.h"
+
 #include "event.hpp"
 #include "graph_cache.hpp"
 #include "message_type_support.hpp"
@@ -109,6 +111,7 @@ public:
   // Type support fields
   const void * type_support_impl;
   const char * typesupport_identifier;
+  const rosidl_type_hash_t * type_hash;
   MessageTypeSupport * type_support;
 
   // Context for memory allocation for messages.
@@ -174,6 +177,7 @@ public:
 
   const void * type_support_impl;
   const char * typesupport_identifier;
+  const rosidl_type_hash_t * type_hash;
   MessageTypeSupport * type_support;
   rmw_context_t * context;
 
@@ -245,6 +249,7 @@ public:
   const void * request_type_support_impl;
   const void * response_type_support_impl;
   const char * typesupport_identifier;
+  const rosidl_type_hash_t * type_hash;
   RequestTypeSupport * request_type_support;
   ResponseTypeSupport * response_type_support;
 
@@ -316,6 +321,7 @@ public:
   const void * request_type_support_impl;
   const void * response_type_support_impl;
   const char * typesupport_identifier;
+  const rosidl_type_hash_t * type_hash;
   RequestTypeSupport * request_type_support;
   ResponseTypeSupport * response_type_support;
 
