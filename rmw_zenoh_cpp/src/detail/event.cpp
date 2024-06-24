@@ -198,7 +198,7 @@ bool EventsManager::detach_condition_and_event_queue_is_empty(rmw_zenoh_event_ty
       "RMW Zenoh is not correctly configured to handle rmw_zenoh_event_type_t [%d]. "
       "Report this bug.",
       event_id);
-    return false;
+    return true;
   }
 
   std::lock_guard<std::mutex> lock(event_condition_mutex_);

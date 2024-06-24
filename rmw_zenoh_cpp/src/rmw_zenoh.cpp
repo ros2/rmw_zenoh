@@ -3418,7 +3418,6 @@ rmw_wait(
 
   // According to the documentation for rmw_wait in rmw.h, entries in the various arrays that have
   // *not* been triggered should be set to NULL
-
   if (guard_conditions) {
     for (size_t i = 0; i < guard_conditions->guard_condition_count; ++i) {
       rmw_zenoh_cpp::GuardCondition * gc =
