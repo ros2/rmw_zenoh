@@ -50,9 +50,11 @@ NodeInfo::NodeInfo(
 TopicInfo::TopicInfo(
   std::string name,
   std::string type,
+  std::string type_hash,
   rmw_qos_profile_t qos)
 : name_(std::move(name)),
   type_(std::move(type)),
+  type_hash_(std::move(type_hash)),
   qos_(std::move(qos))
 {
   // Do nothing.
@@ -75,6 +77,7 @@ enum KeyexprIndex
   NodeName,
   TopicName,
   TopicType,
+  TopicTypeHash,
   TopicQoS
 };
 
@@ -272,6 +275,7 @@ Entity::Entity(
     const auto & topic_info = this->topic_info_.value();
     keyexpr_parts[KeyexprIndex::TopicName] = mangle_name(topic_info.name_);
     keyexpr_parts[KeyexprIndex::TopicType] = mangle_name(topic_info.type_);
+    keyexpr_parts[KeyexprIndex::TopicTypeHash] = mangle_name(topic_info.type_hash_);
     keyexpr_parts[KeyexprIndex::TopicQoS] = qos_to_keyexpr(topic_info.qos_);
   }
 
@@ -398,6 +402,7 @@ std::shared_ptr<Entity> Entity::make(const std::string & keyexpr)
     topic_info = TopicInfo{
       demangle_name(std::move(parts[KeyexprIndex::TopicName])),
       demangle_name(std::move(parts[KeyexprIndex::TopicType])),
+      demangle_name(std::move(parts[KeyexprIndex::TopicTypeHash])),
       std::move(qos.value())
     };
   }
