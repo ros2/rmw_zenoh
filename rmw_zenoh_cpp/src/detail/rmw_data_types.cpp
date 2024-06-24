@@ -83,10 +83,17 @@ size_t rmw_publisher_data_t::get_next_sequence_number()
 }
 
 ///=============================================================================
-void rmw_subscription_data_t::attach_condition(std::condition_variable * condition_variable)
+bool rmw_subscription_data_t::queue_has_data_and_attach_condition_if_not(
+  std::condition_variable * condition_variable)
 {
   std::lock_guard<std::mutex> lock(condition_mutex_);
+  if (!message_queue_.empty()) {
+    return true;
+  }
+
   condition_ = condition_variable;
+
+  return false;
 }
 
 ///=============================================================================
@@ -99,16 +106,11 @@ void rmw_subscription_data_t::notify()
 }
 
 ///=============================================================================
-void rmw_subscription_data_t::detach_condition()
+bool rmw_subscription_data_t::detach_condition_and_queue_is_empty()
 {
   std::lock_guard<std::mutex> lock(condition_mutex_);
   condition_ = nullptr;
-}
 
-///=============================================================================
-bool rmw_subscription_data_t::message_queue_is_empty() const
-{
-  std::lock_guard<std::mutex> lock(message_queue_mutex_);
   return message_queue_.empty();
 }
 
@@ -180,24 +182,25 @@ void rmw_subscription_data_t::add_new_message(
 }
 
 ///=============================================================================
-bool rmw_service_data_t::query_queue_is_empty() const
-{
-  std::lock_guard<std::mutex> lock(query_queue_mutex_);
-  return query_queue_.empty();
-}
-
-///=============================================================================
-void rmw_service_data_t::attach_condition(std::condition_variable * condition_variable)
+bool rmw_service_data_t::queue_has_data_and_attach_condition_if_not(
+  std::condition_variable * condition_variable)
 {
   std::lock_guard<std::mutex> lock(condition_mutex_);
+  if (!query_queue_.empty()) {
+    return true;
+  }
   condition_ = condition_variable;
+
+  return false;
 }
 
 ///=============================================================================
-void rmw_service_data_t::detach_condition()
+bool rmw_service_data_t::detach_condition_and_queue_is_empty()
 {
   std::lock_guard<std::mutex> lock(condition_mutex_);
   condition_ = nullptr;
+
+  return query_queue_.empty();
 }
 
 ///=============================================================================
@@ -338,25 +341,25 @@ void rmw_client_data_t::add_new_reply(std::unique_ptr<ZenohReply> reply)
 }
 
 ///=============================================================================
-bool rmw_client_data_t::reply_queue_is_empty() const
-{
-  std::lock_guard<std::mutex> lock(reply_queue_mutex_);
-
-  return reply_queue_.empty();
-}
-
-///=============================================================================
-void rmw_client_data_t::attach_condition(std::condition_variable * condition_variable)
+bool rmw_client_data_t::queue_has_data_and_attach_condition_if_not(
+  std::condition_variable * condition_variable)
 {
   std::lock_guard<std::mutex> lock(condition_mutex_);
+  if (!reply_queue_.empty()) {
+    return true;
+  }
   condition_ = condition_variable;
+
+  return false;
 }
 
 ///=============================================================================
-void rmw_client_data_t::detach_condition()
+bool rmw_client_data_t::detach_condition_and_queue_is_empty()
 {
   std::lock_guard<std::mutex> lock(condition_mutex_);
   condition_ = nullptr;
+
+  return reply_queue_.empty();
 }
 
 ///=============================================================================

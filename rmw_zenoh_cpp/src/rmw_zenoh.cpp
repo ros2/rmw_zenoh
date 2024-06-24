@@ -3277,12 +3277,11 @@ static bool check_and_attach_condition(
     for (size_t i = 0; i < guard_conditions->guard_condition_count; ++i) {
       rmw_zenoh_cpp::GuardCondition * gc =
         static_cast<rmw_zenoh_cpp::GuardCondition *>(guard_conditions->guard_conditions[i]);
-      if (gc != nullptr) {
-        if (gc->has_triggered()) {
-          return true;
-        }
-
-        gc->attach_condition(&wait_set_data->condition_variable);
+      if (gc == nullptr) {
+        continue;
+      }
+      if (gc->check_and_attach_condition_if_not(&wait_set_data->condition_variable)) {
+        return true;
       }
     }
   }
@@ -3294,13 +3293,12 @@ static bool check_and_attach_condition(
       if (zenoh_event_it != rmw_zenoh_cpp::event_map.end()) {
         auto event_data = static_cast<rmw_zenoh_cpp::EventsManager *>(event->data);
         if (event_data != nullptr) {
-          if (!event_data->event_queue_is_empty(zenoh_event_it->second)) {
+          if (event_data->queue_has_data_and_attach_condition_if_not(
+              zenoh_event_it->second,
+              &wait_set_data->condition_variable))
+          {
             return true;
           }
-
-          event_data->attach_event_condition(
-            zenoh_event_it->second,
-            &wait_set_data->condition_variable);
         }
       } else {
         RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
@@ -3314,12 +3312,13 @@ static bool check_and_attach_condition(
     for (size_t i = 0; i < subscriptions->subscriber_count; ++i) {
       auto sub_data =
         static_cast<rmw_zenoh_cpp::rmw_subscription_data_t *>(subscriptions->subscribers[i]);
-      if (sub_data != nullptr) {
-        if (!sub_data->message_queue_is_empty()) {
-          return true;
-        }
-
-        sub_data->attach_condition(&wait_set_data->condition_variable);
+      if (sub_data == nullptr) {
+        continue;
+      }
+      if (sub_data->queue_has_data_and_attach_condition_if_not(
+          &wait_set_data->condition_variable))
+      {
+        return true;
       }
     }
   }
@@ -3327,12 +3326,13 @@ static bool check_and_attach_condition(
   if (services) {
     for (size_t i = 0; i < services->service_count; ++i) {
       auto serv_data = static_cast<rmw_zenoh_cpp::rmw_service_data_t *>(services->services[i]);
-      if (serv_data != nullptr) {
-        if (!serv_data->query_queue_is_empty()) {
-          return true;
-        }
-
-        serv_data->attach_condition(&wait_set_data->condition_variable);
+      if (serv_data == nullptr) {
+        continue;
+      }
+      if (serv_data->queue_has_data_and_attach_condition_if_not(
+          &wait_set_data->condition_variable))
+      {
+        return true;
       }
     }
   }
@@ -3341,12 +3341,13 @@ static bool check_and_attach_condition(
     for (size_t i = 0; i < clients->client_count; ++i) {
       rmw_zenoh_cpp::rmw_client_data_t * client_data =
         static_cast<rmw_zenoh_cpp::rmw_client_data_t *>(clients->clients[i]);
-      if (client_data != nullptr) {
-        if (!client_data->reply_queue_is_empty()) {
-          return true;
-        }
-
-        client_data->attach_condition(&wait_set_data->condition_variable);
+      if (client_data == nullptr) {
+        continue;
+      }
+      if (client_data->queue_has_data_and_attach_condition_if_not(
+          &wait_set_data->condition_variable))
+      {
+        return true;
       }
     }
   }
@@ -3415,34 +3416,30 @@ rmw_wait(
     }
   }
 
+  // According to the documentation for rmw_wait in rmw.h, entries in the various arrays that have
+  // *not* been triggered should be set to NULL
   if (guard_conditions) {
-    // Now detach the condition variable and mutex from each of the guard conditions
     for (size_t i = 0; i < guard_conditions->guard_condition_count; ++i) {
       rmw_zenoh_cpp::GuardCondition * gc =
         static_cast<rmw_zenoh_cpp::GuardCondition *>(guard_conditions->guard_conditions[i]);
-      if (gc != nullptr) {
-        gc->detach_condition();
-        // According to the documentation for rmw_wait in rmw.h, entries in the
-        // array that have *not* been triggered should be set to NULL
-        if (!gc->get_and_reset_trigger()) {
-          guard_conditions->guard_conditions[i] = nullptr;
-        }
+      if (gc == nullptr) {
+        continue;
+      }
+      if (!gc->detach_condition_and_trigger_set()) {
+        // Setting to nullptr lets rcl know that this guard condition is not ready
+        guard_conditions->guard_conditions[i] = nullptr;
       }
     }
   }
 
   if (events) {
-    // Now detach the condition variable and mutex from each of the subscriptions
     for (size_t i = 0; i < events->event_count; ++i) {
       auto event = static_cast<rmw_event_t *>(events->events[i]);
       auto event_data = static_cast<rmw_zenoh_cpp::EventsManager *>(event->data);
       if (event_data != nullptr) {
         auto zenoh_event_it = rmw_zenoh_cpp::event_map.find(event->event_type);
         if (zenoh_event_it != rmw_zenoh_cpp::event_map.end()) {
-          event_data->detach_event_condition(zenoh_event_it->second);
-          // According to the documentation for rmw_wait in rmw.h, entries in the
-          // array that have *not* been triggered should be set to NULL
-          if (event_data->event_queue_is_empty(zenoh_event_it->second)) {
+          if (event_data->detach_condition_and_event_queue_is_empty(zenoh_event_it->second)) {
             // Setting to nullptr lets rcl know that this subscription is not ready
             events->events[i] = nullptr;
           }
@@ -3452,51 +3449,45 @@ rmw_wait(
   }
 
   if (subscriptions) {
-    // Now detach the condition variable and mutex from each of the subscriptions
     for (size_t i = 0; i < subscriptions->subscriber_count; ++i) {
       auto sub_data =
         static_cast<rmw_zenoh_cpp::rmw_subscription_data_t *>(subscriptions->subscribers[i]);
-      if (sub_data != nullptr) {
-        sub_data->detach_condition();
-        // According to the documentation for rmw_wait in rmw.h, entries in the
-        // array that have *not* been triggered should be set to NULL
-        if (sub_data->message_queue_is_empty()) {
-          // Setting to nullptr lets rcl know that this subscription is not ready
-          subscriptions->subscribers[i] = nullptr;
-        }
+      if (sub_data == nullptr) {
+        continue;
+      }
+
+      if (sub_data->detach_condition_and_queue_is_empty()) {
+        // Setting to nullptr lets rcl know that this subscription is not ready
+        subscriptions->subscribers[i] = nullptr;
       }
     }
   }
 
   if (services) {
-    // Now detach the condition variable and mutex from each of the services
     for (size_t i = 0; i < services->service_count; ++i) {
       auto serv_data = static_cast<rmw_zenoh_cpp::rmw_service_data_t *>(services->services[i]);
-      if (serv_data != nullptr) {
-        serv_data->detach_condition();
-        // According to the documentation for rmw_wait in rmw.h, entries in the
-        // array that have *not* been triggered should be set to NULL
-        if (serv_data->query_queue_is_empty()) {
-          // Setting to nullptr lets rcl know that this service is not ready
-          services->services[i] = nullptr;
-        }
+      if (serv_data == nullptr) {
+        continue;
+      }
+
+      if (serv_data->detach_condition_and_queue_is_empty()) {
+        // Setting to nullptr lets rcl know that this service is not ready
+        services->services[i] = nullptr;
       }
     }
   }
 
   if (clients) {
-    // Now detach the condition variable and mutex from each of the clients
     for (size_t i = 0; i < clients->client_count; ++i) {
       rmw_zenoh_cpp::rmw_client_data_t * client_data =
         static_cast<rmw_zenoh_cpp::rmw_client_data_t *>(clients->clients[i]);
-      if (client_data != nullptr) {
-        client_data->detach_condition();
-        // According to the documentation for rmw_wait in rmw.h, entries in the
-        // array that have *not* been triggered should be set to NULL
-        if (client_data->reply_queue_is_empty()) {
-          // Setting to nullptr lets rcl know that this client is not ready
-          clients->clients[i] = nullptr;
-        }
+      if (client_data == nullptr) {
+        continue;
+      }
+
+      if (client_data->detach_condition_and_queue_is_empty()) {
+        // Setting to nullptr lets rcl know that this client is not ready
+        clients->clients[i] = nullptr;
       }
     }
   }

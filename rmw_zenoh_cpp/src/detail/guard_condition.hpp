@@ -31,13 +31,9 @@ public:
   // Sets has_triggered_ to true and calls notify_one() on condition_variable_ if set.
   void trigger();
 
-  void attach_condition(std::condition_variable * condition_variable);
+  bool check_and_attach_condition_if_not(std::condition_variable * condition_variable);
 
-  void detach_condition();
-
-  bool has_triggered() const;
-
-  bool get_and_reset_trigger();
+  bool detach_condition_and_trigger_set();
 
 private:
   mutable std::mutex internal_mutex_;

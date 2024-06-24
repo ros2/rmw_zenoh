@@ -104,22 +104,6 @@ void EventsManager::trigger_event_callback(rmw_zenoh_event_type_t event_id)
 }
 
 ///=============================================================================
-bool EventsManager::event_queue_is_empty(rmw_zenoh_event_type_t event_id) const
-{
-  if (event_id > ZENOH_EVENT_ID_MAX) {
-    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
-      "RMW Zenoh is not correctly configured to handle rmw_zenoh_event_type_t [%d]. "
-      "Report this bug.",
-      event_id);
-    return true;
-  }
-
-  std::lock_guard<std::mutex> lock(event_mutex_);
-
-  return event_queues_[event_id].empty();
-}
-
-///=============================================================================
 std::unique_ptr<rmw_zenoh_event_status_t> EventsManager::pop_next_event(
   rmw_zenoh_event_type_t event_id)
 {
@@ -183,7 +167,7 @@ void EventsManager::add_new_event(
 }
 
 ///=============================================================================
-void EventsManager::attach_event_condition(
+bool EventsManager::queue_has_data_and_attach_condition_if_not(
   rmw_zenoh_event_type_t event_id,
   std::condition_variable * condition_variable)
 {
@@ -192,26 +176,36 @@ void EventsManager::attach_event_condition(
       "RMW Zenoh is not correctly configured to handle rmw_zenoh_event_type_t [%d]. "
       "Report this bug.",
       event_id);
-    return;
+    return false;
   }
 
   std::lock_guard<std::mutex> lock(event_condition_mutex_);
+
+  if (!event_queues_[event_id].empty()) {
+    return true;
+  }
+
   event_conditions_[event_id] = condition_variable;
+
+  return false;
 }
 
 ///=============================================================================
-void EventsManager::detach_event_condition(rmw_zenoh_event_type_t event_id)
+bool EventsManager::detach_condition_and_event_queue_is_empty(rmw_zenoh_event_type_t event_id)
 {
   if (event_id > ZENOH_EVENT_ID_MAX) {
     RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
       "RMW Zenoh is not correctly configured to handle rmw_zenoh_event_type_t [%d]. "
       "Report this bug.",
       event_id);
-    return;
+    return true;
   }
 
   std::lock_guard<std::mutex> lock(event_condition_mutex_);
+
   event_conditions_[event_id] = nullptr;
+
+  return event_queues_[event_id].empty();
 }
 
 ///=============================================================================
