@@ -84,7 +84,7 @@ std::string strip_slashes(const char * const str)
   if (str[end] == '/') {
     --end;
   }
-  return ret.substr(start, end - start);
+  return ret.substr(start, end - start + 1);
 }
 
 //==============================================================================
