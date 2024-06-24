@@ -3409,24 +3409,23 @@ rmw_wait(
 
   bool skip_wait = check_and_attach_condition(
     subscriptions, guard_conditions, services, clients, events, wait_set_data);
-  bool wait_result = true;
-
   if (!skip_wait) {
     std::unique_lock<std::mutex> lock(wait_set_data->condition_mutex);
 
     // According to the RMW documentation, if wait_timeout is NULL that means
-    // "wait forever", if it specified by 0 it means "never wait", and if it is anything else wait
+    // "wait forever", if it specified as 0 it means "never wait", and if it is anything else wait
     // for that amount of time.
     if (wait_timeout == nullptr) {
       wait_set_data->condition_variable.wait(lock);
     } else {
       if (wait_timeout->sec != 0 || wait_timeout->nsec != 0) {
-        std::cv_status wait_status = wait_set_data->condition_variable.wait_for(
+        wait_set_data->condition_variable.wait_for(
           lock, std::chrono::nanoseconds(wait_timeout->nsec + RCUTILS_S_TO_NS(wait_timeout->sec)));
-        wait_result = wait_status == std::cv_status::no_timeout;
       }
     }
   }
+
+  bool wait_result = false;
 
   // According to the documentation for rmw_wait in rmw.h, entries in the various arrays that have
   // *not* been triggered should be set to NULL
@@ -3440,6 +3439,8 @@ rmw_wait(
       if (!gc->detach_condition_and_trigger_set()) {
         // Setting to nullptr lets rcl know that this guard condition is not ready
         guard_conditions->guard_conditions[i] = nullptr;
+      } else {
+        wait_result = true;
       }
     }
   }
@@ -3454,6 +3455,8 @@ rmw_wait(
           if (event_data->detach_condition_and_event_queue_is_empty(zenoh_event_it->second)) {
             // Setting to nullptr lets rcl know that this subscription is not ready
             events->events[i] = nullptr;
+          } else {
+            wait_result = true;
           }
         }
       }
@@ -3471,6 +3474,8 @@ rmw_wait(
       if (sub_data->detach_condition_and_queue_is_empty()) {
         // Setting to nullptr lets rcl know that this subscription is not ready
         subscriptions->subscribers[i] = nullptr;
+      } else {
+        wait_result = true;
       }
     }
   }
@@ -3485,6 +3490,8 @@ rmw_wait(
       if (serv_data->detach_condition_and_queue_is_empty()) {
         // Setting to nullptr lets rcl know that this service is not ready
         services->services[i] = nullptr;
+      } else {
+        wait_result = true;
       }
     }
   }
@@ -3500,11 +3507,13 @@ rmw_wait(
       if (client_data->detach_condition_and_queue_is_empty()) {
         // Setting to nullptr lets rcl know that this client is not ready
         clients->clients[i] = nullptr;
+      } else {
+        wait_result = true;
       }
     }
   }
 
-  return (skip_wait || wait_result) ? RMW_RET_OK : RMW_RET_TIMEOUT;
+  return wait_result ? RMW_RET_OK : RMW_RET_TIMEOUT;
 }
 
 //==============================================================================
