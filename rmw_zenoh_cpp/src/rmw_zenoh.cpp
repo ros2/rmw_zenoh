@@ -102,10 +102,13 @@ z_owned_keyexpr_t ros_topic_name_to_zenoh_key(
   const char * const topic_type,
   const char * const type_hash)
 {
-  const std::string keyexpr_str = std::to_string(domain_id) + "/" +
-    strip_slashes(topic_name) + "/" +
-    std::string(topic_type) + "/" +
-    std::string(type_hash);
+  std::string keyexpr_str = std::to_string(domain_id);
+  keyexpr_str += "/";
+  keyexpr_str += strip_slashes(topic_name);
+  keyexpr_str += "/";
+  keyexpr_str += topic_type;
+  keyexpr_str += "/";
+  keyexpr_str += type_hash;
 
   return z_keyexpr_new(keyexpr_str.c_str());
 }
