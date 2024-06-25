@@ -95,7 +95,7 @@ static const char CLI_STR[] = "SC";
 static const char KEYEXPR_DELIMITER = '/';
 static const char SLASH_REPLACEMENT = '%';
 static const char QOS_DELIMITER = ':';
-static const char QOS_HISTORY_DELIMITER = ',';
+static const char QOS_COMPONENT_DELIMITER = ',';
 
 static const std::unordered_map<EntityType, std::string> entity_to_str = {
   {EntityType::Node, NODE_STR},
@@ -138,6 +138,18 @@ static const std::unordered_map<std::string, rmw_qos_durability_policy_e> str_to
   {std::to_string(RMW_QOS_POLICY_DURABILITY_UNKNOWN), RMW_QOS_POLICY_DURABILITY_UNKNOWN}
 };
 
+static const std::unordered_map<std::string, rmw_qos_liveliness_policy_e> str_to_qos_liveliness = {
+  {std::to_string(RMW_QOS_POLICY_LIVELINESS_SYSTEM_DEFAULT),
+    RMW_QOS_POLICY_LIVELINESS_SYSTEM_DEFAULT},
+  {std::to_string(RMW_QOS_POLICY_LIVELINESS_AUTOMATIC),
+    RMW_QOS_POLICY_LIVELINESS_AUTOMATIC},
+  {std::to_string(RMW_QOS_POLICY_LIVELINESS_MANUAL_BY_TOPIC),
+    RMW_QOS_POLICY_LIVELINESS_MANUAL_BY_TOPIC},
+  {std::to_string(RMW_QOS_POLICY_LIVELINESS_UNKNOWN), RMW_QOS_POLICY_LIVELINESS_UNKNOWN},
+  {std::to_string(RMW_QOS_POLICY_LIVELINESS_BEST_AVAILABLE),
+    RMW_QOS_POLICY_LIVELINESS_BEST_AVAILABLE}
+};
+
 std::vector<std::string> split_keyexpr(
   const std::string & keyexpr,
   const char delim = KEYEXPR_DELIMITER)
@@ -161,13 +173,34 @@ std::vector<std::string> split_keyexpr(
 std::string qos_to_keyexpr(rmw_qos_profile_t qos)
 {
   std::string keyexpr = "";
+  // Reliability.
   keyexpr += std::to_string(qos.reliability);
   keyexpr += QOS_DELIMITER;
+  // Durability.
   keyexpr += std::to_string(qos.durability);
   keyexpr += QOS_DELIMITER;
+  // History.
   keyexpr += std::to_string(qos.history);
-  keyexpr += QOS_HISTORY_DELIMITER;
+  keyexpr += QOS_COMPONENT_DELIMITER;
   keyexpr += std::to_string(qos.depth);
+  keyexpr += QOS_DELIMITER;
+  // Deadline.
+  keyexpr += std::to_string(qos.deadline.sec);
+  keyexpr += QOS_COMPONENT_DELIMITER;
+  keyexpr += std::to_string(qos.deadline.nsec);
+  keyexpr += QOS_DELIMITER;
+  // Lifespan.
+  keyexpr += std::to_string(qos.lifespan.sec);
+  keyexpr += QOS_COMPONENT_DELIMITER;
+  keyexpr += std::to_string(qos.lifespan.nsec);
+  keyexpr += QOS_DELIMITER;
+  // Liveliness.
+  keyexpr += std::to_string(qos.liveliness);
+  keyexpr += QOS_COMPONENT_DELIMITER;
+  keyexpr += std::to_string(qos.liveliness_lease_duration.sec);
+  keyexpr += QOS_COMPONENT_DELIMITER;
+  keyexpr += std::to_string(qos.liveliness_lease_duration.nsec);
+
   return keyexpr;
 }
 
@@ -176,11 +209,24 @@ std::optional<rmw_qos_profile_t> keyexpr_to_qos(const std::string & keyexpr)
 {
   rmw_qos_profile_t qos;
   const std::vector<std::string> parts = split_keyexpr(keyexpr, QOS_DELIMITER);
-  if (parts.size() < 3) {
+  if (parts.size() < 6) {
     return std::nullopt;
   }
-  const std::vector<std::string> history_parts = split_keyexpr(parts[2], QOS_HISTORY_DELIMITER);
+  const std::vector<std::string> history_parts = split_keyexpr(parts[2], QOS_COMPONENT_DELIMITER);
   if (history_parts.size() < 2) {
+    return std::nullopt;
+  }
+  const std::vector<std::string> deadline_parts = split_keyexpr(parts[3], QOS_COMPONENT_DELIMITER);
+  if (deadline_parts.size() < 2) {
+    return std::nullopt;
+  }
+  const std::vector<std::string> lifespan_parts = split_keyexpr(parts[4], QOS_COMPONENT_DELIMITER);
+  if (lifespan_parts.size() < 2) {
+    return std::nullopt;
+  }
+  const std::vector<std::string> liveliness_parts =
+    split_keyexpr(parts[5], QOS_COMPONENT_DELIMITER);
+  if (liveliness_parts.size() < 3) {
     return std::nullopt;
   }
 
@@ -188,37 +234,62 @@ std::optional<rmw_qos_profile_t> keyexpr_to_qos(const std::string & keyexpr)
     qos.history = str_to_qos_history.at(history_parts[0]);
     qos.reliability = str_to_qos_reliability.at(parts[0]);
     qos.durability = str_to_qos_durability.at(parts[1]);
+    qos.liveliness = str_to_qos_liveliness.at(liveliness_parts[0]);
   } catch (const std::exception & e) {
     RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("Error setting QoS values from strings: %s", e.what());
     return std::nullopt;
   }
-  // Get the history depth.
-  errno = 0;
-  char * endptr;
-  size_t num = strtoul(history_parts[1].c_str(), &endptr, 10);
-  if (endptr == history_parts[1].c_str()) {
-    // No values were converted, this is an error
-    RMW_SET_ERROR_MSG("no valid numbers available");
-    return std::nullopt;
-  } else if (*endptr != '\0') {
-    // There was junk after the number
-    RMW_SET_ERROR_MSG("non-numeric values");
-    return std::nullopt;
-  } else if (errno != 0) {
-    // Some other error occurred, which may include overflow or underflow
-    RMW_SET_ERROR_MSG(
-      "an undefined error occurred while getting the number, this may be an overflow");
+
+  // Helper function to convert string to size_t.
+  auto str_to_size_t =
+    [](const std::string & str) -> std::optional<size_t>
+    {
+      errno = 0;
+      char * endptr;
+      size_t num = strtoul(str.c_str(), &endptr, 10);
+      if (endptr == str.c_str()) {
+        // No values were converted, this is an error
+        RMW_SET_ERROR_MSG("no valid numbers available");
+        return std::nullopt;
+      } else if (*endptr != '\0') {
+        // There was junk after the number
+        RMW_SET_ERROR_MSG("non-numeric values");
+        return std::nullopt;
+      } else if (errno != 0) {
+        // Some other error occurred, which may include overflow or underflow
+        RMW_SET_ERROR_MSG(
+          "an undefined error occurred while getting the number, this may be an overflow");
+        return std::nullopt;
+      }
+      return num;
+    };
+
+  const auto maybe_depth = str_to_size_t(history_parts[1]);
+  const auto maybe_deadline_s = str_to_size_t(deadline_parts[0]);
+  const auto maybe_deadline_ns = str_to_size_t(deadline_parts[1]);
+  const auto maybe_lifespan_s = str_to_size_t(lifespan_parts[0]);
+  const auto maybe_lifespan_ns = str_to_size_t(lifespan_parts[1]);
+  const auto maybe_liveliness_s = str_to_size_t(liveliness_parts[1]);
+  const auto maybe_liveliness_ns = str_to_size_t(liveliness_parts[2]);
+  if (maybe_depth == std::nullopt ||
+    maybe_deadline_s == std::nullopt ||
+    maybe_deadline_ns == std::nullopt ||
+    maybe_lifespan_s == std::nullopt ||
+    maybe_lifespan_ns == std::nullopt ||
+    maybe_liveliness_s == std::nullopt ||
+    maybe_liveliness_ns == std::nullopt)
+  {
+    // Error already set.
     return std::nullopt;
   }
-  qos.depth = num;
+  qos.depth = *maybe_depth;
+  qos.deadline.sec = *maybe_deadline_s;
+  qos.deadline.nsec = *maybe_deadline_ns;
+  qos.lifespan.sec = *maybe_lifespan_s;
+  qos.lifespan.nsec = *maybe_lifespan_ns;
+  qos.liveliness_lease_duration.sec = *maybe_liveliness_s;
+  qos.liveliness_lease_duration.nsec = *maybe_liveliness_ns;
 
-  // Liveliness is always automatic given liveliness tokens.
-  qos.liveliness = RMW_QOS_POLICY_LIVELINESS_AUTOMATIC;
-  qos.liveliness_lease_duration = RMW_QOS_LIVELINESS_LEASE_DURATION_DEFAULT;
-
-  // TODO(Yadunund): Update once we support these settings.
-  qos.deadline = RMW_QOS_DEADLINE_DEFAULT;
-  qos.lifespan = RMW_QOS_LIFESPAN_DEFAULT;
   return qos;
 }
 

@@ -198,15 +198,25 @@ std::string demangle_name(const std::string & input);
 /**
  * Convert a rmw_qos_profile_t to a string with format:
  *
- * <ReliabilityKind>:<DurabilityKind>:<HistoryKind>,<HistoryDepth>"
+ * <ReliabilityKind>:<DurabilityKind>:<HistoryKind>,<HistoryDepth>:<DeadlineSec, DeadlineNSec>:<LifespanSec, LifespanNSec>:<Liveliness, LivelinessSec, LivelinessNSec>"
  * Where:
  *  <ReliabilityKind> - enum value from rmw_qos_reliability_policy_e.
  *  <DurabilityKind> - enum value from rmw_qos_durability_policy_e.
  *  <HistoryKind> - enum value from rmw_qos_history_policy_e.
  *  <HistoryDepth> - The depth number.
+ *  <DeadlineSec> - The seconds component of the deadline duration.
+ *  <DeadlineNSec> - The nanoseconds component of the deadline duration.
+ *  <LifespanSec> - The seconds component of the lifespan duration.
+ *  <LifespanNSec> - The nanoseconds component of the lifespan duration.
+ *  <Liveliness> - enum value from rmw_qos_liveliness_policy_e.
+ *  <LivelinessSec> - The seconds component of the liveliness duration.
+ *  <LivelinessNSec> - The nanoseconds component of the liveliness duration.
  * For example, the liveliness substring for a topic with Reliability policy: reliable,
- * Durability policy: volatile, History policy: keep_last, and depth: 10, would be
- * "1:2:1,10". See rmw/types.h for the values of each policy enum.
+ * Durability policy: volatile, History policy: keep_last, and depth: 10,
+ * Deadline: 5s0ns, Lifespan 60s3000ns, Liveliness: RMW_QOS_POLICY_LIVELINESS_AUTOMATIC,
+ * LivelinessDuration: 0s0ns would be "1:2:1,10:0,0:60,3000:1,0,0".
+ *
+ * See rmw/types.h for the values of each policy enum.
  */
 std::string qos_to_keyexpr(rmw_qos_profile_t qos);
 
