@@ -18,10 +18,10 @@
 #include <cstring>
 #include <memory>
 #include <mutex>
-#include <optional>
 #include <sstream>
 #include <string>
 #include <utility>
+#include <zenoh_macros.h>
 
 #include "logging_macros.hpp"
 
@@ -64,7 +64,7 @@ namespace rmw_zenoh_cpp
 {
 ///=============================================================================
 saved_msg_data::saved_msg_data(
-  zc_owned_payload_t p,
+  z_owned_bytes_t p,
   uint64_t recv_ts,
   const uint8_t pub_gid[RMW_GID_STORAGE_SIZE],
   int64_t seqnum,
@@ -237,6 +237,7 @@ void rmw_service_data_t::notify()
   }
 }
 
+
 ///=============================================================================
 void rmw_service_data_t::add_new_query(std::unique_ptr<ZenohQuery> query)
 {
@@ -245,14 +246,15 @@ void rmw_service_data_t::add_new_query(std::unique_ptr<ZenohQuery> query)
     query_queue_.size() >= adapted_qos_profile.depth)
   {
     // Log warning if message is discarded due to hitting the queue depth
-    z_owned_str_t keystr = z_keyexpr_to_string(z_loan(this->keyexpr));
+    z_view_string_t keystr;
+    z_keyexpr_as_view_string(z_loan(this->keyexpr), &keystr);
+
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Query queue depth of %ld reached, discarding oldest Query "
       "for service for %s",
       adapted_qos_profile.depth,
-      z_loan(keystr));
-    z_drop(z_move(keystr));
+      z_string_data(z_loan(keystr)));
     query_queue_.pop_front();
   }
   query_queue_.emplace_back(std::move(query));
@@ -340,14 +342,14 @@ void rmw_client_data_t::add_new_reply(std::unique_ptr<ZenohReply> reply)
     reply_queue_.size() >= adapted_qos_profile.depth)
   {
     // Log warning if message is discarded due to hitting the queue depth
-    z_owned_str_t keystr = z_keyexpr_to_string(z_loan(this->keyexpr));
+    z_view_string_t keystr;
+    z_keyexpr_as_view_string(z_loan(this->keyexpr), &keystr);
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Reply queue depth of %ld reached, discarding oldest reply "
       "for client for %s",
       adapted_qos_profile.depth,
-      z_loan(keystr));
-    z_drop(z_move(keystr));
+      z_string_data(z_loan(keystr)));
     reply_queue_.pop_front();
   }
   reply_queue_.emplace_back(std::move(reply));
@@ -432,14 +434,11 @@ bool rmw_client_data_t::is_shutdown() const
 
 //==============================================================================
 void sub_data_handler(
-  const z_sample_t * sample,
+  const z_loaned_sample_t * sample,
   void * data)
 {
-  z_owned_str_t keystr = z_keyexpr_to_string(sample->keyexpr);
-  auto drop_keystr = rcpputils::make_scope_exit(
-    [&keystr]() {
-      z_drop(z_move(keystr));
-    });
+  z_view_string_t keystr;
+  z_keyexpr_as_view_string(z_sample_keyexpr(sample), &keystr);
 
   auto sub_data = static_cast<rmw_subscription_data_t *>(data);
   if (sub_data == nullptr) {
@@ -447,13 +446,14 @@ void sub_data_handler(
       "rmw_zenoh_cpp",
       "Unable to obtain rmw_subscription_data_t from data for "
       "subscription for %s",
-      z_loan(keystr)
+      z_string_data(z_loan(keystr))
     );
     return;
   }
 
   uint8_t pub_gid[RMW_GID_STORAGE_SIZE];
-  if (!get_gid_from_attachment(&sample->attachment, pub_gid)) {
+  const z_loaned_bytes_t* attachment = z_sample_attachment(sample);
+  if (!get_gid_from_attachment(attachment, pub_gid)) {
     // We failed to get the GID from the attachment.  While this isn't fatal,
     // it is unusual and so we should report it.
     memset(pub_gid, 0, RMW_GID_STORAGE_SIZE);
@@ -462,7 +462,7 @@ void sub_data_handler(
       "Unable to obtain publisher GID from the attachment.");
   }
 
-  int64_t sequence_number = get_int64_from_attachment(&sample->attachment, "sequence_number");
+  int64_t sequence_number = get_int64_from_attachment(attachment, "sequence_number");
   if (sequence_number < 0) {
     // We failed to get the sequence number from the attachment.  While this
     // isn't fatal, it is unusual and so we should report it.
@@ -471,7 +471,7 @@ void sub_data_handler(
       "rmw_zenoh_cpp", "Unable to obtain sequence number from the attachment.");
   }
 
-  int64_t source_timestamp = get_int64_from_attachment(&sample->attachment, "source_timestamp");
+  int64_t source_timestamp = get_int64_from_attachment(attachment, "source_timestamp");
   if (source_timestamp < 0) {
     // We failed to get the source timestamp from the attachment.  While this
     // isn't fatal, it is unusual and so we should report it.
@@ -480,38 +480,38 @@ void sub_data_handler(
       "rmw_zenoh_cpp", "Unable to obtain sequence number from the attachment.");
   }
 
+  z_owned_bytes_t payload;
+  z_bytes_clone(&payload, z_sample_payload(sample));
   sub_data->add_new_message(
     std::make_unique<saved_msg_data>(
-      zc_sample_payload_rcinc(sample),
-      sample->timestamp.time, pub_gid, sequence_number, source_timestamp), z_loan(keystr));
+      payload,
+      z_timestamp_ntp64_time(z_sample_timestamp(sample)),
+      pub_gid, sequence_number, source_timestamp), z_string_data(z_loan(keystr)));
 }
 
 ///=============================================================================
-ZenohQuery::ZenohQuery(const z_query_t * query)
+ZenohQuery::ZenohQuery(const z_loaned_query_t * query)
 {
-  query_ = z_query_clone(query);
+   z_query_clone(query_, query);
 }
 
 ///=============================================================================
 ZenohQuery::~ZenohQuery()
 {
-  z_drop(z_move(query_));
+  z_drop(z_move(*query_));
 }
 
 ///=============================================================================
-const z_query_t ZenohQuery::get_query() const
+const z_loaned_query_t * ZenohQuery::get_query() const
 {
-  return z_query_loan(&query_);
+  return z_query_loan(query_);
 }
 
 //==============================================================================
-void service_data_handler(const z_query_t * query, void * data)
+void service_data_handler(const z_loaned_query_t * query, void * data)
 {
-  z_owned_str_t keystr = z_keyexpr_to_string(z_query_keyexpr(query));
-  auto drop_keystr = rcpputils::make_scope_exit(
-    [&keystr]() {
-      z_drop(z_move(keystr));
-    });
+  z_view_string_t keystr;
+  z_keyexpr_as_view_string(z_query_keyexpr(query), &keystr);
 
   rmw_service_data_t * service_data =
     static_cast<rmw_service_data_t *>(data);
@@ -520,7 +520,7 @@ void service_data_handler(const z_query_t * query, void * data)
       "rmw_zenoh_cpp",
       "Unable to obtain rmw_service_data_t from data for "
       "service for %s",
-      z_loan(keystr)
+      z_string_data(z_loan(keystr))
     );
     return;
   }
@@ -540,14 +540,12 @@ ZenohReply::~ZenohReply()
   z_reply_drop(z_move(reply_));
 }
 
+// TODO(yuyuan): z_reply_ok return a null pointer if not z_reply_is_ok,
+// so that's remove the additional optional wrapper.
 ///=============================================================================
-std::optional<z_sample_t> ZenohReply::get_sample() const
+const z_loaned_sample_t * ZenohReply::get_sample() const
 {
-  if (z_reply_is_ok(&reply_)) {
-    return z_reply_ok(&reply_);
-  }
-
-  return std::nullopt;
+    return z_reply_ok(z_loan(reply_));
 }
 
 ///=============================================================================
@@ -558,7 +556,7 @@ size_t rmw_client_data_t::get_next_sequence_number()
 }
 
 //==============================================================================
-void client_data_handler(z_owned_reply_t * reply, void * data)
+void client_data_handler(const z_loaned_reply_t * reply, void * data)
 {
   auto client_data = static_cast<rmw_client_data_t *>(data);
   if (client_data == nullptr) {
@@ -575,30 +573,36 @@ void client_data_handler(z_owned_reply_t * reply, void * data)
     return;
   }
 
-  if (!z_reply_check(reply)) {
+  if (!z_reply_is_ok(reply)) {
+    z_view_string_t keystr;
+    z_keyexpr_as_view_string(z_loan(client_data->keyexpr), &keystr);
+    const z_loaned_reply_err_t* err = z_reply_err(reply);
+    const z_loaned_bytes_t* err_payload = z_reply_err_payload(err);
+
+    // TODO(yuyuan): z_view_string_t?
+    z_owned_string_t err_str;
+    z_bytes_deserialize_into_string(err_payload, &err_str);
+    RMW_ZENOH_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "z_reply_is_ok returned False for keyexpr %s. Reason: %.*s",
+      z_string_data(z_loan(keystr)),
+      (int)z_string_len(z_loan(err_str)),
+      z_string_data(z_loan(err_str)));
+    z_drop(z_move(err_str));
+    return;
+  }
+  z_owned_reply_t owned_reply;
+  z_reply_clone(&owned_reply, reply);
+
+  if (!z_reply_check(&owned_reply)) {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "z_reply_check returned False"
     );
     return;
   }
-  if (!z_reply_is_ok(reply)) {
-    z_owned_str_t keystr = z_keyexpr_to_string(z_loan(client_data->keyexpr));
-    z_value_t err = z_reply_err(reply);
-    RMW_ZENOH_LOG_ERROR_NAMED(
-      "rmw_zenoh_cpp",
-      "z_reply_is_ok returned False for keyexpr %s. Reason: %.*s",
-      z_loan(keystr),
-      (int)err.payload.len,
-      err.payload.start);
-    z_drop(z_move(keystr));
 
-    return;
-  }
-
-  client_data->add_new_reply(std::make_unique<ZenohReply>(reply));
-  // Since we took ownership of the reply, null it out here
-  *reply = z_reply_null();
+  client_data->add_new_reply(std::make_unique<ZenohReply>(&owned_reply));
 }
 
 void client_data_drop(void * data)

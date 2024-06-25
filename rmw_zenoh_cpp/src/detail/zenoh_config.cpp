@@ -18,6 +18,8 @@
 
 #include <limits>
 #include <string>
+#include <unordered_map>
+#include <utility>
 
 #include "logging_macros.hpp"
 
@@ -58,11 +60,11 @@ rmw_ret_t _get_z_config(
   // If the environment variable contains a path to a file, try to read the configuration from it.
   if (envar_uri[0] != '\0') {
     // If the environment variable is set, try to read the configuration from the file.
-    *config = zc_config_from_file(envar_uri);
+    zc_config_from_file(config, envar_uri);
     configured_uri = envar_uri;
   } else {
     // If the environment variable is not set use internal configuration
-    *config = zc_config_from_file(default_uri);
+    zc_config_from_file(config, default_uri);
     configured_uri = default_uri;
   }
   // Verify that the configuration is valid.

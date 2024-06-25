@@ -24,7 +24,7 @@ namespace rmw_zenoh_cpp
 /// Check if a Zenoh router is connected to the session.
 /// @param session Zenoh session to check.
 /// @return RMW_RET_OK if a Zenoh router is connected to the session.
-rmw_ret_t zenoh_router_check(z_session_t session);
+rmw_ret_t zenoh_router_check(const z_loaned_session_t* session);
 }  // namespace rmw_zenoh_cpp
 
 #endif  // DETAIL__ZENOH_ROUTER_CHECK_HPP_

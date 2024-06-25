@@ -63,4 +63,5 @@ void Logger::log_named(
     );
   }
 }
+
 }  // namespace rmw_zenoh_cpp

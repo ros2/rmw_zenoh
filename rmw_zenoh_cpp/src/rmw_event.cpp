@@ -21,10 +21,12 @@
 #include "detail/graph_cache.hpp"
 #include "detail/identifier.hpp"
 #include "detail/rmw_data_types.hpp"
+#include "detail/logging_macros.hpp"
 
 
 extern "C"
 {
+
 ///=============================================================================
 /// Initialize a rmw publisher event
 rmw_ret_t

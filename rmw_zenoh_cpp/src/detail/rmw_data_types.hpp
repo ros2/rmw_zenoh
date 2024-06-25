@@ -52,9 +52,10 @@ public:
   // An owned session.
   z_owned_session_t session;
 
+  // TODO(yuyuan): SHM provider
   // An optional SHM manager that is initialized of SHM is enabled in the
   // zenoh session config.
-  std::optional<zc_owned_shm_manager_t> shm_manager;
+  // std::optional<zc_owned_shm_manager_t> shm_manager;
 
   z_owned_subscriber_t graph_subscriber;
 
@@ -131,12 +132,12 @@ private:
 
 ///=============================================================================
 // z_owned_closure_sample_t
-void sub_data_handler(const z_sample_t * sample, void * sub_data);
+void sub_data_handler(const z_loaned_sample_t * sample, void * sub_data);
 
 struct saved_msg_data
 {
   explicit saved_msg_data(
-    zc_owned_payload_t p,
+    z_owned_bytes_t p,
     uint64_t recv_ts,
     const uint8_t pub_gid[RMW_GID_STORAGE_SIZE],
     int64_t seqnum,
@@ -144,7 +145,7 @@ struct saved_msg_data
 
   ~saved_msg_data();
 
-  zc_owned_payload_t payload;
+  z_owned_bytes_t payload;
   uint64_t recv_timestamp;
   uint8_t publisher_gid[RMW_GID_STORAGE_SIZE];
   int64_t sequence_number;
@@ -200,24 +201,24 @@ private:
 
 
 ///=============================================================================
-void service_data_handler(const z_query_t * query, void * service_data);
+void service_data_handler(const z_loaned_query_t * query, void * service_data);
 
 ///=============================================================================
-void client_data_handler(z_owned_reply_t * reply, void * client_data);
+void client_data_handler(const z_loaned_reply_t * reply, void * client_data);
 void client_data_drop(void * data);
 
 ///=============================================================================
 class ZenohQuery final
 {
 public:
-  ZenohQuery(const z_query_t * query);
+  ZenohQuery(const z_loaned_query_t * query);
 
   ~ZenohQuery();
 
-  const z_query_t get_query() const;
+  const z_loaned_query_t * get_query() const;
 
 private:
-  z_owned_query_t query_;
+  z_owned_query_t * query_;
 };
 
 ///=============================================================================
@@ -284,7 +285,8 @@ public:
 
   ~ZenohReply();
 
-  std::optional<z_sample_t> get_sample() const;
+  // TODO(yuyuan): rename this function
+  const z_loaned_sample_t * get_sample() const;
 
 private:
   z_owned_reply_t reply_;
@@ -349,6 +351,7 @@ private:
   rmw_wait_set_data_t * wait_set_data_{nullptr};
   std::mutex condition_mutex_;
 
+  // TODO(yuyuan): replace with zenoh-c ring buffer handler
   std::deque<std::unique_ptr<rmw_zenoh_cpp::ZenohReply>> reply_queue_;
   mutable std::mutex reply_queue_mutex_;
 
