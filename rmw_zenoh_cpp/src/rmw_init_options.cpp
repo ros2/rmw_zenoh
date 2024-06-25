@@ -17,6 +17,8 @@
 #include "detail/identifier.hpp"
 #include "detail/rmw_init_options_impl.hpp"
 
+#include "rcpputils/scope_exit.hpp"
+
 #include "rcutils/allocator.h"
 #include "rcutils/strdup.h"
 #include "rcutils/types.h"
@@ -33,7 +35,7 @@ rmw_init_options_init(rmw_init_options_t * init_options, rcutils_allocator_t all
 {
   RMW_CHECK_ARGUMENT_FOR_NULL(init_options, RMW_RET_INVALID_ARGUMENT);
   RCUTILS_CHECK_ALLOCATOR(&allocator, return RMW_RET_INVALID_ARGUMENT);
-  if (NULL != init_options->implementation_identifier) {
+  if (nullptr != init_options->implementation_identifier) {
     RMW_SET_ERROR_MSG("expected zero-initialized init_options");
     return RMW_RET_INVALID_ARGUMENT;
   }
@@ -42,7 +44,7 @@ rmw_init_options_init(rmw_init_options_t * init_options, rcutils_allocator_t all
   init_options->implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
   init_options->allocator = allocator;
   init_options->impl = nullptr;
-  init_options->enclave = NULL;
+  init_options->enclave = nullptr;
   init_options->domain_id = RMW_DEFAULT_DOMAIN_ID;
   init_options->security_options = rmw_get_default_security_options();
   init_options->localhost_only = RMW_LOCALHOST_ONLY_DEFAULT;
@@ -57,7 +59,7 @@ rmw_init_options_copy(const rmw_init_options_t * src, rmw_init_options_t * dst)
 {
   RMW_CHECK_ARGUMENT_FOR_NULL(src, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(dst, RMW_RET_INVALID_ARGUMENT);
-  if (NULL == src->implementation_identifier) {
+  if (nullptr == src->implementation_identifier) {
     RMW_SET_ERROR_MSG("expected initialized dst");
     return RMW_RET_INVALID_ARGUMENT;
   }
@@ -66,30 +68,66 @@ rmw_init_options_copy(const rmw_init_options_t * src, rmw_init_options_t * dst)
     src->implementation_identifier,
     rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
-  if (NULL != dst->implementation_identifier) {
+  if (nullptr != dst->implementation_identifier) {
     RMW_SET_ERROR_MSG("expected zero-initialized dst");
     return RMW_RET_INVALID_ARGUMENT;
   }
   rcutils_allocator_t allocator = src->allocator;
   RCUTILS_CHECK_ALLOCATOR(&allocator, return RMW_RET_INVALID_ARGUMENT);
-  rmw_init_options_t tmp = *src;
-  tmp.enclave = rcutils_strdup(tmp.enclave, allocator);
-  if (NULL != src->enclave && NULL == tmp.enclave) {
-    return RMW_RET_BAD_ALLOC;
-  }
+
+  rmw_init_options_t tmp;
+  tmp.instance_id = src->instance_id;
+  tmp.implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
+  tmp.domain_id = src->domain_id;
   tmp.security_options = rmw_get_zero_initialized_security_options();
   rmw_ret_t ret =
     rmw_security_options_copy(&src->security_options, &allocator, &tmp.security_options);
   if (RMW_RET_OK != ret) {
-    allocator.deallocate(tmp.enclave, allocator.state);
     return ret;
   }
+  auto free_security_options = rcpputils::make_scope_exit(
+    [&tmp, allocator]() {
+      rmw_security_options_fini(&tmp.security_options, &allocator);
+    });
+  tmp.localhost_only = src->localhost_only;
   tmp.discovery_options = rmw_get_zero_initialized_discovery_options();
   ret = rmw_discovery_options_copy(
     &src->discovery_options,
     &allocator,
     &tmp.discovery_options);
+  if (RMW_RET_OK != ret) {
+    return ret;
+  }
+  auto free_discovery_options = rcpputils::make_scope_exit(
+    [&tmp, allocator]() {
+      rmw_ret_t tmp_ret = rmw_discovery_options_fini(&tmp.discovery_options);
+      static_cast<void>(tmp_ret);
+    });
+  tmp.enclave = nullptr;
+  if (nullptr != src->enclave) {
+    tmp.enclave = rcutils_strdup(src->enclave, allocator);
+    if (nullptr == tmp.enclave) {
+      return RMW_RET_BAD_ALLOC;
+    }
+  }
+  auto free_enclave = rcpputils::make_scope_exit(
+    [&tmp, allocator]() {
+      if (nullptr != tmp.enclave) {
+        allocator.deallocate(tmp.enclave, allocator.state);
+      }
+    });
+
+  tmp.allocator = src->allocator;
+  // If the impl had any structure, this would be wrong, but since it is an empty pointer
+  // right now this works.
+  tmp.impl = src->impl;
+
   *dst = tmp;
+
+  free_enclave.cancel();
+  free_discovery_options.cancel();
+  free_security_options.cancel();
+
   return RMW_RET_OK;
 }
 
@@ -99,7 +137,7 @@ rmw_ret_t
 rmw_init_options_fini(rmw_init_options_t * init_options)
 {
   RMW_CHECK_ARGUMENT_FOR_NULL(init_options, RMW_RET_INVALID_ARGUMENT);
-  if (NULL == init_options->implementation_identifier) {
+  if (nullptr == init_options->implementation_identifier) {
     RMW_SET_ERROR_MSG("expected initialized init_options");
     return RMW_RET_INVALID_ARGUMENT;
   }
