@@ -153,7 +153,15 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
     });
 
   // Set the enclave.
-  context->impl->enclave = options->enclave;
+  context->impl->enclave = rcutils_strdup(options->enclave, *allocator);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    context->impl->enclave,
+    "failed to allocate enclave",
+    return RMW_RET_BAD_ALLOC);
+  auto free_enclave = rcpputils::make_scope_exit(
+    [context, allocator]() {
+      allocator->deallocate(context->impl->enclave, allocator->state);
+    });
 
   // Initialize context's implementation
   context->impl->is_shutdown = false;
@@ -363,6 +371,7 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   impl_destructor.cancel();
   free_guard_condition_data.cancel();
   free_guard_condition.cancel();
+  free_enclave.cancel();
   free_options.cancel();
   impl_destructor.cancel();
   free_impl.cancel();
@@ -433,6 +442,8 @@ rmw_context_fini(rmw_context_t * context)
 
   allocator->deallocate(context->impl->graph_guard_condition, allocator->state);
   context->impl->graph_guard_condition = nullptr;
+
+  allocator->deallocate(context->impl->enclave, allocator->state);
 
   RMW_TRY_DESTRUCTOR(context->impl->~rmw_context_impl_t(), rmw_context_impl_t *, );
 
