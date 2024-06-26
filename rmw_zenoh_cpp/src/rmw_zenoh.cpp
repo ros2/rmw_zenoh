@@ -471,14 +471,9 @@ rmw_create_publisher(
       "Strict requirement on unique network flow endpoints for publishers not supported");
     return nullptr;
   }
-  RMW_CHECK_ARGUMENT_FOR_NULL(node->data, nullptr);
   const rmw_zenoh_cpp::rmw_node_data_t * node_data =
     static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(node->data);
-  if (node_data == nullptr) {
-    RMW_SET_ERROR_MSG(
-      "Unable to create publisher as node_data is invalid.");
-    return nullptr;
-  }
+  RMW_CHECK_ARGUMENT_FOR_NULL(node_data, nullptr);
 
   // Get the RMW type support.
   const rosidl_message_type_support_t * type_support = find_message_type_support(type_supports);
@@ -715,7 +710,6 @@ rmw_create_publisher(
       "Unable to create liveliness token for the publisher.");
     return nullptr;
   }
-  // printf("[rmw_create_publisher] Created pub %s\n", publisher_data->entity->keyexpr().c_str());
 
   free_token.cancel();
   undeclare_z_publisher_cache.cancel();
