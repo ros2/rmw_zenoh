@@ -3423,8 +3423,10 @@ rmw_wait(
       }
     }
 
-    // We reset here (while still holding the lock) because we only cared about this through this
-    // particular call.
+    // It is important to reset this here while still holding the lock, otherwise every subsequent
+    // call to rmw_wait() will be immediately ready.  We could handle this another way by making
+    // "triggered" a stack variable in this function and "attaching" it during
+    // "check_and_attach_condition", but that isn't clearly better so leaving this.
     wait_set_data->triggered = false;
   }
 
