@@ -84,14 +84,14 @@ size_t rmw_publisher_data_t::get_next_sequence_number()
 
 ///=============================================================================
 bool rmw_subscription_data_t::queue_has_data_and_attach_condition_if_not(
-  std::condition_variable * condition_variable)
+  rmw_wait_set_data_t * wait_set_data)
 {
   std::lock_guard<std::mutex> lock(condition_mutex_);
   if (!message_queue_.empty()) {
     return true;
   }
 
-  condition_ = condition_variable;
+  wait_set_data_ = wait_set_data;
 
   return false;
 }
@@ -100,8 +100,10 @@ bool rmw_subscription_data_t::queue_has_data_and_attach_condition_if_not(
 void rmw_subscription_data_t::notify()
 {
   std::lock_guard<std::mutex> lock(condition_mutex_);
-  if (condition_ != nullptr) {
-    condition_->notify_one();
+  if (wait_set_data_ != nullptr) {
+    std::lock_guard<std::mutex> wait_set_lock(wait_set_data_->condition_mutex);
+    wait_set_data_->triggered = true;
+    wait_set_data_->condition_variable.notify_one();
   }
 }
 
@@ -109,7 +111,7 @@ void rmw_subscription_data_t::notify()
 bool rmw_subscription_data_t::detach_condition_and_queue_is_empty()
 {
   std::lock_guard<std::mutex> lock(condition_mutex_);
-  condition_ = nullptr;
+  wait_set_data_ = nullptr;
 
   return message_queue_.empty();
 }
@@ -183,13 +185,13 @@ void rmw_subscription_data_t::add_new_message(
 
 ///=============================================================================
 bool rmw_service_data_t::queue_has_data_and_attach_condition_if_not(
-  std::condition_variable * condition_variable)
+  rmw_wait_set_data_t * wait_set_data)
 {
   std::lock_guard<std::mutex> lock(condition_mutex_);
   if (!query_queue_.empty()) {
     return true;
   }
-  condition_ = condition_variable;
+  wait_set_data_ = wait_set_data;
 
   return false;
 }
@@ -198,7 +200,7 @@ bool rmw_service_data_t::queue_has_data_and_attach_condition_if_not(
 bool rmw_service_data_t::detach_condition_and_queue_is_empty()
 {
   std::lock_guard<std::mutex> lock(condition_mutex_);
-  condition_ = nullptr;
+  wait_set_data_ = nullptr;
 
   return query_queue_.empty();
 }
@@ -221,8 +223,10 @@ std::unique_ptr<ZenohQuery> rmw_service_data_t::pop_next_query()
 void rmw_service_data_t::notify()
 {
   std::lock_guard<std::mutex> lock(condition_mutex_);
-  if (condition_ != nullptr) {
-    condition_->notify_one();
+  if (wait_set_data_ != nullptr) {
+    std::lock_guard<std::mutex> wait_set_lock(wait_set_data_->condition_mutex);
+    wait_set_data_->triggered = true;
+    wait_set_data_->condition_variable.notify_one();
   }
 }
 
@@ -312,8 +316,10 @@ std::unique_ptr<ZenohQuery> rmw_service_data_t::take_from_query_map(
 void rmw_client_data_t::notify()
 {
   std::lock_guard<std::mutex> lock(condition_mutex_);
-  if (condition_ != nullptr) {
-    condition_->notify_one();
+  if (wait_set_data_ != nullptr) {
+    std::lock_guard<std::mutex> wait_set_lock(wait_set_data_->condition_mutex);
+    wait_set_data_->triggered = true;
+    wait_set_data_->condition_variable.notify_one();
   }
 }
 
@@ -342,13 +348,13 @@ void rmw_client_data_t::add_new_reply(std::unique_ptr<ZenohReply> reply)
 
 ///=============================================================================
 bool rmw_client_data_t::queue_has_data_and_attach_condition_if_not(
-  std::condition_variable * condition_variable)
+  rmw_wait_set_data_t * wait_set_data)
 {
   std::lock_guard<std::mutex> lock(condition_mutex_);
   if (!reply_queue_.empty()) {
     return true;
   }
-  condition_ = condition_variable;
+  wait_set_data_ = wait_set_data;
 
   return false;
 }
@@ -357,7 +363,7 @@ bool rmw_client_data_t::queue_has_data_and_attach_condition_if_not(
 bool rmw_client_data_t::detach_condition_and_queue_is_empty()
 {
   std::lock_guard<std::mutex> lock(condition_mutex_);
-  condition_ = nullptr;
+  wait_set_data_ = nullptr;
 
   return reply_queue_.empty();
 }

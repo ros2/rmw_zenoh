@@ -20,6 +20,8 @@
 #include <condition_variable>
 #include <mutex>
 
+#include "rmw_wait_set_data.hpp"
+
 namespace rmw_zenoh_cpp
 {
 ///=============================================================================
@@ -31,14 +33,14 @@ public:
   // Sets has_triggered_ to true and calls notify_one() on condition_variable_ if set.
   void trigger();
 
-  bool check_and_attach_condition_if_not(std::condition_variable * condition_variable);
+  bool check_and_attach_condition_if_not(rmw_wait_set_data_t * wait_set_data);
 
-  bool detach_condition_and_trigger_set();
+  bool detach_condition_and_is_trigger_set();
 
 private:
   mutable std::mutex internal_mutex_;
   std::atomic_bool has_triggered_;
-  std::condition_variable * condition_variable_;
+  rmw_wait_set_data_t * wait_set_data_;
 };
 }  // namespace rmw_zenoh_cpp
 

@@ -13,14 +13,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <mutex>
+
 #include "guard_condition.hpp"
+#include "rmw_wait_set_data.hpp"
 
 namespace rmw_zenoh_cpp
 {
 ///=============================================================================
 GuardCondition::GuardCondition()
 : has_triggered_(false),
-  condition_variable_(nullptr)
+  wait_set_data_(nullptr)
 {
 }
 
@@ -34,28 +37,31 @@ void GuardCondition::trigger()
   // be called
   has_triggered_ = true;
 
-  if (condition_variable_ != nullptr) {
-    condition_variable_->notify_one();
+  if (wait_set_data_ != nullptr) {
+    std::lock_guard<std::mutex> wait_set_lock(wait_set_data_->condition_mutex);
+    wait_set_data_->triggered = true;
+    wait_set_data_->condition_variable.notify_one();
   }
 }
 
 ///=============================================================================
-bool GuardCondition::check_and_attach_condition_if_not(std::condition_variable * condition_variable)
+bool GuardCondition::check_and_attach_condition_if_not(rmw_wait_set_data_t * wait_set_data)
 {
   std::lock_guard<std::mutex> lock(internal_mutex_);
   if (has_triggered_) {
     return true;
   }
-  condition_variable_ = condition_variable;
+
+  wait_set_data_ = wait_set_data;
 
   return false;
 }
 
 ///=============================================================================
-bool GuardCondition::detach_condition_and_trigger_set()
+bool GuardCondition::detach_condition_and_is_trigger_set()
 {
   std::lock_guard<std::mutex> lock(internal_mutex_);
-  condition_variable_ = nullptr;
+  wait_set_data_ = nullptr;
 
   bool ret = has_triggered_;
 

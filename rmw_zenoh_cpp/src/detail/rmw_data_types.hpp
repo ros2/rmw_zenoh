@@ -37,6 +37,7 @@
 #include "event.hpp"
 #include "graph_cache.hpp"
 #include "message_type_support.hpp"
+#include "rmw_wait_set_data.hpp"
 #include "service_type_support.hpp"
 
 /// Structs for various type erased data fields.
@@ -129,15 +130,6 @@ private:
 };
 
 ///=============================================================================
-struct rmw_wait_set_data_t
-{
-  std::condition_variable condition_variable;
-  std::mutex condition_mutex;
-
-  rmw_context_t * context;
-};
-
-///=============================================================================
 // z_owned_closure_sample_t
 void sub_data_handler(const z_sample_t * sample, void * sub_data);
 
@@ -181,7 +173,7 @@ public:
   MessageTypeSupport * type_support;
   rmw_context_t * context;
 
-  bool queue_has_data_and_attach_condition_if_not(std::condition_variable * condition_variable);
+  bool queue_has_data_and_attach_condition_if_not(rmw_wait_set_data_t * wait_set_data);
 
   bool detach_condition_and_queue_is_empty();
 
@@ -202,7 +194,7 @@ private:
 
   void notify();
 
-  std::condition_variable * condition_{nullptr};
+  rmw_wait_set_data_t * wait_set_data_{nullptr};
   std::mutex condition_mutex_;
 };
 
@@ -253,7 +245,7 @@ public:
 
   rmw_context_t * context;
 
-  bool queue_has_data_and_attach_condition_if_not(std::condition_variable * condition_variable);
+  bool queue_has_data_and_attach_condition_if_not(rmw_wait_set_data_t * wait_set_data);
 
   bool detach_condition_and_queue_is_empty();
 
@@ -279,7 +271,7 @@ private:
   std::unordered_map<size_t, SequenceToQuery> sequence_to_query_map_;
   std::mutex sequence_to_query_map_mutex_;
 
-  std::condition_variable * condition_{nullptr};
+  rmw_wait_set_data_t * wait_set_data_{nullptr};
   std::mutex condition_mutex_;
 };
 
@@ -329,7 +321,7 @@ public:
 
   void add_new_reply(std::unique_ptr<rmw_zenoh_cpp::ZenohReply> reply);
 
-  bool queue_has_data_and_attach_condition_if_not(std::condition_variable * condition_variable);
+  bool queue_has_data_and_attach_condition_if_not(rmw_wait_set_data_t * wait_set_data);
 
   bool detach_condition_and_queue_is_empty();
 
@@ -343,7 +335,7 @@ private:
   size_t sequence_number_{1};
   std::mutex sequence_number_mutex_;
 
-  std::condition_variable * condition_{nullptr};
+  rmw_wait_set_data_t * wait_set_data_{nullptr};
   std::mutex condition_mutex_;
 
   std::deque<std::unique_ptr<rmw_zenoh_cpp::ZenohReply>> reply_queue_;
