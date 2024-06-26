@@ -73,7 +73,15 @@ static void graph_sub_data_handler(
       context_impl->graph_cache->parse_del(keystr._cstr);
       break;
     default:
-      break;
+      return;
+  }
+
+  rmw_ret_t rmw_ret = rmw_trigger_guard_condition(context_impl->graph_guard_condition);
+  if (RMW_RET_OK != rmw_ret) {
+    RCUTILS_LOG_WARN_NAMED(
+      "rmw_zenoh_cpp",
+      "[graph_sub_data_handler] Unable to trigger graph guard condition"
+    );
   }
 }
 
