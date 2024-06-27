@@ -16,7 +16,6 @@
 #ifndef DETAIL__GUARD_CONDITION_HPP_
 #define DETAIL__GUARD_CONDITION_HPP_
 
-#include <atomic>
 #include <condition_variable>
 #include <mutex>
 
@@ -39,7 +38,7 @@ public:
 
 private:
   mutable std::mutex internal_mutex_;
-  std::atomic_bool has_triggered_;
+  bool has_triggered_;
   rmw_wait_set_data_t * wait_set_data_;
 };
 }  // namespace rmw_zenoh_cpp
