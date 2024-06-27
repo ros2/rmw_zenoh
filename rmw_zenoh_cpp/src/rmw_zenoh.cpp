@@ -2235,6 +2235,7 @@ rmw_create_client(
 
   rmw_client->data = client_data;
 
+  free_token.cancel();
   free_rmw_client.cancel();
   free_client_data.cancel();
   destruct_request_type_support.cancel();
