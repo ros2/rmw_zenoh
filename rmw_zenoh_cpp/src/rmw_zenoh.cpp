@@ -2433,7 +2433,7 @@ rmw_take_response(
   std::unique_ptr<rmw_zenoh_cpp::ZenohReply> latest_reply = client_data->pop_next_reply();
   if (latest_reply == nullptr) {
     // This tells rcl that the check for a new message was done, but no messages have come in yet.
-    return RMW_RET_ERROR;
+    return RMW_RET_OK;
   }
 
   std::optional<z_sample_t> sample = latest_reply->get_sample();
