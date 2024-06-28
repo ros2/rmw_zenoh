@@ -48,8 +48,9 @@ rmw_publisher_event_init(
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION;
   }
 
-  auto rmw_event_it = rmw_zenoh_cpp::event_map.find(event_type);
-  if (rmw_event_it == rmw_zenoh_cpp::event_map.end()) {
+  rmw_zenoh_cpp::rmw_zenoh_event_type_t zenoh_event_type =
+    rmw_zenoh_cpp::zenoh_event_from_rmw_event(event_type);
+  if (zenoh_event_type == rmw_zenoh_cpp::ZENOH_EVENT_INVALID) {
     RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
       "provided event_type %d is not supported by rmw_zenoh_cpp", event_type);
     return RMW_RET_UNSUPPORTED;
@@ -62,16 +63,15 @@ rmw_publisher_event_init(
   // Register the event with graph cache.
   pub_data->context->impl->graph_cache->set_qos_event_callback(
     pub_data->entity,
-    rmw_event_it->second,
+    zenoh_event_type,
     [pub_data,
-    event_id =
-    rmw_event_it->second](std::unique_ptr<rmw_zenoh_cpp::rmw_zenoh_event_status_t> zenoh_event)
+    zenoh_event_type](std::unique_ptr<rmw_zenoh_cpp::rmw_zenoh_event_status_t> zenoh_event)
     {
       if (pub_data == nullptr) {
         return;
       }
       pub_data->events_mgr.add_new_event(
-        event_id,
+        zenoh_event_type,
         std::move(zenoh_event));
     }
   );
@@ -103,8 +103,9 @@ rmw_subscription_event_init(
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION;
   }
 
-  auto rmw_event_it = rmw_zenoh_cpp::event_map.find(event_type);
-  if (rmw_event_it == rmw_zenoh_cpp::event_map.end()) {
+  rmw_zenoh_cpp::rmw_zenoh_event_type_t zenoh_event_type =
+    rmw_zenoh_cpp::zenoh_event_from_rmw_event(event_type);
+  if (zenoh_event_type == rmw_zenoh_cpp::ZENOH_EVENT_INVALID) {
     RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
       "provided event_type %d is not supported by rmw_zenoh_cpp", event_type);
     return RMW_RET_UNSUPPORTED;
@@ -116,22 +117,21 @@ rmw_subscription_event_init(
 
   // Register the event with graph cache if the event is not ZENOH_EVENT_MESSAGE_LOST
   // since this is checked for in the subscription callback.
-  if (rmw_event_it->second == rmw_zenoh_cpp::ZENOH_EVENT_MESSAGE_LOST) {
+  if (zenoh_event_type == rmw_zenoh_cpp::ZENOH_EVENT_MESSAGE_LOST) {
     return RMW_RET_OK;
   }
 
   sub_data->context->impl->graph_cache->set_qos_event_callback(
     sub_data->entity,
-    rmw_event_it->second,
+    zenoh_event_type,
     [sub_data,
-    event_id =
-    rmw_event_it->second](std::unique_ptr<rmw_zenoh_cpp::rmw_zenoh_event_status_t> zenoh_event)
+    zenoh_event_type](std::unique_ptr<rmw_zenoh_cpp::rmw_zenoh_event_status_t> zenoh_event)
     {
       if (sub_data == nullptr) {
         return;
       }
       sub_data->events_mgr.add_new_event(
-        event_id,
+        zenoh_event_type,
         std::move(zenoh_event));
     }
   );
@@ -150,8 +150,9 @@ rmw_event_set_callback(
   RMW_CHECK_ARGUMENT_FOR_NULL(rmw_event, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(rmw_event->data, RMW_RET_INVALID_ARGUMENT);
 
-  auto zenoh_event_it = rmw_zenoh_cpp::event_map.find(rmw_event->event_type);
-  if (zenoh_event_it == rmw_zenoh_cpp::event_map.end()) {
+  rmw_zenoh_cpp::rmw_zenoh_event_type_t zenoh_event_type =
+    rmw_zenoh_cpp::zenoh_event_from_rmw_event(rmw_event->event_type);
+  if (zenoh_event_type == rmw_zenoh_cpp::ZENOH_EVENT_INVALID) {
     RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
       "RMW Zenoh does not support event [%d]",
       rmw_event->event_type);
@@ -162,10 +163,7 @@ rmw_event_set_callback(
   rmw_zenoh_cpp::EventsManager * event_data =
     static_cast<rmw_zenoh_cpp::EventsManager *>(rmw_event->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(event_data, RMW_RET_INVALID_ARGUMENT);
-  event_data->event_set_callback(
-    zenoh_event_it->second,
-    callback,
-    user_data);
+  event_data->event_set_callback(zenoh_event_type, callback, user_data);
 
   return RMW_RET_OK;
 }
@@ -189,8 +187,9 @@ rmw_take_event(
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION;
   }
 
-  auto zenoh_event_it = rmw_zenoh_cpp::event_map.find(event_handle->event_type);
-  if (zenoh_event_it == rmw_zenoh_cpp::event_map.end()) {
+  rmw_zenoh_cpp::rmw_zenoh_event_type_t zenoh_event_type =
+    rmw_zenoh_cpp::zenoh_event_from_rmw_event(event_handle->event_type);
+  if (zenoh_event_type == rmw_zenoh_cpp::ZENOH_EVENT_INVALID) {
     RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
       "RMW Zenoh does not support event [%d]",
       event_handle->event_type);
@@ -201,7 +200,7 @@ rmw_take_event(
     static_cast<rmw_zenoh_cpp::EventsManager *>(event_handle->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(event_data, RMW_RET_INVALID_ARGUMENT);
   std::unique_ptr<rmw_zenoh_cpp::rmw_zenoh_event_status_t> st = event_data->pop_next_event(
-    zenoh_event_it->second);
+    zenoh_event_type);
   if (st == nullptr) {
     RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
       "rmw_take_event called when event queue for event type [%d] is empty",
@@ -210,7 +209,7 @@ rmw_take_event(
   }
 
   // Now depending on the event, populate the rmw event status.
-  switch (zenoh_event_it->second) {
+  switch (zenoh_event_type) {
     case rmw_zenoh_cpp::ZENOH_EVENT_REQUESTED_QOS_INCOMPATIBLE: {
         auto ei = static_cast<rmw_requested_qos_incompatible_event_status_t *>(event_info);
         RMW_CHECK_ARGUMENT_FOR_NULL(ei, RMW_RET_INVALID_ARGUMENT);

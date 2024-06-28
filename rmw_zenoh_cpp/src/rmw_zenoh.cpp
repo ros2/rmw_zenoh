@@ -3385,21 +3385,22 @@ static bool check_and_attach_condition(
   if (events) {
     for (size_t i = 0; i < events->event_count; ++i) {
       auto event = static_cast<rmw_event_t *>(events->events[i]);
-      auto zenoh_event_it = rmw_zenoh_cpp::event_map.find(event->event_type);
-      if (zenoh_event_it != rmw_zenoh_cpp::event_map.end()) {
-        auto event_data = static_cast<rmw_zenoh_cpp::EventsManager *>(event->data);
-        if (event_data != nullptr) {
-          if (event_data->queue_has_data_and_attach_condition_if_not(
-              zenoh_event_it->second,
-              wait_set_data))
-          {
-            return true;
-          }
-        }
-      } else {
+      rmw_zenoh_cpp::rmw_zenoh_event_type_t zenoh_event_type =
+        rmw_zenoh_cpp::zenoh_event_from_rmw_event(event->event_type);
+      if (zenoh_event_type == rmw_zenoh_cpp::ZENOH_EVENT_INVALID) {
         RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
           "has_triggered_condition() called with unknown event %u. Report this bug.",
           event->event_type);
+        continue;
+      }
+
+      auto event_data = static_cast<rmw_zenoh_cpp::EventsManager *>(event->data);
+      if (event_data == nullptr) {
+        continue;
+      }
+
+      if (event_data->queue_has_data_and_attach_condition_if_not(zenoh_event_type, wait_set_data)) {
+        return true;
       }
     }
   }
@@ -3538,16 +3539,21 @@ rmw_wait(
     for (size_t i = 0; i < events->event_count; ++i) {
       auto event = static_cast<rmw_event_t *>(events->events[i]);
       auto event_data = static_cast<rmw_zenoh_cpp::EventsManager *>(event->data);
-      if (event_data != nullptr) {
-        auto zenoh_event_it = rmw_zenoh_cpp::event_map.find(event->event_type);
-        if (zenoh_event_it != rmw_zenoh_cpp::event_map.end()) {
-          if (event_data->detach_condition_and_event_queue_is_empty(zenoh_event_it->second)) {
-            // Setting to nullptr lets rcl know that this subscription is not ready
-            events->events[i] = nullptr;
-          } else {
-            wait_result = true;
-          }
-        }
+      if (event_data == nullptr) {
+        continue;
+      }
+
+      rmw_zenoh_cpp::rmw_zenoh_event_type_t zenoh_event_type =
+        rmw_zenoh_cpp::zenoh_event_from_rmw_event(event->event_type);
+      if (zenoh_event_type == rmw_zenoh_cpp::ZENOH_EVENT_INVALID) {
+        continue;
+      }
+
+      if (event_data->detach_condition_and_event_queue_is_empty(zenoh_event_type)) {
+        // Setting to nullptr lets rcl know that this subscription is not ready
+        events->events[i] = nullptr;
+      } else {
+        wait_result = true;
       }
     }
   }
