@@ -21,4 +21,6 @@ jobs:
     - name: uncrustify
       run: /ros_entrypoint.sh ament_uncrustify rmw_zenoh_cpp/
     - name: cpplint
-      run: /ros_entrypoint.sh ament_cpplint rmw_zenoh_cpp/
+      # Ignore logging.hpp since the fmt::sprintf gets incorrectly flagged by ament_cpplint
+      # as a runtime/printf error.
+      run: /ros_entrypoint.sh ament_cpplint rmw_zenoh_cpp/ --exclude rmw_zenoh_cpp/src/detail/logging.hpp

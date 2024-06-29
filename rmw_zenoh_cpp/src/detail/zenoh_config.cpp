@@ -15,10 +15,11 @@
 #include "zenoh_config.hpp"
 
 #include <rcutils/env.h>
-#include <rcutils/logging_macros.h>
 
 #include <limits>
 #include <string>
+
+#include "logging_macros.hpp"
 
 #include <ament_index_cpp/get_package_share_directory.hpp>
 #include <rmw/impl/cpp/macros.hpp>
@@ -50,7 +51,7 @@ rmw_ret_t _get_z_config(
   // Get the path to the zenoh configuration file from the environment variable.
   if (NULL != rcutils_get_env(envar_name, &envar_uri)) {
     // NULL is returned if everything is ok.
-    RCUTILS_LOG_ERROR_NAMED(
+    RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp", "Envar %s cannot be read.", envar_name);
     return RMW_RET_ERROR;
   }
@@ -66,12 +67,12 @@ rmw_ret_t _get_z_config(
   }
   // Verify that the configuration is valid.
   if (!z_config_check(config)) {
-    RCUTILS_LOG_ERROR_NAMED(
+    RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Invalid configuration file %s", configured_uri);
     return RMW_RET_ERROR;
   }
-  RCUTILS_LOG_DEBUG_NAMED(
+  RMW_ZENOH_LOG_DEBUG_NAMED(
     "rmw_zenoh_cpp",
     "configured using configuration file %s", configured_uri);
   return RMW_RET_OK;
@@ -83,7 +84,7 @@ rmw_ret_t get_z_config(const ConfigurableEntity & entity, z_owned_config_t * con
 {
   auto envar_map_it = envar_map.find(entity);
   if (envar_map_it == envar_map.end()) {
-    RCUTILS_LOG_ERROR_NAMED(
+    RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp", "get_z_config called with invalid ConfigurableEntity.");
     return RMW_RET_ERROR;
   }
@@ -104,7 +105,7 @@ std::optional<uint64_t> zenoh_router_check_attempts()
 
   if (NULL != rcutils_get_env(router_check_attempts_envar, &envar_value)) {
     // NULL is returned if everything is ok.
-    RCUTILS_LOG_ERROR_NAMED(
+    RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp", "Envar %s cannot be read. Report this bug.",
       router_check_attempts_envar);
     return default_value;

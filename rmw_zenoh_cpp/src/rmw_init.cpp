@@ -26,7 +26,7 @@
 #include "detail/zenoh_router_check.hpp"
 
 #include "rcutils/env.h"
-#include "rcutils/logging_macros.h"
+#include "detail/logging_macros.hpp"
 #include "rcutils/strdup.h"
 #include "rcutils/types.h"
 
@@ -58,7 +58,7 @@ static void graph_sub_data_handler(
   rmw_context_impl_s * context_impl = static_cast<rmw_context_impl_s *>(
     data);
   if (context_impl == nullptr) {
-    RCUTILS_LOG_WARN_NAMED(
+    RMW_ZENOH_LOG_WARN_NAMED(
       "rmw_zenoh_cpp",
       "[graph_sub_data_handler] Unable to convert data into context_impl"
     );
@@ -78,7 +78,7 @@ static void graph_sub_data_handler(
 
   rmw_ret_t rmw_ret = rmw_trigger_guard_condition(context_impl->graph_guard_condition);
   if (RMW_RET_OK != rmw_ret) {
-    RCUTILS_LOG_WARN_NAMED(
+    RMW_ZENOH_LOG_WARN_NAMED(
       "rmw_zenoh_cpp",
       "[graph_sub_data_handler] Unable to trigger graph guard condition"
     );
