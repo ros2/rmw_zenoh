@@ -3874,8 +3874,26 @@ rmw_service_server_is_available(
 rmw_ret_t
 rmw_set_log_severity(rmw_log_severity_t severity)
 {
-  static_cast<void>(severity);
-  return RMW_RET_UNSUPPORTED;
+  switch (severity) {
+    case RMW_LOG_SEVERITY_DEBUG:
+      rmw_zenoh_cpp::Logger::get().set_log_level(RCUTILS_LOG_SEVERITY_DEBUG);
+      break;
+    case RMW_LOG_SEVERITY_INFO:
+      rmw_zenoh_cpp::Logger::get().set_log_level(RCUTILS_LOG_SEVERITY_INFO);
+      break;
+    case RMW_LOG_SEVERITY_WARN:
+      rmw_zenoh_cpp::Logger::get().set_log_level(RCUTILS_LOG_SEVERITY_WARN);
+      break;
+    case RMW_LOG_SEVERITY_ERROR:
+      rmw_zenoh_cpp::Logger::get().set_log_level(RCUTILS_LOG_SEVERITY_ERROR);
+      break;
+    case RMW_LOG_SEVERITY_FATAL:
+      rmw_zenoh_cpp::Logger::get().set_log_level(RCUTILS_LOG_SEVERITY_FATAL);
+      break;
+    default:
+      return RMW_RET_UNSUPPORTED;
+  }
+  return RMW_RET_OK;
 }
 
 //==============================================================================

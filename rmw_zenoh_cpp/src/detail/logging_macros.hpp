@@ -23,12 +23,12 @@
 // which can lead to deadlocks in rmw_zenoh especially when multiple threads
 // invoke GraphCache::parse_put() and GraphCache::parse_del() functions.
 // See https://github.com/ros2/rmw_zenoh/issues/182 for more details.
-// Note: Consider adding a set_rmw_log_level() API to rmw which can override the
-// default log level at the RMW layer.
 #define RMW_ZENOH_LOG_DEBUG_NAMED(...) {rmw_zenoh_cpp::Logger::get().log_named( \
       RCUTILS_LOG_SEVERITY_DEBUG, __VA_ARGS__);}
 #define RMW_ZENOH_LOG_ERROR_NAMED(...) {rmw_zenoh_cpp::Logger::get().log_named( \
       RCUTILS_LOG_SEVERITY_ERROR, __VA_ARGS__);}
+#define RMW_ZENOH_LOG_FATAL_NAMED(...) {rmw_zenoh_cpp::Logger::get().log_named( \
+      RCUTILS_LOG_SEVERITY_FATAL, __VA_ARGS__);}
 #define RMW_ZENOH_LOG_INFO_NAMED(...) {rmw_zenoh_cpp::Logger::get().log_named( \
       RCUTILS_LOG_SEVERITY_INFO, __VA_ARGS__);}
 #define RMW_ZENOH_LOG_WARN_NAMED(...) {rmw_zenoh_cpp::Logger::get().log_named( \
