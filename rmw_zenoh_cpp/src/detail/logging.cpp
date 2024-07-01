@@ -35,4 +35,31 @@ void Logger::set_log_level(RCUTILS_LOG_SEVERITY new_level)
 {
   threshold_level_ = new_level;
 }
+
+void Logger::log_named(
+  RCUTILS_LOG_SEVERITY level,
+  const char * name,
+  const char * message,
+  ...) const
+{
+  if (level >= this->threshold_level_) {
+    rcutils_time_point_value_t now;
+    rcutils_ret_t ret = rcutils_system_time_now(&now);
+    if (ret != RCUTILS_RET_OK) {
+      RCUTILS_SAFE_FWRITE_TO_STDERR("Failed to get timestamp while doing a console logging.\n");
+      return;
+    }
+    static rcutils_log_location_t log_location = {__func__, __FILE__, __LINE__};
+    va_list args;
+    va_start(args, message);
+    rcutils_logging_console_output_handler(
+      &log_location,
+      level,
+      name,
+      now,
+      message,
+      &args
+    );
+  }
+}
 }  // namespace rmw_zenoh_cpp
