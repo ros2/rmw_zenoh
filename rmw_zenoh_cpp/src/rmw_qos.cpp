@@ -24,11 +24,13 @@
 
 extern "C"
 {
+namespace
+{
 ///=============================================================================
 // Copied from rmw_dds_common::qos.cpp.
 // Returns RMW_RET_OK if successful or no buffer was provided
 // Returns RMW_RET_ERROR if there as an error copying the message to the buffer
-static rmw_ret_t
+rmw_ret_t
 _append_to_buffer(char * buffer, size_t buffer_size, const char * format, ...)
 {
   // Only write if a buffer is provided
@@ -48,6 +50,7 @@ _append_to_buffer(char * buffer, size_t buffer_size, const char * format, ...)
   }
   return RMW_RET_OK;
 }
+}  // namespace
 
 ///=============================================================================
 rmw_ret_t

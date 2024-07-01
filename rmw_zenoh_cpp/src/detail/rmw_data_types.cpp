@@ -33,7 +33,9 @@
 #include "rmw_data_types.hpp"
 
 ///=============================================================================
-static size_t hash_gid(const uint8_t * gid)
+namespace
+{
+size_t hash_gid(const uint8_t * gid)
 {
   std::stringstream hash_str;
   hash_str << std::hex;
@@ -45,10 +47,11 @@ static size_t hash_gid(const uint8_t * gid)
 }
 
 ///=============================================================================
-static size_t hash_gid(const rmw_request_id_t & request_id)
+size_t hash_gid(const rmw_request_id_t & request_id)
 {
   return hash_gid(request_id.writer_guid);
 }
+}  // namespace
 
 ///=============================================================================
 size_t rmw_context_impl_s::get_next_entity_id()

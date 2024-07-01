@@ -416,7 +416,10 @@ rmw_fini_publisher_allocation(
   return RMW_RET_UNSUPPORTED;
 }
 
-static void generate_random_gid(uint8_t gid[RMW_GID_STORAGE_SIZE])
+namespace
+{
+void
+generate_random_gid(uint8_t gid[RMW_GID_STORAGE_SIZE])
 {
   std::random_device dev;
   std::mt19937 rng(dev());
@@ -427,6 +430,7 @@ static void generate_random_gid(uint8_t gid[RMW_GID_STORAGE_SIZE])
     gid[i] = dist(rng);
   }
 }
+}  // namespace
 
 //==============================================================================
 /// Create a publisher and return a handle to that publisher.
@@ -839,8 +843,10 @@ rmw_return_loaned_message_from_publisher(
   return RMW_RET_UNSUPPORTED;
 }
 
-static z_owned_bytes_map_t create_map_and_set_sequence_num(
-  int64_t sequence_number, uint8_t gid[RMW_GID_STORAGE_SIZE])
+namespace
+{
+z_owned_bytes_map_t
+create_map_and_set_sequence_num(int64_t sequence_number, uint8_t gid[RMW_GID_STORAGE_SIZE])
 {
   z_owned_bytes_map_t map = z_bytes_map_new();
   if (!z_check(map)) {
@@ -880,6 +886,7 @@ static z_owned_bytes_map_t create_map_and_set_sequence_num(
 
   return map;
 }
+}  // namespace
 
 //==============================================================================
 /// Publish a ROS message.
@@ -1695,7 +1702,10 @@ rmw_subscription_get_content_filter(
   return RMW_RET_UNSUPPORTED;
 }
 
-static rmw_ret_t __rmw_take_one(
+namespace
+{
+rmw_ret_t
+__rmw_take_one(
   rmw_zenoh_cpp::rmw_subscription_data_t * sub_data,
   void * ros_message,
   rmw_message_info_t * message_info,
@@ -1740,6 +1750,7 @@ static rmw_ret_t __rmw_take_one(
 
   return RMW_RET_OK;
 }
+}  // namespace
 
 //==============================================================================
 /// Take an incoming ROS message.
@@ -1887,7 +1898,10 @@ rmw_take_sequence(
 }
 
 //==============================================================================
-static rmw_ret_t __rmw_take_serialized(
+namespace
+{
+rmw_ret_t
+__rmw_take_serialized(
   const rmw_subscription_t * subscription,
   rmw_serialized_message_t * serialized_message,
   bool * taken,
@@ -1948,6 +1962,7 @@ static rmw_ret_t __rmw_take_serialized(
 
   return RMW_RET_OK;
 }
+}  // namespace
 
 //==============================================================================
 /// Take an incoming ROS message as a byte stream.
@@ -3355,7 +3370,10 @@ rmw_destroy_wait_set(rmw_wait_set_t * wait_set)
   return RMW_RET_OK;
 }
 
-static bool check_and_attach_condition(
+namespace
+{
+bool
+check_and_attach_condition(
   const rmw_subscriptions_t * const subscriptions,
   const rmw_guard_conditions_t * const guard_conditions,
   const rmw_services_t * const services,
@@ -3439,6 +3457,7 @@ static bool check_and_attach_condition(
 
   return false;
 }
+}  // namespace
 
 //==============================================================================
 /// Waits on sets of different entities and returns when one is ready.
