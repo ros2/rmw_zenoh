@@ -21,7 +21,7 @@ jobs:
     - name: Deps
       run: |
         apt update && apt install -y curl
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: rosdep
       run: |
         rosdep update
