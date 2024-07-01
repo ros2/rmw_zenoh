@@ -1,0 +1,13 @@
+# Ensure that PR diff does not include RCUTILS_LOG_* macros as these induce deadlocks.
+# See https://github.com/ros2/rmw_zenoh/issues/182 for more details.
+name: "Check logging macros"
+on: [pull_request]
+jobs:
+  check_logging:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check logging macros
+      uses: JJ/github-pr-contains-action@releases/v14.1
+      with:
+        github-token: ${{github.token}}
+        diffDoesNotContain: "RCUTILS_LOG_|rcutils/logging_macros.h"
