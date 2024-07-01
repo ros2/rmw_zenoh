@@ -297,7 +297,6 @@ public:
   std::shared_ptr<liveliness::Entity> entity;
 
   z_owned_keyexpr_t keyexpr;
-  z_owned_closure_reply_t zn_closure_reply;
 
   // Store the actual QoS profile used to configure this client.
   // The QoS is reused for sending requests and getting responses.

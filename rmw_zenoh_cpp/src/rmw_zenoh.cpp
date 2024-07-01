@@ -2378,7 +2378,6 @@ rmw_destroy_client(rmw_node_t * node, rmw_client_t * client)
     return RMW_RET_INVALID_ARGUMENT);
 
   // CLEANUP ===================================================================
-  z_drop(z_move(client_data->zn_closure_reply));
   z_drop(z_move(client_data->keyexpr));
   zc_liveliness_undeclare_token(z_move(client_data->token));
 
@@ -2492,11 +2491,13 @@ rmw_send_request(
   // and any number.
   opts.consolidation = z_query_consolidation_latest();
   opts.value.payload = z_bytes_t{data_length, reinterpret_cast<const uint8_t *>(request_bytes)};
-  client_data->zn_closure_reply =
+  z_owned_closure_reply_t zn_closure_reply =
     z_closure(rmw_zenoh_cpp::client_data_handler, nullptr, client_data);
   z_get(
-    z_loan(context_impl->session), z_loan(
-      client_data->keyexpr), "", &client_data->zn_closure_reply, &opts);
+    z_loan(context_impl->session),
+    z_loan(client_data->keyexpr), "",
+    z_move(zn_closure_reply),
+    &opts);
 
   return RMW_RET_OK;
 }
