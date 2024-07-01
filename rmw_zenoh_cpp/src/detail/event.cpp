@@ -20,7 +20,7 @@
 
 #include "event.hpp"
 
-#include "rcutils/logging_macros.h"
+#include "logging_macros.hpp"
 
 #include "rmw/error_handling.h"
 
@@ -178,7 +178,7 @@ void EventsManager::add_new_event(
     std::deque<std::unique_ptr<rmw_zenoh_event_status_t>> & event_queue = event_queues_[event_id];
     if (event_queue.size() >= event_queue_depth_) {
       // Log warning if message is discarded due to hitting the queue depth
-      RCUTILS_LOG_DEBUG_NAMED(
+      RMW_ZENOH_LOG_DEBUG_NAMED(
         "rmw_zenoh_cpp",
         "Event queue depth of %ld reached, discarding oldest message "
         "for event type %d",

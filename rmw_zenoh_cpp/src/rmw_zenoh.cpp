@@ -33,6 +33,7 @@
 #include "detail/graph_cache.hpp"
 #include "detail/identifier.hpp"
 #include "detail/liveliness_utils.hpp"
+#include "detail/logging_macros.hpp"
 #include "detail/message_type_support.hpp"
 #include "detail/rmw_data_types.hpp"
 #include "detail/serialization_format.hpp"
@@ -41,7 +42,6 @@
 #include "rcpputils/scope_exit.hpp"
 
 #include "rcutils/env.h"
-#include "rcutils/logging_macros.h"
 #include "rcutils/strdup.h"
 #include "rcutils/types.h"
 
@@ -312,7 +312,7 @@ rmw_create_node(
     rmw_zenoh_cpp::liveliness::NodeInfo{context->actual_domain_id, namespace_, name,
       context->impl->enclave});
   if (node_data->entity == nullptr) {
-    RCUTILS_LOG_ERROR_NAMED(
+    RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to generate keyexpr for liveliness token for the node.");
     return nullptr;
@@ -327,7 +327,7 @@ rmw_create_node(
       z_drop(z_move(node_data->token));
     });
   if (!z_check(node_data->token)) {
-    RCUTILS_LOG_ERROR_NAMED(
+    RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to create liveliness token for the node.");
     return nullptr;
@@ -688,7 +688,7 @@ rmw_create_publisher(
       publisher_data->adapted_qos_profile}
   );
   if (publisher_data->entity == nullptr) {
-    RCUTILS_LOG_ERROR_NAMED(
+    RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to generate keyexpr for liveliness token for the publisher.");
     return nullptr;
@@ -705,7 +705,7 @@ rmw_create_publisher(
       }
     });
   if (!z_check(publisher_data->token)) {
-    RCUTILS_LOG_ERROR_NAMED(
+    RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to create liveliness token for the publisher.");
     return nullptr;
@@ -1529,7 +1529,7 @@ rmw_create_subscription(
       sub_data->adapted_qos_profile}
   );
   if (sub_data->entity == nullptr) {
-    RCUTILS_LOG_ERROR_NAMED(
+    RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to generate keyexpr for liveliness token for the subscription.");
     return nullptr;
@@ -1546,7 +1546,7 @@ rmw_create_subscription(
       }
     });
   if (!z_check(sub_data->token)) {
-    RCUTILS_LOG_ERROR_NAMED(
+    RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to create liveliness token for the subscription.");
     return nullptr;
@@ -2229,7 +2229,7 @@ rmw_create_client(
   if (std::string::npos != suffix_substring_position) {
     service_type = service_type.substr(0, suffix_substring_position);
   } else {
-    RCUTILS_LOG_ERROR_NAMED(
+    RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unexpected type %s for client %s. Report this bug",
       service_type.c_str(), rmw_client->service_name);
@@ -2281,7 +2281,7 @@ rmw_create_client(
       client_data->adapted_qos_profile}
   );
   if (client_data->entity == nullptr) {
-    RCUTILS_LOG_ERROR_NAMED(
+    RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to generate keyexpr for liveliness token for the client.");
     return nullptr;
@@ -2298,7 +2298,7 @@ rmw_create_client(
       }
     });
   if (!z_check(client_data->token)) {
-    RCUTILS_LOG_ERROR_NAMED(
+    RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to create liveliness token for the client.");
     return nullptr;
@@ -2794,7 +2794,7 @@ rmw_create_service(
   if (std::string::npos != suffix_substring_position) {
     service_type = service_type.substr(0, suffix_substring_position);
   } else {
-    RCUTILS_LOG_ERROR_NAMED(
+    RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unexpected type %s for service %s. Report this bug",
       service_type.c_str(), rmw_service->service_name);
@@ -2869,7 +2869,7 @@ rmw_create_service(
       service_data->adapted_qos_profile}
   );
   if (service_data->entity == nullptr) {
-    RCUTILS_LOG_ERROR_NAMED(
+    RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to generate keyexpr for liveliness token for the service.");
     return nullptr;
@@ -2886,7 +2886,7 @@ rmw_create_service(
       }
     });
   if (!z_check(service_data->token)) {
-    RCUTILS_LOG_ERROR_NAMED(
+    RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to create liveliness token for the service.");
     return nullptr;
@@ -3858,7 +3858,7 @@ rmw_service_server_is_available(
   if (std::string::npos != suffix_substring_position) {
     service_type = service_type.substr(0, suffix_substring_position);
   } else {
-    RCUTILS_LOG_ERROR_NAMED(
+    RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unexpected type %s for client %s. Report this bug",
       service_type.c_str(), client->service_name);
@@ -3874,8 +3874,26 @@ rmw_service_server_is_available(
 rmw_ret_t
 rmw_set_log_severity(rmw_log_severity_t severity)
 {
-  static_cast<void>(severity);
-  return RMW_RET_UNSUPPORTED;
+  switch (severity) {
+    case RMW_LOG_SEVERITY_DEBUG:
+      rmw_zenoh_cpp::Logger::get().set_log_level(RCUTILS_LOG_SEVERITY_DEBUG);
+      break;
+    case RMW_LOG_SEVERITY_INFO:
+      rmw_zenoh_cpp::Logger::get().set_log_level(RCUTILS_LOG_SEVERITY_INFO);
+      break;
+    case RMW_LOG_SEVERITY_WARN:
+      rmw_zenoh_cpp::Logger::get().set_log_level(RCUTILS_LOG_SEVERITY_WARN);
+      break;
+    case RMW_LOG_SEVERITY_ERROR:
+      rmw_zenoh_cpp::Logger::get().set_log_level(RCUTILS_LOG_SEVERITY_ERROR);
+      break;
+    case RMW_LOG_SEVERITY_FATAL:
+      rmw_zenoh_cpp::Logger::get().set_log_level(RCUTILS_LOG_SEVERITY_FATAL);
+      break;
+    default:
+      return RMW_RET_UNSUPPORTED;
+  }
+  return RMW_RET_OK;
 }
 
 //==============================================================================

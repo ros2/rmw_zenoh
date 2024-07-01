@@ -23,8 +23,9 @@
 #include <string>
 #include <utility>
 
+#include "logging_macros.hpp"
+
 #include "rcpputils/scope_exit.hpp"
-#include "rcutils/logging_macros.h"
 
 #include "rmw/error_handling.h"
 
@@ -140,7 +141,7 @@ void rmw_subscription_data_t::add_new_message(
 
   if (message_queue_.size() >= adapted_qos_profile.depth) {
     // Log warning if message is discarded due to hitting the queue depth
-    RCUTILS_LOG_DEBUG_NAMED(
+    RMW_ZENOH_LOG_DEBUG_NAMED(
       "rmw_zenoh_cpp",
       "Message queue depth of %ld reached, discarding oldest message "
       "for subscription for %s",
@@ -237,7 +238,7 @@ void rmw_service_data_t::add_new_query(std::unique_ptr<ZenohQuery> query)
   if (query_queue_.size() >= adapted_qos_profile.depth) {
     // Log warning if message is discarded due to hitting the queue depth
     z_owned_str_t keystr = z_keyexpr_to_string(z_loan(this->keyexpr));
-    RCUTILS_LOG_ERROR_NAMED(
+    RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Query queue depth of %ld reached, discarding oldest Query "
       "for service for %s",
@@ -330,7 +331,7 @@ void rmw_client_data_t::add_new_reply(std::unique_ptr<ZenohReply> reply)
   if (reply_queue_.size() >= adapted_qos_profile.depth) {
     // Log warning if message is discarded due to hitting the queue depth
     z_owned_str_t keystr = z_keyexpr_to_string(z_loan(this->keyexpr));
-    RCUTILS_LOG_ERROR_NAMED(
+    RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Reply queue depth of %ld reached, discarding oldest reply "
       "for client for %s",
@@ -396,7 +397,7 @@ void sub_data_handler(
 
   auto sub_data = static_cast<rmw_subscription_data_t *>(data);
   if (sub_data == nullptr) {
-    RCUTILS_LOG_ERROR_NAMED(
+    RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to obtain rmw_subscription_data_t from data for "
       "subscription for %s",
@@ -410,7 +411,9 @@ void sub_data_handler(
     // We failed to get the GID from the attachment.  While this isn't fatal,
     // it is unusual and so we should report it.
     memset(pub_gid, 0, RMW_GID_STORAGE_SIZE);
-    RCUTILS_LOG_ERROR_NAMED("rmw_zenoh_cpp", "Unable to obtain publisher GID from the attachment.");
+    RMW_ZENOH_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to obtain publisher GID from the attachment.");
   }
 
   int64_t sequence_number = get_int64_from_attachment(&sample->attachment, "sequence_number");
@@ -418,7 +421,7 @@ void sub_data_handler(
     // We failed to get the sequence number from the attachment.  While this
     // isn't fatal, it is unusual and so we should report it.
     sequence_number = 0;
-    RCUTILS_LOG_ERROR_NAMED(
+    RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp", "Unable to obtain sequence number from the attachment.");
   }
 
@@ -427,7 +430,7 @@ void sub_data_handler(
     // We failed to get the source timestamp from the attachment.  While this
     // isn't fatal, it is unusual and so we should report it.
     source_timestamp = 0;
-    RCUTILS_LOG_ERROR_NAMED(
+    RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp", "Unable to obtain sequence number from the attachment.");
   }
 
@@ -467,7 +470,7 @@ void service_data_handler(const z_query_t * query, void * data)
   rmw_service_data_t * service_data =
     static_cast<rmw_service_data_t *>(data);
   if (service_data == nullptr) {
-    RCUTILS_LOG_ERROR_NAMED(
+    RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to obtain rmw_service_data_t from data for "
       "service for %s",
@@ -513,14 +516,14 @@ void client_data_handler(z_owned_reply_t * reply, void * data)
 {
   auto client_data = static_cast<rmw_client_data_t *>(data);
   if (client_data == nullptr) {
-    RCUTILS_LOG_ERROR_NAMED(
+    RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to obtain client_data_t "
     );
     return;
   }
   if (!z_reply_check(reply)) {
-    RCUTILS_LOG_ERROR_NAMED(
+    RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "z_reply_check returned False"
     );
@@ -529,7 +532,7 @@ void client_data_handler(z_owned_reply_t * reply, void * data)
   if (!z_reply_is_ok(reply)) {
     z_owned_str_t keystr = z_keyexpr_to_string(z_loan(client_data->keyexpr));
     z_value_t err = z_reply_err(reply);
-    RCUTILS_LOG_ERROR_NAMED(
+    RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "z_reply_is_ok returned False for keyexpr %s. Reason: %.*s",
       z_loan(keystr),

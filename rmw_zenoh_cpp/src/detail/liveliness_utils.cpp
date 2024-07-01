@@ -23,8 +23,9 @@
 #include <utility>
 #include <vector>
 
+#include "logging_macros.hpp"
+
 #include "rcpputils/scope_exit.hpp"
-#include "rcutils/logging_macros.h"
 
 #include "rmw/error_handling.h"
 
@@ -411,7 +412,7 @@ std::shared_ptr<Entity> Entity::make(const std::string & keyexpr)
   // (ADMIN_SPACE, domain_id, zid, id, entity_type, namespace, node_name).
   // Basic validation.
   if (parts.size() < KEYEXPR_INDEX_MIN + 1) {
-    RCUTILS_LOG_ERROR_NAMED(
+    RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Received invalid liveliness token with %lu/%d parts: %s",
       parts.size(),
@@ -420,7 +421,7 @@ std::shared_ptr<Entity> Entity::make(const std::string & keyexpr)
   }
   for (const std::string & p : parts) {
     if (p.empty()) {
-      RCUTILS_LOG_ERROR_NAMED(
+      RMW_ZENOH_LOG_ERROR_NAMED(
         "rmw_zenoh_cpp",
         "Received invalid liveliness token with empty parts: %s", keyexpr.c_str());
       return nullptr;
@@ -428,7 +429,7 @@ std::shared_ptr<Entity> Entity::make(const std::string & keyexpr)
   }
 
   if (parts[KeyexprIndex::AdminSpace] != ADMIN_SPACE) {
-    RCUTILS_LOG_ERROR_NAMED(
+    RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Received liveliness token with invalid admin space.");
     return nullptr;
@@ -439,7 +440,7 @@ std::shared_ptr<Entity> Entity::make(const std::string & keyexpr)
   std::unordered_map<std::string, EntityType>::const_iterator entity_it =
     str_to_entity.find(entity_str);
   if (entity_it == str_to_entity.end()) {
-    RCUTILS_LOG_ERROR_NAMED(
+    RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Received liveliness token with invalid entity %s.", entity_str.c_str());
     return nullptr;
@@ -458,14 +459,14 @@ std::shared_ptr<Entity> Entity::make(const std::string & keyexpr)
   // Populate topic_info if we have a token for an entity other than a node.
   if (entity_type != EntityType::Node) {
     if (parts.size() < KEYEXPR_INDEX_MAX + 1) {
-      RCUTILS_LOG_ERROR_NAMED(
+      RMW_ZENOH_LOG_ERROR_NAMED(
         "rmw_zenoh_cpp",
         "Received liveliness token for non-node entity without required parameters.");
       return nullptr;
     }
     std::optional<rmw_qos_profile_t> qos = keyexpr_to_qos(parts[KeyexprIndex::TopicQoS]);
     if (!qos.has_value()) {
-      RCUTILS_LOG_ERROR_NAMED(
+      RMW_ZENOH_LOG_ERROR_NAMED(
         "rmw_zenoh_cpp",
         "Received liveliness token with invalid qos keyexpr");
       return nullptr;

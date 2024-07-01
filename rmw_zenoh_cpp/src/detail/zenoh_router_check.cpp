@@ -15,12 +15,12 @@
 #include "zenoh_router_check.hpp"
 
 #include <rcutils/env.h>
-#include <rcutils/logging_macros.h>
 
 #include <iomanip>
 #include <sstream>
 #include <string>
 
+#include "logging_macros.hpp"
 #include "liveliness_utils.hpp"
 
 namespace rmw_zenoh_cpp
@@ -34,7 +34,7 @@ rmw_ret_t zenoh_router_check(z_session_t session)
   // Define callback
   auto callback = [](const struct z_id_t * id, void * ctx) {
       const std::string id_str = liveliness::zid_to_str(*id);
-      RCUTILS_LOG_INFO_NAMED(
+      RMW_ZENOH_LOG_INFO_NAMED(
         "rmw_zenoh_cpp",
         "Successfully connected to a Zenoh router with id %s.", id_str.c_str());
       // Note: Callback is guaranteed to never be called
@@ -45,13 +45,13 @@ rmw_ret_t zenoh_router_check(z_session_t session)
   rmw_ret_t ret = RMW_RET_OK;
   z_owned_closure_zid_t router_callback = z_closure(callback, nullptr /* drop */, &context);
   if (z_info_routers_zid(session, z_move(router_callback))) {
-    RCUTILS_LOG_ERROR_NAMED(
+    RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Failed to evaluate if Zenoh routers are connected to the session.");
     ret = RMW_RET_ERROR;
   } else {
     if (context == 0) {
-      RCUTILS_LOG_ERROR_NAMED(
+      RMW_ZENOH_LOG_ERROR_NAMED(
         "rmw_zenoh_cpp",
         "Unable to connect to a Zenoh router. "
         "Have you started a router with `ros2 run rmw_zenoh_cpp rmw_zenohd`?");

@@ -25,7 +25,6 @@
 #include "rcpputils/find_and_replace.hpp"
 #include "rcpputils/scope_exit.hpp"
 
-#include "rcutils/logging_macros.h"
 #include "rcutils/strdup.h"
 
 #include "rmw/error_handling.h"
@@ -36,6 +35,7 @@
 #include "rosidl_runtime_c/type_hash.h"
 
 #include "graph_cache.hpp"
+#include "logging_macros.hpp"
 #include "rmw_data_types.hpp"
 
 namespace rmw_zenoh_cpp
@@ -131,7 +131,7 @@ void GraphCache::update_topic_map_for_put(
   TopicDataPtr graph_topic_data = TopicData::make(entity);
   if (graph_topic_data == nullptr) {
     // This should not happen as topic_info should be populated for all non-node entities.
-    RCUTILS_LOG_WARN_NAMED(
+    RMW_ZENOH_LOG_WARN_NAMED(
       "rmw_zenoh_cpp",
       "update_topic_map_for_put() called for non-node entity without valid TopicInfo. "
       "Report this.");
@@ -339,7 +339,7 @@ void GraphCache::parse_put(
     return;
   }
   if (ignore_from_current_session && is_entity_local(*entity)) {
-    RCUTILS_LOG_DEBUG_NAMED(
+    RMW_ZENOH_LOG_DEBUG_NAMED(
       "rmw_zenoh_cpp",
       "Ignoring parse_put for %s from the same session.\n", entity->keyexpr().c_str());
     return;
@@ -391,7 +391,7 @@ void GraphCache::parse_put(
     update_topic_maps_for_put(node, entity);
     total_nodes_in_graph_ += 1;
     if (insertion_it == ns_it->second.end()) {
-      RCUTILS_LOG_ERROR_NAMED(
+      RMW_ZENOH_LOG_ERROR_NAMED(
         "rmw_zenoh_cpp",
         "Unable to add a new node /%s to an "
         "existing namespace %s in the graph. Report this bug.",
@@ -442,7 +442,7 @@ void GraphCache::update_topic_map_for_del(
   bool report_events)
 {
   if (!entity->topic_info().has_value()) {
-    RCUTILS_LOG_WARN_NAMED(
+    RMW_ZENOH_LOG_WARN_NAMED(
       "rmw_zenoh_cpp",
       "update_topic_maps_for_del() called for non-node entity without valid TopicInfo. "
       "Report this.");
@@ -455,7 +455,7 @@ void GraphCache::update_topic_map_for_del(
     topic_map.find(topic_info.name_);
   if (cache_topic_it == topic_map.end()) {
     // This should not happen.
-    RCUTILS_LOG_ERROR_NAMED(
+    RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp", "topic name %s not found in topic_map. Report this.",
       topic_info.name_.c_str());
     return;
@@ -465,7 +465,7 @@ void GraphCache::update_topic_map_for_del(
     cache_topic_it->second.find(topic_info.type_);
   if (cache_topic_type_it == cache_topic_it->second.end()) {
     // This should not happen.
-    RCUTILS_LOG_ERROR_NAMED(
+    RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp", "topic type %s not found in for topic %s. Report this.",
       topic_info.type_.c_str(), topic_info.name_.c_str());
     return;
@@ -476,7 +476,7 @@ void GraphCache::update_topic_map_for_del(
     qos_str);
   if (cache_topic_qos_it == cache_topic_type_it->second.end()) {
     // This should not happen.
-    RCUTILS_LOG_ERROR_NAMED(
+    RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp", "qos %s not found in for topic type %s. Report this.",
       qos_str.c_str(), topic_info.type_.c_str());
     return;
@@ -557,7 +557,7 @@ void GraphCache::parse_del(
     return;
   }
   if (ignore_from_current_session && is_entity_local(*entity)) {
-    RCUTILS_LOG_DEBUG_NAMED(
+    RMW_ZENOH_LOG_DEBUG_NAMED(
       "rmw_zenoh_cpp",
       "Ignoring parse_del for %s from the same session.\n", entity->keyexpr().c_str());
     return;
@@ -583,7 +583,7 @@ void GraphCache::parse_del(
     });
   if (node_it == range.second) {
     // Node does not exist.
-    RCUTILS_LOG_WARN_NAMED(
+    RMW_ZENOH_LOG_WARN_NAMED(
       "rmw_zenoh_cpp",
       "Received liveliness token to remove unknown node /%s from the graph. Ignoring...",
       entity->node_name().c_str()
@@ -602,7 +602,7 @@ void GraphCache::parse_del(
       !graph_node->clients_.empty() ||
       !graph_node->services_.empty())
     {
-      RCUTILS_LOG_WARN_NAMED(
+      RMW_ZENOH_LOG_WARN_NAMED(
         "rmw_zenoh_cpp",
         "Received liveliness token to remove node /%s from the graph before all pub/subs/"
         "clients/services for this node have been removed. Removing all entities first...",
@@ -658,7 +658,7 @@ rmw_ret_t GraphCache::get_node_names(
     [node_names]() {
       rcutils_ret_t ret = rcutils_string_array_fini(node_names);
       if (ret != RCUTILS_RET_OK) {
-        RCUTILS_LOG_ERROR_NAMED(
+        RMW_ZENOH_LOG_ERROR_NAMED(
           "rmw_zenoh_cpp",
           "failed to cleanup during error handling: %s", rcutils_get_error_string().str);
       }
@@ -673,7 +673,7 @@ rmw_ret_t GraphCache::get_node_names(
     [node_namespaces]() {
       rcutils_ret_t ret = rcutils_string_array_fini(node_namespaces);
       if (ret != RCUTILS_RET_OK) {
-        RCUTILS_LOG_ERROR_NAMED(
+        RMW_ZENOH_LOG_ERROR_NAMED(
           "rmw_zenoh_cpp",
           "failed to cleanup during error handling: %s", rcutils_get_error_string().str);
       }
@@ -682,7 +682,7 @@ rmw_ret_t GraphCache::get_node_names(
   auto free_enclaves_lambda = [enclaves]() -> void {
       rcutils_ret_t ret = rcutils_string_array_fini(enclaves);
       if (ret != RCUTILS_RET_OK) {
-        RCUTILS_LOG_ERROR_NAMED(
+        RMW_ZENOH_LOG_ERROR_NAMED(
           "rmw_zenoh_cpp",
           "failed to cleanup during error handling: %s", rcutils_get_error_string().str);
       }
@@ -1231,7 +1231,7 @@ void GraphCache::set_qos_event_callback(
   std::lock_guard<std::mutex> lock(graph_mutex_);
 
   if (event_type > ZENOH_EVENT_ID_MAX) {
-    RCUTILS_LOG_WARN_NAMED(
+    RMW_ZENOH_LOG_WARN_NAMED(
       "rmw_zenoh_cpp",
       "set_qos_event_callback() called for unsupported event. Report this.");
     return;
