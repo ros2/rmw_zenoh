@@ -16,7 +16,6 @@ find_package(ament_cmake REQUIRED)
 
 find_package(ament_index_cpp REQUIRED)
 find_package(fastcdr CONFIG REQUIRED)
-find_package(fmt CONFIG REQUIRED)
 find_package(rcpputils REQUIRED)
 find_package(rcutils REQUIRED)
 find_package(rosidl_typesupport_fastrtps_c REQUIRED)
@@ -61,7 +60,6 @@ target_link_libraries(rmw_zenoh_cpp
   PRIVATE
     ament_index_cpp::ament_index_cpp
     fastcdr
-    fmt::fmt
     rcpputils::rcpputils
     rcutils::rcutils
     rosidl_typesupport_fastrtps_c::rosidl_typesupport_fastrtps_c
@@ -114,7 +112,7 @@ add_executable(rmw_zenohd
 target_link_libraries(rmw_zenohd
   PRIVATE
     ament_index_cpp::ament_index_cpp
-    fmt::fmt
+    rcutils::rcutils
     rcpputils::rcpputils
     rmw::rmw
     zenohc::lib

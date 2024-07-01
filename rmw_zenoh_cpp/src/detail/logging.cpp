@@ -21,51 +21,17 @@ namespace rmw_zenoh_cpp
 ///=============================================================================
 Logger & Logger::get()
 {
-  static Logger logger(RMW_ZENOH_LOG_LEVEL_INFO);
+  static Logger logger(RCUTILS_LOG_SEVERITY_INFO);
   return logger;
 }
 
 ///=============================================================================
-Logger::Logger(LogLevel threshold_level)
+Logger::Logger(RCUTILS_LOG_SEVERITY threshold_level)
 : threshold_level_(threshold_level)
 {}
 
 ///=============================================================================
-fmt::color Logger::level_to_color(LogLevel level) const
-{
-  switch (level) {
-    case RMW_ZENOH_LOG_LEVEL_DEBUG:
-      return fmt::color::light_green;
-    case RMW_ZENOH_LOG_LEVEL_ERROR:
-      return fmt::color::indian_red;
-    case RMW_ZENOH_LOG_LEVEL_INFO:
-      return fmt::color::light_blue;
-    case RMW_ZENOH_LOG_LEVEL_WARN:
-      return fmt::color::light_yellow;
-    default:
-      return fmt::color::white;
-  }
-}
-
-///=============================================================================
-std::string Logger::level_to_string(LogLevel level) const
-{
-  switch (level) {
-    case RMW_ZENOH_LOG_LEVEL_DEBUG:
-      return "DEBUG";
-    case RMW_ZENOH_LOG_LEVEL_ERROR:
-      return "ERROR";
-    case RMW_ZENOH_LOG_LEVEL_INFO:
-      return "INFO";
-    case RMW_ZENOH_LOG_LEVEL_WARN:
-      return "WARN";
-    default:
-      return "UNKOWN";
-  }
-}
-
-///=============================================================================
-void Logger::set_log_level(LogLevel new_level)
+void Logger::set_log_level(RCUTILS_LOG_SEVERITY new_level)
 {
   threshold_level_ = new_level;
 }

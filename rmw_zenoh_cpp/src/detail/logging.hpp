@@ -15,9 +15,7 @@
 #ifndef DETAIL__LOGGING_HPP_
 #define DETAIL__LOGGING_HPP_
 
-#include <fmt/chrono.h>
-#include <fmt/color.h>
-#include <fmt/printf.h>
+#include <rcutils/logging.h>
 
 #include <iostream>
 #include <mutex>
@@ -27,15 +25,6 @@
 namespace rmw_zenoh_cpp
 {
 ///=============================================================================
-enum LogLevel
-{
-  RMW_ZENOH_LOG_LEVEL_DEBUG,
-  RMW_ZENOH_LOG_LEVEL_INFO,
-  RMW_ZENOH_LOG_LEVEL_WARN,
-  RMW_ZENOH_LOG_LEVEL_ERROR,
-};
-
-///=============================================================================
 class Logger
 {
 public:
@@ -43,42 +32,40 @@ public:
   static Logger & get();
 
   // Set the threshold log level.
-  void set_log_level(LogLevel new_level);
+  void set_log_level(RCUTILS_LOG_SEVERITY new_level);
 
   // Log to the console.
-  template<typename ... Args>
   void log_named(
-    LogLevel level,
-    const std::string & name,
-    const std::string & message,
-    const Args &... args) const
+    RCUTILS_LOG_SEVERITY level,
+    const char * name,
+    const char * message,
+    ...) const
   {
     if (level >= threshold_level_) {
-      const auto time_now = std::chrono::system_clock::now().time_since_epoch();
-      const auto seconds =
-        std::chrono::duration_cast<std::chrono::seconds>(time_now).count();
-      auto nanoseconds =
-        std::chrono::duration_cast<std::chrono::nanoseconds>(
-        time_now - std::chrono::seconds(seconds)).count();
-      fmt::print(
-        fmt::fg(level_to_color(level)),
-        "[{}] [{}.{}] [{}]: {}\n",
-        level_to_string(level),
-        seconds,
-        nanoseconds,
+      rcutils_time_point_value_t now;
+      rcutils_ret_t ret = rcutils_system_time_now(&now);
+      if (ret != RCUTILS_RET_OK) {
+        RCUTILS_SAFE_FWRITE_TO_STDERR("Failed to get timestamp while doing a console logging.\n");
+        return;
+      }
+      static rcutils_log_location_t log_location = {__func__, __FILE__, __LINE__};
+      va_list args;
+      va_start(args, message);
+      rcutils_logging_console_output_handler(
+        &log_location,
+        level,
         name,
-        fmt::sprintf(message, args ...)
+        now,
+        message,
+        &args
       );
     }
   }
 
 private:
-  LogLevel threshold_level_;
-  explicit Logger(LogLevel threshold_level);
-  fmt::color level_to_color(LogLevel level) const;
-  std::string level_to_string(LogLevel level) const;
+  RCUTILS_LOG_SEVERITY threshold_level_;
+  explicit Logger(RCUTILS_LOG_SEVERITY threshold_level);
 };
-
 }  // namespace rmw_zenoh_cpp
 
 #endif  // DETAIL__LOGGING_HPP_

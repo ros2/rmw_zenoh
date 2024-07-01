@@ -537,7 +537,7 @@ void client_data_handler(z_owned_reply_t * reply, void * data)
       "z_reply_is_ok returned False for keyexpr %s. Reason: %.*s",
       z_loan(keystr),
       (int)err.payload.len,
-      fmt::ptr(err.payload.start));
+      err.payload.start);
     z_drop(z_move(keystr));
 
     return;

@@ -14,7 +14,6 @@
 
   <depend>ament_index_cpp</depend>
   <depend>fastcdr</depend>
-  <depend>fmt</depend>
   <depend>rcpputils</depend>
   <depend>rcutils</depend>
   <depend>rosidl_typesupport_fastrtps_c</depend>
