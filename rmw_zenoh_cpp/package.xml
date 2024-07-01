@@ -7,6 +7,9 @@
   <maintainer email="yadunund@openrobotics.org">Yadunund</maintainer>
   <license>Apache License 2.0</license>
 
+  <author email="clalancette@gmail.com">Chris Lalancette</author>
+  <author>Franco Cipollone</author>
+
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <build_depend>zenoh_c_vendor</build_depend>
