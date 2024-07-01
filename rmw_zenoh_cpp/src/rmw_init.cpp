@@ -42,9 +42,10 @@ extern "C"
 // TODO(clalancette): Make this configurable, or get it from the configuration
 #define SHM_BUFFER_SIZE_MB 10
 
-static void graph_sub_data_handler(
-  const z_sample_t * sample,
-  void * data)
+namespace
+{
+void
+graph_sub_data_handler(const z_sample_t * sample, void * data)
 {
   static_cast<void>(data);
 
@@ -84,6 +85,7 @@ static void graph_sub_data_handler(
     );
   }
 }
+}  // namespace
 
 //==============================================================================
 /// Initialize the middleware with the given options, and yielding an context.
