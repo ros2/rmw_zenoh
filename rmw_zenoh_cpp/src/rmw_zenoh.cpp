@@ -2391,7 +2391,11 @@ rmw_destroy_client(rmw_node_t * node, rmw_client_t * client)
   allocator->deallocate(client_data->response_type_support, allocator->state);
   RMW_TRY_DESTRUCTOR(client_data->~rmw_client_data_t(), rmw_client_data_t, );
 
-  allocator->deallocate(client->data, allocator->state);
+  // See the comment about the "num_in_flight" class variable in the rmw_client_data_t class for
+  // why we need to do this.
+  if (!client_data->shutdown_and_query_in_flight()) {
+    allocator->deallocate(client->data, allocator->state);
+  }
 
   allocator->deallocate(const_cast<char *>(client->service_name), allocator->state);
   allocator->deallocate(client, allocator->state);
@@ -2498,6 +2502,10 @@ rmw_send_request(
     z_loan(client_data->keyexpr), "",
     z_move(zn_closure_reply),
     &opts);
+
+  // See the comment about the "num_in_flight" class variable in the rmw_client_data_t class for
+  // why we need to do this.
+  client_data->increment_in_flight_callbacks();
 
   return RMW_RET_OK;
 }
