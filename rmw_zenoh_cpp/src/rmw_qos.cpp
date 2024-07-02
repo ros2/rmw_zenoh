@@ -20,8 +20,6 @@
 #include "rmw/types.h"
 #include "rmw/qos_profiles.h"
 
-#include "rmw_dds_common/qos.hpp"
-
 extern "C"
 {
 namespace

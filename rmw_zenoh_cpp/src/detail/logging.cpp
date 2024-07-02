@@ -14,8 +14,6 @@
 
 #include "logging.hpp"
 
-#include <sstream>
-
 namespace rmw_zenoh_cpp
 {
 ///=============================================================================

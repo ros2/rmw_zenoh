@@ -142,7 +142,9 @@ void rmw_subscription_data_t::add_new_message(
 {
   std::lock_guard<std::mutex> lock(message_queue_mutex_);
 
-  if (message_queue_.size() >= adapted_qos_profile.depth) {
+  if (adapted_qos_profile.history != RMW_QOS_POLICY_HISTORY_KEEP_ALL &&
+    message_queue_.size() >= adapted_qos_profile.depth)
+  {
     // Log warning if message is discarded due to hitting the queue depth
     RMW_ZENOH_LOG_DEBUG_NAMED(
       "rmw_zenoh_cpp",
@@ -238,7 +240,9 @@ void rmw_service_data_t::notify()
 void rmw_service_data_t::add_new_query(std::unique_ptr<ZenohQuery> query)
 {
   std::lock_guard<std::mutex> lock(query_queue_mutex_);
-  if (query_queue_.size() >= adapted_qos_profile.depth) {
+  if (adapted_qos_profile.history != RMW_QOS_POLICY_HISTORY_KEEP_ALL &&
+    query_queue_.size() >= adapted_qos_profile.depth)
+  {
     // Log warning if message is discarded due to hitting the queue depth
     z_owned_str_t keystr = z_keyexpr_to_string(z_loan(this->keyexpr));
     RMW_ZENOH_LOG_ERROR_NAMED(
@@ -331,7 +335,9 @@ void rmw_client_data_t::notify()
 void rmw_client_data_t::add_new_reply(std::unique_ptr<ZenohReply> reply)
 {
   std::lock_guard<std::mutex> lock(reply_queue_mutex_);
-  if (reply_queue_.size() >= adapted_qos_profile.depth) {
+  if (adapted_qos_profile.history != RMW_QOS_POLICY_HISTORY_KEEP_ALL &&
+    reply_queue_.size() >= adapted_qos_profile.depth)
+  {
     // Log warning if message is discarded due to hitting the queue depth
     z_owned_str_t keystr = z_keyexpr_to_string(z_loan(this->keyexpr));
     RMW_ZENOH_LOG_ERROR_NAMED(
