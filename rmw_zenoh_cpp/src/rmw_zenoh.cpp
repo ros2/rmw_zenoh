@@ -1166,8 +1166,21 @@ rmw_get_serialized_message_size(
 rmw_ret_t
 rmw_publisher_assert_liveliness(const rmw_publisher_t * publisher)
 {
-  static_cast<void>(publisher);
-  return RMW_RET_UNSUPPORTED;
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    publisher, "publisher handle is null",
+    return RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    publisher->data, "publisher data is null",
+    return RMW_RET_INVALID_ARGUMENT);
+  rmw_zenoh_cpp::rmw_publisher_data_t * pub_data =
+    static_cast<rmw_zenoh_cpp::rmw_publisher_data_t *>(publisher->data);
+  RMW_CHECK_ARGUMENT_FOR_NULL(pub_data, RMW_RET_INVALID_ARGUMENT);
+
+  if (!zc_liveliness_token_check(&pub_data->token)) {
+    return RMW_RET_ERROR;
+  }
+
+  return RMW_RET_OK;
 }
 
 //==============================================================================
@@ -3798,6 +3811,7 @@ rmw_get_gid_for_publisher(const rmw_publisher_t * publisher, rmw_gid_t * gid)
 
   rmw_zenoh_cpp::rmw_publisher_data_t * pub_data =
     static_cast<rmw_zenoh_cpp::rmw_publisher_data_t *>(publisher->data);
+  RMW_CHECK_ARGUMENT_FOR_NULL(pub_data, RMW_RET_INVALID_ARGUMENT);
 
   gid->implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
   memcpy(gid->data, pub_data->pub_gid, RMW_GID_STORAGE_SIZE);
