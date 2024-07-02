@@ -204,6 +204,7 @@ void service_data_handler(const z_query_t * query, void * service_data);
 
 ///=============================================================================
 void client_data_handler(z_owned_reply_t * reply, void * client_data);
+void client_data_drop(void * data);
 
 ///=============================================================================
 class ZenohQuery final
@@ -337,6 +338,8 @@ public:
   // See the comment for "num_in_flight" below on the use of this method.
   bool decrement_queries_in_flight_and_is_shutdown(bool & queries_in_flight);
 
+  bool is_shutdown() const;
+
 private:
   void notify();
 
@@ -367,7 +370,7 @@ private:
   // returns, the memory in this structure will never be freed.  There isn't much we can do about
   // that at this time, but we may want to consider changing the timeout so that the memory can
   // eventually be freed up.
-  std::mutex in_flight_mutex_;
+  mutable std::mutex in_flight_mutex_;
   bool is_shutdown_{false};
   size_t num_in_flight_{0};
 };
