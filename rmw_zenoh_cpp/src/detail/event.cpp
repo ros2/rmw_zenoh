@@ -35,8 +35,13 @@ static const std::unordered_map<rmw_event_type_t, rmw_zenoh_cpp::rmw_zenoh_event
   {RMW_EVENT_PUBLICATION_MATCHED, rmw_zenoh_cpp::ZENOH_EVENT_PUBLICATION_MATCHED},
   {RMW_EVENT_SUBSCRIPTION_INCOMPATIBLE_TYPE,
     rmw_zenoh_cpp::ZENOH_EVENT_SUBSCRIPTION_INCOMPATIBLE_TYPE},
-  {RMW_EVENT_PUBLISHER_INCOMPATIBLE_TYPE, rmw_zenoh_cpp::ZENOH_EVENT_PUBLISHER_INCOMPATIBLE_TYPE}
-  // TODO(clalancette): Implement remaining events
+  {RMW_EVENT_PUBLISHER_INCOMPATIBLE_TYPE, rmw_zenoh_cpp::ZENOH_EVENT_PUBLISHER_INCOMPATIBLE_TYPE},
+  // TODO(yadunund): Although rmw_zenoh declares that it can handles these events, they are not
+  // reported. Update the implementation to flag such events.
+  {RMW_EVENT_LIVELINESS_CHANGED, rmw_zenoh_cpp::ZENOH_EVENT_LIVELINESS_CHANGED},
+  {RMW_EVENT_REQUESTED_DEADLINE_MISSED, rmw_zenoh_cpp::ZENOH_EVENT_REQUESTED_DEADLINE_MISSED},
+  {RMW_EVENT_LIVELINESS_LOST, rmw_zenoh_cpp::ZENOH_EVENT_LIVELINESS_LOST},
+  {RMW_EVENT_OFFERED_DEADLINE_MISSED, rmw_zenoh_cpp::ZENOH_EVENT_OFFERED_DEADLINE_MISSED}
 };
 }  // namespace
 

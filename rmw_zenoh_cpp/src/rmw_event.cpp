@@ -245,6 +245,24 @@ rmw_take_event(
         *taken = true;
         return RMW_RET_OK;
       }
+    case rmw_zenoh_cpp::ZENOH_EVENT_OFFERED_DEADLINE_MISSED: {
+      // TODO(Yadunund): Implement this correctly.
+        auto ei = static_cast<rmw_offered_deadline_missed_status_t *>(event_info);
+        RMW_CHECK_ARGUMENT_FOR_NULL(ei, RMW_RET_INVALID_ARGUMENT);
+        ei->total_count = st->total_count;
+        ei->total_count_change = st->total_count_change;
+        *taken = true;
+        return RMW_RET_OK;
+      }
+    case rmw_zenoh_cpp::ZENOH_EVENT_REQUESTED_DEADLINE_MISSED: {
+      // TODO(Yadunund): Implement this correctly.
+        auto ei = static_cast<rmw_requested_deadline_missed_status_t *>(event_info);
+        RMW_CHECK_ARGUMENT_FOR_NULL(ei, RMW_RET_INVALID_ARGUMENT);
+        ei->total_count = st->total_count;
+        ei->total_count_change = st->total_count_change;
+        *taken = true;
+        return RMW_RET_OK;
+      }
     default: {
         return RMW_RET_INVALID_ARGUMENT;
       }
