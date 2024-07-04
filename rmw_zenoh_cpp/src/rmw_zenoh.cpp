@@ -542,9 +542,6 @@ rmw_create_publisher(
   if (RMW_RET_OK != ret) {
     return nullptr;
   }
-  RMW_ZENOH_LOG_ERROR_NAMED(
-    "rmw_zenoh_cpp", "create publisher liveliness: %zu",
-    publisher_data->adapted_qos_profile.liveliness);
 
   publisher_data->typesupport_identifier = type_support->typesupport_identifier;
   publisher_data->type_hash = type_support->get_type_hash_func(type_support);
