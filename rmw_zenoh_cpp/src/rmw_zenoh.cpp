@@ -2360,7 +2360,6 @@ rmw_destroy_client(rmw_node_t * node, rmw_client_t * client)
     return RMW_RET_INVALID_ARGUMENT);
 
   // CLEANUP ===================================================================
-  z_drop(z_move(client_data->zn_closure_reply));
   z_drop(z_move(client_data->keyexpr));
   zc_liveliness_undeclare_token(z_move(client_data->token));
 
@@ -2372,9 +2371,13 @@ rmw_destroy_client(rmw_node_t * node, rmw_client_t * client)
     client_data->response_type_support->~ResponseTypeSupport(), rmw_zenoh_cpp::ResponseTypeSupport,
   );
   allocator->deallocate(client_data->response_type_support, allocator->state);
-  RMW_TRY_DESTRUCTOR(client_data->~rmw_client_data_t(), rmw_client_data_t, );
 
-  allocator->deallocate(client->data, allocator->state);
+  // See the comment about the "num_in_flight" class variable in the rmw_client_data_t class for
+  // why we need to do this.
+  if (!client_data->shutdown_and_query_in_flight()) {
+    RMW_TRY_DESTRUCTOR(client_data->~rmw_client_data_t(), rmw_client_data_t, );
+    allocator->deallocate(client->data, allocator->state);
+  }
 
   allocator->deallocate(const_cast<char *>(client->service_name), allocator->state);
   allocator->deallocate(client, allocator->state);
@@ -2406,6 +2409,10 @@ rmw_send_request(
     client_data,
     "Unable to retrieve client_data from client.",
     RMW_RET_INVALID_ARGUMENT);
+
+  if (client_data->is_shutdown()) {
+    return RMW_RET_ERROR;
+  }
 
   rmw_context_impl_s * context_impl = static_cast<rmw_context_impl_s *>(
     client_data->context->impl);
@@ -2461,6 +2468,10 @@ rmw_send_request(
       z_bytes_map_drop(z_move(map));
     });
 
+  // See the comment about the "num_in_flight" class variable in the rmw_client_data_t class for
+  // why we need to do this.
+  client_data->increment_in_flight_callbacks();
+
   opts.attachment = z_bytes_map_as_attachment(&map);
 
   opts.target = Z_QUERY_TARGET_ALL_COMPLETE;
@@ -2474,11 +2485,13 @@ rmw_send_request(
   // and any number.
   opts.consolidation = z_query_consolidation_latest();
   opts.value.payload = z_bytes_t{data_length, reinterpret_cast<const uint8_t *>(request_bytes)};
-  client_data->zn_closure_reply =
-    z_closure(rmw_zenoh_cpp::client_data_handler, nullptr, client_data);
+  z_owned_closure_reply_t zn_closure_reply =
+    z_closure(rmw_zenoh_cpp::client_data_handler, rmw_zenoh_cpp::client_data_drop, client_data);
   z_get(
-    z_loan(context_impl->session), z_loan(
-      client_data->keyexpr), "", &client_data->zn_closure_reply, &opts);
+    z_loan(context_impl->session),
+    z_loan(client_data->keyexpr), "",
+    z_move(zn_closure_reply),
+    &opts);
 
   return RMW_RET_OK;
 }

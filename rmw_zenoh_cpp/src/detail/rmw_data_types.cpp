@@ -28,6 +28,7 @@
 #include "rcpputils/scope_exit.hpp"
 
 #include "rmw/error_handling.h"
+#include "rmw/impl/cpp/macros.hpp"
 
 #include "attachment_helpers.hpp"
 #include "rmw_data_types.hpp"
@@ -394,6 +395,42 @@ std::unique_ptr<ZenohReply> rmw_client_data_t::pop_next_reply()
 }
 
 //==============================================================================
+// See the comment about the "num_in_flight" class variable in the rmw_client_data_t class
+// for the use of this method.
+void rmw_client_data_t::increment_in_flight_callbacks()
+{
+  std::lock_guard<std::mutex> lock(in_flight_mutex_);
+  num_in_flight_++;
+}
+
+//==============================================================================
+// See the comment about the "num_in_flight" class variable in the rmw_client_data_t class
+// for the use of this method.
+bool rmw_client_data_t::shutdown_and_query_in_flight()
+{
+  std::lock_guard<std::mutex> lock(in_flight_mutex_);
+  is_shutdown_ = true;
+
+  return num_in_flight_ > 0;
+}
+
+//==============================================================================
+// See the comment about the "num_in_flight" class variable in the rmw_client_data_t structure
+// for the use of this method.
+bool rmw_client_data_t::decrement_queries_in_flight_and_is_shutdown(bool & queries_in_flight)
+{
+  std::lock_guard<std::mutex> lock(in_flight_mutex_);
+  queries_in_flight = --num_in_flight_ > 0;
+  return is_shutdown_;
+}
+
+bool rmw_client_data_t::is_shutdown() const
+{
+  std::lock_guard<std::mutex> lock(in_flight_mutex_);
+  return is_shutdown_;
+}
+
+//==============================================================================
 void sub_data_handler(
   const z_sample_t * sample,
   void * data)
@@ -531,6 +568,13 @@ void client_data_handler(z_owned_reply_t * reply, void * data)
     );
     return;
   }
+
+  // See the comment about the "num_in_flight" class variable in the rmw_client_data_t class for
+  // why we need to do this.
+  if (client_data->is_shutdown()) {
+    return;
+  }
+
   if (!z_reply_check(reply)) {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
@@ -556,4 +600,30 @@ void client_data_handler(z_owned_reply_t * reply, void * data)
   // Since we took ownership of the reply, null it out here
   *reply = z_reply_null();
 }
+
+void client_data_drop(void * data)
+{
+  auto client_data = static_cast<rmw_client_data_t *>(data);
+  if (client_data == nullptr) {
+    RMW_ZENOH_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to obtain client_data_t "
+    );
+    return;
+  }
+
+  // See the comment about the "num_in_flight" class variable in the rmw_client_data_t class for
+  // why we need to do this.
+  bool queries_in_flight = false;
+  bool is_shutdown = client_data->decrement_queries_in_flight_and_is_shutdown(queries_in_flight);
+
+  if (is_shutdown) {
+    if (!queries_in_flight) {
+      RMW_TRY_DESTRUCTOR(client_data->~rmw_client_data_t(), rmw_client_data_t, );
+      client_data->context->options.allocator.deallocate(
+        client_data, client_data->context->options.allocator.state);
+    }
+  }
+}
+
 }  // namespace rmw_zenoh_cpp
