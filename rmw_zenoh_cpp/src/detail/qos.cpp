@@ -79,8 +79,8 @@ rmw_ret_t QoS::best_available_qos(
   static_cast<void>(get_endpoint_info_for_other);
 
   switch (qos_profile->history) {
-    case RMW_QOS_POLICY_RELIABILITY_SYSTEM_DEFAULT:
-    case RMW_QOS_POLICY_RELIABILITY_UNKNOWN:
+    case RMW_QOS_POLICY_HISTORY_SYSTEM_DEFAULT:
+    case RMW_QOS_POLICY_HISTORY_UNKNOWN:
       qos_profile->history = default_qos_.history;
     default:
       break;
