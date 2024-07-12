@@ -32,6 +32,9 @@
 
 #include "attachment_helpers.hpp"
 #include "rmw_data_types.hpp"
+#include "zenoh_config.hpp"
+#include "zenoh_router_check.hpp"
+
 
 ///=============================================================================
 namespace
@@ -59,6 +62,65 @@ size_t rmw_context_impl_s::get_next_entity_id()
 {
   return next_entity_id_++;
 }
+
+///=============================================================================
+void rmw_context_impl_s::async_check_router()
+{
+  const std::optional<uint64_t> configured_connection_attempts =
+    rmw_zenoh_cpp::zenoh_router_check_attempts();
+  if (configured_connection_attempts.has_value()) {
+    router_check_thread_ = std::thread(
+      [this](std::optional<uint64_t> configured_connection_attempts, z_session_t session)
+      {
+        uint64_t connection_attempts = 0;
+        rmw_ret_t ret = RMW_RET_TIMEOUT;
+        // Retry until the connection is successful.
+        while (ret != RMW_RET_OK && connection_attempts < configured_connection_attempts.value()) {
+          if ((ret = rmw_zenoh_cpp::zenoh_router_check(session)) != RMW_RET_OK) {
+            ++connection_attempts;
+          }
+          std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
+        if (ret != RMW_RET_OK) {
+          RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
+            "Unable to connect to a Zenoh router after %zu retries.",
+            configured_connection_attempts.value());
+          // Return without setting router_is_available_ to true.
+          return;
+        }
+        // The router check has succeeded so we set router_is_available_ to true.
+        std::lock_guard<std::mutex> lock(router_check_mutex_);
+        router_is_available_ = true;
+        router_check_cv_.notify_all();
+      },
+      configured_connection_attempts,
+      z_loan(session)
+    );
+  }
+  else {
+    // If we skip the router check, directly set available_ to true.
+    std::lock_guard<std::mutex> lock(router_check_mutex_);
+    router_is_available_ = true;
+  }
+}
+
+///=============================================================================
+bool rmw_context_impl_s::wait_for_router()
+{
+  // Wait until the cv is notified  or router check fails.
+  std::unique_lock<std::mutex> lock(router_check_mutex_);
+  router_check_cv_.wait(lock, [this]{ return router_is_available_ == true;});
+  return router_is_available_;
+}
+
+///=============================================================================
+rmw_context_impl_s::~rmw_context_impl_s()
+{
+  if (router_check_thread_.joinable()) {
+    router_check_thread_.join();
+  }
+}
+
 
 namespace rmw_zenoh_cpp
 {

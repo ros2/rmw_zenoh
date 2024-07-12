@@ -219,6 +219,11 @@ rmw_create_node(
     return nullptr;
   }
 
+  if (!context->impl->wait_for_router()){
+    // Error handled.
+    return nullptr;
+  }
+
   int validation_result = RMW_NODE_NAME_VALID;
   rmw_ret_t ret = rmw_validate_node_name(name, &validation_result, nullptr);
   if (RMW_RET_OK != ret) {
@@ -1328,7 +1333,6 @@ rmw_create_subscription(
     RMW_SET_ERROR_MSG("zenoh session is invalid");
     return nullptr;
   }
-
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
   // Create the rmw_subscription.
@@ -2078,6 +2082,7 @@ rmw_create_client(
     RMW_SET_ERROR_MSG("zenoh session is invalid");
     return nullptr;
   }
+
   RMW_CHECK_ARGUMENT_FOR_NULL(node->data, nullptr);
   const rmw_zenoh_cpp::rmw_node_data_t * node_data =
     static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(node->data);

@@ -23,7 +23,6 @@
 #include "detail/liveliness_utils.hpp"
 #include "detail/rmw_data_types.hpp"
 #include "detail/zenoh_config.hpp"
-#include "detail/zenoh_router_check.hpp"
 
 #include "rcutils/env.h"
 #include "detail/logging_macros.hpp"
@@ -201,26 +200,8 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   z_id_t zid = z_info_zid(z_loan(context->impl->session));
   context->impl->graph_cache = std::make_unique<rmw_zenoh_cpp::GraphCache>(zid);
 
-  // Verify if the zenoh router is running if configured.
-  const std::optional<uint64_t> configured_connection_attempts =
-    rmw_zenoh_cpp::zenoh_router_check_attempts();
-  if (configured_connection_attempts.has_value()) {
-    ret = RMW_RET_ERROR;
-    uint64_t connection_attempts = 0;
-    // Retry until the connection is successful.
-    while (ret != RMW_RET_OK && connection_attempts < configured_connection_attempts.value()) {
-      if ((ret = rmw_zenoh_cpp::zenoh_router_check(z_loan(context->impl->session))) != RMW_RET_OK) {
-        ++connection_attempts;
-      }
-      std::this_thread::sleep_for(std::chrono::seconds(1));
-    }
-    if (ret != RMW_RET_OK) {
-      RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
-        "Unable to connect to a Zenoh router after %zu retries.",
-        configured_connection_attempts.value());
-      return ret;
-    }
-  }
+  // Check if a zenoh router is available.
+  context->impl->async_check_router();
 
   // Initialize the shm manager if shared_memory is enabled in the config.
   if (shm_enabled._cstr != nullptr &&

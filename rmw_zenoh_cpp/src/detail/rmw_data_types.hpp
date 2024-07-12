@@ -24,6 +24,7 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <thread>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -69,9 +70,23 @@ public:
 
   size_t get_next_entity_id();
 
+  // Asynchronously check if a router is available in the network.
+  // Use wait_for_router() to wait until a router is discovered.
+  void async_check_router();
+
+  // Blocking call that will return false if the check for router failed.
+  bool wait_for_router();
+
+  ~rmw_context_impl_s();
+
 private:
   // A counter to assign a local id for every entity created in this session.
   size_t next_entity_id_{0};
+  mutable std::mutex router_check_mutex_;
+  std::thread router_check_thread_;
+  bool router_is_available_{false};
+  std::condition_variable router_check_cv_;
+  rmw_ret_t router_check_status_{RMW_RET_TIMEOUT};
 };
 
 namespace rmw_zenoh_cpp
