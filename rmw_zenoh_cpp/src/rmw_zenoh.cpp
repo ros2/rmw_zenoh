@@ -214,8 +214,8 @@ rmw_create_node(
     context->impl->enclave,
     "expected initialized enclave",
     return nullptr);
-  if (context->impl->is_shutdown) {
-    RCUTILS_SET_ERROR_MSG("context has been shutdown");
+  if (context->impl->is_shutdown()) {
+    RMW_ZENOH_LOG_ERROR_NAMED("rmw_zenoh_cpp", "context has been shutdown");
     return nullptr;
   }
 
@@ -349,7 +349,10 @@ rmw_destroy_node(rmw_node_t * node)
   // off into the sunset.
   rmw_zenoh_cpp::rmw_node_data_t * node_data =
     static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(node->data);
-  zc_liveliness_undeclare_token(z_move(node_data->token));
+  if (node_data != nullptr) {
+    node_data->is_shutdown(true);
+    zc_liveliness_undeclare_token(z_move(node_data->token));
+  }
 
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
@@ -464,9 +467,6 @@ rmw_create_publisher(
       "Strict requirement on unique network flow endpoints for publishers not supported");
     return nullptr;
   }
-  const rmw_zenoh_cpp::rmw_node_data_t * node_data =
-    static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(node->data);
-  RMW_CHECK_ARGUMENT_FOR_NULL(node_data, nullptr);
 
   // Get the RMW type support.
   const rosidl_message_type_support_t * type_support = find_message_type_support(type_supports);
@@ -479,6 +479,13 @@ rmw_create_publisher(
     node->context,
     "expected initialized context",
     return nullptr);
+  const rmw_zenoh_cpp::rmw_node_data_t * node_data =
+    static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(node->data);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node_data, nullptr);
+  if (node_data->is_shutdown()) {
+    RMW_ZENOH_LOG_ERROR_NAMED("rmw_zenoh_cpp", "node has been shutdown");
+    return nullptr;
+  }
   RMW_CHECK_FOR_NULL_WITH_MSG(
     node->context->impl,
     "expected initialized context impl",
@@ -489,6 +496,10 @@ rmw_create_publisher(
     context_impl,
     "unable to get rmw_context_impl_s",
     return nullptr);
+  if (context_impl->is_shutdown()) {
+    RMW_ZENOH_LOG_ERROR_NAMED("rmw_zenoh_cpp", "context has been shutdown");
+    return nullptr;
+  }
   RMW_CHECK_FOR_NULL_WITH_MSG(
     context_impl->enclave,
     "expected initialized enclave",
@@ -737,6 +748,7 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
 
   auto publisher_data = static_cast<rmw_zenoh_cpp::rmw_publisher_data_t *>(publisher->data);
   if (publisher_data != nullptr) {
+    publisher_data->is_shutdown(true);
     zc_liveliness_undeclare_token(z_move(publisher_data->token));
     if (publisher_data->pub_cache.has_value()) {
       z_drop(z_move(publisher_data->pub_cache.value()));
@@ -895,6 +907,9 @@ rmw_publish(
   RMW_CHECK_FOR_NULL_WITH_MSG(
     publisher_data, "publisher_data is null",
     return RMW_RET_INVALID_ARGUMENT);
+  if (publisher_data->is_shutdown()){
+    return RMW_RET_ERROR;
+  }
 
   rcutils_allocator_t * allocator = &(publisher_data->context->options.allocator);
 
@@ -1293,17 +1308,15 @@ rmw_create_subscription(
   RMW_CHECK_ARGUMENT_FOR_NULL(qos_profile, nullptr);
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription_options, nullptr);
 
-  const rosidl_message_type_support_t * type_support = find_message_type_support(type_supports);
-  if (type_support == nullptr) {
-    // error was already set by find_message_type_support
-    return nullptr;
-  }
-
   RMW_CHECK_ARGUMENT_FOR_NULL(node->data, nullptr);
   auto node_data = static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(node->data);
   RMW_CHECK_FOR_NULL_WITH_MSG(
     node_data, "unable to create subscription as node_data is invalid.",
     return nullptr);
+  if (node_data->is_shutdown()) {
+    RMW_ZENOH_LOG_ERROR_NAMED("rmw_zenoh_cpp", "node has been shutdown");
+    return nullptr;
+  }
   // TODO(yadunund): Check if a duplicate entry for the same topic name + topic type
   // is present in node_data->subscriptions and if so return error;
   RMW_CHECK_FOR_NULL_WITH_MSG(
@@ -1320,12 +1333,22 @@ rmw_create_subscription(
     context_impl,
     "unable to get rmw_context_impl_s",
     return nullptr);
+  if (context_impl->is_shutdown()) {
+    RMW_ZENOH_LOG_ERROR_NAMED("rmw_zenoh_cpp", "context has been shutdown");
+    return nullptr;
+  }
   RMW_CHECK_FOR_NULL_WITH_MSG(
     context_impl->enclave,
     "expected initialized enclave",
     return nullptr);
   if (!z_check(context_impl->session)) {
     RMW_SET_ERROR_MSG("zenoh session is invalid");
+    return nullptr;
+  }
+
+  const rosidl_message_type_support_t * type_support = find_message_type_support(type_supports);
+  if (type_support == nullptr) {
+    // error was already set by find_message_type_support
     return nullptr;
   }
 
@@ -1589,6 +1612,7 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
 
   auto sub_data = static_cast<rmw_zenoh_cpp::rmw_subscription_data_t *>(subscription->data);
   if (sub_data != nullptr) {
+    sub_data->is_shutdown(true);
     // Publish to the graph that a subscription has ridden off into the sunset
     zc_liveliness_undeclare_token(z_move(sub_data->token));
 
@@ -1704,6 +1728,10 @@ __rmw_take_one(
   bool * taken)
 {
   *taken = false;
+
+  if (sub_data->is_shutdown()) {
+    return RMW_RET_OK;
+  }
 
   std::unique_ptr<rmw_zenoh_cpp::saved_msg_data> msg_data = sub_data->pop_next_message();
   if (msg_data == nullptr) {
@@ -1855,7 +1883,7 @@ rmw_take_sequence(
   auto sub_data = static_cast<rmw_zenoh_cpp::rmw_subscription_data_t *>(subscription->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
 
-  if (sub_data->context->impl->is_shutdown) {
+  if (sub_data->context->impl->is_shutdown()) {
     return RMW_RET_OK;
   }
 
@@ -1915,7 +1943,7 @@ __rmw_take_serialized(
   auto sub_data = static_cast<rmw_zenoh_cpp::rmw_subscription_data_t *>(subscription->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
 
-  if (sub_data->context->impl->is_shutdown) {
+  if (sub_data->is_shutdown()) {
     return RMW_RET_OK;
   }
 
@@ -2056,6 +2084,18 @@ rmw_create_client(
   RMW_CHECK_ARGUMENT_FOR_NULL(qos_profile, nullptr);
   RMW_CHECK_ARGUMENT_FOR_NULL(type_supports, nullptr);
 
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->data, nullptr);
+  const rmw_zenoh_cpp::rmw_node_data_t * node_data =
+    static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(node->data);
+  if (node_data == nullptr) {
+    RMW_SET_ERROR_MSG(
+      "Unable to create client as node data is invalid.");
+    return nullptr;
+  }
+  if (node_data->is_shutdown()) {
+    RMW_ZENOH_LOG_ERROR_NAMED("rmw_zenoh_cpp", "node has been shutdown");
+    return nullptr;
+  }
   RMW_CHECK_FOR_NULL_WITH_MSG(
     node->context,
     "expected initialized context",
@@ -2070,20 +2110,16 @@ rmw_create_client(
     context_impl,
     "unable to get rmw_context_impl_s",
     return nullptr);
+  if (context_impl->is_shutdown()) {
+    RMW_ZENOH_LOG_ERROR_NAMED("rmw_zenoh_cpp", "context has been shutdown");
+    return nullptr;
+  }
   RMW_CHECK_FOR_NULL_WITH_MSG(
     context_impl->enclave,
     "expected initialized enclave",
     return nullptr);
   if (!z_check(context_impl->session)) {
     RMW_SET_ERROR_MSG("zenoh session is invalid");
-    return nullptr;
-  }
-  RMW_CHECK_ARGUMENT_FOR_NULL(node->data, nullptr);
-  const rmw_zenoh_cpp::rmw_node_data_t * node_data =
-    static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(node->data);
-  if (node_data == nullptr) {
-    RMW_SET_ERROR_MSG(
-      "Unable to create client as node data is invalid.");
     return nullptr;
   }
 
@@ -2639,25 +2675,16 @@ rmw_create_service(
     return nullptr;
   }
   RMW_CHECK_ARGUMENT_FOR_NULL(qos_profile, nullptr);
-  if (!qos_profile->avoid_ros_namespace_conventions) {
-    int validation_result = RMW_TOPIC_VALID;
-    // TODO(francocipollone): Verify if this is the right way to validate the service name.
-    rmw_ret_t ret = rmw_validate_full_topic_name(service_name, &validation_result, nullptr);
-    if (RMW_RET_OK != ret) {
-      return nullptr;
-    }
-    if (RMW_TOPIC_VALID != validation_result) {
-      const char * reason = rmw_full_topic_name_validation_result_string(validation_result);
-      RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("service_name argument is invalid: %s", reason);
-      return nullptr;
-    }
-  }
   RMW_CHECK_ARGUMENT_FOR_NULL(node->data, nullptr);
   const rmw_zenoh_cpp::rmw_node_data_t * node_data =
     static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(node->data);
   if (node_data == nullptr) {
     RMW_SET_ERROR_MSG(
       "Unable to create service as node data is invalid.");
+    return nullptr;
+  }
+  if (node_data->is_shutdown()) {
+    RMW_ZENOH_LOG_ERROR_NAMED("rmw_zenoh_cpp", "node has been shutdown");
     return nullptr;
   }
   RMW_CHECK_FOR_NULL_WITH_MSG(
@@ -2674,6 +2701,10 @@ rmw_create_service(
     context_impl,
     "unable to get rmw_context_impl_s",
     return nullptr);
+  if (context_impl->is_shutdown()) {
+    RMW_ZENOH_LOG_ERROR_NAMED("rmw_zenoh_cpp", "context has been shutdown");
+    return nullptr;
+  }
   RMW_CHECK_FOR_NULL_WITH_MSG(
     context_impl->enclave,
     "expected initialized enclave",
@@ -2681,6 +2712,20 @@ rmw_create_service(
   if (!z_check(context_impl->session)) {
     RMW_SET_ERROR_MSG("zenoh session is invalid");
     return nullptr;
+  }
+
+  if (!qos_profile->avoid_ros_namespace_conventions) {
+    int validation_result = RMW_TOPIC_VALID;
+    // TODO(francocipollone): Verify if this is the right way to validate the service name.
+    rmw_ret_t ret = rmw_validate_full_topic_name(service_name, &validation_result, nullptr);
+    if (RMW_RET_OK != ret) {
+      return nullptr;
+    }
+    if (RMW_TOPIC_VALID != validation_result) {
+      const char * reason = rmw_full_topic_name_validation_result_string(validation_result);
+      RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("service_name argument is invalid: %s", reason);
+      return nullptr;
+    }
   }
 
   // SERVICE DATA ==============================================================

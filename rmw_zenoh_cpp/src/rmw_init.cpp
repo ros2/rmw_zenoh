@@ -47,8 +47,6 @@ namespace
 void
 graph_sub_data_handler(const z_sample_t * sample, void * data)
 {
-  static_cast<void>(data);
-
   z_owned_str_t keystr = z_keyexpr_to_string(sample->keyexpr);
   auto free_keystr = rcpputils::make_scope_exit(
     [&keystr]() {
@@ -62,6 +60,13 @@ graph_sub_data_handler(const z_sample_t * sample, void * data)
     RMW_ZENOH_LOG_WARN_NAMED(
       "rmw_zenoh_cpp",
       "[graph_sub_data_handler] Unable to convert data into context_impl"
+    );
+    return;
+  }
+  if (context_impl->is_shutdown()) {
+    RMW_ZENOH_LOG_WARN_NAMED(
+      "rmw_zenoh_cpp",
+      "[graph_sub_data_handler] called after contex is shutdown."
     );
     return;
   }
@@ -166,7 +171,7 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
     });
 
   // Initialize context's implementation
-  context->impl->is_shutdown = false;
+  context->impl->is_shutdown(false);
 
   // If not already defined, set the logging environment variable for Zenoh sessions
   // to warning level by default.
@@ -347,8 +352,6 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   z_drop(z_move(reply));
   z_drop(z_move(channel));
 
-  // TODO(Yadunund): Switch this to a liveliness subscriptions once the API is available.
-
   // Uncomment and rely on #if #endif blocks to enable this feature when building with
   // zenoh-pico since liveliness is only available in zenoh-c.
   // auto sub_options = z_subscriber_options_default();
@@ -417,7 +420,7 @@ rmw_shutdown(rmw_context_t * context)
     return RMW_RET_ERROR;
   }
 
-  context->impl->is_shutdown = true;
+  context->impl->is_shutdown(true);
 
   return RMW_RET_OK;
 }
@@ -437,7 +440,7 @@ rmw_context_fini(rmw_context_t * context)
     context->implementation_identifier,
     rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
-  if (!context->impl->is_shutdown) {
+  if (!context->impl->is_shutdown()) {
     RCUTILS_SET_ERROR_MSG("context has not been shutdown");
     return RMW_RET_INVALID_ARGUMENT;
   }

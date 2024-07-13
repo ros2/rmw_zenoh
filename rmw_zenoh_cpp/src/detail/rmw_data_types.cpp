@@ -55,6 +55,20 @@ size_t hash_gid(const rmw_request_id_t & request_id)
 }  // namespace
 
 ///=============================================================================
+bool rmw_context_impl_s::is_shutdown() const
+{
+  std::lock_guard<std::mutex> lock(shutdown_mutex_);
+  return is_shutdown_;
+}
+
+///=============================================================================
+void rmw_context_impl_s::is_shutdown(bool value)
+{
+  std::lock_guard<std::mutex> lock(shutdown_mutex_);
+  is_shutdown_ = value;
+}
+
+///=============================================================================
 size_t rmw_context_impl_s::get_next_entity_id()
 {
   return next_entity_id_++;
@@ -62,6 +76,20 @@ size_t rmw_context_impl_s::get_next_entity_id()
 
 namespace rmw_zenoh_cpp
 {
+///=============================================================================
+bool rmw_node_data_t::is_shutdown() const
+{
+  std::lock_guard<std::mutex> lock(shutdown_mutex_);
+  return is_shutdown_;
+}
+
+///=============================================================================
+void rmw_node_data_t::is_shutdown(bool value)
+{
+  std::lock_guard<std::mutex> lock(shutdown_mutex_);
+  is_shutdown_ = value;
+}
+
 ///=============================================================================
 saved_msg_data::saved_msg_data(
   zc_owned_payload_t p,
@@ -85,6 +113,20 @@ size_t rmw_publisher_data_t::get_next_sequence_number()
 {
   std::lock_guard<std::mutex> lock(sequence_number_mutex_);
   return sequence_number_++;
+}
+
+///=============================================================================
+bool rmw_publisher_data_t::is_shutdown() const
+{
+  std::lock_guard<std::mutex> lock(shutdown_mutex_);
+  return is_shutdown_;
+}
+
+///=============================================================================
+void rmw_publisher_data_t::is_shutdown(bool value)
+{
+  std::lock_guard<std::mutex> lock(shutdown_mutex_);
+  is_shutdown_ = value;
 }
 
 ///=============================================================================
@@ -139,7 +181,7 @@ std::unique_ptr<saved_msg_data> rmw_subscription_data_t::pop_next_message()
 
 ///=============================================================================
 void rmw_subscription_data_t::add_new_message(
-  std::unique_ptr<saved_msg_data> msg, const std::string & topic_name)
+  std::unique_ptr<saved_msg_data> msg)
 {
   std::lock_guard<std::mutex> lock(message_queue_mutex_);
 
@@ -150,9 +192,8 @@ void rmw_subscription_data_t::add_new_message(
     RMW_ZENOH_LOG_DEBUG_NAMED(
       "rmw_zenoh_cpp",
       "Message queue depth of %ld reached, discarding oldest message "
-      "for subscription for %s",
-      adapted_qos_profile.depth,
-      topic_name.c_str());
+      "for subscription.",
+      adapted_qos_profile.depth);
 
     // If the adapted_qos_profile.depth is 0, the std::move command below will result
     // in UB and the z_drop will segfault. We explicitly set the depth to a minimum of 1
@@ -188,6 +229,20 @@ void rmw_subscription_data_t::add_new_message(
   // Since we added new data, trigger user callback and guard condition if they are available
   data_callback_mgr.trigger_callback();
   notify();
+}
+
+///=============================================================================
+bool rmw_subscription_data_t::is_shutdown() const
+{
+  std::lock_guard<std::mutex> lock(shutdown_mutex_);
+  return is_shutdown_;
+}
+
+///=============================================================================
+void rmw_subscription_data_t::is_shutdown(bool value)
+{
+  std::lock_guard<std::mutex> lock(shutdown_mutex_);
+  is_shutdown_ = value;
 }
 
 ///=============================================================================
@@ -435,20 +490,15 @@ void sub_data_handler(
   const z_sample_t * sample,
   void * data)
 {
-  z_owned_str_t keystr = z_keyexpr_to_string(sample->keyexpr);
-  auto drop_keystr = rcpputils::make_scope_exit(
-    [&keystr]() {
-      z_drop(z_move(keystr));
-    });
-
   auto sub_data = static_cast<rmw_subscription_data_t *>(data);
   if (sub_data == nullptr) {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
-      "Unable to obtain rmw_subscription_data_t from data for "
-      "subscription for %s",
-      z_loan(keystr)
+      "Unable to obtain rmw_subscription_data_t from data for subscription."
     );
+    return;
+  }
+  if (sub_data->is_shutdown()) {
     return;
   }
 
@@ -483,7 +533,7 @@ void sub_data_handler(
   sub_data->add_new_message(
     std::make_unique<saved_msg_data>(
       zc_sample_payload_rcinc(sample),
-      sample->timestamp.time, pub_gid, sequence_number, source_timestamp), z_loan(keystr));
+      sample->timestamp.time, pub_gid, sequence_number, source_timestamp));
 }
 
 ///=============================================================================
