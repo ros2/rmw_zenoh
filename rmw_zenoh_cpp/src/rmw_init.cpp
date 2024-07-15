@@ -42,6 +42,10 @@ extern "C"
 // TODO(clalancette): Make this configurable, or get it from the configuration
 #define SHM_BUFFER_SIZE_MB 10
 
+// Environment variable for Zenoh logging
+const char* ZENOH_LOG_ENV_VAR = "RUST_LOG";
+const char* ZENOH_LOG_DEFAULT_LEVEL = "warn";
+
 namespace
 {
 void
@@ -167,6 +171,12 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
 
   // Initialize context's implementation
   context->impl->is_shutdown = false;
+
+  // If not already defined, set the logging environment variable for Zenoh to default value
+  if (setenv(ZENOH_LOG_ENV_VAR, ZENOH_LOG_DEFAULT_LEVEL, 0) != 0) {
+      RMW_SET_ERROR_MSG("Error configuring Zenoh logging.");
+      return 1;
+  }
 
   // Initialize the zenoh configuration.
   z_owned_config_t config;

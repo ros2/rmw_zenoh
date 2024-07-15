@@ -38,6 +38,10 @@
 
 static bool running = true;
 
+// Environment variable for Zenoh logging
+const char* ZENOH_LOG_ENV_VAR = "RUST_LOG";
+const char* ZENOH_LOG_DEFAULT_LEVEL = "warn";
+
 class KeyboardReader final
 {
 public:
@@ -173,6 +177,12 @@ int main(int argc, char ** argv)
 {
   (void)argc;
   (void)argv;
+
+  // If not already defined, set the logging environment variable for Zenoh to default value
+  if (setenv(ZENOH_LOG_ENV_VAR, ZENOH_LOG_DEFAULT_LEVEL, 0) != 0) {
+      RMW_SET_ERROR_MSG("Error configuring Zenoh logging.");
+      return 1;
+  }
 
   // Initialize the zenoh configuration for the router.
   z_owned_config_t config;
