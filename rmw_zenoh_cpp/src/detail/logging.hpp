@@ -32,6 +32,9 @@ public:
   // Log to the console.
   void log_named(
     RCUTILS_LOG_SEVERITY level,
+    const char * function_name,
+    const char * file_name,
+    size_t line_number,
     const char * name,
     const char * message,
     ...) const;
