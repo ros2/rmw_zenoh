@@ -40,7 +40,7 @@ static bool running = true;
 
 // Environment variable for Zenoh logging
 const char* ZENOH_LOG_ENV_VAR = "RUST_LOG";
-const char* ZENOH_LOG_DEFAULT_LEVEL = "warn";
+const char* ZENOH_LOG_DEFAULT_LEVEL = "info";
 
 class KeyboardReader final
 {
