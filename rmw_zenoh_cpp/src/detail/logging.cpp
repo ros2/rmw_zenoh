@@ -36,6 +36,9 @@ void Logger::set_log_level(RCUTILS_LOG_SEVERITY new_level)
 
 void Logger::log_named(
   RCUTILS_LOG_SEVERITY level,
+  const char * function_name,
+  const char * file_name,
+  size_t line_number,
   const char * name,
   const char * message,
   ...) const
@@ -47,7 +50,7 @@ void Logger::log_named(
       RCUTILS_SAFE_FWRITE_TO_STDERR("Failed to get timestamp while doing a console logging.\n");
       return;
     }
-    static rcutils_log_location_t log_location = {__func__, __FILE__, __LINE__};
+    static rcutils_log_location_t log_location = {function_name, file_name, line_number};
     va_list args;
     va_start(args, message);
     rcutils_logging_console_output_handler(
