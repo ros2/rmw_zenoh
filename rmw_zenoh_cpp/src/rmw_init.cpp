@@ -168,11 +168,12 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   // Initialize context's implementation
   context->impl->is_shutdown = false;
 
-  // If not already defined, set the logging environment variable for Zenoh
-  // to warning level by default
+  // If not already defined, set the logging environment variable for Zenoh sessions
+  // to warning level by default.
+  // TODO(Yadunund): Switch to rcutils_get_env once it supports not overwriting values.
   if (setenv(ZENOH_LOG_ENV_VAR_STR, ZENOH_LOG_WARN_LEVEL_STR, 0) != 0) {
     RMW_SET_ERROR_MSG("Error configuring Zenoh logging.");
-    return 1;
+    return RMW_RET_ERROR;
   }
 
   // Initialize the zenoh configuration.
