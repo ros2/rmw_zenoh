@@ -174,6 +174,14 @@ int main(int argc, char ** argv)
   (void)argc;
   (void)argv;
 
+  // If not already defined, set the logging environment variable for Zenoh router
+  // to info level by default.
+  // TODO(Yadunund): Switch to rcutils_get_env once it supports not overwriting values.
+  if (setenv(ZENOH_LOG_ENV_VAR_STR, ZENOH_LOG_INFO_LEVEL_STR, 0) != 0) {
+    RMW_SET_ERROR_MSG("Error configuring Zenoh logging.");
+    return 1;
+  }
+
   // Initialize the zenoh configuration for the router.
   z_owned_config_t config;
   if ((rmw_zenoh_cpp::get_z_config(

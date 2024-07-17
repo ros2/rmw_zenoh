@@ -23,6 +23,10 @@
 
 #include "rmw/ret_types.h"
 
+#define ZENOH_LOG_ENV_VAR_STR "RUST_LOG"
+#define ZENOH_LOG_WARN_LEVEL_STR "warn"
+#define ZENOH_LOG_INFO_LEVEL_STR "info"
+
 namespace rmw_zenoh_cpp
 {
 ///=============================================================================
