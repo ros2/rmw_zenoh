@@ -17,6 +17,7 @@
 #include <new>
 #include <string>
 #include <thread>
+#include <zenoh_macros.h>
 
 #include "detail/guard_condition.hpp"
 #include "detail/identifier.hpp"
@@ -185,6 +186,8 @@ rmw_ret_t rmw_init(const rmw_init_options_t *options, rmw_context_t *context) {
 
   // Initialize the zenoh session.
   z_open(&context->impl->session, z_move(config));
+
+
   if (!z_session_check(&context->impl->session)) {
     RMW_SET_ERROR_MSG("Error setting up zenoh session");
     return RMW_RET_ERROR;
@@ -342,6 +345,7 @@ rmw_ret_t rmw_init(const rmw_init_options_t *options, rmw_context_t *context) {
   }
 
   z_drop(z_move(reply));
+  z_drop(z_move(handler));
 
   // TODO(Yadunund): Switch this to a liveliness subscriptions once the API is
   // available.
@@ -381,6 +385,8 @@ rmw_ret_t rmw_init(const rmw_init_options_t *options, rmw_context_t *context) {
     RMW_SET_ERROR_MSG("unable to create zenoh subscription");
     return RMW_RET_ERROR;
   }
+
+  z_drop(z_move(keyexpr));
 
   undeclare_z_sub.cancel();
   close_session.cancel();

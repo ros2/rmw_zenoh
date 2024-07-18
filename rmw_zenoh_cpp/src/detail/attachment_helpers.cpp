@@ -157,6 +157,8 @@ int64_t get_int64_from_attachment(const z_loaned_bytes_t *const attachment,
     return -1;
   }
 
+  z_drop(z_move(val));
+
   return num;
 }
 
