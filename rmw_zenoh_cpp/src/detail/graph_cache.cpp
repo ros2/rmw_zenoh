@@ -837,7 +837,6 @@ rmw_ret_t GraphCache::publisher_count_matched_subscriptions(
 {
   // TODO(Yadunund): Replace this logic by returning a number that is tracked once
   // we support matched qos events.
-  *subscription_count = 0;
   GraphNode::TopicMap::const_iterator topic_it = graph_topics_.find(publisher->topic_name);
   if (topic_it != graph_topics_.end()) {
     rmw_publisher_data_t * pub_data =
@@ -873,7 +872,6 @@ rmw_ret_t GraphCache::subscription_count_matched_publishers(
 {
   // TODO(Yadunund): Replace this logic by returning a number that is tracked once
   // we support matched qos events.
-  *publisher_count = 0;
   GraphNode::TopicMap::const_iterator topic_it = graph_topics_.find(subscription->topic_name);
   if (topic_it != graph_topics_.end()) {
     rmw_subscription_data_t * sub_data =

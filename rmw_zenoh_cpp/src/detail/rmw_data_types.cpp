@@ -246,6 +246,20 @@ void rmw_subscription_data_t::is_shutdown(bool value)
 }
 
 ///=============================================================================
+bool rmw_service_data_t::is_shutdown() const
+{
+  std::lock_guard<std::mutex> lock(shutdown_mutex_);
+  return is_shutdown_;
+}
+
+///=============================================================================
+void rmw_service_data_t::is_shutdown(bool value)
+{
+  std::lock_guard<std::mutex> lock(shutdown_mutex_);
+  is_shutdown_ = value;
+}
+
+///=============================================================================
 bool rmw_service_data_t::queue_has_data_and_attach_condition_if_not(
   rmw_wait_set_data_t * wait_set_data)
 {

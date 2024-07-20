@@ -300,8 +300,19 @@ public:
 
   DataCallbackManager data_callback_mgr;
 
+  // Get is_shutdown.
+  bool is_shutdown() const;
+
+  // Set is_shutdown.
+  void is_shutdown(bool value);
+
 private:
   void notify();
+
+  // Shutdown mutex.
+  mutable std::mutex shutdown_mutex_;
+  /// Shutdown flag.
+  bool is_shutdown_{false};
 
   // Deque to store the queries in the order they arrive.
   std::deque<std::unique_ptr<ZenohQuery>> query_queue_;

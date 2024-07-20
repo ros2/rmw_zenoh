@@ -36,8 +36,15 @@ public:
 
   bool detach_condition_and_is_trigger_set();
 
+  // Get is_shutdown.
+  bool is_shutdown() const;
+
+  // Set is_shutdown.
+  void is_shutdown(bool value);
+
 private:
   mutable std::mutex internal_mutex_;
+  bool is_shutdown_{false};
   bool has_triggered_;
   rmw_wait_set_data_t * wait_set_data_;
 };

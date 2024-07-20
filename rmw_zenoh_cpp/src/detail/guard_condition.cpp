@@ -28,6 +28,18 @@ GuardCondition::GuardCondition()
 }
 
 ///=============================================================================
+bool GuardCondition::is_shutdown() const {
+  std::lock_guard<std::mutex> lock(internal_mutex_);
+  return is_shutdown_;
+}
+
+///=============================================================================
+void GuardCondition::is_shutdown(bool value) {
+  std::lock_guard<std::mutex> lock(internal_mutex_);
+  is_shutdown_ = value;
+}
+
+///=============================================================================
 void GuardCondition::trigger()
 {
   std::lock_guard<std::mutex> lock(internal_mutex_);

@@ -1043,14 +1043,19 @@ rmw_publisher_count_matched_subscriptions(
     rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription_count, RMW_RET_INVALID_ARGUMENT);
-
+  *subscription_count = 0;
   rmw_zenoh_cpp::rmw_publisher_data_t * pub_data =
     static_cast<rmw_zenoh_cpp::rmw_publisher_data_t *>(publisher->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(pub_data, RMW_RET_INVALID_ARGUMENT);
+  if (pub_data->is_shutdown()) {
+    return RMW_RET_OK;
+  }
   RMW_CHECK_ARGUMENT_FOR_NULL(pub_data->context, RMW_RET_INVALID_ARGUMENT);
   rmw_context_impl_t * context_impl = static_cast<rmw_context_impl_t *>(pub_data->context->impl);
   RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
-
+  if (context_impl->is_shutdown()) {
+    return RMW_RET_OK;
+  }
   return context_impl->graph_cache->publisher_count_matched_subscriptions(
     publisher, subscription_count);
 }
@@ -1073,7 +1078,9 @@ rmw_publisher_get_actual_qos(
   rmw_zenoh_cpp::rmw_publisher_data_t * pub_data =
     static_cast<rmw_zenoh_cpp::rmw_publisher_data_t *>(publisher->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(pub_data, RMW_RET_INVALID_ARGUMENT);
-
+  if (pub_data->is_shutdown()) {
+    return RMW_RET_OK;
+  }
   *qos = pub_data->adapted_qos_profile;
   return RMW_RET_OK;
 }
@@ -1101,6 +1108,9 @@ rmw_publish_serialized_message(
   RCUTILS_CHECK_FOR_NULL_WITH_MSG(
     publisher_data, "publisher data pointer is null",
     return RMW_RET_ERROR);
+  if (publisher_data->is_shutdown()) {
+    return RMW_RET_OK;
+  }
 
   eprosima::fastcdr::FastBuffer buffer(
     reinterpret_cast<char *>(serialized_message->buffer), serialized_message->buffer_length);
@@ -1174,6 +1184,9 @@ rmw_publisher_assert_liveliness(const rmw_publisher_t * publisher)
   rmw_zenoh_cpp::rmw_publisher_data_t * pub_data =
     static_cast<rmw_zenoh_cpp::rmw_publisher_data_t *>(publisher->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(pub_data, RMW_RET_INVALID_ARGUMENT);
+  if (pub_data->is_shutdown()) {
+    return RMW_RET_ERROR;
+  }
 
   if (!zc_liveliness_token_check(&pub_data->token)) {
     return RMW_RET_ERROR;
@@ -1658,14 +1671,20 @@ rmw_subscription_count_matched_publishers(
     rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_ARGUMENT_FOR_NULL(publisher_count, RMW_RET_INVALID_ARGUMENT);
+  *publisher_count = 0;
 
   rmw_zenoh_cpp::rmw_subscription_data_t * sub_data =
     static_cast<rmw_zenoh_cpp::rmw_subscription_data_t *>(subscription->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
+  if (sub_data->is_shutdown()) {
+    return RMW_RET_OK;
+  }
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data->context, RMW_RET_INVALID_ARGUMENT);
   rmw_context_impl_t * context_impl = static_cast<rmw_context_impl_t *>(sub_data->context->impl);
   RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
-
+  if (context_impl->is_shutdown()) {
+    return RMW_RET_OK;
+  }
   return context_impl->graph_cache->subscription_count_matched_publishers(
     subscription, publisher_count);
 }
@@ -1687,7 +1706,9 @@ rmw_subscription_get_actual_qos(
 
   auto sub_data = static_cast<rmw_zenoh_cpp::rmw_subscription_data_t *>(subscription->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
-
+  if (sub_data->is_shutdown()) {
+    return RMW_RET_OK;
+  }
   *qos = sub_data->adapted_qos_profile;
   return RMW_RET_OK;
 }
@@ -1727,8 +1748,6 @@ __rmw_take_one(
   rmw_message_info_t * message_info,
   bool * taken)
 {
-  *taken = false;
-
   if (sub_data->is_shutdown()) {
     return RMW_RET_OK;
   }
@@ -2556,7 +2575,9 @@ rmw_take_response(
     static_cast<rmw_zenoh_cpp::rmw_client_data_t *>(client->data);
   RMW_CHECK_FOR_NULL_WITH_MSG(
     client->data, "Unable to retrieve client_data from client.", RMW_RET_INVALID_ARGUMENT);
-
+  if (client_data->is_shutdown()) {
+    return RMW_RET_OK;
+  }
   std::unique_ptr<rmw_zenoh_cpp::ZenohReply> latest_reply = client_data->pop_next_reply();
   if (latest_reply == nullptr) {
     // This tells rcl that the check for a new message was done, but no messages have come in yet.
@@ -2636,7 +2657,9 @@ rmw_client_request_publisher_get_actual_qos(
   rmw_zenoh_cpp::rmw_client_data_t * client_data =
     static_cast<rmw_zenoh_cpp::rmw_client_data_t *>(client->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(client_data, RMW_RET_INVALID_ARGUMENT);
-
+  if (client_data->is_shutdown()) {
+    return RMW_RET_OK;
+  }
   *qos = client_data->adapted_qos_profile;
   return RMW_RET_OK;
 }
@@ -2981,6 +3004,9 @@ rmw_destroy_service(rmw_node_t * node, rmw_service_t * service)
 {
   // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->context, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->data, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(service, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(service->data, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
@@ -2993,7 +3019,15 @@ rmw_destroy_service(rmw_node_t * node, rmw_service_t * service)
     service->implementation_identifier,
     rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
-
+  rmw_zenoh_cpp::rmw_node_data_t * node_data =
+    static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(node->data);
+  if (node_data->is_shutdown()) {
+    return RMW_RET_ERROR;
+  }
+  rmw_context_impl_s * context_impl = static_cast<rmw_context_impl_s *>(node->context->impl);
+  if (context_impl->is_shutdown()) {
+    return RMW_RET_ERROR;
+  }
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
   rmw_zenoh_cpp::rmw_service_data_t * service_data =
@@ -3002,6 +3036,7 @@ rmw_destroy_service(rmw_node_t * node, rmw_service_t * service)
     service_data,
     "Unable to retrieve service_data from service",
     return RMW_RET_INVALID_ARGUMENT);
+  service_data->is_shutdown(true);
 
   // CLEANUP ================================================================
   z_drop(z_move(service_data->keyexpr));
@@ -3054,8 +3089,10 @@ rmw_take_request(
   rmw_zenoh_cpp::rmw_service_data_t * service_data =
     static_cast<rmw_zenoh_cpp::rmw_service_data_t *>(service->data);
   RMW_CHECK_FOR_NULL_WITH_MSG(
-    service->data, "Unable to retrieve service_data from service", RMW_RET_INVALID_ARGUMENT);
-
+    service_data, "Unable to retrieve service_data from service", RMW_RET_INVALID_ARGUMENT);
+  if (service_data->is_shutdown()) {
+    return RMW_RET_OK;
+  }
   std::unique_ptr<rmw_zenoh_cpp::ZenohQuery> query = service_data->pop_next_query();
   if (query == nullptr) {
     // This tells rcl that the check for a new message was done, but no messages have come in yet.
@@ -3152,7 +3189,9 @@ rmw_send_response(
 
   rmw_zenoh_cpp::rmw_service_data_t * service_data =
     static_cast<rmw_zenoh_cpp::rmw_service_data_t *>(service->data);
-
+  if (service_data->is_shutdown()) {
+    return RMW_RET_OK;
+  }
   // Create the queryable payload
   std::unique_ptr<rmw_zenoh_cpp::ZenohQuery> query =
     service_data->take_from_query_map(*request_header);
@@ -3237,7 +3276,9 @@ rmw_service_request_subscription_get_actual_qos(
   rmw_zenoh_cpp::rmw_service_data_t * service_data =
     static_cast<rmw_zenoh_cpp::rmw_service_data_t *>(service->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(service_data, RMW_RET_INVALID_ARGUMENT);
-
+  if (service_data->is_shutdown()) {
+    return RMW_RET_OK;
+  }
   *qos = service_data->adapted_qos_profile;
   return RMW_RET_OK;
 }
@@ -3258,6 +3299,22 @@ rmw_service_response_publisher_get_actual_qos(
 rmw_guard_condition_t *
 rmw_create_guard_condition(rmw_context_t * context)
 {
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    context,
+    "invalid context",
+    return nullptr);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    context->impl,
+    "invalid context impl",
+    return nullptr);
+  rmw_context_impl_s * context_impl = static_cast<rmw_context_impl_s *>(context->impl);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    context_impl,
+    "unable to cast context impl",
+    return nullptr);
+  if (context_impl->is_shutdown()) {
+    return nullptr;
+  }
   rcutils_allocator_t * allocator = &context->options.allocator;
 
   auto guard_condition =
@@ -3310,9 +3367,12 @@ rmw_destroy_guard_condition(rmw_guard_condition_t * guard_condition)
 
   rcutils_allocator_t * allocator = &guard_condition->context->options.allocator;
 
-  if (guard_condition->data) {
-    static_cast<rmw_zenoh_cpp::GuardCondition *>(guard_condition->data)->~GuardCondition();
-    allocator->deallocate(guard_condition->data, allocator->state);
+  rmw_zenoh_cpp::GuardCondition * gc_data =
+    static_cast<rmw_zenoh_cpp::GuardCondition *>(guard_condition->data);
+  if (gc_data != nullptr) {
+    gc_data->is_shutdown(true);
+    gc_data->~GuardCondition();
+    allocator->deallocate(gc_data, allocator->state);
   }
 
   allocator->deallocate(guard_condition, allocator->state);
@@ -3325,13 +3385,19 @@ rmw_ret_t
 rmw_trigger_guard_condition(const rmw_guard_condition_t * guard_condition)
 {
   RMW_CHECK_ARGUMENT_FOR_NULL(guard_condition, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(guard_condition->data, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     guard_condition,
     guard_condition->implementation_identifier,
     rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
-
-  static_cast<rmw_zenoh_cpp::GuardCondition *>(guard_condition->data)->trigger();
+  rmw_zenoh_cpp::GuardCondition * gc_data =
+    static_cast<rmw_zenoh_cpp::GuardCondition *>(guard_condition->data);
+  RMW_CHECK_ARGUMENT_FOR_NULL(gc_data, RMW_RET_INVALID_ARGUMENT);
+  if (gc_data->is_shutdown()) {
+    return RMW_RET_ERROR;
+  }
+  gc_data->trigger();
 
   return RMW_RET_OK;
 }
@@ -3344,11 +3410,17 @@ rmw_create_wait_set(rmw_context_t * context, size_t max_conditions)
   static_cast<void>(max_conditions);
 
   RCUTILS_CHECK_ARGUMENT_FOR_NULL(context, NULL);
+  RCUTILS_CHECK_ARGUMENT_FOR_NULL(context->impl, NULL);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     context,
     context->implementation_identifier,
     rmw_zenoh_cpp::rmw_zenoh_identifier,
     return nullptr);
+  rmw_context_impl_s * context_impl = static_cast<rmw_context_impl_s *>(context->impl);
+  RCUTILS_CHECK_ARGUMENT_FOR_NULL(context_impl, NULL);
+  if (context_impl->is_shutdown()) {
+    return nullptr;
+  }
 
   rcutils_allocator_t * allocator = &context->options.allocator;
 
@@ -3435,7 +3507,7 @@ check_and_attach_condition(
     for (size_t i = 0; i < guard_conditions->guard_condition_count; ++i) {
       rmw_zenoh_cpp::GuardCondition * gc =
         static_cast<rmw_zenoh_cpp::GuardCondition *>(guard_conditions->guard_conditions[i]);
-      if (gc == nullptr) {
+      if (gc == nullptr || gc->is_shutdown()) {
         continue;
       }
       if (gc->check_and_attach_condition_if_not(wait_set_data)) {
@@ -3471,7 +3543,7 @@ check_and_attach_condition(
     for (size_t i = 0; i < subscriptions->subscriber_count; ++i) {
       auto sub_data =
         static_cast<rmw_zenoh_cpp::rmw_subscription_data_t *>(subscriptions->subscribers[i]);
-      if (sub_data == nullptr) {
+      if (sub_data == nullptr || sub_data->is_shutdown()) {
         continue;
       }
       if (sub_data->queue_has_data_and_attach_condition_if_not(wait_set_data)) {
@@ -3483,7 +3555,7 @@ check_and_attach_condition(
   if (services) {
     for (size_t i = 0; i < services->service_count; ++i) {
       auto serv_data = static_cast<rmw_zenoh_cpp::rmw_service_data_t *>(services->services[i]);
-      if (serv_data == nullptr) {
+      if (serv_data == nullptr || serv_data->is_shutdown()) {
         continue;
       }
       if (serv_data->queue_has_data_and_attach_condition_if_not(wait_set_data)) {
@@ -3496,7 +3568,7 @@ check_and_attach_condition(
     for (size_t i = 0; i < clients->client_count; ++i) {
       rmw_zenoh_cpp::rmw_client_data_t * client_data =
         static_cast<rmw_zenoh_cpp::rmw_client_data_t *>(clients->clients[i]);
-      if (client_data == nullptr) {
+      if (client_data == nullptr || client_data->is_shutdown()) {
         continue;
       }
       if (client_data->queue_has_data_and_attach_condition_if_not(wait_set_data)) {
@@ -3625,7 +3697,7 @@ rmw_wait(
     for (size_t i = 0; i < subscriptions->subscriber_count; ++i) {
       auto sub_data =
         static_cast<rmw_zenoh_cpp::rmw_subscription_data_t *>(subscriptions->subscribers[i]);
-      if (sub_data == nullptr) {
+      if (sub_data == nullptr || sub_data->is_shutdown()) {
         continue;
       }
 
@@ -3641,7 +3713,7 @@ rmw_wait(
   if (services) {
     for (size_t i = 0; i < services->service_count; ++i) {
       auto serv_data = static_cast<rmw_zenoh_cpp::rmw_service_data_t *>(services->services[i]);
-      if (serv_data == nullptr) {
+      if (serv_data == nullptr || serv_data->is_shutdown()) {
         continue;
       }
 
@@ -3658,7 +3730,7 @@ rmw_wait(
     for (size_t i = 0; i < clients->client_count; ++i) {
       rmw_zenoh_cpp::rmw_client_data_t * client_data =
         static_cast<rmw_zenoh_cpp::rmw_client_data_t *>(clients->clients[i]);
-      if (client_data == nullptr) {
+      if (client_data == nullptr || client_data->is_shutdown()) {
         continue;
       }
 
@@ -3683,11 +3755,22 @@ rmw_get_node_names(
   rcutils_string_array_t * node_namespaces)
 {
   RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->data, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(node_names, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(node_namespaces, RMW_RET_INVALID_ARGUMENT);
-
+  rmw_zenoh_cpp::rmw_node_data_t * node_data =
+    static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(node->data);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node_data, RMW_RET_INVALID_ARGUMENT);
+  if (node_data->is_shutdown()) {
+    return RMW_RET_ERROR;
+  }
+  rmw_context_impl_s * context_impl = static_cast<rmw_context_impl_s * >(node->context->impl);
+  RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
+  if (context_impl->is_shutdown()) {
+    return RMW_RET_ERROR;
+  }
   rcutils_allocator_t * allocator = &node->context->options.allocator;
   RMW_CHECK_ARGUMENT_FOR_NULL(allocator, RMW_RET_INVALID_ARGUMENT);
 
@@ -3705,12 +3788,23 @@ rmw_get_node_names_with_enclaves(
   rcutils_string_array_t * enclaves)
 {
   RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->data, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(node_names, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(node_namespaces, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(enclaves, RMW_RET_INVALID_ARGUMENT);
-
+  rmw_zenoh_cpp::rmw_node_data_t * node_data =
+    static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(node->data);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node_data, RMW_RET_INVALID_ARGUMENT);
+  if (node_data->is_shutdown()) {
+    return RMW_RET_ERROR;
+  }
+  rmw_context_impl_s * context_impl = static_cast<rmw_context_impl_s * >(node->context->impl);
+  RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
+  if (context_impl->is_shutdown()) {
+    return RMW_RET_ERROR;
+  }
   rcutils_allocator_t * allocator = &node->context->options.allocator;
   RMW_CHECK_ARGUMENT_FOR_NULL(allocator, RMW_RET_INVALID_ARGUMENT);
 
@@ -3727,6 +3821,9 @@ rmw_count_publishers(
   size_t * count)
 {
   RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->data, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->context, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node,
     node->implementation_identifier,
@@ -3744,8 +3841,19 @@ rmw_count_publishers(
     return RMW_RET_INVALID_ARGUMENT;
   }
   RMW_CHECK_ARGUMENT_FOR_NULL(count, RMW_RET_INVALID_ARGUMENT);
+  rmw_zenoh_cpp::rmw_node_data_t * node_data =
+    static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(node->data);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node_data, RMW_RET_INVALID_ARGUMENT);
+  if (node_data->is_shutdown()) {
+    return RMW_RET_ERROR;
+  }
+  rmw_context_impl_s * context_impl = static_cast<rmw_context_impl_s * >(node->context->impl);
+  RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
+  if (context_impl->is_shutdown()) {
+    return RMW_RET_ERROR;
+  }
 
-  return node->context->impl->graph_cache->count_publishers(topic_name, count);
+  return context_impl->graph_cache->count_publishers(topic_name, count);
 }
 
 //==============================================================================
@@ -3757,6 +3865,9 @@ rmw_count_subscribers(
   size_t * count)
 {
   RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->data, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->context, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node,
     node->implementation_identifier,
@@ -3774,8 +3885,19 @@ rmw_count_subscribers(
     return RMW_RET_INVALID_ARGUMENT;
   }
   RMW_CHECK_ARGUMENT_FOR_NULL(count, RMW_RET_INVALID_ARGUMENT);
+  rmw_zenoh_cpp::rmw_node_data_t * node_data =
+    static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(node->data);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node_data, RMW_RET_INVALID_ARGUMENT);
+  if (node_data->is_shutdown()) {
+    return RMW_RET_ERROR;
+  }
+  rmw_context_impl_s * context_impl = static_cast<rmw_context_impl_s * >(node->context->impl);
+  RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
+  if (context_impl->is_shutdown()) {
+    return RMW_RET_ERROR;
+  }
 
-  return node->context->impl->graph_cache->count_subscriptions(topic_name, count);
+  return context_impl->graph_cache->count_subscriptions(topic_name, count);
 }
 
 //==============================================================================
@@ -3787,6 +3909,9 @@ rmw_count_clients(
   size_t * count)
 {
   RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->data, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->context, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node,
     node->implementation_identifier,
@@ -3804,8 +3929,19 @@ rmw_count_clients(
     return RMW_RET_INVALID_ARGUMENT;
   }
   RMW_CHECK_ARGUMENT_FOR_NULL(count, RMW_RET_INVALID_ARGUMENT);
+  rmw_zenoh_cpp::rmw_node_data_t * node_data =
+    static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(node->data);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node_data, RMW_RET_INVALID_ARGUMENT);
+  if (node_data->is_shutdown()) {
+    return RMW_RET_ERROR;
+  }
+  rmw_context_impl_s * context_impl = static_cast<rmw_context_impl_s * >(node->context->impl);
+  RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
+  if (context_impl->is_shutdown()) {
+    return RMW_RET_ERROR;
+  }
 
-  return node->context->impl->graph_cache->count_clients(service_name, count);
+  return context_impl->graph_cache->count_clients(service_name, count);
 }
 
 //==============================================================================
@@ -3834,8 +3970,19 @@ rmw_count_services(
     return RMW_RET_INVALID_ARGUMENT;
   }
   RMW_CHECK_ARGUMENT_FOR_NULL(count, RMW_RET_INVALID_ARGUMENT);
+  rmw_zenoh_cpp::rmw_node_data_t * node_data =
+    static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(node->data);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node_data, RMW_RET_INVALID_ARGUMENT);
+  if (node_data->is_shutdown()) {
+    return RMW_RET_ERROR;
+  }
+  rmw_context_impl_s * context_impl = static_cast<rmw_context_impl_s * >(node->context->impl);
+  RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
+  if (context_impl->is_shutdown()) {
+    return RMW_RET_ERROR;
+  }
 
-  return node->context->impl->graph_cache->count_services(service_name, count);
+  return context_impl->graph_cache->count_services(service_name, count);
 }
 
 //==============================================================================
@@ -3862,10 +4009,15 @@ rmw_ret_t
 rmw_get_gid_for_client(const rmw_client_t * client, rmw_gid_t * gid)
 {
   RMW_CHECK_ARGUMENT_FOR_NULL(client, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(client->data, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(gid, RMW_RET_INVALID_ARGUMENT);
 
   rmw_zenoh_cpp::rmw_client_data_t * client_data =
     static_cast<rmw_zenoh_cpp::rmw_client_data_t *>(client->data);
+  RMW_CHECK_ARGUMENT_FOR_NULL(client_data, RMW_RET_INVALID_ARGUMENT);
+  if (client_data->is_shutdown()) {
+    return RMW_RET_ERROR;
+  }
 
   gid->implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
   memcpy(gid->data, client_data->client_gid, RMW_GID_STORAGE_SIZE);
@@ -3906,6 +4058,9 @@ rmw_service_server_is_available(
   bool * is_available)
 {
   RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->data, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->context, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node,
     node->implementation_identifier,
@@ -3914,13 +4069,26 @@ rmw_service_server_is_available(
   RMW_CHECK_ARGUMENT_FOR_NULL(client, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(client->data, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(is_available, RMW_RET_INVALID_ARGUMENT);
-
+  rmw_zenoh_cpp::rmw_node_data_t * node_data =
+    static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(node->data);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node_data, RMW_RET_INVALID_ARGUMENT);
+  if (node_data->is_shutdown()) {
+    return RMW_RET_ERROR;
+  }
+  rmw_context_impl_s * context_impl = static_cast<rmw_context_impl_s * >(node->context->impl);
+  RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
+  if (context_impl->is_shutdown()) {
+    return RMW_RET_ERROR;
+  }
   rmw_zenoh_cpp::rmw_client_data_t * client_data =
     static_cast<rmw_zenoh_cpp::rmw_client_data_t *>(client->data);
   if (client_data == nullptr) {
     RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
       "Unable to retreive client_data from client for service %s", client->service_name);
     return RMW_RET_INVALID_ARGUMENT;
+  }
+  if (client_data->is_shutdown()) {
+    return RMW_RET_ERROR;
   }
 
   std::string service_type = client_data->request_type_support->get_name();
@@ -3935,7 +4103,7 @@ rmw_service_server_is_available(
     return RMW_RET_INVALID_ARGUMENT;
   }
 
-  return node->context->impl->graph_cache->service_server_is_available(
+  return context_impl->graph_cache->service_server_is_available(
     client->service_name, service_type.c_str(), is_available);
 }
 
@@ -3978,6 +4146,10 @@ rmw_subscription_set_on_new_message_callback(
   rmw_zenoh_cpp::rmw_subscription_data_t * sub_data =
     static_cast<rmw_zenoh_cpp::rmw_subscription_data_t *>(subscription->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
+  if (sub_data->is_shutdown()) {
+    return RMW_RET_ERROR;
+  }
+
   sub_data->data_callback_mgr.set_callback(
     user_data, callback);
   return RMW_RET_OK;
@@ -3995,6 +4167,10 @@ rmw_service_set_on_new_request_callback(
   rmw_zenoh_cpp::rmw_service_data_t * service_data =
     static_cast<rmw_zenoh_cpp::rmw_service_data_t *>(service->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(service_data, RMW_RET_INVALID_ARGUMENT);
+  if (service_data->is_shutdown()) {
+    return RMW_RET_ERROR;
+  }
+
   service_data->data_callback_mgr.set_callback(
     user_data, callback);
   return RMW_RET_OK;
@@ -4012,6 +4188,10 @@ rmw_client_set_on_new_response_callback(
   rmw_zenoh_cpp::rmw_client_data_t * client_data =
     static_cast<rmw_zenoh_cpp::rmw_client_data_t *>(client->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(client_data, RMW_RET_INVALID_ARGUMENT);
+  if (client_data->is_shutdown()) {
+    return RMW_RET_ERROR;
+  }
+
   client_data->data_callback_mgr.set_callback(
     user_data, callback);
   return RMW_RET_OK;
