@@ -481,11 +481,11 @@ rmw_create_publisher(
     return nullptr);
   const rmw_zenoh_cpp::rmw_node_data_t * node_data =
     static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(node->data);
-  RMW_CHECK_ARGUMENT_FOR_NULL(node_data, nullptr);
-  if (node_data->is_shutdown()) {
-    RMW_ZENOH_LOG_ERROR_NAMED("rmw_zenoh_cpp", "node has been shutdown");
-    return nullptr;
-  }
+  // RMW_CHECK_ARGUMENT_FOR_NULL(node_data, nullptr);
+  // if (node_data->is_shutdown()) {
+  //   RMW_ZENOH_LOG_ERROR_NAMED("rmw_zenoh_cpp", "node has been shutdown");
+  //   return nullptr;
+  // }
   RMW_CHECK_FOR_NULL_WITH_MSG(
     node->context->impl,
     "expected initialized context impl",
@@ -1326,10 +1326,10 @@ rmw_create_subscription(
   RMW_CHECK_FOR_NULL_WITH_MSG(
     node_data, "unable to create subscription as node_data is invalid.",
     return nullptr);
-  if (node_data->is_shutdown()) {
-    RMW_ZENOH_LOG_ERROR_NAMED("rmw_zenoh_cpp", "node has been shutdown");
-    return nullptr;
-  }
+  // if (node_data->is_shutdown()) {
+  //   RMW_ZENOH_LOG_ERROR_NAMED("rmw_zenoh_cpp", "node has been shutdown");
+  //   return nullptr;
+  // }
   // TODO(yadunund): Check if a duplicate entry for the same topic name + topic type
   // is present in node_data->subscriptions and if so return error;
   RMW_CHECK_FOR_NULL_WITH_MSG(
@@ -2111,10 +2111,10 @@ rmw_create_client(
       "Unable to create client as node data is invalid.");
     return nullptr;
   }
-  if (node_data->is_shutdown()) {
-    RMW_ZENOH_LOG_ERROR_NAMED("rmw_zenoh_cpp", "node has been shutdown");
-    return nullptr;
-  }
+  // if (node_data->is_shutdown()) {
+  //   RMW_ZENOH_LOG_ERROR_NAMED("rmw_zenoh_cpp", "node has been shutdown");
+  //   return nullptr;
+  // }
   RMW_CHECK_FOR_NULL_WITH_MSG(
     node->context,
     "expected initialized context",
@@ -2706,10 +2706,10 @@ rmw_create_service(
       "Unable to create service as node data is invalid.");
     return nullptr;
   }
-  if (node_data->is_shutdown()) {
-    RMW_ZENOH_LOG_ERROR_NAMED("rmw_zenoh_cpp", "node has been shutdown");
-    return nullptr;
-  }
+  // if (node_data->is_shutdown()) {
+  //   RMW_ZENOH_LOG_ERROR_NAMED("rmw_zenoh_cpp", "node has been shutdown");
+  //   return nullptr;
+  // }
   RMW_CHECK_FOR_NULL_WITH_MSG(
     node->context,
     "expected initialized context",
@@ -3021,13 +3021,15 @@ rmw_destroy_service(rmw_node_t * node, rmw_service_t * service)
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   rmw_zenoh_cpp::rmw_node_data_t * node_data =
     static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(node->data);
-  if (node_data->is_shutdown()) {
-    return RMW_RET_ERROR;
-  }
-  rmw_context_impl_s * context_impl = static_cast<rmw_context_impl_s *>(node->context->impl);
-  if (context_impl->is_shutdown()) {
-    return RMW_RET_ERROR;
-  }
+  // RMW_CHECK_ARGUMENT_FOR_NULL(node_data, RMW_RET_INVALID_ARGUMENT);
+    // if (node_data->is_shutdown()) {
+  //   return RMW_RET_ERROR;
+  // }
+  // rmw_context_impl_s * context_impl = static_cast<rmw_context_impl_s *>(node->context->impl);
+  // RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
+  // if (context_impl->is_shutdown()) {
+  //   return RMW_RET_ERROR;
+  // }
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
   rmw_zenoh_cpp::rmw_service_data_t * service_data =
@@ -3762,10 +3764,10 @@ rmw_get_node_names(
   RMW_CHECK_ARGUMENT_FOR_NULL(node_namespaces, RMW_RET_INVALID_ARGUMENT);
   rmw_zenoh_cpp::rmw_node_data_t * node_data =
     static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(node->data);
-  RMW_CHECK_ARGUMENT_FOR_NULL(node_data, RMW_RET_INVALID_ARGUMENT);
-  if (node_data->is_shutdown()) {
-    return RMW_RET_ERROR;
-  }
+  // RMW_CHECK_ARGUMENT_FOR_NULL(node_data, RMW_RET_INVALID_ARGUMENT);
+  // if (node_data->is_shutdown()) {
+  //   return RMW_RET_ERROR;
+  // }
   rmw_context_impl_s * context_impl = static_cast<rmw_context_impl_s * >(node->context->impl);
   RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
   if (context_impl->is_shutdown()) {
@@ -3796,10 +3798,10 @@ rmw_get_node_names_with_enclaves(
   RMW_CHECK_ARGUMENT_FOR_NULL(enclaves, RMW_RET_INVALID_ARGUMENT);
   rmw_zenoh_cpp::rmw_node_data_t * node_data =
     static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(node->data);
-  RMW_CHECK_ARGUMENT_FOR_NULL(node_data, RMW_RET_INVALID_ARGUMENT);
-  if (node_data->is_shutdown()) {
-    return RMW_RET_ERROR;
-  }
+  // RMW_CHECK_ARGUMENT_FOR_NULL(node_data, RMW_RET_INVALID_ARGUMENT);
+  // if (node_data->is_shutdown()) {
+  //   return RMW_RET_ERROR;
+  // }
   rmw_context_impl_s * context_impl = static_cast<rmw_context_impl_s * >(node->context->impl);
   RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
   if (context_impl->is_shutdown()) {
@@ -3843,10 +3845,10 @@ rmw_count_publishers(
   RMW_CHECK_ARGUMENT_FOR_NULL(count, RMW_RET_INVALID_ARGUMENT);
   rmw_zenoh_cpp::rmw_node_data_t * node_data =
     static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(node->data);
-  RMW_CHECK_ARGUMENT_FOR_NULL(node_data, RMW_RET_INVALID_ARGUMENT);
-  if (node_data->is_shutdown()) {
-    return RMW_RET_ERROR;
-  }
+  // RMW_CHECK_ARGUMENT_FOR_NULL(node_data, RMW_RET_INVALID_ARGUMENT);
+  // if (node_data->is_shutdown()) {
+  //   return RMW_RET_ERROR;
+  // }
   rmw_context_impl_s * context_impl = static_cast<rmw_context_impl_s * >(node->context->impl);
   RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
   if (context_impl->is_shutdown()) {
@@ -3887,10 +3889,10 @@ rmw_count_subscribers(
   RMW_CHECK_ARGUMENT_FOR_NULL(count, RMW_RET_INVALID_ARGUMENT);
   rmw_zenoh_cpp::rmw_node_data_t * node_data =
     static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(node->data);
-  RMW_CHECK_ARGUMENT_FOR_NULL(node_data, RMW_RET_INVALID_ARGUMENT);
-  if (node_data->is_shutdown()) {
-    return RMW_RET_ERROR;
-  }
+  // RMW_CHECK_ARGUMENT_FOR_NULL(node_data, RMW_RET_INVALID_ARGUMENT);
+  // if (node_data->is_shutdown()) {
+  //   return RMW_RET_ERROR;
+  // }
   rmw_context_impl_s * context_impl = static_cast<rmw_context_impl_s * >(node->context->impl);
   RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
   if (context_impl->is_shutdown()) {
@@ -3931,10 +3933,10 @@ rmw_count_clients(
   RMW_CHECK_ARGUMENT_FOR_NULL(count, RMW_RET_INVALID_ARGUMENT);
   rmw_zenoh_cpp::rmw_node_data_t * node_data =
     static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(node->data);
-  RMW_CHECK_ARGUMENT_FOR_NULL(node_data, RMW_RET_INVALID_ARGUMENT);
-  if (node_data->is_shutdown()) {
-    return RMW_RET_ERROR;
-  }
+  // RMW_CHECK_ARGUMENT_FOR_NULL(node_data, RMW_RET_INVALID_ARGUMENT);
+  // if (node_data->is_shutdown()) {
+  //   return RMW_RET_ERROR;
+  // }
   rmw_context_impl_s * context_impl = static_cast<rmw_context_impl_s * >(node->context->impl);
   RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
   if (context_impl->is_shutdown()) {
@@ -3972,10 +3974,10 @@ rmw_count_services(
   RMW_CHECK_ARGUMENT_FOR_NULL(count, RMW_RET_INVALID_ARGUMENT);
   rmw_zenoh_cpp::rmw_node_data_t * node_data =
     static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(node->data);
-  RMW_CHECK_ARGUMENT_FOR_NULL(node_data, RMW_RET_INVALID_ARGUMENT);
-  if (node_data->is_shutdown()) {
-    return RMW_RET_ERROR;
-  }
+  // RMW_CHECK_ARGUMENT_FOR_NULL(node_data, RMW_RET_INVALID_ARGUMENT);
+  // if (node_data->is_shutdown()) {
+  //   return RMW_RET_ERROR;
+  // }
   rmw_context_impl_s * context_impl = static_cast<rmw_context_impl_s * >(node->context->impl);
   RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
   if (context_impl->is_shutdown()) {
@@ -4069,12 +4071,12 @@ rmw_service_server_is_available(
   RMW_CHECK_ARGUMENT_FOR_NULL(client, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(client->data, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(is_available, RMW_RET_INVALID_ARGUMENT);
-  rmw_zenoh_cpp::rmw_node_data_t * node_data =
-    static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(node->data);
-  RMW_CHECK_ARGUMENT_FOR_NULL(node_data, RMW_RET_INVALID_ARGUMENT);
-  if (node_data->is_shutdown()) {
-    return RMW_RET_ERROR;
-  }
+  // rmw_zenoh_cpp::rmw_node_data_t * node_data =
+  //   static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(node->data);
+  // RMW_CHECK_ARGUMENT_FOR_NULL(node_data, RMW_RET_INVALID_ARGUMENT);
+  // if (node_data->is_shutdown()) {
+  //   return RMW_RET_ERROR;
+  // }
   rmw_context_impl_s * context_impl = static_cast<rmw_context_impl_s * >(node->context->impl);
   RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
   if (context_impl->is_shutdown()) {
