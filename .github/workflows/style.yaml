@@ -8,7 +8,7 @@ defaults:
     shell: bash
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-24.04]
     strategy:
       fail-fast: false
       matrix:
