@@ -275,23 +275,27 @@ rmw_create_node(
     });
 
   // Put metadata into node->data.
-  node->data =
-    allocator->zero_allocate(1, sizeof(rmw_zenoh_cpp::rmw_node_data_t), allocator->state);
+  auto node_data =  static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(
+    allocator->allocate(sizeof(rmw_zenoh_cpp::rmw_node_data_t), allocator->state));
   RMW_CHECK_FOR_NULL_WITH_MSG(
-    node->data,
-    "unable to allocate memory for node data",
+    node_data,
+    "failed to allocate memory for node data",
     return nullptr);
   auto free_node_data = rcpputils::make_scope_exit(
-    [node, allocator]() {
-      allocator->deallocate(node->data, allocator->state);
+    [node_data, allocator]() {
+      allocator->deallocate(node_data, allocator->state);
     });
 
-  node->implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
-  node->context = context;
+  RMW_TRY_PLACEMENT_NEW(
+    node_data, node_data, return nullptr,
+    rmw_zenoh_cpp::rmw_node_data_t);
+  auto destruct_node_data = rcpputils::make_scope_exit(
+    [node_data]() {
+      RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(
+        node_data->~rmw_node_data_t(), rmw_zenoh_cpp::rmw_node_data_t);
+    });
 
   // Initialize liveliness token for the node to advertise that a new node is in town.
-  rmw_zenoh_cpp::rmw_node_data_t * node_data =
-    static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(node->data);
   node_data->id = context->impl->get_next_entity_id();
   node_data->entity = rmw_zenoh_cpp::liveliness::Entity::make(
     z_info_zid(z_loan(context->impl->session)),
@@ -307,7 +311,7 @@ rmw_create_node(
     return nullptr;
   }
   node_data->token = zc_liveliness_declare_token(
-    z_loan(node->context->impl->session),
+    z_loan(context->impl->session),
     z_keyexpr(node_data->entity->keyexpr().c_str()),
     NULL
   );
@@ -322,8 +326,13 @@ rmw_create_node(
     return nullptr;
   }
 
+  node->implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
+  node->context = context;
+  node->data = node_data;
+
   free_token.cancel();
   free_node_data.cancel();
+  destruct_node_data.cancel();
   free_namespace.cancel();
   free_name.cancel();
   free_node.cancel();
@@ -345,15 +354,18 @@ rmw_destroy_node(rmw_node_t * node)
     rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
+  rcutils_allocator_t * allocator = &node->context->options.allocator;
+
   // Undeclare liveliness token for the node to advertise that the node has ridden
   // off into the sunset.
   rmw_zenoh_cpp::rmw_node_data_t * node_data =
     static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(node->data);
-  zc_liveliness_undeclare_token(z_move(node_data->token));
+  if (node_data != nullptr) {
+    zc_liveliness_undeclare_token(z_move(node_data->token));
+    RMW_TRY_DESTRUCTOR(node_data->~rmw_node_data_t(), rmw_node_data_t, );
+    allocator->deallocate(node_data, allocator->state);
+  }
 
-  rcutils_allocator_t * allocator = &node->context->options.allocator;
-
-  allocator->deallocate(node->data, allocator->state);
   allocator->deallocate(const_cast<char *>(node->namespace_), allocator->state);
   allocator->deallocate(const_cast<char *>(node->name), allocator->state);
   allocator->deallocate(node, allocator->state);
