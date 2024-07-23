@@ -25,7 +25,7 @@ See [zenoh_c_vendor/CMakeLists.txt](./zenoh_c_vendor/CMakeLists.txt) for more de
 mkdir ~/ws_rmw_zenoh/src -p && cd ~/ws_rmw_zenoh/src
 git clone https://github.com/ros2/rmw_zenoh.git
 cd ~/ws_rmw_zenoh
-rosdep install --from-paths src --ignore-src --rosdistro <DISTRO> -y # replace <DISTRO> with ROS 2 distro of choice
+rosdep install --from-paths src --ignore-src --rosdistro <DISTRO> -y -r # replace <DISTRO> with ROS 2 distro of choice
 source /opt/ros/<DISTRO>/setup.bash # replace <DISTRO> with ROS 2 distro of choice
 colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
 ```
