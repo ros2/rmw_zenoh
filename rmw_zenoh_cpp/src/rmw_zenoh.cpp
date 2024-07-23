@@ -275,7 +275,7 @@ rmw_create_node(
     });
 
   // Put metadata into node->data.
-  auto node_data =  static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(
+  auto node_data = static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(
     allocator->allocate(sizeof(rmw_zenoh_cpp::rmw_node_data_t), allocator->state));
   RMW_CHECK_FOR_NULL_WITH_MSG(
     node_data,
