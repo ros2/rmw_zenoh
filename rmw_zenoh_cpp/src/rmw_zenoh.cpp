@@ -192,6 +192,9 @@ bool rmw_feature_supported(rmw_feature_t feature) {
 /// Create a node and return a handle to that node.
 rmw_node_t *rmw_create_node(rmw_context_t *context, const char *name,
                             const char *namespace_) {
+
+  RMW_ZENOH_LOG_ERROR_NAMED("DBG", "rmw_create_node");
+
   RMW_CHECK_ARGUMENT_FOR_NULL(context, nullptr);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(context, context->implementation_identifier,
                                    rmw_zenoh_cpp::rmw_zenoh_identifier,
@@ -312,11 +315,7 @@ rmw_node_t *rmw_create_node(rmw_context_t *context, const char *name,
                               "Failed to declare liveness token.");
     return nullptr;
   }
-  node_data->token = zc_liveliness_declare_token(
-    z_loan(context->impl->session),
-    z_keyexpr(node_data->entity->keyexpr().c_str()),
-    NULL
-  );
+
   auto free_token = rcpputils::make_scope_exit(
       [node_data]() { z_drop(z_move(node_data->token)); });
   if (!z_check(node_data->token)) {
