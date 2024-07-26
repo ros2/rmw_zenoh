@@ -35,7 +35,7 @@ public:
     source_timestamp = _source_timestamp;
     memcpy(source_gid, _source_gid, RMW_GID_STORAGE_SIZE);
   }
-  z_error_t serialize_to_zbytes(z_owned_bytes_t *);
+  z_result_t serialize_to_zbytes(z_owned_bytes_t *);
 };
 
 class attachement_context_t final {

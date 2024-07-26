@@ -51,7 +51,7 @@ bool create_attachment_iter(z_owned_bytes_t *kv_pair, void *context) {
   return true;
 }
 
-z_error_t attachement_data_t::serialize_to_zbytes(z_owned_bytes_t *attachment) {
+z_result_t attachement_data_t::serialize_to_zbytes(z_owned_bytes_t *attachment) {
   attachement_context_t context = attachement_context_t(this);
   return z_bytes_serialize_from_iter(attachment, create_attachment_iter,
                                      (void *)&context);

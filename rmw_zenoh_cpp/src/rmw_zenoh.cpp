@@ -294,11 +294,11 @@ rmw_node_t *rmw_create_node(rmw_context_t *context, const char *name,
   }
 
   z_owned_keyexpr_t keyexpr;
-  z_error_t z_ret =
+  z_result_t z_ret =
       z_keyexpr_from_str(&keyexpr, node_data->entity->keyexpr().c_str());
   // WARN(yuyuan): z_view_keyexpr_t would fail
   // z_view_keyexpr_t keyexpr;
-  // z_error_t z_ret =
+  // z_result_t z_ret =
   //     z_view_keyexpr_from_str(&keyexpr,
   //     node_data->entity->keyexpr().c_str());
   if (z_ret) {
@@ -668,7 +668,7 @@ rmw_publisher_t *rmw_create_publisher(
   // z_view_keyexpr_t liveliness_keyexpr;
   // z_view_keyexpr_from_str(&liveliness_keyexpr,
   //                         publisher_data->entity->keyexpr().c_str());
-  z_error_t z_ret = zc_liveliness_declare_token(
+  z_result_t z_ret = zc_liveliness_declare_token(
       &publisher_data->token, z_loan(node->context->impl->session),
       z_loan(liveliness_keyexpr), NULL);
   auto free_token = rcpputils::make_scope_exit([publisher_data]() {
@@ -2768,7 +2768,7 @@ rmw_service_t *rmw_create_service(
   z_queryable_options_t qable_options;
   z_queryable_options_default(&qable_options);
   qable_options.complete = true;
-  z_error_t z_ret = z_declare_queryable(
+  z_result_t z_ret = z_declare_queryable(
       &service_data->qable, z_loan(context_impl->session),
       z_loan(service_data->keyexpr), z_move(callback), &qable_options);
 
