@@ -204,6 +204,7 @@ int main(int argc, char ** argv)
   SetConsoleCtrlHandler(quit, TRUE);
 #else
   signal(SIGINT, quit);
+  signal(SIGTERM, quit);
 #endif
 
   KeyboardReader keyreader;
@@ -217,6 +218,8 @@ int main(int argc, char ** argv)
       c = keyreader.readOne();
     } catch (const std::runtime_error &) {
       perror("read():");
+
+      z_close(z_move(s));
       return -1;
     }
 
