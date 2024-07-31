@@ -193,7 +193,6 @@ bool rmw_feature_supported(rmw_feature_t feature) {
 rmw_node_t *rmw_create_node(rmw_context_t *context, const char *name,
                             const char *namespace_) {
 
-  RMW_ZENOH_LOG_ERROR_NAMED("DBG", "rmw_create_node");
 
   RMW_CHECK_ARGUMENT_FOR_NULL(context, nullptr);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(context, context->implementation_identifier,
@@ -308,7 +307,7 @@ rmw_node_t *rmw_create_node(rmw_context_t *context, const char *name,
   }
 
   z_ret = zc_liveliness_declare_token(&node_data->token,
-                                      z_loan(node->context->impl->session),
+                                      z_loan(context->impl->session),
                                       z_loan(keyexpr), NULL);
   if (z_ret) {
     RMW_ZENOH_LOG_ERROR_NAMED("rmw_zenoh_cpp",
@@ -859,24 +858,6 @@ create_map_and_set_sequence_num(int64_t sequence_number,
     z_bytes_null(&bytes);
     return bytes;
   }
-
-  // // DBG
-  // char gid_str[256];
-  // gid_str[0] = '\0';
-  // for (int i = 0; i < (int)RMW_GID_STORAGE_SIZE; i++) {
-  //     char buffer[50]; // Temporary buffer to hold each number as a string
-  //     sprintf(buffer, "%d, ", gid[i]);
-  //     strcat(gid_str, buffer); // Concatenate buffer to result
-  // }
-  //
-  // z_view_slice_from_str(&key, "source_gid");
-  // z_view_slice_wrap(&val, gid, RMW_GID_STORAGE_SIZE);
-  // z_slice_map_insert_by_copy(z_loan_mut(map), z_loan(key), z_loan(val));
-  //
-  // free_attachment_map.cancel();
-  //
-  // z_bytes_serialize_from_slice_map_copy(&bytes, z_loan(map));
-  // z_drop(z_move(map));
 
   return bytes;
 }
