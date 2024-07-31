@@ -1666,10 +1666,11 @@ rmw_ret_t __rmw_take_one(rmw_zenoh_cpp::rmw_subscription_data_t *sub_data,
     return RMW_RET_OK;
   }
 
+  const uint8_t* payload = z_slice_data(z_loan(msg_data->payload));
+  const size_t payload_len = z_slice_len(z_loan(msg_data->payload));
+
   // Object that manages the raw buffer
-  eprosima::fastcdr::FastBuffer fastbuffer(
-      reinterpret_cast<char *>(msg_data->payload.data()),
-msg_data->payload.size());
+  eprosima::fastcdr::FastBuffer fastbuffer(reinterpret_cast<char *>(const_cast<uint8_t *>(payload)), payload_len);
 
   // Object that serializes the data
   rmw_zenoh_cpp::Cdr deser(fastbuffer);
@@ -1871,8 +1872,8 @@ rmw_ret_t __rmw_take_serialized(const rmw_subscription_t *subscription,
     return RMW_RET_OK;
   }
 
-  const uint8_t* payload = msg_data->payload.data();
-  const size_t payload_len = msg_data->payload.size();
+  const uint8_t* payload = z_slice_data(z_loan(msg_data->payload));
+  const size_t payload_len = z_slice_len(z_loan(msg_data->payload));
 
   if (serialized_message->buffer_capacity < payload_len) {
     rmw_ret_t ret = rmw_serialized_message_resize(serialized_message,

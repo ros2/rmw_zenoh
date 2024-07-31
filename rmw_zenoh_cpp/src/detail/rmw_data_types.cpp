@@ -57,12 +57,17 @@ size_t rmw_context_impl_s::get_next_entity_id() { return next_entity_id_++; }
 
 namespace rmw_zenoh_cpp {
 ///=============================================================================
-saved_msg_data::saved_msg_data(std::vector<uint8_t> p, uint64_t recv_ts,
+saved_msg_data::saved_msg_data(z_owned_slice_t p, uint64_t recv_ts,
                                const uint8_t pub_gid[RMW_GID_STORAGE_SIZE],
                                int64_t seqnum, int64_t source_ts)
     : payload(p), recv_timestamp(recv_ts), sequence_number(seqnum),
       source_timestamp(source_ts) {
   memcpy(publisher_gid, pub_gid, RMW_GID_STORAGE_SIZE);
+}
+///=============================================================================
+saved_msg_data::~saved_msg_data()
+{
+  z_drop(z_move(payload));
 }
 
 ///=============================================================================
@@ -447,13 +452,12 @@ void sub_data_handler(const z_loaned_sample_t *sample, void *data) {
   }
 
   const z_loaned_bytes_t *payload = z_sample_payload(sample);
-  z_bytes_reader_t reader = z_bytes_get_reader(payload);
-  std::vector<uint8_t> payload_vec(z_bytes_len(payload));
-  z_bytes_reader_read(&reader, payload_vec.data(), z_bytes_len(payload));
+  z_owned_slice_t slice;
+  z_bytes_deserialize_into_slice(payload, &slice);
 
   sub_data->add_new_message(
       std::make_unique<saved_msg_data>(
-          std::move(payload_vec), z_timestamp_ntp64_time(z_sample_timestamp(sample)), pub_gid,
+          slice, z_timestamp_ntp64_time(z_sample_timestamp(sample)), pub_gid,
           sequence_number, source_timestamp),
       z_string_data(z_loan(keystr)));
 }

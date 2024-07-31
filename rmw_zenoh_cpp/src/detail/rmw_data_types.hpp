@@ -137,15 +137,15 @@ void sub_data_handler(const z_loaned_sample_t * sample, void * sub_data);
 struct saved_msg_data
 {
   explicit saved_msg_data(
-    std::vector<uint8_t> p,
+    z_owned_slice_t p,
     uint64_t recv_ts,
     const uint8_t pub_gid[RMW_GID_STORAGE_SIZE],
     int64_t seqnum,
     int64_t source_ts);
 
-  // ~saved_msg_data();
+  ~saved_msg_data();
 
-  std::vector<uint8_t> payload;
+  z_owned_slice_t payload;
   uint64_t recv_timestamp;
   uint8_t publisher_gid[RMW_GID_STORAGE_SIZE];
   int64_t sequence_number;
