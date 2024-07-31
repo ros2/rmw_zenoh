@@ -193,7 +193,6 @@ bool rmw_feature_supported(rmw_feature_t feature) {
 rmw_node_t *rmw_create_node(rmw_context_t *context, const char *name,
                             const char *namespace_) {
 
-
   RMW_CHECK_ARGUMENT_FOR_NULL(context, nullptr);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(context, context->implementation_identifier,
                                    rmw_zenoh_cpp::rmw_zenoh_identifier,
@@ -257,27 +256,24 @@ rmw_node_t *rmw_create_node(rmw_context_t *context, const char *name,
   });
 
   // Put metadata into node->data.
-  auto node_data = static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(
-    allocator->allocate(sizeof(rmw_zenoh_cpp::rmw_node_data_t), allocator->state));
+  auto node_data =
+      static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(allocator->allocate(
+          sizeof(rmw_zenoh_cpp::rmw_node_data_t), allocator->state));
   RMW_CHECK_FOR_NULL_WITH_MSG(
-    node_data,
-    "failed to allocate memory for node data",
-    return nullptr);
-  auto free_node_data = rcpputils::make_scope_exit(
-    [node_data, allocator]() {
-      allocator->deallocate(node_data, allocator->state);
-    });
+      node_data, "failed to allocate memory for node data", return nullptr);
+  auto free_node_data = rcpputils::make_scope_exit([node_data, allocator]() {
+    allocator->deallocate(node_data, allocator->state);
+  });
 
-  RMW_TRY_PLACEMENT_NEW(
-    node_data, node_data, return nullptr,
-    rmw_zenoh_cpp::rmw_node_data_t);
-  auto destruct_node_data = rcpputils::make_scope_exit(
-    [node_data]() {
-      RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(
-        node_data->~rmw_node_data_t(), rmw_zenoh_cpp::rmw_node_data_t);
-    });
+  RMW_TRY_PLACEMENT_NEW(node_data, node_data, return nullptr,
+                        rmw_zenoh_cpp::rmw_node_data_t);
+  auto destruct_node_data = rcpputils::make_scope_exit([node_data]() {
+    RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(node_data->~rmw_node_data_t(),
+                                           rmw_zenoh_cpp::rmw_node_data_t);
+  });
 
-  // Initialize liveliness token for the node to advertise that a new node is in town.
+  // Initialize liveliness token for the node to advertise that a new node is in
+  // town.
   node_data->id = context->impl->get_next_entity_id();
   node_data->entity = rmw_zenoh_cpp::liveliness::Entity::make(
       z_info_zid(z_loan(context->impl->session)), std::to_string(node_data->id),
@@ -306,9 +302,8 @@ rmw_node_t *rmw_create_node(rmw_context_t *context, const char *name,
     return nullptr;
   }
 
-  z_ret = zc_liveliness_declare_token(&node_data->token,
-                                      z_loan(context->impl->session),
-                                      z_loan(keyexpr), NULL);
+  z_ret = zc_liveliness_declare_token(
+      &node_data->token, z_loan(context->impl->session), z_loan(keyexpr), NULL);
   if (z_ret) {
     RMW_ZENOH_LOG_ERROR_NAMED("rmw_zenoh_cpp",
                               "Failed to declare liveness token.");
@@ -350,12 +345,12 @@ rmw_ret_t rmw_destroy_node(rmw_node_t *node) {
                                    rmw_zenoh_cpp::rmw_zenoh_identifier,
                                    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
-  rcutils_allocator_t * allocator = &node->context->options.allocator;
+  rcutils_allocator_t *allocator = &node->context->options.allocator;
 
-  // Undeclare liveliness token for the node to advertise that the node has ridden
-  // off into the sunset.
-  rmw_zenoh_cpp::rmw_node_data_t * node_data =
-    static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(node->data);
+  // Undeclare liveliness token for the node to advertise that the node has
+  // ridden off into the sunset.
+  rmw_zenoh_cpp::rmw_node_data_t *node_data =
+      static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(node->data);
   if (node_data != nullptr) {
     zc_liveliness_undeclare_token(z_move(node_data->token));
     RMW_TRY_DESTRUCTOR(node_data->~rmw_node_data_t(), rmw_node_data_t, );
@@ -907,12 +902,11 @@ rmw_ret_t rmw_publish(const rmw_publisher_t *publisher, const void *ros_message,
   //         allocator->deallocate(msg_bytes, allocator->state);
   //       }
   //     });
-  auto free_msg_bytes =
-      rcpputils::make_scope_exit([&msg_bytes, allocator]() {
-        if (msg_bytes) {
-          allocator->deallocate(msg_bytes, allocator->state);
-        }
-      });
+  auto free_msg_bytes = rcpputils::make_scope_exit([&msg_bytes, allocator]() {
+    if (msg_bytes) {
+      allocator->deallocate(msg_bytes, allocator->state);
+    }
+  });
   // // Get memory from SHM buffer if available.
   // if (publisher_data->context->impl->shm_manager.has_value() &&
   //     zc_shm_manager_check(
@@ -994,7 +988,7 @@ rmw_ret_t rmw_publish(const rmw_publisher_t *publisher, const void *ros_message,
   // }
 
   z_owned_bytes_t payload;
-  z_bytes_serialize_from_slice_copy(
+  z_bytes_serialize_from_slice(
       &payload, reinterpret_cast<const uint8_t *>(msg_bytes), data_length);
   ret = z_publisher_put(z_loan(publisher_data->pub), z_move(payload), &options);
   if (ret) {
@@ -1672,14 +1666,10 @@ rmw_ret_t __rmw_take_one(rmw_zenoh_cpp::rmw_subscription_data_t *sub_data,
     return RMW_RET_OK;
   }
 
-  z_owned_slice_t slice;
-  z_bytes_deserialize_into_slice(z_loan(msg_data->payload), &slice);
-
   // Object that manages the raw buffer
   eprosima::fastcdr::FastBuffer fastbuffer(
-      reinterpret_cast<char *>(
-          const_cast<uint8_t *>(z_slice_data(z_loan(slice)))),
-      z_slice_len(z_loan(slice)));
+      reinterpret_cast<char *>(msg_data->payload.data()),
+msg_data->payload.size());
 
   // Object that serializes the data
   rmw_zenoh_cpp::Cdr deser(fastbuffer);
@@ -1703,7 +1693,6 @@ rmw_ret_t __rmw_take_one(rmw_zenoh_cpp::rmw_subscription_data_t *sub_data,
   }
 
   *taken = true;
-  z_drop(z_move(slice));
 
   return RMW_RET_OK;
 }
@@ -1882,21 +1871,20 @@ rmw_ret_t __rmw_take_serialized(const rmw_subscription_t *subscription,
     return RMW_RET_OK;
   }
 
-  z_owned_slice_t payload;
-  z_bytes_deserialize_into_slice(z_loan(msg_data->payload), &payload);
+  const uint8_t* payload = msg_data->payload.data();
+  const size_t payload_len = msg_data->payload.size();
 
-  if (serialized_message->buffer_capacity < z_slice_len(z_loan(payload))) {
+  if (serialized_message->buffer_capacity < payload_len) {
     rmw_ret_t ret = rmw_serialized_message_resize(serialized_message,
-                                                  z_slice_len(z_loan(payload)));
+                                                  payload_len);
     if (ret != RMW_RET_OK) {
       return ret; // Error message already set
     }
   }
-  serialized_message->buffer_length = z_slice_len(z_loan(payload));
-  memcpy(serialized_message->buffer, z_slice_data(z_loan(payload)),
-         z_slice_len(z_loan(payload)));
+  serialized_message->buffer_length = payload_len;
+  memcpy(serialized_message->buffer, payload,
+         payload_len);
 
-  z_drop(z_move(payload));
   *taken = true;
 
   if (message_info != nullptr) {
