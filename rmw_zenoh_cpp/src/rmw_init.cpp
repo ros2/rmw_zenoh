@@ -185,13 +185,11 @@ rmw_ret_t rmw_init(const rmw_init_options_t *options, rmw_context_t *context) {
   //   });
 
   // Initialize the zenoh session.
-  z_open(&context->impl->session, z_move(config));
-
-
-  if (!z_session_check(&context->impl->session)) {
+  if(z_open(&context->impl->session, z_move(config))) {
     RMW_SET_ERROR_MSG("Error setting up zenoh session");
     return RMW_RET_ERROR;
   }
+
   auto close_session = rcpputils::make_scope_exit(
       [context]() { z_close(z_move(context->impl->session)); });
 
