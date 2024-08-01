@@ -81,6 +81,8 @@ struct GraphNode
   // Map topic type to QoSMap
   using TopicTypeMap = std::unordered_map<std::string, TopicQoSMap>;
   // Map topic name to TopicTypeMap
+  // This uses a map that remembers insertion order because some parts of the client libraries
+  // expect that these are returned in the order that they were created.
   using TopicMap = tsl::ordered_map<std::string, TopicTypeMap>;
 
   // Entries for pub/sub.
