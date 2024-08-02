@@ -13,18 +13,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        distro: ['iron', 'jazzy', 'rolling']
-    container:
-      image: ros:${{ matrix.distro }}-ros-base
+        ROS_DISTRO: ['iron', 'jazzy', 'rolling']
+        ROS_REPO: ['main', 'testing']
     timeout-minutes: 30
     steps:
-    - name: Deps
-      run: |
-        apt update && apt install -y curl
     - uses: actions/checkout@v4
-    - name: rosdep
-      run: |
-        rosdep update
-        rosdep install --from-paths . -yir
-    - name: build
-      run: /ros_entrypoint.sh colcon build
+    - uses: 'ros-industrial/industrial_ci@master'
+        env:
+          ROS_DISTRO: ${{ matrix.ROS_DISTRO }}
+          ROS_REPO: ${{ matrix.ROS_REPO }}
