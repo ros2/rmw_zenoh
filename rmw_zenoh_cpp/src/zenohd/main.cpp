@@ -199,6 +199,11 @@ int main(int argc, char ** argv)
     printf("Unable to open router session!\n");
     return 1;
   }
+  auto close_session = rcpputils::make_scope_exit(
+    [&session]() {
+      z_close(z_move(session));
+    });
+
   printf(
     "Started Zenoh router with id %s.\n",
     rmw_zenoh_cpp::liveliness::zid_to_str(z_info_zid(z_session_loan(&session))).c_str());
@@ -208,11 +213,6 @@ int main(int argc, char ** argv)
   signal(SIGINT, quit);
   signal(SIGTERM, quit);
 #endif
-
-  auto close_session = rcpputils::make_scope_exit(
-    [&session]() {
-      z_close(z_move(session));
-    });
 
   KeyboardReader keyreader;
 
