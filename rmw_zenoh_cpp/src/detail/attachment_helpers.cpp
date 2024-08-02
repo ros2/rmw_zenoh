@@ -40,20 +40,20 @@ bool create_attachment_iter(z_owned_bytes_t *kv_pair, void *context) {
     z_bytes_serialize_from_int64(&v, ctx->data->source_timestamp);
   } else if (ctx->idx == 2) {
     z_bytes_serialize_from_str(&k, "source_gid");
-    z_bytes_serialize_from_slice_copy(&v, ctx->data->source_gid,
+    z_bytes_serialize_from_buf(&v, ctx->data->source_gid,
                                       RMW_GID_STORAGE_SIZE);
   } else {
     return false;
   }
 
-  z_bytes_serialize_from_pair(kv_pair, z_move(k), z_move(v));
+  z_bytes_from_pair(kv_pair, z_move(k), z_move(v));
   ctx->idx += 1;
   return true;
 }
 
 z_result_t attachement_data_t::serialize_to_zbytes(z_owned_bytes_t *attachment) {
   attachement_context_t context = attachement_context_t(this);
-  return z_bytes_serialize_from_iter(attachment, create_attachment_iter,
+  return z_bytes_from_iter(attachment, create_attachment_iter,
                                      (void *)&context);
 }
 
@@ -72,17 +72,16 @@ bool get_attachment(const z_loaned_bytes_t *const attachment,
     z_owned_string_t key_string;
     z_bytes_deserialize_into_string(z_loan(key_), &key_string);
 
-    char dbg_info[120];
-    sprintf(dbg_info, "Given key: %s, found: %s", key.c_str(),
-            z_string_data(z_loan(key_string)));
-    sprintf(dbg_info, "Given key: %s, found: %.*s", key.c_str(),
-            (int)z_string_len(z_loan(key_string)),
-            z_string_data(z_loan(key_string)));
+    // TODO(yuyuan): use strncmp
+    // const char* key_string_ptr = z_string_data(z_loan(key_string));
+    // size_t key_string_len = z_string_len(z_loan(key_string));
+    // if (key_string_len == key.length() && strncmp(key_string_ptr, key.c_str(), key.length())) {
+    //   found = true;
+    // }
 
     std::string found_key;
     found_key.assign(z_string_data(z_loan(key_string)), z_string_len(z_loan(key_string)));
     if (found_key == key) {
-    // if (strcmp(z_string_data(z_loan(key_string)), key.c_str()) == 0) {
       found = true;
     }
 

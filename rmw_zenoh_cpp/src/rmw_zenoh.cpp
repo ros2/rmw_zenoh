@@ -988,7 +988,7 @@ rmw_ret_t rmw_publish(const rmw_publisher_t *publisher, const void *ros_message,
   // }
 
   z_owned_bytes_t payload;
-  z_bytes_serialize_from_slice(
+  z_bytes_serialize_from_buf(
       &payload, reinterpret_cast<const uint8_t *>(msg_bytes), data_length);
   ret = z_publisher_put(z_loan(publisher_data->pub), z_move(payload), &options);
   if (ret) {
@@ -1107,7 +1107,7 @@ rmw_ret_t rmw_publish_serialized_message(
   options.attachment = &attachment;
 
   z_owned_bytes_t payload;
-  z_bytes_serialize_from_slice_copy(&payload, serialized_message->buffer,
+  z_bytes_serialize_from_buf(&payload, serialized_message->buffer,
                                     data_length);
 
   if (z_publisher_put(z_loan(publisher_data->pub), z_move(payload), &options)) {
@@ -2380,7 +2380,7 @@ rmw_ret_t rmw_send_request(const rmw_client_t *client, const void *ros_request,
   // expression, which optimizes bandwidth. The default is "None", which imples
   // replies may come in any order and any number.
   opts.consolidation = z_query_consolidation_latest();
-  z_bytes_serialize_from_slice_copy(
+  z_bytes_serialize_from_buf(
       opts.payload, reinterpret_cast<const uint8_t *>(request_bytes),
       data_length);
 
@@ -3035,7 +3035,7 @@ rmw_ret_t rmw_send_response(const rmw_service_t *service,
     return RMW_RET_ERROR;
   }
   z_owned_bytes_t payload;
-  z_bytes_serialize_from_slice(
+  z_bytes_serialize_from_buf(
       &payload, reinterpret_cast<const uint8_t *>(response_bytes), data_length);
   z_query_reply(loaned_query, z_loan(service_data->keyexpr), z_move(payload),
                 &options);
