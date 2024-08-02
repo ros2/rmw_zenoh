@@ -3274,6 +3274,21 @@ rmw_ret_t
 rmw_destroy_guard_condition(rmw_guard_condition_t * guard_condition)
 {
   RMW_CHECK_ARGUMENT_FOR_NULL(guard_condition, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(guard_condition->context, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(guard_condition->context->impl, RMW_RET_INVALID_ARGUMENT);
+
+  // rmw_zenoh has a single graph_guard_condition stored in the context->impl for all nodes created
+  // within the same context.
+  // However rcl assumes that a unique graph_guard_condition for each node created and will invoke
+  // this function within rcl_node_fini for the graph_guard_condition returned by
+  // rmw_node_get_graph_guard_condition. This could leave the graph_guard_condition in the context in
+  // an undefined state.
+  // So we skip the deallocation here if the guard_condition matches the graph_guard_condition which will
+  // be deallocated when the context is destroyed.
+  rmw_context_impl_s * context_impl = static_cast<rmw_context_impl_s *>(guard_condition->context->impl);
+  if (context_impl->graph_guard_condition == guard_condition) {
+    return RMW_RET_OK;
+  }
 
   rcutils_allocator_t * allocator = &guard_condition->context->options.allocator;
 
