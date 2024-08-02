@@ -84,8 +84,19 @@ register_rmw_implementation(
   "cpp:rosidl_typesupport_cpp:rosidl_typesupport_fastrtps_cpp:rosidl_typesupport_introspection_cpp")
 
 if(BUILD_TESTING)
-  find_package(ament_lint_auto REQUIRED)
-  ament_lint_auto_find_test_dependencies()
+  find_package(ament_cmake_copyright REQUIRED)
+  find_package(ament_cmake_cpplint REQUIRED)
+  find_package(ament_cmake_lint_cmake REQUIRED)
+  find_package(ament_cmake_uncrustify REQUIRED)
+  find_package(ament_cmake_xmllint REQUIRED)
+
+  set(_linter_excludes src/detail/ordered_hash.hpp src/detail/ordered_map.hpp)
+
+  ament_copyright()
+  ament_cpplint(EXCLUDE ${_linter_excludes})
+  ament_lint_cmake()
+  ament_uncrustify(EXCLUDE ${_linter_excludes})
+  ament_xmllint()
 endif()
 
 install(

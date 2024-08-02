@@ -157,11 +157,11 @@ void GraphCache::update_topic_map_for_put(
     return;
   }
   // The topic exists in the topic_map so we check if the type also exists.
-  GraphNode::TopicTypeMap::iterator topic_type_map_it = topic_map_it->second.find(
+  GraphNode::TopicTypeMap::iterator topic_type_map_it = topic_map_it.value().find(
     graph_topic_data->info_.type_);
   if (topic_type_map_it == topic_map_it->second.end()) {
     // First time this topic type is added.
-    topic_map_it->second.insert(
+    topic_map_it.value().insert(
       std::make_pair(
         graph_topic_data->info_.type_,
         std::move(topic_qos_map)));
@@ -462,7 +462,7 @@ void GraphCache::update_topic_map_for_del(
   }
 
   GraphNode::TopicTypeMap::iterator cache_topic_type_it =
-    cache_topic_it->second.find(topic_info.type_);
+    cache_topic_it.value().find(topic_info.type_);
   if (cache_topic_type_it == cache_topic_it->second.end()) {
     // This should not happen.
     RMW_ZENOH_LOG_ERROR_NAMED(
@@ -503,7 +503,7 @@ void GraphCache::update_topic_map_for_del(
   }
   // If the type does not have any qos entries, erase it from the type map.
   if (cache_topic_type_it->second.empty()) {
-    cache_topic_it->second.erase(cache_topic_type_it);
+    cache_topic_it.value().erase(cache_topic_type_it);
   }
   // If the topic does not have any TopicData entries, erase the topic from the map.
   if (cache_topic_it->second.empty()) {
@@ -782,21 +782,21 @@ rmw_ret_t fill_names_and_types(
     });
   // Fill topic names and types.
   std::size_t index = 0;
-  for (const std::pair<const std::string, GraphNode::TopicTypeMap> & item : entity_map) {
+  for (const std::pair<std::string, GraphNode::TopicTypeMap> & item : entity_map) {
     names_and_types->names.data[index] = rcutils_strdup(item.first.c_str(), *allocator);
     if (!names_and_types->names.data[index]) {
       return RMW_RET_BAD_ALLOC;
     }
-    {
-      rcutils_ret_t rcutils_ret = rcutils_string_array_init(
-        &names_and_types->types[index],
-        item.second.size(),
-        allocator);
-      if (RCUTILS_RET_OK != rcutils_ret) {
-        RMW_SET_ERROR_MSG(rcutils_get_error_string().str);
-        return RMW_RET_BAD_ALLOC;
-      }
+
+    rcutils_ret_t rcutils_ret = rcutils_string_array_init(
+      &names_and_types->types[index],
+      item.second.size(),
+      allocator);
+    if (RCUTILS_RET_OK != rcutils_ret) {
+      RMW_SET_ERROR_MSG(rcutils_get_error_string().str);
+      return RMW_RET_BAD_ALLOC;
     }
+
     size_t type_index = 0;
     for (const std::pair<const std::string, GraphNode::TopicQoSMap> & type : item.second) {
       char * type_name = rcutils_strdup(_demangle_if_ros_type(type.first).c_str(), *allocator);
@@ -1208,7 +1208,7 @@ rmw_ret_t GraphCache::service_server_is_available(
   std::lock_guard<std::mutex> lock(graph_mutex_);
   GraphNode::TopicMap::iterator service_it = graph_services_.find(service_name);
   if (service_it != graph_services_.end()) {
-    GraphNode::TopicTypeMap::iterator type_it = service_it->second.find(service_type);
+    GraphNode::TopicTypeMap::iterator type_it = service_it.value().find(service_type);
     if (type_it != service_it->second.end()) {
       for (const auto & [_, topic_data] : type_it->second) {
         if (topic_data->subs_.size() > 0) {

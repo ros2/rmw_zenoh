@@ -5,7 +5,9 @@
   <version>0.0.1</version>
   <description>A ROS 2 middleware implementation using zenoh-c</description>
   <maintainer email="yadunund@openrobotics.org">Yadunund</maintainer>
+
   <license>Apache License 2.0</license>
+  <license>MIT</license>  <!-- for ordered_{map,hash}.hpp -->
 
   <author email="clalancette@gmail.com">Chris Lalancette</author>
   <author>Franco Cipollone</author>

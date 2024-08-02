@@ -19,6 +19,6 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: uncrustify
-      run: /ros_entrypoint.sh ament_uncrustify rmw_zenoh_cpp/
+      run: /ros_entrypoint.sh ament_uncrustify --exclude rmw_zenoh_cpp/src/detail/ordered_hash.hpp rmw_zenoh_cpp/src/detail/ordered_map.hpp rmw_zenoh_cpp/
     - name: cpplint
-      run: /ros_entrypoint.sh ament_cpplint rmw_zenoh_cpp/
+      run: /ros_entrypoint.sh ament_cpplint --exclude rmw_zenoh_cpp/src/detail/ordered_hash.hpp rmw_zenoh_cpp/src/detail/ordered_map.hpp rmw_zenoh_cpp/
