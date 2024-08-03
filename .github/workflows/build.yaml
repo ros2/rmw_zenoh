@@ -17,8 +17,8 @@ jobs:
         ROS_REPO: ['main', 'testing']
     timeout-minutes: 30
     steps:
-    - uses: actions/checkout@v4
-    - uses: 'ros-industrial/industrial_ci@master'
+      - uses: actions/checkout@v4
+      - uses: 'ros-industrial/industrial_ci@master'
         env:
           ROS_DISTRO: ${{ matrix.ROS_DISTRO }}
           ROS_REPO: ${{ matrix.ROS_REPO }}
