@@ -199,7 +199,7 @@ int main(int argc, char ** argv)
     printf("Unable to open router session!\n");
     return 1;
   }
-  auto close_session = rcpputils::make_scope_exit(
+  auto always_close_session = rcpputils::make_scope_exit(
     [&session]() {
       z_close(z_move(session));
     });
