@@ -36,6 +36,8 @@
 
 #include "rmw/error_handling.h"
 
+#include "rcpputils/scope_exit.hpp"
+
 static bool running = true;
 
 class KeyboardReader final
@@ -192,18 +194,24 @@ int main(int argc, char ** argv)
     return 1;
   }
 
-  z_owned_session_t s = z_open(z_move(config));
-  if (!z_check(s)) {
+  z_owned_session_t session = z_open(z_move(config));
+  if (!z_check(session)) {
     printf("Unable to open router session!\n");
     return 1;
   }
+  auto always_close_session = rcpputils::make_scope_exit(
+    [&session]() {
+      z_close(z_move(session));
+    });
+
   printf(
     "Started Zenoh router with id %s.\n",
-    rmw_zenoh_cpp::liveliness::zid_to_str(z_info_zid(z_session_loan(&s))).c_str());
+    rmw_zenoh_cpp::liveliness::zid_to_str(z_info_zid(z_session_loan(&session))).c_str());
 #ifdef _WIN32
   SetConsoleCtrlHandler(quit, TRUE);
 #else
   signal(SIGINT, quit);
+  signal(SIGTERM, quit);
 #endif
 
   KeyboardReader keyreader;
@@ -226,8 +234,6 @@ int main(int argc, char ** argv)
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
-
-  z_close(z_move(s));
 
   return 0;
 }
