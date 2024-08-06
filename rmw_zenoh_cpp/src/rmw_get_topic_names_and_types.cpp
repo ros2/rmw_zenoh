@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "detail/rmw_data_types.hpp"
+#include "detail/rmw_context_impl_s.hpp"
 
 #include "rcutils/allocator.h"
 
@@ -37,7 +37,9 @@ rmw_get_topic_names_and_types(
   RMW_CHECK_ARGUMENT_FOR_NULL(allocator, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(topic_names_and_types, RMW_RET_INVALID_ARGUMENT);
 
-  return node->context->impl->graph_cache->get_topic_names_and_types(
+  rmw_context_impl_t * context_impl = static_cast<rmw_context_impl_t *>(node->context->impl);
+  RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
+  return context_impl->get_topic_names_and_types(
     allocator, no_demangle, topic_names_and_types);
 }
 }  // extern "C"
