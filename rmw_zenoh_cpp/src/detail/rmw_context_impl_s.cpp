@@ -54,6 +54,7 @@ void rmw_context_impl_s::graph_sub_data_handler(const z_sample_t * sample, void 
       break;
     case z_sample_kind_t::Z_SAMPLE_KIND_DELETE:
       data_ptr->graph_cache_->parse_del(keystr._cstr);
+      break;
     default:
       return;
   }
