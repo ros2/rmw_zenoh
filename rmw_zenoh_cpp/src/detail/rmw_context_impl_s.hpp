@@ -49,6 +49,8 @@ public:
   std::string enclave() const;
 
   // Loan the Zenoh session.
+  // TODO(Yadunund): Remove this API once rmw_context_impl_s is updated to
+  // create other Zenoh objects.
   z_session_t session() const;
 
   // Get a reference to the shm_manager.
