@@ -34,16 +34,16 @@ class rmw_context_impl_s final
 public:
   using GraphCacheEventCallback = rmw_zenoh_cpp::GraphCache::GraphCacheEventCallback;
 
-  // Constructor.
-  // Once constructed, the context_impl instanced will manage the lifetime
-  // of these arguments.
+  // Constructor that internally initializees the Zenoh session and other artifacts.
+  // Throws an std::runtime_error if any of the initializations fail.
+  // The construction will block until a Zenoh router is detected.
+  // TODO(Yadunund): Make this a non-blocking call by checking for the Zenoh
+  // router in a separate thread. Instead block when creating a node if router
+  // check has not succeeded.
   rmw_context_impl_s(
     const rcutils_allocator_t * allocator,
     const std::size_t domain_id,
-    const std::string & enclave,
-    z_owned_session_t session,
-    std::optional<zc_owned_shm_manager_t> shm_manager,
-    rmw_guard_condition_t * graph_guard_condition);
+    const std::string & enclave);
 
   // Get a copy of the enclave.
   std::string enclave() const;
@@ -145,10 +145,11 @@ private:
     // Constructor.
     Data(
       const rcutils_allocator_t * allocator,
-      const std::size_t domain_id,
       const std::string & enclave,
       z_owned_session_t session,
       std::optional<zc_owned_shm_manager_t> shm_manager,
+      const std::string & liveliness_str,
+      std::unique_ptr<rmw_zenoh_cpp::GraphCache> graph_cache,
       rmw_guard_condition_t * graph_guard_condition);
 
     // Subscribe to the ROS graph.
@@ -173,6 +174,8 @@ private:
     std::optional<zc_owned_shm_manager_t> shm_manager_;
     // Liveliness keyexpr string to subscribe to for ROS graph changes.
     std::string liveliness_str_;
+    // Graph cache.
+    std::unique_ptr<rmw_zenoh_cpp::GraphCache> graph_cache_;
     // ROS graph liveliness subscriber.
     z_owned_subscriber_t graph_subscriber_;
     // Equivalent to rmw_dds_common::Context's guard condition
@@ -182,8 +185,6 @@ private:
     bool is_shutdown_;
     // A counter to assign a local id for every entity created in this session.
     size_t next_entity_id_;
-    // Graph cache.
-    std::unique_ptr<rmw_zenoh_cpp::GraphCache> graph_cache_;
     // True once graph subscriber is initialized.
     bool is_initialized_;
   };
