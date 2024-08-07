@@ -72,16 +72,9 @@ bool get_attachment(const z_loaned_bytes_t *const attachment,
     z_owned_string_t key_string;
     z_bytes_deserialize_into_string(z_loan(key_), &key_string);
 
-    // TODO(yuyuan): use strncmp
-    // const char* key_string_ptr = z_string_data(z_loan(key_string));
-    // size_t key_string_len = z_string_len(z_loan(key_string));
-    // if (key_string_len == key.length() && strncmp(key_string_ptr, key.c_str(), key.length())) {
-    //   found = true;
-    // }
-
-    std::string found_key;
-    found_key.assign(z_string_data(z_loan(key_string)), z_string_len(z_loan(key_string)));
-    if (found_key == key) {
+    const char* key_string_ptr = z_string_data(z_loan(key_string));
+    size_t key_string_len = z_string_len(z_loan(key_string));
+    if (key_string_len == key.length() && strncmp(key_string_ptr, key.c_str(), key.length()) == 0) {
       found = true;
     }
 
