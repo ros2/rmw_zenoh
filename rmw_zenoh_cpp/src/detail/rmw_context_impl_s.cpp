@@ -219,9 +219,9 @@ rmw_context_impl_s::rmw_context_impl_s(
     }
     if (ret != RMW_RET_OK) {
       throw std::runtime_error(
-        "Unable to connect to a Zenoh router after " +
-        std::to_string(configured_connection_attempts.value()) +
-        " retries.");
+              "Unable to connect to a Zenoh router after " +
+              std::to_string(configured_connection_attempts.value()) +
+              " retries.");
     }
   }
 
@@ -309,7 +309,7 @@ rmw_context_impl_s::rmw_context_impl_s(
     static_cast<rmw_guard_condition_t *>(allocator->zero_allocate(
       1, sizeof(rmw_guard_condition_t), allocator->state));
   if (graph_guard_condition == NULL) {
-    throw std::runtime_error( "failed to allocate graph guard condition");
+    throw std::runtime_error("failed to allocate graph guard condition");
   }
   auto free_guard_condition = rcpputils::make_scope_exit(
     [graph_guard_condition, allocator]() {
