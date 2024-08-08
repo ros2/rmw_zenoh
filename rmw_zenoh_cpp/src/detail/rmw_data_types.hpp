@@ -52,10 +52,8 @@ public:
   // An owned session.
   z_owned_session_t session;
 
-  // TODO(yuyuan): SHM provider
-  // An optional SHM manager that is initialized of SHM is enabled in the
-  // zenoh session config.
-  // std::optional<zc_owned_shm_manager_t> shm_manager;
+  // TODO(yuyuan): SHM
+  std::optional<z_owned_shm_provider_t> shm_provider;
 
   z_owned_subscriber_t graph_subscriber;
 

@@ -160,6 +160,10 @@ find_service_type_support(const rosidl_service_type_support_t *type_supports) {
 } // namespace
 
 extern "C" {
+
+// TODO(yuyuan): SHM, make this configurable
+#define SHM_BUF_OK_SIZE 2621440
+
 //==============================================================================
 /// Get the name of the rmw implementation being used
 const char *rmw_get_implementation_identifier(void) {
@@ -881,24 +885,54 @@ rmw_ret_t rmw_publish(const rmw_publisher_t *publisher, const void *ros_message,
   // To store serialized message byte array.
   char *msg_bytes = nullptr;
 
-  // // TODO(yuyuan): disable SHM
-  // std::optional<zc_owned_shmbuf_t> shmbuf = std::nullopt;
-  // auto always_free_shmbuf = rcpputils::make_scope_exit([&shmbuf]() {
-  //   if (shmbuf.has_value()) {
-  //     zc_shmbuf_drop(&shmbuf.value());
-  //   }
-  // });
-  // auto free_msg_bytes =
-  //     rcpputils::make_scope_exit([&msg_bytes, allocator, &shmbuf]() {
-  //       if (msg_bytes && !shmbuf.has_value()) {
-  //         allocator->deallocate(msg_bytes, allocator->state);
-  //       }
-  //     });
-  auto free_msg_bytes = rcpputils::make_scope_exit([&msg_bytes, allocator]() {
-    if (msg_bytes) {
-      allocator->deallocate(msg_bytes, allocator->state);
+  // TODO(yuyuan): SHM
+  std::optional<z_owned_shm_mut_t> shmbuf = std::nullopt;
+  auto always_free_shmbuf = rcpputils::make_scope_exit([&shmbuf]() {
+    if (shmbuf.has_value()) {
+      // TODO(yuyuan): do we need to drop z_owned_shm_mut_t?
+      z_drop(z_move(shmbuf.value()));
     }
   });
+  auto free_msg_bytes =
+      rcpputils::make_scope_exit([&msg_bytes, allocator, &shmbuf]() {
+        if (msg_bytes && !shmbuf.has_value()) {
+          allocator->deallocate(msg_bytes, allocator->state);
+        }
+      });
+
+  // TODO(yuyuan): SHM
+  // Get memory from SHM buffer if available.
+  if (publisher_data->context->impl->shm_provider.has_value()) {
+    // printf(">>> rmw_publish(), SHM enabled\n");
+
+    auto provider = publisher_data->context->impl->shm_provider.value();
+    z_buf_layout_alloc_result_t alloc;
+    // TODO(yuyuan): SHM, configure this
+    z_alloc_alignment_t alignment = {5};
+    z_shm_provider_alloc_gc_defrag_blocking(
+        &alloc, z_loan(provider),
+        SHM_BUF_OK_SIZE, alignment);
+
+    if (z_check(alloc.buf)) {
+      shmbuf = std::make_optional(alloc.buf);
+      msg_bytes =
+          reinterpret_cast<char *>(z_shm_mut_data_mut(z_loan_mut(alloc.buf)));
+    } else {
+      RMW_ZENOH_LOG_ERROR_NAMED(
+          "rmw_zenoh_cpp", "Unexpected failure during SHM buffer allocation.");
+      return RMW_RET_ERROR;
+    }
+
+  } else {
+    // printf(">>> rmw_publish(), SHM disabled\n");
+
+    // Get memory from the allocator.
+    msg_bytes = static_cast<char *>(
+        allocator->allocate(max_data_length, allocator->state));
+    RMW_CHECK_FOR_NULL_WITH_MSG(msg_bytes, "bytes for message is null",
+                                return RMW_RET_BAD_ALLOC);
+  }
+
   // // Get memory from SHM buffer if available.
   // if (publisher_data->context->impl->shm_manager.has_value() &&
   //     zc_shm_manager_check(
@@ -927,11 +961,12 @@ rmw_ret_t rmw_publish(const rmw_publisher_t *publisher, const void *ros_message,
   //   RMW_CHECK_FOR_NULL_WITH_MSG(msg_bytes, "bytes for message is null",
   //                               return RMW_RET_BAD_ALLOC);
   // }
-  // Get memory from the allocator.
-  msg_bytes = static_cast<char *>(
-      allocator->allocate(max_data_length, allocator->state));
-  RMW_CHECK_FOR_NULL_WITH_MSG(msg_bytes, "bytes for message is null",
-                              return RMW_RET_BAD_ALLOC);
+
+  // // Get memory from the allocator.
+  // msg_bytes = static_cast<char *>(
+  //     allocator->allocate(max_data_length, allocator->state));
+  // RMW_CHECK_FOR_NULL_WITH_MSG(msg_bytes, "bytes for message is null",
+  //                             return RMW_RET_BAD_ALLOC);
 
   // Object that manages the raw buffer
   eprosima::fastcdr::FastBuffer fastbuffer(msg_bytes, max_data_length);
@@ -957,7 +992,6 @@ rmw_ret_t rmw_publish(const rmw_publisher_t *publisher, const void *ros_message,
   auto free_attachment = rcpputils::make_scope_exit(
       [&attachment]() { z_drop(z_move(attachment)); });
 
-  int ret;
   // The encoding is simply forwarded and is useful when key expressions in the
   // session use different encoding formats. In our case, all key expressions
   // will be encoded with CDR so it does not really matter.
@@ -965,27 +999,19 @@ rmw_ret_t rmw_publish(const rmw_publisher_t *publisher, const void *ros_message,
   z_publisher_put_options_default(&options);
   options.attachment = &attachment;
 
-  // // TODO(yuyuan): disable SHM
-  // if (shmbuf.has_value()) {
-  //   zc_shmbuf_set_length(&shmbuf.value(), data_length);
-  //   zc_owned_payload_t payload =
-  //   zc_shmbuf_into_payload(z_move(shmbuf.value())); ret =
-  //   zc_publisher_put_owned(z_loan(publisher_data->pub), z_move(payload),
-  //                                &options);
-  // } else {
-  //   // Returns 0 if success.
-  //   ret = z_publisher_put(z_loan(publisher_data->pub),
-  //                         reinterpret_cast<const uint8_t *>(msg_bytes),
-  //                         data_length, &options);
-  // }
-
   z_owned_bytes_t payload;
-  z_bytes_serialize_from_buf(
-      &payload, reinterpret_cast<const uint8_t *>(msg_bytes), data_length);
-  ret = z_publisher_put(z_loan(publisher_data->pub), z_move(payload), &options);
-  if (ret) {
-    RMW_SET_ERROR_MSG("unable to publish message");
-    return RMW_RET_ERROR;
+
+  // TODO(yuyuan): SHM
+  if (shmbuf.has_value()) {
+    z_bytes_serialize_from_shm_mut(&payload, &shmbuf.value());
+    z_publisher_put(z_loan(publisher_data->pub), z_move(payload), &options);
+  } else {
+    z_bytes_serialize_from_buf(
+        &payload, reinterpret_cast<const uint8_t *>(msg_bytes), data_length);
+    if (z_publisher_put(z_loan(publisher_data->pub), z_move(payload), &options)) {
+      RMW_SET_ERROR_MSG("unable to publish message");
+      return RMW_RET_ERROR;
+    }
   }
 
   return RMW_RET_OK;
@@ -1099,8 +1125,7 @@ rmw_ret_t rmw_publish_serialized_message(
   options.attachment = &attachment;
 
   z_owned_bytes_t payload;
-  z_bytes_serialize_from_buf(&payload, serialized_message->buffer,
-                                    data_length);
+  z_bytes_serialize_from_buf(&payload, serialized_message->buffer, data_length);
 
   if (z_publisher_put(z_loan(publisher_data->pub), z_move(payload), &options)) {
     RMW_SET_ERROR_MSG("unable to publish message");
@@ -1658,11 +1683,12 @@ rmw_ret_t __rmw_take_one(rmw_zenoh_cpp::rmw_subscription_data_t *sub_data,
     return RMW_RET_OK;
   }
 
-  const uint8_t* payload = z_slice_data(z_loan(msg_data->payload));
+  const uint8_t *payload = z_slice_data(z_loan(msg_data->payload));
   const size_t payload_len = z_slice_len(z_loan(msg_data->payload));
 
   // Object that manages the raw buffer
-  eprosima::fastcdr::FastBuffer fastbuffer(reinterpret_cast<char *>(const_cast<uint8_t *>(payload)), payload_len);
+  eprosima::fastcdr::FastBuffer fastbuffer(
+      reinterpret_cast<char *>(const_cast<uint8_t *>(payload)), payload_len);
 
   // Object that serializes the data
   rmw_zenoh_cpp::Cdr deser(fastbuffer);
@@ -1864,19 +1890,18 @@ rmw_ret_t __rmw_take_serialized(const rmw_subscription_t *subscription,
     return RMW_RET_OK;
   }
 
-  const uint8_t* payload = z_slice_data(z_loan(msg_data->payload));
+  const uint8_t *payload = z_slice_data(z_loan(msg_data->payload));
   const size_t payload_len = z_slice_len(z_loan(msg_data->payload));
 
   if (serialized_message->buffer_capacity < payload_len) {
-    rmw_ret_t ret = rmw_serialized_message_resize(serialized_message,
-                                                  payload_len);
+    rmw_ret_t ret =
+        rmw_serialized_message_resize(serialized_message, payload_len);
     if (ret != RMW_RET_OK) {
       return ret; // Error message already set
     }
   }
   serialized_message->buffer_length = payload_len;
-  memcpy(serialized_message->buffer, payload,
-         payload_len);
+  memcpy(serialized_message->buffer, payload, payload_len);
 
   *taken = true;
 
@@ -2372,9 +2397,9 @@ rmw_ret_t rmw_send_request(const rmw_client_t *client, const void *ros_request,
   // expression, which optimizes bandwidth. The default is "None", which imples
   // replies may come in any order and any number.
   opts.consolidation = z_query_consolidation_latest();
-  z_bytes_serialize_from_buf(
-      opts.payload, reinterpret_cast<const uint8_t *>(request_bytes),
-      data_length);
+  z_bytes_serialize_from_buf(opts.payload,
+                             reinterpret_cast<const uint8_t *>(request_bytes),
+                             data_length);
 
   z_owned_closure_reply_t callback;
   z_closure(&callback, rmw_zenoh_cpp::client_data_handler, NULL, client_data);

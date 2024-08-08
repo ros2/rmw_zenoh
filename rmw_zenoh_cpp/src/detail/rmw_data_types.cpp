@@ -452,6 +452,7 @@ void sub_data_handler(const z_loaned_sample_t *sample, void *data) {
   }
 
   const z_loaned_bytes_t *payload = z_sample_payload(sample);
+
   z_owned_slice_t slice;
   z_bytes_deserialize_into_slice(payload, &slice);
 

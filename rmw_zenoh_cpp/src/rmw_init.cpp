@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <optional>
 #include <zenoh.h>
 
 #include <new>
@@ -175,14 +176,13 @@ rmw_ret_t rmw_init(const rmw_init_options_t *options, rmw_context_t *context) {
     return ret;
   }
 
-  // // TODO(yuyuan): SHM is disabled
-  // // Check if shm is enabled.
-  // z_owned_str_t shm_enabled = zc_config_get(z_loan(config),
-  // "transport/shared_memory/enabled"); auto free_shm_enabled =
-  // rcpputils::make_scope_exit(
-  //   [&shm_enabled]() {
-  //     z_drop(z_move(shm_enabled));
-  //   });
+  // TODO(yuyuan): SHM
+  z_owned_string_t shm_enabled;
+  zc_config_get_from_str(z_loan(config), Z_CONFIG_SHARED_MEMORY_KEY, &shm_enabled);
+  auto free_shm_= rcpputils::make_scope_exit(
+    [&shm_enabled]() {
+      z_drop(z_move(shm_enabled));
+    });
 
   // Initialize the zenoh session.
   if(z_open(&context->impl->session, z_move(config))) {
@@ -220,39 +220,30 @@ rmw_ret_t rmw_init(const rmw_init_options_t *options, rmw_context_t *context) {
     }
   }
 
-  // // TODO(yuyuan): SHM is disabled
-  // // Initialize the shm manager if shared_memory is enabled in the config.
-  // if (shm_enabled._cstr != nullptr &&
-  //   strcmp(shm_enabled._cstr, "true") == 0)
-  // {
-  //   char idstr[sizeof(zid.id) * 2 + 1];  // 2 bytes for each byte of the id,
-  //   plus the trailing \0 static constexpr size_t max_size_of_each = 3;  // 2
-  //   for each byte, plus the trailing \0 for (size_t i = 0; i <
-  //   sizeof(zid.id); ++i) {
-  //     snprintf(idstr + 2 * i, max_size_of_each, "%02x", zid.id[i]);
-  //   }
-  //   idstr[sizeof(zid.id) * 2] = '\0';
-  //   // TODO(yadunund): Can we get the size of the shm from the config even
-  //   though it's not
-  //   // a standard parameter?
-  //   context->impl->shm_manager =
-  //     zc_shm_manager_new(
-  //     z_loan(context->impl->session),
-  //     idstr,
-  //     SHM_BUFFER_SIZE_MB * 1024 * 1024);
-  //   if (!context->impl->shm_manager.has_value() ||
-  //     !zc_shm_manager_check(&context->impl->shm_manager.value()))
-  //   {
-  //     RMW_SET_ERROR_MSG("Unable to create shm manager.");
-  //     return RMW_RET_ERROR;
-  //   }
-  // }
-  // auto free_shm_manager = rcpputils::make_scope_exit(
-  //   [context]() {
-  //     if (context->impl->shm_manager.has_value()) {
-  //       z_drop(z_move(context->impl->shm_manager.value()));
-  //     }
-  //   });
+  // TODO(yuyuan): SHM
+  // Initialize the shm manager if shared_memory is enabled in the config.
+  if (strncmp(z_string_data(z_loan(shm_enabled)), "true", z_string_len(z_loan(shm_enabled))) == 0) {
+    printf(">>> SHM is enabled\n");
+
+    // TODO(yuyuan): determine the default alignment
+    z_alloc_alignment_t alignment = {5};
+    z_owned_memory_layout_t layout;
+    z_memory_layout_new(&layout, SHM_BUFFER_SIZE_MB * 1024 * 1024, alignment);
+
+    z_owned_shm_provider_t provider;
+    if (z_posix_shm_provider_new(&provider, z_loan(layout))) {
+      RMW_ZENOH_LOG_ERROR_NAMED("rmw_zenoh_cpp", "Unable to create a SHM provider.");
+      return RMW_RET_ERROR;
+    }
+    context->impl->shm_provider = std::make_optional(provider);
+  }
+
+  auto free_shm_provider = rcpputils::make_scope_exit(
+    [context]() {
+      if (context->impl->shm_provider.has_value()) {
+        z_drop(z_move(context->impl->shm_provider.value()));
+      }
+    });
 
   // Initialize the guard condition.
   context->impl->graph_guard_condition =
@@ -396,7 +387,7 @@ rmw_ret_t rmw_init(const rmw_init_options_t *options, rmw_context_t *context) {
   free_options.cancel();
   impl_destructor.cancel();
   free_impl.cancel();
-  // free_shm_manager.cancel();
+  free_shm_provider.cancel();
   restore_context.cancel();
 
   return RMW_RET_OK;
@@ -413,9 +404,9 @@ rmw_ret_t rmw_shutdown(rmw_context_t *context) {
                                    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   z_undeclare_subscriber(z_move(context->impl->graph_subscriber));
-  // if (context->impl->shm_manager.has_value()) {
-  //   z_drop(z_move(context->impl->shm_manager.value()));
-  // }
+  if (context->impl->shm_provider.has_value()) {
+    z_drop(z_move(context->impl->shm_provider.value()));
+  }
   // Close the zenoh session
   if (z_close(z_move(context->impl->session)) < 0) {
     RMW_SET_ERROR_MSG("Error while closing zenoh session");
