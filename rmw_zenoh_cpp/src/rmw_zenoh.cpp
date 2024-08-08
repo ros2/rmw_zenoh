@@ -288,23 +288,17 @@ rmw_node_t *rmw_create_node(rmw_context_t *context, const char *name,
     return nullptr;
   }
 
-  z_owned_keyexpr_t keyexpr;
-  z_result_t z_ret =
-      z_keyexpr_from_str(&keyexpr, node_data->entity->keyexpr().c_str());
-  // WARN(yuyuan): z_view_keyexpr_t would fail
-  // z_view_keyexpr_t keyexpr;
-  // z_result_t z_ret =
-  //     z_view_keyexpr_from_str(&keyexpr,
-  //     node_data->entity->keyexpr().c_str());
-  if (z_ret) {
+  std::string keyexpr_str = node_data->entity->keyexpr();
+  z_view_keyexpr_t keyexpr;
+  if (z_view_keyexpr_from_str(&keyexpr, keyexpr_str.c_str())) {
     RMW_ZENOH_LOG_ERROR_NAMED(
         "rmw_zenoh_cpp", "Unable to generate keyexpr from the entity string.");
     return nullptr;
   }
 
-  z_ret = zc_liveliness_declare_token(
-      &node_data->token, z_loan(context->impl->session), z_loan(keyexpr), NULL);
-  if (z_ret) {
+  if (zc_liveliness_declare_token(&node_data->token,
+                                  z_loan(context->impl->session),
+                                  z_loan(keyexpr), NULL)) {
     RMW_ZENOH_LOG_ERROR_NAMED("rmw_zenoh_cpp",
                               "Failed to declare liveness token.");
     return nullptr;
@@ -321,8 +315,6 @@ rmw_node_t *rmw_create_node(rmw_context_t *context, const char *name,
   node->implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
   node->context = context;
   node->data = node_data;
-
-  z_drop(z_move(keyexpr));
 
   free_token.cancel();
   free_node_data.cancel();
