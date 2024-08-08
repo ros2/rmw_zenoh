@@ -12,9 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <condition_variable>
 #include <chrono>
 #include <cstdio>
 #include <cstring>
+#include <memory>
+#include <mutex>
 #include <stdexcept>
 #include <string>
 #include <thread>
@@ -39,6 +42,8 @@
 #include "rcpputils/scope_exit.hpp"
 
 static bool running = true;
+static std::mutex run_mutex;
+static std::condition_variable run_cv;
 
 class KeyboardReader final
 {
@@ -160,14 +165,18 @@ private:
 BOOL WINAPI quit(DWORD ctrl_type)
 {
   (void)ctrl_type;
+  std::scoped_lock lock(run_mutex);
   running = false;
+  run_cv.notify_one();
   return true;
 }
 #else
 void quit(int sig)
 {
   (void)sig;
+  std::scoped_lock lock(run_mutex);
   running = false;
+  run_cv.notify_one();
 }
 #endif
 
@@ -214,26 +223,55 @@ int main(int argc, char ** argv)
   signal(SIGTERM, quit);
 #endif
 
-  KeyboardReader keyreader;
-
-  char c = 0;
-
-  printf("Enter 'q' to quit...\n");
-  while (running) {
-    // get the next event from the keyboard
-    try {
-      c = keyreader.readOne();
-    } catch (const std::runtime_error &) {
-      perror("read():");
-      return -1;
-    }
-
-    if (c == 'q') {
-      break;
-    }
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  std::unique_ptr<KeyboardReader> keyreader = nullptr;
+  try {
+    keyreader = std::make_unique<KeyboardReader>();
+  } catch (std::runtime_error & e) {
+    printf(
+      "Keyboard reader failed to start due to: %s.\n"
+      "Running without console input.", e.what());
   }
 
-  return 0;
+  std::thread key_reader_thread;
+  int result = 0;
+
+  if (keyreader) {
+    key_reader_thread = std::thread([&]() -> void {
+      char c = 0;
+
+      printf("Enter 'q' to quit...\n");
+      while (running) {
+        // get the next event from the keyboard
+        try {
+          c = keyreader->readOne();
+        } catch (const std::runtime_error &) {
+          perror("read():");
+          std::scoped_lock lock(run_mutex);
+          running = false;
+          result = -1;
+          run_cv.notify_one();
+          break;
+        }
+
+        if (c == 'q') {
+          std::scoped_lock lock(run_mutex);
+          running = false;
+          run_cv.notify_one();
+          break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      }
+    });
+  }
+
+  // Wait until it's time to exit.
+  {
+    std::unique_lock lock(run_mutex);
+    run_cv.wait(lock, []{return !running;});
+  }
+
+  if (key_reader_thread.joinable())
+    key_reader_thread.join();
+
+  return result;
 }
