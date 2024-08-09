@@ -236,42 +236,42 @@ int main(int argc, char ** argv)
   int result = 0;
 
   if (keyreader) {
-    key_reader_thread = std::thread([&]() -> void {
-      char c = 0;
+    key_reader_thread = std::thread(
+      [&]() -> void {
+        char c = 0;
 
-      printf("Enter 'q' to quit...\n");
-      while (running) {
-        // get the next event from the keyboard
-        try {
-          c = keyreader->readOne();
-        } catch (const std::runtime_error &) {
-          perror("read():");
-          std::scoped_lock lock(run_mutex);
-          running = false;
-          result = -1;
-          run_cv.notify_one();
-          break;
-        }
+        printf("Enter 'q' to quit...\n");
+        while (running) {
+          // get the next event from the keyboard
+          try {
+            c = keyreader->readOne();
+          } catch (const std::runtime_error &) {
+            perror("read():");
+            std::scoped_lock lock(run_mutex);
+            running = false;
+            result = -1;
+            run_cv.notify_one();
+            break;
+          }
 
-        if (c == 'q') {
-          std::scoped_lock lock(run_mutex);
-          running = false;
-          run_cv.notify_one();
-          break;
+          if (c == 'q') {
+            std::scoped_lock lock(run_mutex);
+            running = false;
+            run_cv.notify_one();
+            break;
+          }
+          std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-      }
-    });
+      });
   }
 
   // Wait until it's time to exit.
-  {
-    std::unique_lock lock(run_mutex);
-    run_cv.wait(lock, []{return !running;});
-  }
+  std::unique_lock lock(run_mutex);
+  run_cv.wait(lock, []{return !running;});
 
-  if (key_reader_thread.joinable())
+  if (key_reader_thread.joinable()) {
     key_reader_thread.join();
+  }
 
   return result;
 }
