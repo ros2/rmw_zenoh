@@ -51,7 +51,6 @@ BOOL WINAPI quit(DWORD ctrl_type)
 void quit(int sig)
 {
   (void)sig;
-  std::scoped_lock lock(run_mutex);
   running = false;
   run_cv.notify_one();
 }
