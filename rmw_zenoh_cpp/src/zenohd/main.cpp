@@ -42,7 +42,6 @@ static std::condition_variable run_cv;
 BOOL WINAPI quit(DWORD ctrl_type)
 {
   (void)ctrl_type;
-  std::scoped_lock lock(run_mutex);
   running = false;
   run_cv.notify_one();
   return true;
