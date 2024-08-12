@@ -100,7 +100,7 @@ int main(int argc, char ** argv)
 
   // Wait until it's time to exit.
   std::unique_lock lock(run_mutex);
-  run_cv.wait(lock, []{return !running;});
+  run_cv.wait(lock, [] {return !running;});
 
   return 0;
 }
