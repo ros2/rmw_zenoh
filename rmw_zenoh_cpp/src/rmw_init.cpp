@@ -386,8 +386,6 @@ rmw_ret_t rmw_init(const rmw_init_options_t *options, rmw_context_t *context) {
   free_shm_provider.cancel();
   restore_context.cancel();
 
-
-
   return RMW_RET_OK;
 }
 

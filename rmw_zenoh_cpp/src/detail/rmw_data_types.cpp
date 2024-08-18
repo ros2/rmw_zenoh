@@ -465,15 +465,15 @@ void sub_data_handler(const z_loaned_sample_t *sample, void *data) {
 
 ///=============================================================================
 ZenohQuery::ZenohQuery(const z_loaned_query_t *query) {
-  z_query_clone(query_, query);
+  z_query_clone(&query_, query);
 }
 
 ///=============================================================================
-ZenohQuery::~ZenohQuery() { z_drop(z_move(*query_)); }
+ZenohQuery::~ZenohQuery() { z_drop(z_move(query_)); }
 
 ///=============================================================================
 const z_loaned_query_t *ZenohQuery::get_query() const {
-  return z_query_loan(query_);
+  return z_query_loan(&query_);
 }
 
 //==============================================================================

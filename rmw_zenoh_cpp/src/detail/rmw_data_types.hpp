@@ -216,7 +216,7 @@ public:
   const z_loaned_query_t * get_query() const;
 
 private:
-  z_owned_query_t * query_{nullptr};
+  z_owned_query_t query_;
 };
 
 ///=============================================================================

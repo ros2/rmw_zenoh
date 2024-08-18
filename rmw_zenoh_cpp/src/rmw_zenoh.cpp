@@ -1416,17 +1416,14 @@ rmw_subscription_t *rmw_create_subscription(
       sub_options.reliability = Z_RELIABILITY_RELIABLE;
     }
 
-    ;
-
-    ze_owned_querying_subscriber_t *sub =
-        &std::get<ze_owned_querying_subscriber_t>(sub_data->sub);
-    ze_declare_querying_subscriber(sub, z_loan(context_impl->session),
+    ze_owned_querying_subscriber_t sub;
+    if (ze_declare_querying_subscriber(&sub, z_loan(context_impl->session),
                                    z_loan(keyexpr), z_move(callback),
-                                   &sub_options);
-    if (!z_check(*sub)) {
+                                   &sub_options)) {
       RMW_SET_ERROR_MSG("unable to create zenoh subscription");
       return nullptr;
     }
+    sub_data->sub = sub;
   } else {
     // Create a regular subscriber for all other durability settings.
     z_subscriber_options_t sub_options;
@@ -1435,13 +1432,12 @@ rmw_subscription_t *rmw_create_subscription(
       sub_options.reliability = Z_RELIABILITY_RELIABLE;
     }
 
-    z_owned_subscriber_t *sub = &std::get<z_owned_subscriber_t>(sub_data->sub);
-    z_declare_subscriber(sub, z_loan(context_impl->session), z_loan(keyexpr),
-                         z_move(callback), &sub_options);
-    if (!z_check(*sub)) {
+    z_owned_subscriber_t sub;
+    if(z_declare_subscriber(&sub, z_loan(context_impl->session), z_loan(keyexpr), z_move(callback), &sub_options)) {
       RMW_SET_ERROR_MSG("unable to create zenoh subscription");
       return nullptr;
     }
+    sub_data->sub = sub;
   }
 
   auto undeclare_z_sub = rcpputils::make_scope_exit([sub_data]() {
@@ -2374,9 +2370,6 @@ rmw_ret_t rmw_send_request(const rmw_client_t *client, const void *ros_request,
 
   z_owned_closure_reply_t callback;
   z_closure(&callback, rmw_zenoh_cpp::client_data_handler, NULL, client_data);
-
-  // TODO(yuyuan):  z_owned_closure_reply_t zn_closure_reply is replaced with a
-  // moved callback
   z_get(z_loan(context_impl->session), z_loan(client_data->keyexpr), "",
         z_move(callback), &opts);
 
