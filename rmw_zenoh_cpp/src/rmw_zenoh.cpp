@@ -628,11 +628,22 @@ rmw_create_publisher(
     return nullptr;
   }
 
+  const z_id_t zid = z_info_zid(z_loan(node->context->impl->session));
   // Create a Publication Cache if durability is transient_local.
   if (publisher_data->adapted_qos_profile.durability == RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL) {
     ze_publication_cache_options_t pub_cache_opts = ze_publication_cache_options_default();
     pub_cache_opts.history = publisher_data->adapted_qos_profile.depth;
     pub_cache_opts.queryable_complete = true;
+    // Set the queryable_prefix to the session id so that querying subscribers can specify this
+    // session id to obtain latest data from this specific publication caches when querying over
+    // the same keyexpression.
+    z_owned_keyexpr_t queryable_prefix = z_keyexpr_new(
+      rmw_zenoh_cpp::liveliness::zid_to_str(zid).c_str());
+    auto always_free_queryable_prefix =rcpputils::make_scope_exit(
+      [&queryable_prefix]() {
+        z_keyexpr_drop(z_move(queryable_prefix));
+    });
+    pub_cache_opts.queryable_prefix = z_loan(queryable_prefix);
     publisher_data->pub_cache = ze_declare_publication_cache(
       z_loan(context_impl->session),
       z_loan(keyexpr),
@@ -674,7 +685,7 @@ rmw_create_publisher(
     });
 
   publisher_data->entity = rmw_zenoh_cpp::liveliness::Entity::make(
-    z_info_zid(z_loan(node->context->impl->session)),
+    zid,
     std::to_string(node_data->id),
     std::to_string(
       context_impl->get_next_entity_id()),
