@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <zenoh.h>
+#include <string.h>
 
 #include "detail/identifier.hpp"
 #include "detail/rmw_init_options_impl.hpp"
@@ -40,6 +41,7 @@ rmw_init_options_init(rmw_init_options_t * init_options, rcutils_allocator_t all
     return RMW_RET_INVALID_ARGUMENT;
   }
 
+  memset(init_options, 0, sizeof(rmw_init_options_t));
   init_options->instance_id = 0;
   init_options->implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
   init_options->allocator = allocator;
@@ -75,9 +77,8 @@ rmw_init_options_copy(const rmw_init_options_t * src, rmw_init_options_t * dst)
   RCUTILS_CHECK_ALLOCATOR(&allocator, return RMW_RET_INVALID_ARGUMENT);
 
   rmw_init_options_t tmp;
-  tmp.instance_id = src->instance_id;
+  memcpy(&tmp, src, sizeof(rmw_init_options_t));
   tmp.implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
-  tmp.domain_id = src->domain_id;
   tmp.security_options = rmw_get_zero_initialized_security_options();
   rmw_ret_t ret =
     rmw_security_options_copy(&src->security_options, &allocator, &tmp.security_options);
@@ -88,7 +89,6 @@ rmw_init_options_copy(const rmw_init_options_t * src, rmw_init_options_t * dst)
     [&tmp, allocator]() {
       rmw_security_options_fini(&tmp.security_options, &allocator);
     });
-  tmp.localhost_only = src->localhost_only;
   tmp.discovery_options = rmw_get_zero_initialized_discovery_options();
   ret = rmw_discovery_options_copy(
     &src->discovery_options,
