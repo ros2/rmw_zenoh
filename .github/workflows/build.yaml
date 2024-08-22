@@ -4,21 +4,52 @@ on:
   push:
     branches: [ rolling ]
   workflow_dispatch:
+  schedule:
+    # Run every morning to detect flakiness and broken dependencies
+    - cron: '03 5 * * *'
 defaults:
   run:
     shell: bash
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        ROS_DISTRO: ['iron', 'jazzy', 'rolling']
-        ROS_REPO: ['main', 'testing']
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-      - uses: 'ros-industrial/industrial_ci@master'
-        env:
-          ROS_DISTRO: ${{ matrix.ROS_DISTRO }}
-          ROS_REPO: ${{ matrix.ROS_REPO }}
+  build_and_test_source_rolling:
+      runs-on: ubuntu-latest
+      container:
+        image: rostooling/setup-ros-docker:ubuntu-noble-latest
+      steps:
+      - name: Build and run tests
+        id: action-ros-ci
+        uses: ros-tooling/action-ros-ci@v0.3
+        with:
+          package-name: |
+            rmw_zenoh_cpp
+            zenoh_c_vendor
+          target-ros2-distro: rolling
+          vcs-repo-file-url: https://raw.githubusercontent.com/ros2/ros2/rolling/ros2.repos
+
+    build_and_test_binaries_jazzy:
+      runs-on: ubuntu-latest
+      container:
+        image: rostooling/setup-ros-docker:ubuntu-noble-latest
+      steps:
+      - name: Build and run tests
+        id: action-ros-ci
+        uses: ros-tooling/action-ros-ci@v0.3
+        with:
+          package-name: |
+            rmw_zenoh_cpp
+            zenoh_c_vendor
+          target-ros2-distro: jazzy
+
+    build_and_test_binaries_iron:
+      runs-on: ubuntu-latest
+      container:
+        image: rostooling/setup-ros-docker:ubuntu-noble-latest
+      steps:
+      - name: Build and run tests
+        id: action-ros-ci
+        uses: ros-tooling/action-ros-ci@v0.3
+        with:
+          package-name: |
+            rmw_zenoh_cpp
+            zenoh_c_vendor
+          target-ros2-distro: iron
