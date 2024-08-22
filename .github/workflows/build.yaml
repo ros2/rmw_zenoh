@@ -42,7 +42,7 @@ jobs:
   build_and_test_binaries_iron:
     runs-on: ubuntu-latest
     container:
-      image: rostooling/setup-ros-docker:ubuntu-noble-latest
+      image: rostooling/setup-ros-docker:ubuntu-jammy-latest
     steps:
     - name: Build and run tests
       id: action-ros-ci
