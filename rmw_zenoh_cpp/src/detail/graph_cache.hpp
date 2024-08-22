@@ -167,7 +167,7 @@ public:
   rmw_ret_t service_server_is_available(
     const char * service_name,
     const char * service_type,
-    bool * is_available);
+    bool * is_available) const;
 
   /// @brief Signature for a function that will be invoked by the GraphCache when a QoS
   ///   event is detected.
