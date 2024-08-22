@@ -25,31 +25,30 @@ jobs:
             zenoh_c_vendor
           target-ros2-distro: rolling
           vcs-repo-file-url: https://raw.githubusercontent.com/ros2/ros2/rolling/ros2.repos
+  build_and_test_binaries_jazzy:
+    runs-on: ubuntu-latest
+    container:
+      image: rostooling/setup-ros-docker:ubuntu-noble-latest
+    steps:
+    - name: Build and run tests
+      id: action-ros-ci
+      uses: ros-tooling/action-ros-ci@v0.3
+      with:
+        package-name: |
+          rmw_zenoh_cpp
+          zenoh_c_vendor
+        target-ros2-distro: jazzy
 
-    build_and_test_binaries_jazzy:
-      runs-on: ubuntu-latest
-      container:
-        image: rostooling/setup-ros-docker:ubuntu-noble-latest
-      steps:
-      - name: Build and run tests
-        id: action-ros-ci
-        uses: ros-tooling/action-ros-ci@v0.3
-        with:
-          package-name: |
-            rmw_zenoh_cpp
-            zenoh_c_vendor
-          target-ros2-distro: jazzy
-
-    build_and_test_binaries_iron:
-      runs-on: ubuntu-latest
-      container:
-        image: rostooling/setup-ros-docker:ubuntu-noble-latest
-      steps:
-      - name: Build and run tests
-        id: action-ros-ci
-        uses: ros-tooling/action-ros-ci@v0.3
-        with:
-          package-name: |
-            rmw_zenoh_cpp
-            zenoh_c_vendor
-          target-ros2-distro: iron
+  build_and_test_binaries_iron:
+    runs-on: ubuntu-latest
+    container:
+      image: rostooling/setup-ros-docker:ubuntu-noble-latest
+    steps:
+    - name: Build and run tests
+      id: action-ros-ci
+      uses: ros-tooling/action-ros-ci@v0.3
+      with:
+        package-name: |
+          rmw_zenoh_cpp
+          zenoh_c_vendor
+        target-ros2-distro: iron
