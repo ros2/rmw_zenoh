@@ -28,4 +28,4 @@ jobs:
             rmw_zenoh_cpp
             zenoh_c_vendor
           target-ros2-distro: ${{ matrix.ROS_DISTRO }}
-          vcs-repo-file-url: https://raw.githubusercontent.com/ros2/ros2/rolling/ros2.repos
+          vcs-repo-file-url: https://raw.githubusercontent.com/ros2/ros2/${{ matrix.ROS_DISTRO }}/ros2.repos
