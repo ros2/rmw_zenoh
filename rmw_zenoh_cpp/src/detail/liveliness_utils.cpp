@@ -24,6 +24,7 @@
 #include <vector>
 
 #include "logging_macros.hpp"
+#include "qos.hpp"
 
 #include "rcpputils/scope_exit.hpp"
 
@@ -171,36 +172,65 @@ std::vector<std::string> split_keyexpr(
 
 ///=============================================================================
 // TODO(Yadunund): Rely on maps to retrieve strings.
-std::string qos_to_keyexpr(rmw_qos_profile_t qos)
+std::string qos_to_keyexpr(const rmw_qos_profile_t & qos)
 {
   std::string keyexpr = "";
+  const rmw_qos_profile_t & default_qos = QoS::get().default_qos();
+
   // Reliability.
-  keyexpr += std::to_string(qos.reliability);
+  if (qos.reliability != default_qos.reliability) {
+    keyexpr += std::to_string(qos.reliability);
+  }
   keyexpr += QOS_DELIMITER;
+
   // Durability.
-  keyexpr += std::to_string(qos.durability);
+  if (qos.durability != default_qos.durability) {
+    keyexpr += std::to_string(qos.durability);
+  }
   keyexpr += QOS_DELIMITER;
+
   // History.
-  keyexpr += std::to_string(qos.history);
+  if (qos.history != default_qos.history) {
+    keyexpr += std::to_string(qos.history);
+  }
   keyexpr += QOS_COMPONENT_DELIMITER;
-  keyexpr += std::to_string(qos.depth);
+  if (qos.depth != default_qos.depth) {
+    keyexpr += std::to_string(qos.depth);
+  }
   keyexpr += QOS_DELIMITER;
+
   // Deadline.
-  keyexpr += std::to_string(qos.deadline.sec);
+  if (qos.deadline.sec != default_qos.deadline.sec) {
+    keyexpr += std::to_string(qos.deadline.sec);
+  }
   keyexpr += QOS_COMPONENT_DELIMITER;
-  keyexpr += std::to_string(qos.deadline.nsec);
+  if (qos.deadline.nsec != default_qos.deadline.nsec) {
+    keyexpr += std::to_string(qos.deadline.nsec);
+  }
   keyexpr += QOS_DELIMITER;
+
   // Lifespan.
-  keyexpr += std::to_string(qos.lifespan.sec);
+  if (qos.lifespan.sec != default_qos.lifespan.sec) {
+    keyexpr += std::to_string(qos.lifespan.sec);
+  }
   keyexpr += QOS_COMPONENT_DELIMITER;
-  keyexpr += std::to_string(qos.lifespan.nsec);
+  if (qos.lifespan.nsec != default_qos.lifespan.nsec) {
+    keyexpr += std::to_string(qos.lifespan.nsec);
+  }
   keyexpr += QOS_DELIMITER;
+
   // Liveliness.
-  keyexpr += std::to_string(qos.liveliness);
+  if (qos.liveliness != default_qos.liveliness) {
+    keyexpr += std::to_string(qos.liveliness);
+  }
   keyexpr += QOS_COMPONENT_DELIMITER;
-  keyexpr += std::to_string(qos.liveliness_lease_duration.sec);
+  if (qos.liveliness_lease_duration.sec != default_qos.liveliness_lease_duration.sec) {
+    keyexpr += std::to_string(qos.liveliness_lease_duration.sec);
+  }
   keyexpr += QOS_COMPONENT_DELIMITER;
-  keyexpr += std::to_string(qos.liveliness_lease_duration.nsec);
+  if (qos.liveliness_lease_duration.nsec != default_qos.liveliness_lease_duration.nsec) {
+    keyexpr += std::to_string(qos.liveliness_lease_duration.nsec);
+  }
 
   return keyexpr;
 }
@@ -208,7 +238,9 @@ std::string qos_to_keyexpr(rmw_qos_profile_t qos)
 ///=============================================================================
 std::optional<rmw_qos_profile_t> keyexpr_to_qos(const std::string & keyexpr)
 {
+  const rmw_qos_profile_t & default_qos = QoS::get().default_qos();
   rmw_qos_profile_t qos;
+
   const std::vector<std::string> parts = split_keyexpr(keyexpr, QOS_DELIMITER);
   if (parts.size() < 6) {
     return std::nullopt;
@@ -232,10 +264,14 @@ std::optional<rmw_qos_profile_t> keyexpr_to_qos(const std::string & keyexpr)
   }
 
   try {
-    qos.history = str_to_qos_history.at(history_parts[0]);
-    qos.reliability = str_to_qos_reliability.at(parts[0]);
-    qos.durability = str_to_qos_durability.at(parts[1]);
-    qos.liveliness = str_to_qos_liveliness.at(liveliness_parts[0]);
+    qos.history = history_parts[0].empty() ? default_qos.history : str_to_qos_history.at(
+      history_parts[0]);
+    qos.reliability = parts[0].empty() ? default_qos.reliability : str_to_qos_reliability.at(
+      parts[0]);
+    qos.durability = parts[1].empty() ? default_qos.durability : str_to_qos_durability.at(parts[1]);
+    qos.liveliness =
+      liveliness_parts[0].empty() ? default_qos.liveliness : str_to_qos_liveliness.at(
+      liveliness_parts[0]);
   } catch (const std::exception & e) {
     RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("Error setting QoS values from strings: %s", e.what());
     return std::nullopt;
@@ -243,8 +279,11 @@ std::optional<rmw_qos_profile_t> keyexpr_to_qos(const std::string & keyexpr)
 
   // Helper function to convert string to size_t.
   auto str_to_size_t =
-    [](const std::string & str) -> std::optional<size_t>
+    [](const std::string & str, const std::size_t default_value) -> std::optional<size_t>
     {
+      if (str.empty()) {
+        return default_value;
+      }
       errno = 0;
       char * endptr;
       size_t num = strtoul(str.c_str(), &endptr, 10);
@@ -265,13 +304,17 @@ std::optional<rmw_qos_profile_t> keyexpr_to_qos(const std::string & keyexpr)
       return num;
     };
 
-  const auto maybe_depth = str_to_size_t(history_parts[1]);
-  const auto maybe_deadline_s = str_to_size_t(deadline_parts[0]);
-  const auto maybe_deadline_ns = str_to_size_t(deadline_parts[1]);
-  const auto maybe_lifespan_s = str_to_size_t(lifespan_parts[0]);
-  const auto maybe_lifespan_ns = str_to_size_t(lifespan_parts[1]);
-  const auto maybe_liveliness_s = str_to_size_t(liveliness_parts[1]);
-  const auto maybe_liveliness_ns = str_to_size_t(liveliness_parts[2]);
+  const auto maybe_depth = str_to_size_t(history_parts[1], default_qos.depth);
+  const auto maybe_deadline_s = str_to_size_t(deadline_parts[0], default_qos.deadline.sec);
+  const auto maybe_deadline_ns = str_to_size_t(deadline_parts[1], default_qos.deadline.nsec);
+  const auto maybe_lifespan_s = str_to_size_t(lifespan_parts[0], default_qos.lifespan.sec);
+  const auto maybe_lifespan_ns = str_to_size_t(lifespan_parts[1], default_qos.lifespan.nsec);
+  const auto maybe_liveliness_s = str_to_size_t(
+    liveliness_parts[1],
+    default_qos.liveliness_lease_duration.sec);
+  const auto maybe_liveliness_ns = str_to_size_t(
+    liveliness_parts[2],
+    default_qos.liveliness_lease_duration.nsec);
   if (maybe_depth == std::nullopt ||
     maybe_deadline_s == std::nullopt ||
     maybe_deadline_ns == std::nullopt ||
