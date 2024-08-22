@@ -11,7 +11,11 @@ defaults:
   run:
     shell: bash
 jobs:
-  build_and_test_source_rolling:
+  build_and_test:
+      name: build_and_test_binaries_${{ matrix.ROS_DISTRO }}
+      strategy:
+        matrix:
+          ROS_DISTRO: [rolling, jazzy, iron]
       runs-on: ubuntu-latest
       container:
         image: rostooling/setup-ros-docker:ubuntu-noble-latest
@@ -23,32 +27,5 @@ jobs:
           package-name: |
             rmw_zenoh_cpp
             zenoh_c_vendor
-          target-ros2-distro: rolling
+          target-ros2-distro: ${{ matrix.ROS_DISTRO }}
           vcs-repo-file-url: https://raw.githubusercontent.com/ros2/ros2/rolling/ros2.repos
-  build_and_test_binaries_jazzy:
-    runs-on: ubuntu-latest
-    container:
-      image: rostooling/setup-ros-docker:ubuntu-noble-latest
-    steps:
-    - name: Build and run tests
-      id: action-ros-ci
-      uses: ros-tooling/action-ros-ci@v0.3
-      with:
-        package-name: |
-          rmw_zenoh_cpp
-          zenoh_c_vendor
-        target-ros2-distro: jazzy
-
-  build_and_test_binaries_iron:
-    runs-on: ubuntu-latest
-    container:
-      image: rostooling/setup-ros-docker:ubuntu-jammy-latest
-    steps:
-    - name: Build and run tests
-      id: action-ros-ci
-      uses: ros-tooling/action-ros-ci@v0.3
-      with:
-        package-name: |
-          rmw_zenoh_cpp
-          zenoh_c_vendor
-        target-ros2-distro: iron
