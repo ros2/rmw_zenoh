@@ -312,7 +312,7 @@ rmw_create_node(
   }
   node_data->token = zc_liveliness_declare_token(
     z_loan(context->impl->session),
-    z_keyexpr(node_data->entity->keyexpr().c_str()),
+    z_keyexpr(node_data->entity->liveliness_keyexpr().c_str()),
     NULL
   );
   auto free_token = rcpputils::make_scope_exit(
@@ -614,11 +614,30 @@ rmw_create_publisher(
       allocator->deallocate(type_hash_c_str, allocator->state);
     });
 
-  z_owned_keyexpr_t keyexpr = ros_topic_name_to_zenoh_key(
-    node->context->actual_domain_id,
-    topic_name,
-    publisher_data->type_support->get_name(),
-    type_hash_c_str);
+  const z_id_t zid = z_info_zid(z_loan(node->context->impl->session));
+
+  publisher_data->entity = rmw_zenoh_cpp::liveliness::Entity::make(
+    zid,
+    std::to_string(node_data->id),
+    std::to_string(
+      context_impl->get_next_entity_id()),
+    rmw_zenoh_cpp::liveliness::EntityType::Publisher,
+    rmw_zenoh_cpp::liveliness::NodeInfo{
+      node->context->actual_domain_id, node->namespace_, node->name, context_impl->enclave},
+    rmw_zenoh_cpp::liveliness::TopicInfo{
+      node->context->actual_domain_id,
+      rmw_publisher->topic_name,
+      publisher_data->type_support->get_name(),
+      type_hash_c_str,
+      publisher_data->adapted_qos_profile}
+  );
+  if (publisher_data->entity == nullptr) {
+    RMW_ZENOH_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to generate keyexpr for liveliness token for the publisher.");
+    return nullptr;
+  }
+  z_owned_keyexpr_t keyexpr = z_keyexpr_new(publisher_data->entity->topic_info()->topic_keyexpr_.c_str());
   auto always_free_ros_keyexpr = rcpputils::make_scope_exit(
     [&keyexpr]() {
       z_keyexpr_drop(z_move(keyexpr));
@@ -628,7 +647,6 @@ rmw_create_publisher(
     return nullptr;
   }
 
-  const z_id_t zid = z_info_zid(z_loan(node->context->impl->session));
   // Create a Publication Cache if durability is transient_local.
   if (publisher_data->adapted_qos_profile.durability == RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL) {
     ze_publication_cache_options_t pub_cache_opts = ze_publication_cache_options_default();
@@ -684,29 +702,9 @@ rmw_create_publisher(
       z_undeclare_publisher(z_move(publisher_data->pub));
     });
 
-  publisher_data->entity = rmw_zenoh_cpp::liveliness::Entity::make(
-    zid,
-    std::to_string(node_data->id),
-    std::to_string(
-      context_impl->get_next_entity_id()),
-    rmw_zenoh_cpp::liveliness::EntityType::Publisher,
-    rmw_zenoh_cpp::liveliness::NodeInfo{
-      node->context->actual_domain_id, node->namespace_, node->name, context_impl->enclave},
-    rmw_zenoh_cpp::liveliness::TopicInfo{
-      rmw_publisher->topic_name,
-      publisher_data->type_support->get_name(),
-      type_hash_c_str,
-      publisher_data->adapted_qos_profile}
-  );
-  if (publisher_data->entity == nullptr) {
-    RMW_ZENOH_LOG_ERROR_NAMED(
-      "rmw_zenoh_cpp",
-      "Unable to generate keyexpr for liveliness token for the publisher.");
-    return nullptr;
-  }
   publisher_data->token = zc_liveliness_declare_token(
     z_loan(node->context->impl->session),
-    z_keyexpr(publisher_data->entity->keyexpr().c_str()),
+    z_keyexpr(publisher_data->entity->liveliness_keyexpr().c_str()),
     NULL
   );
   auto free_token = rcpputils::make_scope_exit(
@@ -1458,12 +1456,29 @@ rmw_create_subscription(
 
   // Everything above succeeded and is setup properly.  Now declare a subscriber
   // with Zenoh; after this, callbacks may come in at any time.
+  sub_data->entity = rmw_zenoh_cpp::liveliness::Entity::make(
+    z_info_zid(z_loan(node->context->impl->session)),
+    std::to_string(node_data->id),
+    std::to_string(
+      context_impl->get_next_entity_id()),
+    rmw_zenoh_cpp::liveliness::EntityType::Subscription,
+    rmw_zenoh_cpp::liveliness::NodeInfo{
+      node->context->actual_domain_id, node->namespace_, node->name, context_impl->enclave},
+    rmw_zenoh_cpp::liveliness::TopicInfo{
+      node->context->actual_domain_id,
+      rmw_subscription->topic_name,
+      sub_data->type_support->get_name(),
+      type_hash_c_str,
+      sub_data->adapted_qos_profile}
+  );
+  if (sub_data->entity == nullptr) {
+    RMW_ZENOH_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to generate keyexpr for liveliness token for the subscription.");
+    return nullptr;
+  }
   z_owned_closure_sample_t callback = z_closure(rmw_zenoh_cpp::sub_data_handler, nullptr, sub_data);
-  z_owned_keyexpr_t keyexpr = ros_topic_name_to_zenoh_key(
-    node->context->actual_domain_id,
-    topic_name,
-    sub_data->type_support->get_name(),
-    type_hash_c_str);
+  z_owned_keyexpr_t keyexpr = z_keyexpr_new(sub_data->entity->topic_info()->topic_keyexpr_.c_str());
   auto always_free_ros_keyexpr = rcpputils::make_scope_exit(
     [&keyexpr]() {
       z_keyexpr_drop(z_move(keyexpr));
@@ -1503,6 +1518,18 @@ rmw_create_subscription(
       RMW_SET_ERROR_MSG("unable to create zenoh subscription");
       return nullptr;
     }
+    // Register the querying subscriber with the graph cache to get latest
+    // messages from publishers that were discovered after their first publication.
+    // context_impl->graph_cache->set_querying_subscriber_callback(
+    //   keyexpr,
+    //   [sub_data](const std::string & queryable_prefix) -> void
+    //   {
+    //     if (sub_data == nullptr) {
+    //       return;
+    //     }
+    //     // ze_querying_subscriber_get()
+    //   }
+    // );
   } else {
     // Create a regular subscriber for all other durability settings.
     z_subscriber_options_t sub_options = z_subscriber_options_default();
@@ -1535,30 +1562,10 @@ rmw_create_subscription(
       }
     });
 
-  // Publish to the graph that a new subscription is in town
-  sub_data->entity = rmw_zenoh_cpp::liveliness::Entity::make(
-    z_info_zid(z_loan(node->context->impl->session)),
-    std::to_string(node_data->id),
-    std::to_string(
-      context_impl->get_next_entity_id()),
-    rmw_zenoh_cpp::liveliness::EntityType::Subscription,
-    rmw_zenoh_cpp::liveliness::NodeInfo{
-      node->context->actual_domain_id, node->namespace_, node->name, context_impl->enclave},
-    rmw_zenoh_cpp::liveliness::TopicInfo{
-      rmw_subscription->topic_name,
-      sub_data->type_support->get_name(),
-      type_hash_c_str,
-      sub_data->adapted_qos_profile}
-  );
-  if (sub_data->entity == nullptr) {
-    RMW_ZENOH_LOG_ERROR_NAMED(
-      "rmw_zenoh_cpp",
-      "Unable to generate keyexpr for liveliness token for the subscription.");
-    return nullptr;
-  }
+  // Publish to the graph that a new subscription is in town.
   sub_data->token = zc_liveliness_declare_token(
     z_loan(context_impl->session),
-    z_keyexpr(sub_data->entity->keyexpr().c_str()),
+    z_keyexpr(sub_data->entity->liveliness_keyexpr().c_str()),
     NULL
   );
   auto free_token = rcpputils::make_scope_exit(
@@ -2282,20 +2289,6 @@ rmw_create_client(
       allocator->deallocate(type_hash_c_str, allocator->state);
     });
 
-  client_data->keyexpr = ros_topic_name_to_zenoh_key(
-    node->context->actual_domain_id,
-    rmw_client->service_name,
-    service_type.c_str(),
-    type_hash_c_str);
-  auto free_ros_keyexpr = rcpputils::make_scope_exit(
-    [client_data]() {
-      z_keyexpr_drop(z_move(client_data->keyexpr));
-    });
-  if (!z_keyexpr_check(&client_data->keyexpr)) {
-    RMW_SET_ERROR_MSG("unable to create zenoh keyexpr.");
-    return nullptr;
-  }
-
   client_data->entity = rmw_zenoh_cpp::liveliness::Entity::make(
     z_info_zid(z_loan(node->context->impl->session)),
     std::to_string(node_data->id),
@@ -2305,6 +2298,7 @@ rmw_create_client(
     rmw_zenoh_cpp::liveliness::NodeInfo{
       node->context->actual_domain_id, node->namespace_, node->name, context_impl->enclave},
     rmw_zenoh_cpp::liveliness::TopicInfo{
+      node->context->actual_domain_id,
       rmw_client->service_name,
       std::move(service_type),
       type_hash_c_str,
@@ -2316,9 +2310,20 @@ rmw_create_client(
       "Unable to generate keyexpr for liveliness token for the client.");
     return nullptr;
   }
+
+  client_data->keyexpr = z_keyexpr_new(client_data->entity->topic_info()->topic_keyexpr_.c_str());
+  auto free_ros_keyexpr = rcpputils::make_scope_exit(
+    [client_data]() {
+      z_keyexpr_drop(z_move(client_data->keyexpr));
+    });
+  if (!z_keyexpr_check(&client_data->keyexpr)) {
+    RMW_SET_ERROR_MSG("unable to create zenoh keyexpr.");
+    return nullptr;
+  }
+
   client_data->token = zc_liveliness_declare_token(
     z_loan(node->context->impl->session),
-    z_keyexpr(client_data->entity->keyexpr().c_str()),
+    z_keyexpr(client_data->entity->liveliness_keyexpr().c_str()),
     NULL
   );
   auto free_token = rcpputils::make_scope_exit(
@@ -2860,11 +2865,28 @@ rmw_create_service(
       allocator->deallocate(type_hash_c_str, allocator->state);
     });
 
-  service_data->keyexpr = ros_topic_name_to_zenoh_key(
-    node->context->actual_domain_id,
-    rmw_service->service_name,
-    service_type.c_str(),
-    type_hash_c_str);
+  service_data->entity = rmw_zenoh_cpp::liveliness::Entity::make(
+    z_info_zid(z_loan(node->context->impl->session)),
+    std::to_string(node_data->id),
+    std::to_string(
+      context_impl->get_next_entity_id()),
+    rmw_zenoh_cpp::liveliness::EntityType::Service,
+    rmw_zenoh_cpp::liveliness::NodeInfo{
+      node->context->actual_domain_id, node->namespace_, node->name, context_impl->enclave},
+    rmw_zenoh_cpp::liveliness::TopicInfo{
+      node->context->actual_domain_id,
+      rmw_service->service_name,
+      std::move(service_type),
+      type_hash_c_str,
+      service_data->adapted_qos_profile}
+  );
+  if (service_data->entity == nullptr) {
+    RMW_ZENOH_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to generate keyexpr for liveliness token for the service.");
+    return nullptr;
+  }
+  service_data->keyexpr = z_keyexpr_new(service_data->entity->topic_info()->topic_keyexpr_.c_str());
   auto free_ros_keyexpr = rcpputils::make_scope_exit(
     [service_data]() {
       if (service_data) {
@@ -2897,29 +2919,9 @@ rmw_create_service(
       z_undeclare_queryable(z_move(service_data->qable));
     });
 
-  service_data->entity = rmw_zenoh_cpp::liveliness::Entity::make(
-    z_info_zid(z_loan(node->context->impl->session)),
-    std::to_string(node_data->id),
-    std::to_string(
-      context_impl->get_next_entity_id()),
-    rmw_zenoh_cpp::liveliness::EntityType::Service,
-    rmw_zenoh_cpp::liveliness::NodeInfo{
-      node->context->actual_domain_id, node->namespace_, node->name, context_impl->enclave},
-    rmw_zenoh_cpp::liveliness::TopicInfo{
-      rmw_service->service_name,
-      std::move(service_type),
-      type_hash_c_str,
-      service_data->adapted_qos_profile}
-  );
-  if (service_data->entity == nullptr) {
-    RMW_ZENOH_LOG_ERROR_NAMED(
-      "rmw_zenoh_cpp",
-      "Unable to generate keyexpr for liveliness token for the service.");
-    return nullptr;
-  }
   service_data->token = zc_liveliness_declare_token(
     z_loan(node->context->impl->session),
-    z_keyexpr(service_data->entity->keyexpr().c_str()),
+    z_keyexpr(service_data->entity->liveliness_keyexpr().c_str()),
     NULL
   );
   auto free_token = rcpputils::make_scope_exit(

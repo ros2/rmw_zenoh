@@ -49,8 +49,26 @@ NodeInfo::NodeInfo(
   // Do nothing.
 }
 
+namespace {
+// Helper function to create a copy of a string after removing any
+// leading or trailing slashes.
+std::string strip_slashes(const std::string & str)
+{
+  std::string ret = str;
+  std::size_t start = 0;
+  std::size_t end = str.length() - 1;
+  if (str[0] == '/') {
+    ++start;
+  }
+  if (str[end] == '/') {
+    --end;
+  }
+  return ret.substr(start, end - start + 1);
+}
+}  // namespace anonymous
 ///=============================================================================
 TopicInfo::TopicInfo(
+  std::size_t domain_id,
   std::string name,
   std::string type,
   std::string type_hash,
@@ -60,7 +78,13 @@ TopicInfo::TopicInfo(
   type_hash_(std::move(type_hash)),
   qos_(std::move(qos))
 {
-  // Do nothing.
+  topic_keyexpr_ = std::to_string(domain_id);
+  topic_keyexpr_ += "/";
+  topic_keyexpr_ += strip_slashes(name_);
+  topic_keyexpr_ += "/";
+  topic_keyexpr_ += type_;
+  topic_keyexpr_ += "/";
+  topic_keyexpr_ += type_hash_;
 }
 
 ///=============================================================================
@@ -403,7 +427,7 @@ Entity::Entity(
   for (std::size_t i = 0; i < KEYEXPR_INDEX_MAX + 1; ++i) {
     bool last = false;
     if (!keyexpr_parts[i].empty()) {
-      this->keyexpr_ += std::move(keyexpr_parts[i]);
+      this->liveliness_keyexpr_ += std::move(keyexpr_parts[i]);
     }
     if (i == KEYEXPR_INDEX_MAX || keyexpr_parts[i + 1].empty()) {
       last = true;
@@ -412,9 +436,9 @@ Entity::Entity(
       break;
     }
     // Append the delimiter unless it is the last component.
-    this->keyexpr_ += KEYEXPR_DELIMITER;
+    this->liveliness_keyexpr_ += KEYEXPR_DELIMITER;
   }
-  this->guid_ = std::hash<std::string>{}(this->keyexpr_);
+  this->guid_ = std::hash<std::string>{}(this->liveliness_keyexpr_);
 }
 
 ///=============================================================================
@@ -521,6 +545,7 @@ std::shared_ptr<Entity> Entity::make(const std::string & keyexpr)
       return nullptr;
     }
     topic_info = TopicInfo{
+      domain_id,
       demangle_name(std::move(parts[KeyexprIndex::TopicName])),
       demangle_name(std::move(parts[KeyexprIndex::TopicType])),
       demangle_name(std::move(parts[KeyexprIndex::TopicTypeHash])),
@@ -590,9 +615,9 @@ std::optional<TopicInfo> Entity::topic_info() const
 }
 
 ///=============================================================================
-std::string Entity::keyexpr() const
+std::string Entity::liveliness_keyexpr() const
 {
-  return this->keyexpr_;
+  return this->liveliness_keyexpr_;
 }
 
 ///=============================================================================
