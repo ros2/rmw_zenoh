@@ -355,25 +355,14 @@ rmw_ret_t rmw_init(const rmw_init_options_t *options, rmw_context_t *context) {
 
   z_view_keyexpr_from_str(&keyexpr, liveliness_str.c_str());
 
-  zc_liveliness_declare_subscriber(
+  if(zc_liveliness_declare_subscriber(
       &context->impl->graph_subscriber,
       z_loan(context->impl->session), z_loan(keyexpr),
-      z_move(callback), &sub_options);
-
-  const z_loaned_keyexpr_t *sub_ke = z_subscriber_keyexpr(z_loan(context->impl->graph_subscriber));
-  z_view_string_t sub_keyexpr;
-  z_keyexpr_as_view_string(sub_ke, &sub_keyexpr);
-
-
-  auto undeclare_z_sub = rcpputils::make_scope_exit([context]() {
-    z_undeclare_subscriber(z_move(context->impl->graph_subscriber));
-  });
-  if (!z_check(context->impl->graph_subscriber)) {
+      z_move(callback), &sub_options) != Z_OK) {
     RMW_SET_ERROR_MSG("unable to create zenoh subscription");
     return RMW_RET_ERROR;
   }
 
-  undeclare_z_sub.cancel();
   close_session.cancel();
   destruct_guard_condition_data.cancel();
   impl_destructor.cancel();

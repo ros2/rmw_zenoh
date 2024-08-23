@@ -528,7 +528,12 @@ void client_data_handler(const z_loaned_reply_t *reply, void *data) {
     return;
   }
 
-  if (!z_reply_is_ok(reply)) {
+  if (z_reply_is_ok(reply))
+  {
+    z_owned_reply_t owned_reply;
+    z_reply_clone(&owned_reply, reply);
+    client_data->add_new_reply(std::make_unique<ZenohReply>(&owned_reply));
+  } else {
     z_view_string_t keystr;
     z_keyexpr_as_view_string(z_loan(client_data->keyexpr), &keystr);
     const z_loaned_reply_err_t *err = z_reply_err(reply);
@@ -545,15 +550,6 @@ void client_data_handler(const z_loaned_reply_t *reply, void *data) {
     z_drop(z_move(err_str));
     return;
   }
-  z_owned_reply_t owned_reply;
-  z_reply_clone(&owned_reply, reply);
-
-  if (!z_reply_check(&owned_reply)) {
-    RMW_ZENOH_LOG_ERROR_NAMED("rmw_zenoh_cpp", "z_reply_check returned False");
-    return;
-  }
-
-  client_data->add_new_reply(std::make_unique<ZenohReply>(&owned_reply));
 }
 
 void client_data_drop(void *data) {
