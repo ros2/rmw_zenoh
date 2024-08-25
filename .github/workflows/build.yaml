@@ -36,7 +36,7 @@ jobs:
       if: ${{ matrix.BUILD_TYPE == 'source' }}
     - name: Install Coverage Tools
       if: ${{ matrix.BUILD_TYPE == 'binary' }}
-      run: sudo apt update && sudo apt install -y python3-colcon-coveragepy-result python3-colcon-lcov-result
+      run: sudo apt update && sudo apt install -y python3-colcon-coveragepy-result python3-colcon-lcov-result lcov
     - name: Build and run tests
       id: action-ros-ci
       uses: ros-tooling/action-ros-ci@v0.3
