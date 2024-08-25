@@ -20,24 +20,23 @@ jobs:
           # Rolling (source)
           - ROS_DISTRO: rolling
             BUILD_TYPE: source
-            DOCKER_IMAGE: ubuntu:noble
           # Jazzy (binary)
           - ROS_DISTRO: jazzy
             BUILD_TYPE: binary
-            DOCKER_IMAGE: ubuntu:noble
           # Iron (binary)
           - ROS_DISTRO: iron
             BUILD_TYPE: binary
-            DOCKER_IMAGE: ubuntu:jammy
     env:
       ROS2_REPOS_FILE_URL: 'https://raw.githubusercontent.com/ros2/ros2/${{ matrix.ROS_DISTRO }}/ros2.repos'
     runs-on: ubuntu-latest
     container:
-      image: ${{ matrix.DOCKER_IMAGE }}
+      image: ${{ matrix.BUILD_TYPE == 'binary' && format('ros:{0}-ros-base', matrix.ROS_DISTRO) || 'ubuntu:noble' }}
     steps:
     - uses: ros-tooling/setup-ros@v0.7
-      with:
-        required-ros-distributions: ${{ matrix.BUILD_TYPE == 'binary' && matrix.ROS_DISTRO || ''}}
+      if: ${{ matrix.BUILD_TYPE == 'source' }}
+    - name: Install Coverage Tools
+      if: ${{ matrix.BUILD_TYPE == 'binary' }}
+      run: sudo apt update && sudo apt install -y python3-colcon-coveragepy-result python3-colcon-lcov-result
     - name: Build and run tests
       id: action-ros-ci
       uses: ros-tooling/action-ros-ci@v0.3
