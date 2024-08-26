@@ -655,8 +655,7 @@ rmw_create_publisher(
     // Set the queryable_prefix to the session id so that querying subscribers can specify this
     // session id to obtain latest data from this specific publication caches when querying over
     // the same keyexpression.
-    z_owned_keyexpr_t queryable_prefix = z_keyexpr_new(
-      rmw_zenoh_cpp::liveliness::zid_to_str(zid).c_str());
+    z_owned_keyexpr_t queryable_prefix = z_keyexpr_new(publisher_data->entity->zid().c_str());
     auto always_free_queryable_prefix =rcpputils::make_scope_exit(
       [&queryable_prefix]() {
         z_keyexpr_drop(z_move(queryable_prefix));
@@ -1520,16 +1519,28 @@ rmw_create_subscription(
     }
     // Register the querying subscriber with the graph cache to get latest
     // messages from publishers that were discovered after their first publication.
-    // context_impl->graph_cache->set_querying_subscriber_callback(
-    //   keyexpr,
-    //   [sub_data](const std::string & queryable_prefix) -> void
-    //   {
-    //     if (sub_data == nullptr) {
-    //       return;
-    //     }
-    //     // ze_querying_subscriber_get()
-    //   }
-    // );
+    context_impl->graph_cache->set_querying_subscriber_callback(
+      sub_data->entity->topic_info()->topic_keyexpr_,
+      [sub_data](const std::string & queryable_prefix) -> void
+      {
+        if (sub_data == nullptr) {
+          return;
+        }
+        const std::string selector = queryable_prefix +
+          "/" +
+          sub_data->entity->topic_info()->topic_keyexpr_;
+        RMW_ZENOH_LOG_ERROR_NAMED(
+          "rmw_zenoh_cpp",
+          "QueryingSubscriberCallback triggered over %s.",
+          selector.c_str()
+        );
+        ze_querying_subscriber_get(
+          z_loan(std::get<ze_owned_querying_subscriber_t>(sub_data->sub)),
+          z_keyexpr(selector.c_str()),
+          nullptr
+        );
+      }
+    );
   } else {
     // Create a regular subscriber for all other durability settings.
     z_subscriber_options_t sub_options = z_subscriber_options_default();
