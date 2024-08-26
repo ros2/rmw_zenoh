@@ -23,12 +23,9 @@
 #include <utility>
 #include <vector>
 
-#include "logging_macros.hpp"
 #include "qos.hpp"
 
 #include "rcpputils/scope_exit.hpp"
-
-#include "rmw/error_handling.h"
 
 namespace rmw_zenoh_cpp
 {
@@ -276,34 +273,6 @@ std::optional<rmw_qos_profile_t> keyexpr_to_qos(const std::string & keyexpr)
     RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("Error setting QoS values from strings: %s", e.what());
     return std::nullopt;
   }
-
-  // Helper function to convert string to size_t.
-  auto str_to_size_t =
-    [](const std::string & str, const std::size_t default_value) -> std::optional<size_t>
-    {
-      if (str.empty()) {
-        return default_value;
-      }
-      errno = 0;
-      char * endptr;
-      size_t num = strtoul(str.c_str(), &endptr, 10);
-      if (endptr == str.c_str()) {
-        // No values were converted, this is an error
-        RMW_SET_ERROR_MSG("no valid numbers available");
-        return std::nullopt;
-      } else if (*endptr != '\0') {
-        // There was junk after the number
-        RMW_SET_ERROR_MSG("non-numeric values");
-        return std::nullopt;
-      } else if (errno != 0) {
-        // Some other error occurred, which may include overflow or underflow
-        RMW_SET_ERROR_MSG(
-          "an undefined error occurred while getting the number, this may be an overflow");
-        return std::nullopt;
-      }
-      return num;
-    };
-
   const auto maybe_depth = str_to_size_t(history_parts[1], default_qos.depth);
   const auto maybe_deadline_s = str_to_size_t(deadline_parts[0], default_qos.deadline.sec);
   const auto maybe_deadline_ns = str_to_size_t(deadline_parts[1], default_qos.deadline.nsec);

@@ -23,6 +23,9 @@
 #include <string>
 #include <vector>
 
+#include "logging_macros.hpp"
+
+#include "rmw/error_handling.h"
 #include "rmw/types.h"
 
 namespace rmw_zenoh_cpp
@@ -227,6 +230,35 @@ std::optional<rmw_qos_profile_t> keyexpr_to_qos(const std::string & keyexpr);
 ///=============================================================================
 /// Convert a Zenoh id to a string.
 std::string zid_to_str(const z_id_t & id);
+
+///=============================================================================
+// Helper function to convert string to size_t.
+// The function is templated to enable conversion to size_t or std::size_t.
+template<typename T>
+std::optional<T> str_to_size_t(const std::string & str, const T default_value)
+{
+  if (str.empty()) {
+    return default_value;
+  }
+  errno = 0;
+  char * endptr;
+  size_t num = strtoul(str.c_str(), &endptr, 10);
+  if (endptr == str.c_str()) {
+    // No values were converted, this is an error
+    RMW_SET_ERROR_MSG("no valid numbers available");
+    return std::nullopt;
+  } else if (*endptr != '\0') {
+    // There was junk after the number
+    RMW_SET_ERROR_MSG("non-numeric values");
+    return std::nullopt;
+  } else if (errno != 0) {
+    // Some other error occurred, which may include overflow or underflow
+    RMW_SET_ERROR_MSG(
+      "an undefined error occurred while getting the number, this may be an overflow");
+    return std::nullopt;
+  }
+  return num;
+}
 }  // namespace liveliness
 }  // namespace rmw_zenoh_cpp
 
