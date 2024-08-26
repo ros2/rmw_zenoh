@@ -59,50 +59,6 @@
 namespace
 {
 //==============================================================================
-// Helper function to create a copy of a string after removing any
-// leading or trailing slashes.
-std::string strip_slashes(const char * const str)
-{
-  std::string ret = std::string(str);
-  const std::size_t len = strlen(str);
-  std::size_t start = 0;
-  std::size_t end = len - 1;
-  if (str[0] == '/') {
-    ++start;
-  }
-  if (str[end] == '/') {
-    --end;
-  }
-  return ret.substr(start, end - start + 1);
-}
-
-//==============================================================================
-// A function that generates a key expression for message transport of the format
-// <ros_domain_id>/<topic_name>/<topic_type>/<topic_hash>
-// In particular, Zenoh keys cannot start or end with a /, so this function
-// will strip them out.
-// Performance note: at present, this function allocates a new string and copies
-// the old string into it. If this becomes a performance problem, we could consider
-// modifying the topic_name in place. But this means we need to be much more
-// careful about who owns the string.
-z_owned_keyexpr_t ros_topic_name_to_zenoh_key(
-  const std::size_t domain_id,
-  const char * const topic_name,
-  const char * const topic_type,
-  const char * const type_hash)
-{
-  std::string keyexpr_str = std::to_string(domain_id);
-  keyexpr_str += "/";
-  keyexpr_str += strip_slashes(topic_name);
-  keyexpr_str += "/";
-  keyexpr_str += topic_type;
-  keyexpr_str += "/";
-  keyexpr_str += type_hash;
-
-  return z_keyexpr_new(keyexpr_str.c_str());
-}
-
-//==============================================================================
 const rosidl_message_type_support_t * find_message_type_support(
   const rosidl_message_type_support_t * type_supports)
 {
@@ -637,7 +593,8 @@ rmw_create_publisher(
       "Unable to generate keyexpr for liveliness token for the publisher.");
     return nullptr;
   }
-  z_owned_keyexpr_t keyexpr = z_keyexpr_new(publisher_data->entity->topic_info()->topic_keyexpr_.c_str());
+  z_owned_keyexpr_t keyexpr = z_keyexpr_new(
+    publisher_data->entity->topic_info()->topic_keyexpr_.c_str());
   auto always_free_ros_keyexpr = rcpputils::make_scope_exit(
     [&keyexpr]() {
       z_keyexpr_drop(z_move(keyexpr));
@@ -656,10 +613,10 @@ rmw_create_publisher(
     // session id to obtain latest data from this specific publication caches when querying over
     // the same keyexpression.
     z_owned_keyexpr_t queryable_prefix = z_keyexpr_new(publisher_data->entity->zid().c_str());
-    auto always_free_queryable_prefix =rcpputils::make_scope_exit(
+    auto always_free_queryable_prefix = rcpputils::make_scope_exit(
       [&queryable_prefix]() {
         z_keyexpr_drop(z_move(queryable_prefix));
-    });
+      });
     pub_cache_opts.queryable_prefix = z_loan(queryable_prefix);
     publisher_data->pub_cache = ze_declare_publication_cache(
       z_loan(context_impl->session),
@@ -1527,17 +1484,22 @@ rmw_create_subscription(
           return;
         }
         const std::string selector = queryable_prefix +
-          "/" +
-          sub_data->entity->topic_info()->topic_keyexpr_;
+        "/" +
+        sub_data->entity->topic_info()->topic_keyexpr_;
+        // TODO(Yadunund): Remove this printout before merging.
         RMW_ZENOH_LOG_ERROR_NAMED(
           "rmw_zenoh_cpp",
           "QueryingSubscriberCallback triggered over %s.",
           selector.c_str()
         );
+        z_get_options_t opts = z_get_options_default();
+        opts.target = Z_QUERY_TARGET_ALL_COMPLETE;
+        opts.timeout_ms = std::numeric_limits<uint64_t>::max();
+        opts.consolidation = z_query_consolidation_latest();
         ze_querying_subscriber_get(
           z_loan(std::get<ze_owned_querying_subscriber_t>(sub_data->sub)),
           z_keyexpr(selector.c_str()),
-          nullptr
+          &opts
         );
       }
     );
