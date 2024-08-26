@@ -406,7 +406,10 @@ void GraphCache::parse_put(
 
   // If the newly added entity is a publisher with transient_local qos durability,
   // we trigger any registered querying subscriber callbacks.
-  if (entity->topic_info().has_value() && entity->type() == liveliness::EntityType::Publisher) {
+  if (entity->type() == liveliness::EntityType::Publisher &&
+    entity->topic_info().has_value() &&
+    entity->topic_info()->qos_.durability == RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL)
+  {
     auto sub_cbs_it = querying_subs_cbs_.find(entity->topic_info()->topic_keyexpr_);
     if (sub_cbs_it != querying_subs_cbs_.end()) {
       for (const auto & cb : sub_cbs_it->second) {
