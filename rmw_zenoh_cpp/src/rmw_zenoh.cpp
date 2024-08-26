@@ -1500,10 +1500,10 @@ rmw_create_subscription(
           "QueryingSubscriberCallback triggered over %s.",
           selector.c_str()
         );
-        z_get_options_t opts = z_get_options_default();
-        opts.target = Z_QUERY_TARGET_ALL_COMPLETE;
-        opts.timeout_ms = std::numeric_limits<uint64_t>::max();
-        opts.consolidation = z_query_consolidation_latest();
+        ze_querying_subscriber_options_t opts = ze_querying_subscriber_options_default();;
+        opts.query_timeout_ms = std::numeric_limits<uint64_t>::max();
+        opts.query_consolidation = z_query_consolidation_latest();
+        opts.query_accept_replies = ZCU_REPLY_KEYEXPR_ANY;
         ze_querying_subscriber_get(
           z_loan(std::get<ze_owned_querying_subscriber_t>(sub_data->sub)),
           z_keyexpr(selector.c_str()),
