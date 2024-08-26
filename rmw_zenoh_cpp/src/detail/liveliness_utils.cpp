@@ -15,6 +15,7 @@
 #include "liveliness_utils.hpp"
 
 #include <functional>
+#include <iomanip>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -296,14 +297,11 @@ std::optional<rmw_qos_profile_t> keyexpr_to_qos(const std::string & keyexpr)
 ///=============================================================================
 std::string zid_to_str(const z_id_t & id)
 {
-  std::stringstream ss;
-  ss << std::hex;
-  for (std::size_t i = 0; i < sizeof(id.id); i++) {
-    // By Zenoh convention a z_id_t is a little endian u128.
-    const std::size_t le_idx = sizeof(id.id) - 1 - i;
-    ss << static_cast<int>(id.id[le_idx]);
+  std::ostringstream oss;
+  for (int i = sizeof(id.id) - 1; i >= 0; i--) {
+      oss << std::setw(2) << std::setfill('0') << std::hex << static_cast<int>(id.id[i]);
   }
-  return ss.str();
+  return oss.str();
 }
 
 ///=============================================================================
