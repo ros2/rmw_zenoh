@@ -612,6 +612,9 @@ rmw_create_publisher(
     // Set the queryable_prefix to the session id so that querying subscribers can specify this
     // session id to obtain latest data from this specific publication caches when querying over
     // the same keyexpression.
+    // When such a prefix is added to the PublicationCache, it listens to queries with this extra
+    // prefix (allowing to be queried in a unique way), but still replies with the original
+    // publications' key expressions.
     z_owned_keyexpr_t queryable_prefix = z_keyexpr_new(publisher_data->entity->zid().c_str());
     auto always_free_queryable_prefix = rcpputils::make_scope_exit(
       [&queryable_prefix]() {
@@ -1455,6 +1458,11 @@ rmw_create_subscription(
 
   if (sub_data->adapted_qos_profile.durability == RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL) {
     ze_querying_subscriber_options_t sub_options = ze_querying_subscriber_options_default();
+    // Tell the PublicationCache's Queryable that the query accepts any key expression as a reply.
+    // By default a query accepts only replies that matches its query selector.
+    // This allows us to selectively query certain PublicationCaches when defining the
+    // set_querying_subscriber_callback below.
+    sub_options.query_accept_replies = ZCU_REPLY_KEYEXPR_ANY;
     // Target all complete publication caches which are queryables.
     sub_options.query_target = Z_QUERY_TARGET_ALL_COMPLETE;
     // We set consolidation to none as we need to receive transient local messages
