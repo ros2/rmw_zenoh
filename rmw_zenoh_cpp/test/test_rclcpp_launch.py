@@ -28,13 +28,18 @@ import pytest
 
 
 proc_env = os.environ.copy()
-proc_env['PYTHONUNBUFFERED'] = '1'
 proc_env['RMW_IMPLEMENTATION'] = 'rmw_zenoh_cpp'
 
 @pytest.mark.launch_test
 @launch_testing.markers.keep_alive
 def generate_test_description():
 
+    zenoh_router = launch_ros.actions.Node(
+        name="zenoh_router",
+        package="rmw_zenoh_cpp",
+        executable="rmw_zenohd",
+        output="both",
+    )
 
     dut_process = launch.actions.ExecuteProcess(
         cmd=[
@@ -50,7 +55,7 @@ def generate_test_description():
     )
 
     return launch.LaunchDescription([
-        # rmw_zenohd,
+        zenoh_router,
         dut_process,
         # In tests where all of the procs under tests terminate themselves, it's necessary
         # to add a dummy process not under test to keep the launch alive. launch_test
@@ -58,25 +63,6 @@ def generate_test_description():
         launch_testing.util.KeepAliveProc(),
         launch_testing.actions.ReadyToTest()
     ]) , {'dut_process': dut_process}
-
-class TestTerminatingProcessStops(unittest.TestCase):
-
-    def test_proc_terminates(self, proc_info, dut_process):
-        cmd=[
-            'ros2',
-            'run ',
-            'rmw_zenoh_cpp',
-            'rmw_zenohd',
-        ]
-        process_group = subprocess.Popen(
-            cmd, stdout=subprocess.PIPE,
-            shell=True, env=proc_env, preexec_fn=os.setsid)
-        print(f'Started rmw_zenohd with pid [{process_group.pid}]')
-
-        proc_info.assertWaitForShutdown(process=dut_process, timeout=400)
-
-        os.killpg(os.getpgid(process_group.pid), signal.SIGTERM)
-
 
 # These tests are run after the processes in generate_test_description() have shutdown.
 @launch_testing.post_shutdown_test()
