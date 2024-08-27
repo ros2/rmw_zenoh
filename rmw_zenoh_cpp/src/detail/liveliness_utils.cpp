@@ -178,12 +178,11 @@ std::optional<T> str_to_size_t(const std::string & str, const T default_value)
   }
   errno = 0;
   char * endptr;
-  // TODO(Yadunund): strtoul and strtol both return long int and not size_t so we
-  // should consider fixing this implementation if this function is moved to
-  // a header file and will be used by other parts of the codebase.
-  size_t num = std::is_signed<decltype(default_value)>::value ?
-    strtol(str.c_str(), &endptr, 10) :
-    strtoul(str.c_str(), &endptr, 10);
+  // TODO(Yadunund): strtoul returns an unsigned long, not size_t.
+  // Depending on the architecture and platform, these may not be the same size.
+  // Further, if the incoming str is a signed integer, storing it in a size_t is incorrect.
+  // We should fix this piece of code to deal with both of those situations.
+  size_t num = strtoul(str.c_str(), &endptr, 10);
   if (endptr == str.c_str()) {
     // No values were converted, this is an error
     RMW_SET_ERROR_MSG("no valid numbers available");
