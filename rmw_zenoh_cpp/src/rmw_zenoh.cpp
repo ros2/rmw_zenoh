@@ -1494,13 +1494,12 @@ rmw_create_subscription(
         const std::string selector = queryable_prefix +
         "/" +
         sub_data->entity->topic_info()->topic_keyexpr_;
-        // TODO(Yadunund): Remove this printout before merging.
-        RMW_ZENOH_LOG_ERROR_NAMED(
+        RMW_ZENOH_LOG_DEBUG_NAMED(
           "rmw_zenoh_cpp",
           "QueryingSubscriberCallback triggered over %s.",
           selector.c_str()
         );
-        ze_querying_subscriber_options_t opts = ze_querying_subscriber_options_default();;
+        ze_querying_subscriber_options_t opts = ze_querying_subscriber_options_default();
         opts.query_timeout_ms = std::numeric_limits<uint64_t>::max();
         opts.query_consolidation = z_query_consolidation_latest();
         opts.query_accept_replies = ZCU_REPLY_KEYEXPR_ANY;
