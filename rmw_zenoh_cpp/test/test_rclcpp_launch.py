@@ -35,10 +35,10 @@ proc_env['RMW_IMPLEMENTATION'] = 'rmw_zenoh_cpp'
 def generate_test_description():
 
     zenoh_router = launch_ros.actions.Node(
-        name="zenoh_router",
         package="rmw_zenoh_cpp",
         executable="rmw_zenohd",
         output="both",
+        env=proc_env
     )
 
     dut_process = launch.actions.ExecuteProcess(
@@ -46,7 +46,7 @@ def generate_test_description():
             'colcon',
             'test',
             '--packages-select',
-            'test_rclcpp',
+            'rcl',
             '--retest-until-pass',
             '2',
         ],
@@ -63,6 +63,10 @@ def generate_test_description():
         launch_testing.util.KeepAliveProc(),
         launch_testing.actions.ReadyToTest()
     ]) , {'dut_process': dut_process}
+
+class TestTerminatingProcessStops(unittest.TestCase):
+    def test_proc_terminates(self, proc_info, dut_process):
+        proc_info.assertWaitForShutdown(process=dut_process, timeout=400)
 
 # These tests are run after the processes in generate_test_description() have shutdown.
 @launch_testing.post_shutdown_test()
