@@ -23,9 +23,6 @@
 #include <string>
 #include <vector>
 
-#include "logging_macros.hpp"
-
-#include "rmw/error_handling.h"
 #include "rmw/types.h"
 
 namespace rmw_zenoh_cpp
