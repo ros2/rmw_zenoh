@@ -20,6 +20,7 @@
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -164,6 +165,40 @@ std::vector<std::string> split_keyexpr(
   // Finally add the last substr.
   result.push_back(keyexpr.substr(start));
   return result;
+}
+
+///=============================================================================
+// Helper function to convert string to size_t.
+// The function is templated to enable conversion to size_t or std::size_t.
+template<typename T>
+std::optional<T> str_to_size_t(const std::string & str, const T default_value)
+{
+  if (str.empty()) {
+    return default_value;
+  }
+  errno = 0;
+  char * endptr;
+  // TODO(Yadunund): strtoul and strtol both return long int and not size_t so we
+  // should consider fixing this implementation if this function is moved to
+  // a header file and will be used by other parts of the codebase.
+  size_t num = std::is_signed<decltype(default_value)>::value ?
+    strtol(str.c_str(), &endptr, 10) :
+    strtoul(str.c_str(), &endptr, 10);
+  if (endptr == str.c_str()) {
+    // No values were converted, this is an error
+    RMW_SET_ERROR_MSG("no valid numbers available");
+    return std::nullopt;
+  } else if (*endptr != '\0') {
+    // There was junk after the number
+    RMW_SET_ERROR_MSG("non-numeric values");
+    return std::nullopt;
+  } else if (errno != 0) {
+    // Some other error occurred, which may include overflow or underflow
+    RMW_SET_ERROR_MSG(
+      "an undefined error occurred while getting the number, this may be an overflow");
+    return std::nullopt;
+  }
+  return num;
 }
 }  // namespace
 
