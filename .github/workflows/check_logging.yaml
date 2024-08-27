@@ -4,7 +4,10 @@ name: "Check logging macros"
 on: [pull_request]
 jobs:
   check_logging:
-    runs-on: [self-hosted, ubuntu-24.04]
+    runs-on:
+      - self-hosted
+      - X64
+      - ubuntu-ros
     steps:
     - name: Check logging macros
       uses: JJ/github-pr-contains-action@releases/v14.1
