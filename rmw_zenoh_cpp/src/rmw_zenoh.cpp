@@ -1461,7 +1461,7 @@ rmw_create_subscription(
     // Make the initial query to hit all the PublicationCaches, using a query_selector with
     // '*' in place of the queryable_prefix of each PublicationCache
     const std::string selector = "*/" +
-        sub_data->entity->topic_info()->topic_keyexpr_;
+      sub_data->entity->topic_info()->topic_keyexpr_;
     sub_options.query_selector = z_keyexpr(selector.c_str());
     // Tell the PublicationCache's Queryable that the query accepts any key expression as a reply.
     // By default a query accepts only replies that matches its query selector.
