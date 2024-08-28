@@ -1449,7 +1449,7 @@ rmw_create_subscription(
   // with Zenoh; after this, callbacks may come in at any time.
   // z_owned_closure_sample_t callback = z_closure(rmw_zenoh_cpp::sub_data_handler, nullptr, sub_data);
   z_owned_closure_sample_t callback;
-  callback.context = (void*)sub_data;
+  callback.context = (void *)sub_data;
   callback.call = rmw_zenoh_cpp::sub_data_handler;
   callback.drop = nullptr;
   z_owned_keyexpr_t keyexpr = ros_topic_name_to_zenoh_key(
@@ -2501,7 +2501,7 @@ rmw_send_request(
   // z_owned_closure_reply_t zn_closure_reply =
   //   z_closure(rmw_zenoh_cpp::client_data_handler, rmw_zenoh_cpp::client_data_drop, client_data);
   z_owned_closure_reply_t zn_closure_reply;
-  zn_closure_reply.context = (void*)client_data;
+  zn_closure_reply.context = (void *)client_data;
   zn_closure_reply.call = rmw_zenoh_cpp::client_data_handler;
   zn_closure_reply.drop = rmw_zenoh_cpp::client_data_drop;
   z_get(
@@ -2877,7 +2877,7 @@ rmw_create_service(
   //   rmw_zenoh_cpp::service_data_handler, nullptr,
   //   service_data);
   z_owned_closure_query_t callback;
-  callback.context = (void*)service_data;
+  callback.context = (void *)service_data;
   callback.call = rmw_zenoh_cpp::service_data_handler;
   callback.drop = nullptr;
   // Configure the queryable to process complete queries.
