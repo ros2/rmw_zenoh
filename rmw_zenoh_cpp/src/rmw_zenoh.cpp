@@ -1447,7 +1447,11 @@ rmw_create_subscription(
 
   // Everything above succeeded and is setup properly.  Now declare a subscriber
   // with Zenoh; after this, callbacks may come in at any time.
-  z_owned_closure_sample_t callback = z_closure(rmw_zenoh_cpp::sub_data_handler, nullptr, sub_data);
+  // z_owned_closure_sample_t callback = z_closure(rmw_zenoh_cpp::sub_data_handler, nullptr, sub_data);
+  z_owned_closure_sample_t callback;
+  callback.context = (void*)sub_data;
+  callback.call = rmw_zenoh_cpp::sub_data_handler;
+  callback.drop = nullptr;
   z_owned_keyexpr_t keyexpr = ros_topic_name_to_zenoh_key(
     node->context->actual_domain_id,
     topic_name,
@@ -2494,8 +2498,12 @@ rmw_send_request(
   // and any number.
   opts.consolidation = z_query_consolidation_latest();
   opts.value.payload = z_bytes_t{data_length, reinterpret_cast<const uint8_t *>(request_bytes)};
-  z_owned_closure_reply_t zn_closure_reply =
-    z_closure(rmw_zenoh_cpp::client_data_handler, rmw_zenoh_cpp::client_data_drop, client_data);
+  // z_owned_closure_reply_t zn_closure_reply =
+  //   z_closure(rmw_zenoh_cpp::client_data_handler, rmw_zenoh_cpp::client_data_drop, client_data);
+  z_owned_closure_reply_t zn_closure_reply;
+  zn_closure_reply.context = (void*)client_data;
+  zn_closure_reply.call = rmw_zenoh_cpp::client_data_handler;
+  zn_closure_reply.drop = rmw_zenoh_cpp::client_data_drop;
   z_get(
     z_loan(context_impl->session),
     z_loan(client_data->keyexpr), "",
@@ -2865,9 +2873,13 @@ rmw_create_service(
     return nullptr;
   }
 
-  z_owned_closure_query_t callback = z_closure(
-    rmw_zenoh_cpp::service_data_handler, nullptr,
-    service_data);
+  // z_owned_closure_query_t callback = z_closure(
+  //   rmw_zenoh_cpp::service_data_handler, nullptr,
+  //   service_data);
+  z_owned_closure_query_t callback;
+  callback.context = (void*)service_data;
+  callback.call = rmw_zenoh_cpp::service_data_handler;
+  callback.drop = nullptr;
   // Configure the queryable to process complete queries.
   z_queryable_options_t qable_options = z_queryable_options_default();
   qable_options.complete = true;

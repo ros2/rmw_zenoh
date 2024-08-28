@@ -171,7 +171,7 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   // If not already defined, set the logging environment variable for Zenoh sessions
   // to warning level by default.
   // TODO(Yadunund): Switch to rcutils_get_env once it supports not overwriting values.
-  if (setenv(ZENOH_LOG_ENV_VAR_STR, ZENOH_LOG_WARN_LEVEL_STR, 0) != 0) {
+  if (rcutils_set_env_overwrite(ZENOH_LOG_ENV_VAR_STR, ZENOH_LOG_WARN_LEVEL_STR, 0) != 0) {
     RMW_SET_ERROR_MSG("Error configuring Zenoh logging.");
     return RMW_RET_ERROR;
   }
@@ -359,7 +359,12 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   //   z_move(callback),
   //   &sub_options);
   auto sub_options = zc_liveliness_subscriber_options_null();
-  z_owned_closure_sample_t callback = z_closure(graph_sub_data_handler, nullptr, context->impl);
+  // z_owned_closure_sample_t callback = z_closure(graph_sub_data_handler, nullptr, context->impl); 
+  z_owned_closure_sample_t callback;
+  callback.context = (void*)context->impl;
+  callback.call = graph_sub_data_handler;
+  callback.drop = nullptr;
+
   context->impl->graph_subscriber = zc_liveliness_declare_subscriber(
     z_loan(context->impl->session),
     z_keyexpr(liveliness_str.c_str()),

@@ -43,7 +43,12 @@ rmw_ret_t zenoh_router_check(z_session_t session)
     };
 
   rmw_ret_t ret = RMW_RET_OK;
-  z_owned_closure_zid_t router_callback = z_closure(callback, nullptr /* drop */, &context);
+  // z_owned_closure_zid_t router_callback = z_closure(callback, nullptr /* drop */, &context);
+  z_owned_closure_zid_t router_callback;
+  router_callback.context = (void*)&context;
+  router_callback.call = callback;
+  router_callback.drop = nullptr;
+
   if (z_info_routers_zid(session, z_move(router_callback))) {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
