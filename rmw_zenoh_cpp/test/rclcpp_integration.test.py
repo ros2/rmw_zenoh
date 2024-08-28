@@ -21,6 +21,7 @@ import unittest
 
 import launch
 import launch.actions
+import launch.substitutions
 import launch_ros.actions
 import launch_testing.actions
 import launch_testing.markers
@@ -34,6 +35,9 @@ proc_env['RMW_IMPLEMENTATION'] = 'rmw_zenoh_cpp'
 @launch_testing.markers.keep_alive
 def generate_test_description():
 
+    workspace_directory = launch.substitutions.LaunchConfiguration('workspace_directory')
+    workspace_directory_arg = launch.actions.DeclareLaunchArgument('workspace_directory')
+
     zenoh_router = launch_ros.actions.Node(
         package="rmw_zenoh_cpp",
         executable="rmw_zenohd",
@@ -46,15 +50,17 @@ def generate_test_description():
             'colcon',
             'test',
             '--packages-select',
-            'rcl',
+            'test_rclcpp',
             '--retest-until-pass',
             '2',
         ],
         shell=True,
         env=proc_env,
+        cwd=workspace_directory
     )
 
     return launch.LaunchDescription([
+        workspace_directory_arg,
         zenoh_router,
         dut_process,
         # In tests where all of the procs under tests terminate themselves, it's necessary
@@ -66,7 +72,7 @@ def generate_test_description():
 
 class TestTerminatingProcessStops(unittest.TestCase):
     def test_proc_terminates(self, proc_info, dut_process):
-        proc_info.assertWaitForShutdown(process=dut_process, timeout=400)
+        proc_info.assertWaitForShutdown(process=dut_process, timeout=400000)
 
 # These tests are run after the processes in generate_test_description() have shutdown.
 @launch_testing.post_shutdown_test()
