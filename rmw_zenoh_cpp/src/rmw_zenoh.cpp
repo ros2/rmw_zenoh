@@ -1468,6 +1468,8 @@ rmw_create_subscription(
     // This allows us to selectively query certain PublicationCaches when defining the
     // set_querying_subscriber_callback below.
     sub_options.query_accept_replies = ZCU_REPLY_KEYEXPR_ANY;
+    // As this initial query is now using a "*", the query target is not COMPLETE.
+    sub_options.query_target = Z_QUERY_TARGET_ALL;
     // We set consolidation to none as we need to receive transient local messages
     // from a number of publishers. Eg: To receive TF data published over /tf_static
     // by various publishers.
