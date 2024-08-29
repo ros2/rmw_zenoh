@@ -1458,13 +1458,18 @@ rmw_create_subscription(
 
   if (sub_data->adapted_qos_profile.durability == RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL) {
     ze_querying_subscriber_options_t sub_options = ze_querying_subscriber_options_default();
+    // Make the initial query to hit all the PublicationCaches, using a query_selector with
+    // '*' in place of the queryable_prefix of each PublicationCache
+    const std::string selector = "*/" +
+      sub_data->entity->topic_info()->topic_keyexpr_;
+    sub_options.query_selector = z_keyexpr(selector.c_str());
     // Tell the PublicationCache's Queryable that the query accepts any key expression as a reply.
     // By default a query accepts only replies that matches its query selector.
     // This allows us to selectively query certain PublicationCaches when defining the
     // set_querying_subscriber_callback below.
     sub_options.query_accept_replies = ZCU_REPLY_KEYEXPR_ANY;
-    // Target all complete publication caches which are queryables.
-    sub_options.query_target = Z_QUERY_TARGET_ALL_COMPLETE;
+    // As this initial query is now using a "*", the query target is not COMPLETE.
+    sub_options.query_target = Z_QUERY_TARGET_ALL;
     // We set consolidation to none as we need to receive transient local messages
     // from a number of publishers. Eg: To receive TF data published over /tf_static
     // by various publishers.
