@@ -22,10 +22,6 @@ find_package(rosidl_typesupport_fastrtps_c REQUIRED)
 find_package(rosidl_typesupport_fastrtps_cpp REQUIRED)
 find_package(rmw REQUIRED)
 find_package(zenoh_c_vendor REQUIRED)
-find_package(zenohc_debug QUIET)
-if(NOT zenohc_debug_FOUND)
-  find_package(zenohc REQUIRED)
-endif()
 
 add_library(rmw_zenoh_cpp SHARED
   src/detail/attachment_helpers.cpp
