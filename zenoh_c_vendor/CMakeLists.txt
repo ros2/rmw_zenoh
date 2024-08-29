@@ -28,6 +28,7 @@ ament_vendor(zenoh_c_vendor
   VCS_VERSION dev/1.0.0
   CMAKE_ARGS
     "-DZENOHC_CARGO_FLAGS=${ZENOHC_CARGO_FLAGS}"
+    "-DZENOHC_CUSTOM_TARGET=${ZENOHC_CUSTOM_TARGET}"
 )
 
 ament_package()

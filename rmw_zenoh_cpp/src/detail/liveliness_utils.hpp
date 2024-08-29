@@ -217,7 +217,7 @@ std::string demangle_name(const std::string & input);
  *
  * See rmw/types.h for the values of each policy enum.
  */
-std::string qos_to_keyexpr(rmw_qos_profile_t qos);
+std::string qos_to_keyexpr(const rmw_qos_profile_t & qos);
 
 ///=============================================================================
 /// Convert a rmw_qos_profile_t from a keyexpr. Return std::nullopt if invalid.
