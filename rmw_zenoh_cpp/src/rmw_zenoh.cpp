@@ -263,7 +263,8 @@ rmw_create_node(
   if (node_data->entity == nullptr) {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
-      "Unable to generate keyexpr for liveliness token for the node.");
+      "Unable to generate keyexpr for liveliness token for the node %s.",
+      name);
     return nullptr;
   }
   node_data->token = zc_liveliness_declare_token(
@@ -590,7 +591,8 @@ rmw_create_publisher(
   if (publisher_data->entity == nullptr) {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
-      "Unable to generate keyexpr for liveliness token for the publisher.");
+      "Unable to generate keyexpr for liveliness token for the publisher %s.",
+      rmw_publisher->topic_name);
     return nullptr;
   }
   z_owned_keyexpr_t keyexpr = z_keyexpr_new(
@@ -1433,7 +1435,8 @@ rmw_create_subscription(
   if (sub_data->entity == nullptr) {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
-      "Unable to generate keyexpr for liveliness token for the subscription.");
+      "Unable to generate keyexpr for liveliness token for the subscription %s.",
+      rmw_subscription->topic_name);
     return nullptr;
   }
   z_owned_closure_sample_t callback = z_closure(rmw_zenoh_cpp::sub_data_handler, nullptr, sub_data);
@@ -2292,7 +2295,8 @@ rmw_create_client(
   if (client_data->entity == nullptr) {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
-      "Unable to generate keyexpr for liveliness token for the client.");
+      "Unable to generate keyexpr for liveliness token for the client %s.",
+      rmw_client->service_name);
     return nullptr;
   }
 
@@ -2868,7 +2872,8 @@ rmw_create_service(
   if (service_data->entity == nullptr) {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
-      "Unable to generate keyexpr for liveliness token for the service.");
+      "Unable to generate keyexpr for liveliness token for the service %s.",
+      rmw_service->service_name);
     return nullptr;
   }
   service_data->keyexpr = z_keyexpr_new(service_data->entity->topic_info()->topic_keyexpr_.c_str());
