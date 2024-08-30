@@ -1337,10 +1337,8 @@ void GraphCache::set_querying_subscriber_callback(
 {
   auto cb_it = querying_subs_cbs_.find(keyexpr);
   if (cb_it == querying_subs_cbs_.end()) {
-    std::vector<QueryingSubscriberCallback> cbs = {};
-    cbs.push_back(std::move(cb));
-    querying_subs_cbs_[keyexpr] = std::move(cbs);
-    return;
+    querying_subs_cbs_[keyexpr] = std::move(std::vector<QueryingSubscriberCallback>{});
+    cb_it = querying_subs_cbs_.find(keyexpr);
   }
   cb_it->second.push_back(std::move(cb));
 }
