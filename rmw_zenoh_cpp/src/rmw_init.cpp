@@ -361,7 +361,7 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   auto sub_options = zc_liveliness_subscriber_options_null();
   // z_owned_closure_sample_t callback = z_closure(graph_sub_data_handler, nullptr, context->impl);
   z_owned_closure_sample_t callback;
-  callback.context = (void *)context->impl;
+  callback.context = static_cast<void *>(context->impl);
   callback.call = graph_sub_data_handler;
   callback.drop = nullptr;
 
