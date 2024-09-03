@@ -582,3 +582,14 @@ void rmw_context_impl_s::set_qos_event_callback(
     event_type,
     std::move(callback));
 }
+
+///=============================================================================
+void rmw_context_impl_s::set_querying_subscriber_callback(
+  const std::string & keyexpr,
+  QueryingSubscriberCallback cb)
+{
+  std::lock_guard<std::mutex> lock(data_->mutex_);
+  return data_->graph_cache_->set_querying_subscriber_callback(
+    std::move(keyexpr),
+    std::move(cb));
+}

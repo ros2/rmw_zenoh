@@ -33,7 +33,8 @@ class rmw_context_impl_s final
 {
 public:
   using GraphCacheEventCallback = rmw_zenoh_cpp::GraphCache::GraphCacheEventCallback;
-
+  using QueryingSubscriberCallback =
+    rmw_zenoh_cpp::GraphCache::QueryingSubscriberCallback;
   // Constructor that internally initializees the Zenoh session and other artifacts.
   // Throws an std::runtime_error if any of the initializations fail.
   // The construction will block until a Zenoh router is detected.
@@ -137,6 +138,10 @@ public:
     rmw_zenoh_cpp::liveliness::ConstEntityPtr entity,
     const rmw_zenoh_cpp::rmw_zenoh_event_type_t & event_type,
     GraphCacheEventCallback callback);
+
+  void set_querying_subscriber_callback(
+    const std::string & keyexpr,
+    QueryingSubscriberCallback cb);
 
 private:
   // Bundle all class members into a data struct which can be passed as a

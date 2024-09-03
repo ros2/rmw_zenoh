@@ -1485,7 +1485,7 @@ rmw_create_subscription(
     }
     // Register the querying subscriber with the graph cache to get latest
     // messages from publishers that were discovered after their first publication.
-    context_impl->graph_cache->set_querying_subscriber_callback(
+    context_impl->set_querying_subscriber_callback(
       sub_data->entity->topic_info()->topic_keyexpr_,
       [sub_data](const std::string & queryable_prefix) -> void
       {
@@ -2849,7 +2849,7 @@ rmw_create_service(
       context_impl->get_next_entity_id()),
     rmw_zenoh_cpp::liveliness::EntityType::Service,
     rmw_zenoh_cpp::liveliness::NodeInfo{
-      node->context->actual_domain_id, node->namespace_, node->name, context_impl->enclave},
+      node->context->actual_domain_id, node->namespace_, node->name, context_impl->enclave()},
     rmw_zenoh_cpp::liveliness::TopicInfo{
       node->context->actual_domain_id,
       rmw_service->service_name,
