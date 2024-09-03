@@ -64,7 +64,7 @@ rmw_publisher_event_init(
   rmw_event->event_type = event_type;
 
   // Register the event with graph cache.
-  context_impl->set_qos_event_callback(
+  context_impl->graph_cache()->set_qos_event_callback(
     pub_data->entity,
     zenoh_event_type,
     [pub_data,
@@ -126,7 +126,7 @@ rmw_subscription_event_init(
     return RMW_RET_OK;
   }
 
-  sub_data->context->impl->set_qos_event_callback(
+  context_impl->graph_cache()->set_qos_event_callback(
     sub_data->entity,
     zenoh_event_type,
     [sub_data,

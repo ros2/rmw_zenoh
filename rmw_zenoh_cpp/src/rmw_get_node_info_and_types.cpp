@@ -45,7 +45,7 @@ rmw_get_subscriber_names_and_types_by_node(
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
   rmw_context_impl_t * context_impl = static_cast<rmw_context_impl_t *>(node->context->impl);
   RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
-  return context_impl->get_entity_names_and_types_by_node(
+  return context_impl->graph_cache()->get_entity_names_and_types_by_node(
     rmw_zenoh_cpp::liveliness::EntityType::Subscription,
     allocator,
     node_name,
@@ -75,7 +75,7 @@ rmw_get_publisher_names_and_types_by_node(
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
   rmw_context_impl_t * context_impl = static_cast<rmw_context_impl_t *>(node->context->impl);
   RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
-  return context_impl->get_entity_names_and_types_by_node(
+  return context_impl->graph_cache()->get_entity_names_and_types_by_node(
     rmw_zenoh_cpp::liveliness::EntityType::Publisher,
     allocator,
     node_name,
@@ -104,7 +104,7 @@ rmw_get_service_names_and_types_by_node(
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
   rmw_context_impl_t * context_impl = static_cast<rmw_context_impl_t *>(node->context->impl);
   RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
-  return context_impl->get_entity_names_and_types_by_node(
+  return context_impl->graph_cache()->get_entity_names_and_types_by_node(
     rmw_zenoh_cpp::liveliness::EntityType::Service,
     allocator,
     node_name,
@@ -133,7 +133,7 @@ rmw_get_client_names_and_types_by_node(
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
   rmw_context_impl_t * context_impl = static_cast<rmw_context_impl_t *>(node->context->impl);
   RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
-  return context_impl->get_entity_names_and_types_by_node(
+  return context_impl->graph_cache()->get_entity_names_and_types_by_node(
     rmw_zenoh_cpp::liveliness::EntityType::Client,
     allocator,
     node_name,

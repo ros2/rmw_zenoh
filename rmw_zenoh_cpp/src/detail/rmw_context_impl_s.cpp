@@ -45,7 +45,7 @@ void rmw_context_impl_s::graph_sub_data_handler(const z_sample_t * sample, void 
   if (data_ptr == nullptr) {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
-      "[graph_sub_data_handler] Unable to lock data_wp."
+      "[graph_sub_data_handler] Invalid data_ptr."
     );
     return;
   }
@@ -83,7 +83,7 @@ rmw_context_impl_s::Data::Data(
   z_owned_session_t session,
   std::optional<zc_owned_shm_manager_t> shm_manager,
   const std::string & liveliness_str,
-  std::unique_ptr<rmw_zenoh_cpp::GraphCache> graph_cache,
+  std::shared_ptr<rmw_zenoh_cpp::GraphCache> graph_cache,
   rmw_guard_condition_t * graph_guard_condition)
 : allocator_(allocator),
   enclave_(std::move(enclave)),
@@ -227,7 +227,7 @@ rmw_context_impl_s::rmw_context_impl_s(
 
   // Initialize the graph cache.
   const z_id_t zid = z_info_zid(z_loan(session));
-  auto graph_cache = std::make_unique<rmw_zenoh_cpp::GraphCache>(zid);
+  auto graph_cache = std::make_shared<rmw_zenoh_cpp::GraphCache>(zid);
   // Setup liveliness subscriptions for discovery.
   std::string liveliness_str = rmw_zenoh_cpp::liveliness::subscription_token(
     domain_id);
@@ -417,179 +417,8 @@ bool rmw_context_impl_s::session_is_valid() const
 }
 
 ///=============================================================================
-rmw_ret_t rmw_context_impl_s::get_node_names(
-  rcutils_string_array_t * node_names,
-  rcutils_string_array_t * node_namespaces,
-  rcutils_string_array_t * enclaves,
-  rcutils_allocator_t * allocator) const
+std::shared_ptr<rmw_zenoh_cpp::GraphCache> rmw_context_impl_s::graph_cache()
 {
   std::lock_guard<std::mutex> lock(data_->mutex_);
-  return data_->graph_cache_->get_node_names(
-    node_names,
-    node_namespaces,
-    enclaves,
-    allocator);
-}
-
-///=============================================================================
-rmw_ret_t rmw_context_impl_s::get_topic_names_and_types(
-  rcutils_allocator_t * allocator,
-  bool no_demangle,
-  rmw_names_and_types_t * topic_names_and_types) const
-{
-  std::lock_guard<std::mutex> lock(data_->mutex_);
-  return data_->graph_cache_->get_topic_names_and_types(
-    allocator,
-    no_demangle,
-    topic_names_and_types);
-}
-
-///=============================================================================
-rmw_ret_t rmw_context_impl_s::publisher_count_matched_subscriptions(
-  const rmw_publisher_t * publisher,
-  size_t * subscription_count)
-{
-  std::lock_guard<std::mutex> lock(data_->mutex_);
-  return data_->graph_cache_->publisher_count_matched_subscriptions(
-    publisher,
-    subscription_count);
-}
-
-///=============================================================================
-rmw_ret_t rmw_context_impl_s::subscription_count_matched_publishers(
-  const rmw_subscription_t * subscription,
-  size_t * publisher_count)
-{
-  std::lock_guard<std::mutex> lock(data_->mutex_);
-  return data_->graph_cache_->subscription_count_matched_publishers(
-    subscription,
-    publisher_count);
-}
-
-///=============================================================================
-rmw_ret_t rmw_context_impl_s::get_service_names_and_types(
-  rcutils_allocator_t * allocator,
-  rmw_names_and_types_t * service_names_and_types) const
-{
-  std::lock_guard<std::mutex> lock(data_->mutex_);
-  return data_->graph_cache_->get_service_names_and_types(
-    allocator,
-    service_names_and_types);
-}
-
-///=============================================================================
-rmw_ret_t rmw_context_impl_s::count_publishers(
-  const char * topic_name,
-  size_t * count) const
-{
-  std::lock_guard<std::mutex> lock(data_->mutex_);
-  return data_->graph_cache_->count_publishers(
-    topic_name,
-    count);
-}
-
-///=============================================================================
-rmw_ret_t rmw_context_impl_s::count_subscriptions(
-  const char * topic_name,
-  size_t * count) const
-{
-  std::lock_guard<std::mutex> lock(data_->mutex_);
-  return data_->graph_cache_->count_subscriptions(
-    topic_name,
-    count);
-}
-
-///=============================================================================
-rmw_ret_t rmw_context_impl_s::count_services(
-  const char * service_name,
-  size_t * count) const
-{
-  std::lock_guard<std::mutex> lock(data_->mutex_);
-  return data_->graph_cache_->count_services(
-    service_name,
-    count);
-}
-
-///=============================================================================
-rmw_ret_t rmw_context_impl_s::count_clients(
-  const char * service_name,
-  size_t * count) const
-{
-  std::lock_guard<std::mutex> lock(data_->mutex_);
-  return data_->graph_cache_->count_clients(
-    service_name,
-    count);
-}
-
-///=============================================================================
-rmw_ret_t rmw_context_impl_s::get_entity_names_and_types_by_node(
-  rmw_zenoh_cpp::liveliness::EntityType entity_type,
-  rcutils_allocator_t * allocator,
-  const char * node_name,
-  const char * node_namespace,
-  bool no_demangle,
-  rmw_names_and_types_t * names_and_types) const
-{
-  std::lock_guard<std::mutex> lock(data_->mutex_);
-  return data_->graph_cache_->get_entity_names_and_types_by_node(
-    entity_type,
-    allocator,
-    node_name,
-    node_namespace,
-    no_demangle,
-    names_and_types);
-}
-
-///=============================================================================
-rmw_ret_t rmw_context_impl_s::get_entities_info_by_topic(
-  rmw_zenoh_cpp::liveliness::EntityType entity_type,
-  rcutils_allocator_t * allocator,
-  const char * topic_name,
-  bool no_demangle,
-  rmw_topic_endpoint_info_array_t * endpoints_info) const
-{
-  std::lock_guard<std::mutex> lock(data_->mutex_);
-  return data_->graph_cache_->get_entities_info_by_topic(
-    entity_type,
-    allocator,
-    topic_name,
-    no_demangle,
-    endpoints_info);
-}
-
-///=============================================================================
-rmw_ret_t rmw_context_impl_s::service_server_is_available(
-  const char * service_name,
-  const char * service_type,
-  bool * is_available) const
-{
-  std::lock_guard<std::mutex> lock(data_->mutex_);
-  return data_->graph_cache_->service_server_is_available(
-    service_name,
-    service_type,
-    is_available);
-}
-
-///=============================================================================
-void rmw_context_impl_s::set_qos_event_callback(
-  rmw_zenoh_cpp::liveliness::ConstEntityPtr entity,
-  const rmw_zenoh_cpp::rmw_zenoh_event_type_t & event_type,
-  GraphCacheEventCallback callback)
-{
-  std::lock_guard<std::mutex> lock(data_->mutex_);
-  return data_->graph_cache_->set_qos_event_callback(
-    std::move(entity),
-    event_type,
-    std::move(callback));
-}
-
-///=============================================================================
-void rmw_context_impl_s::set_querying_subscriber_callback(
-  const std::string & keyexpr,
-  QueryingSubscriberCallback cb)
-{
-  std::lock_guard<std::mutex> lock(data_->mutex_);
-  return data_->graph_cache_->set_querying_subscriber_callback(
-    std::move(keyexpr),
-    std::move(cb));
+  return data_->graph_cache_;
 }

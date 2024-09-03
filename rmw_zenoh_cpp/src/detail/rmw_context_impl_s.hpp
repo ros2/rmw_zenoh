@@ -32,9 +32,6 @@
 class rmw_context_impl_s final
 {
 public:
-  using GraphCacheEventCallback = rmw_zenoh_cpp::GraphCache::GraphCacheEventCallback;
-  using QueryingSubscriberCallback =
-    rmw_zenoh_cpp::GraphCache::QueryingSubscriberCallback;
   // Constructor that internally initializees the Zenoh session and other artifacts.
   // Throws an std::runtime_error if any of the initializations fail.
   // The construction will block until a Zenoh router is detected.
@@ -75,73 +72,8 @@ public:
   // Returns true if the Zenoh session is valid.
   bool session_is_valid() const;
 
-  rmw_ret_t get_node_names(
-    rcutils_string_array_t * node_names,
-    rcutils_string_array_t * node_namespaces,
-    rcutils_string_array_t * enclaves,
-    rcutils_allocator_t * allocator) const;
-
-  rmw_ret_t get_topic_names_and_types(
-    rcutils_allocator_t * allocator,
-    bool no_demangle,
-    rmw_names_and_types_t * topic_names_and_types) const;
-
-  rmw_ret_t publisher_count_matched_subscriptions(
-    const rmw_publisher_t * publisher,
-    size_t * subscription_count);
-
-  rmw_ret_t subscription_count_matched_publishers(
-    const rmw_subscription_t * subscription,
-    size_t * publisher_count);
-
-  rmw_ret_t get_service_names_and_types(
-    rcutils_allocator_t * allocator,
-    rmw_names_and_types_t * service_names_and_types) const;
-
-  rmw_ret_t count_publishers(
-    const char * topic_name,
-    size_t * count) const;
-
-  rmw_ret_t count_subscriptions(
-    const char * topic_name,
-    size_t * count) const;
-
-  rmw_ret_t count_services(
-    const char * service_name,
-    size_t * count) const;
-
-  rmw_ret_t count_clients(
-    const char * service_name,
-    size_t * count) const;
-
-  rmw_ret_t get_entity_names_and_types_by_node(
-    rmw_zenoh_cpp::liveliness::EntityType entity_type,
-    rcutils_allocator_t * allocator,
-    const char * node_name,
-    const char * node_namespace,
-    bool no_demangle,
-    rmw_names_and_types_t * names_and_types) const;
-
-  rmw_ret_t get_entities_info_by_topic(
-    rmw_zenoh_cpp::liveliness::EntityType entity_type,
-    rcutils_allocator_t * allocator,
-    const char * topic_name,
-    bool no_demangle,
-    rmw_topic_endpoint_info_array_t * endpoints_info) const;
-
-  rmw_ret_t service_server_is_available(
-    const char * service_name,
-    const char * service_type,
-    bool * is_available) const;
-
-  void set_qos_event_callback(
-    rmw_zenoh_cpp::liveliness::ConstEntityPtr entity,
-    const rmw_zenoh_cpp::rmw_zenoh_event_type_t & event_type,
-    GraphCacheEventCallback callback);
-
-  void set_querying_subscriber_callback(
-    const std::string & keyexpr,
-    QueryingSubscriberCallback cb);
+  /// Return a shared_ptr to the GraphCache stored in this context.
+  std::shared_ptr<rmw_zenoh_cpp::GraphCache> graph_cache();
 
 private:
   // Bundle all class members into a data struct which can be passed as a
@@ -156,7 +88,7 @@ private:
       z_owned_session_t session,
       std::optional<zc_owned_shm_manager_t> shm_manager,
       const std::string & liveliness_str,
-      std::unique_ptr<rmw_zenoh_cpp::GraphCache> graph_cache,
+      std::shared_ptr<rmw_zenoh_cpp::GraphCache> graph_cache,
       rmw_guard_condition_t * graph_guard_condition);
 
     // Subscribe to the ROS graph.
@@ -182,7 +114,7 @@ private:
     // Liveliness keyexpr string to subscribe to for ROS graph changes.
     std::string liveliness_str_;
     // Graph cache.
-    std::unique_ptr<rmw_zenoh_cpp::GraphCache> graph_cache_;
+    std::shared_ptr<rmw_zenoh_cpp::GraphCache> graph_cache_;
     // ROS graph liveliness subscriber.
     z_owned_subscriber_t graph_subscriber_;
     // Equivalent to rmw_dds_common::Context's guard condition

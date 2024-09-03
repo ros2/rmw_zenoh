@@ -38,7 +38,7 @@ rmw_get_service_names_and_types(
   rmw_context_impl_t * context_impl = static_cast<rmw_context_impl_t *>(node->context->impl);
   RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
 
-  return context_impl->get_service_names_and_types(
+  return context_impl->graph_cache()->get_service_names_and_types(
     allocator, service_names_and_types);
 }
 }  // extern "C"

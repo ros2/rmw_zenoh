@@ -1013,7 +1013,7 @@ rmw_publisher_count_matched_subscriptions(
   rmw_context_impl_t * context_impl = static_cast<rmw_context_impl_t *>(pub_data->context->impl);
   RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
 
-  return context_impl->publisher_count_matched_subscriptions(
+  return context_impl->graph_cache()->publisher_count_matched_subscriptions(
     publisher, subscription_count);
 }
 
@@ -1485,7 +1485,7 @@ rmw_create_subscription(
     }
     // Register the querying subscriber with the graph cache to get latest
     // messages from publishers that were discovered after their first publication.
-    context_impl->set_querying_subscriber_callback(
+    context_impl->graph_cache()->set_querying_subscriber_callback(
       sub_data->entity->topic_info()->topic_keyexpr_,
       [sub_data](const std::string & queryable_prefix) -> void
       {
@@ -1653,7 +1653,7 @@ rmw_subscription_count_matched_publishers(
   rmw_context_impl_t * context_impl = static_cast<rmw_context_impl_t *>(sub_data->context->impl);
   RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
 
-  return context_impl->subscription_count_matched_publishers(
+  return context_impl->graph_cache()->subscription_count_matched_publishers(
     subscription, publisher_count);
 }
 
@@ -3649,7 +3649,7 @@ rmw_get_node_names(
   rcutils_allocator_t * allocator = &node->context->options.allocator;
   RMW_CHECK_ARGUMENT_FOR_NULL(allocator, RMW_RET_INVALID_ARGUMENT);
 
-  return node->context->impl->get_node_names(
+  return node->context->impl->graph_cache()->get_node_names(
     node_names, node_namespaces, nullptr, allocator);
 }
 
@@ -3672,7 +3672,7 @@ rmw_get_node_names_with_enclaves(
   rcutils_allocator_t * allocator = &node->context->options.allocator;
   RMW_CHECK_ARGUMENT_FOR_NULL(allocator, RMW_RET_INVALID_ARGUMENT);
 
-  return node->context->impl->get_node_names(
+  return node->context->impl->graph_cache()->get_node_names(
     node_names, node_namespaces, enclaves, allocator);
 }
 
@@ -3703,7 +3703,7 @@ rmw_count_publishers(
   }
   RMW_CHECK_ARGUMENT_FOR_NULL(count, RMW_RET_INVALID_ARGUMENT);
 
-  return node->context->impl->count_publishers(topic_name, count);
+  return node->context->impl->graph_cache()->count_publishers(topic_name, count);
 }
 
 //==============================================================================
@@ -3733,7 +3733,7 @@ rmw_count_subscribers(
   }
   RMW_CHECK_ARGUMENT_FOR_NULL(count, RMW_RET_INVALID_ARGUMENT);
 
-  return node->context->impl->count_subscriptions(topic_name, count);
+  return node->context->impl->graph_cache()->count_subscriptions(topic_name, count);
 }
 
 //==============================================================================
@@ -3763,7 +3763,7 @@ rmw_count_clients(
   }
   RMW_CHECK_ARGUMENT_FOR_NULL(count, RMW_RET_INVALID_ARGUMENT);
 
-  return node->context->impl->count_clients(service_name, count);
+  return node->context->impl->graph_cache()->count_clients(service_name, count);
 }
 
 //==============================================================================
@@ -3793,7 +3793,7 @@ rmw_count_services(
   }
   RMW_CHECK_ARGUMENT_FOR_NULL(count, RMW_RET_INVALID_ARGUMENT);
 
-  return node->context->impl->count_services(service_name, count);
+  return node->context->impl->graph_cache()->count_services(service_name, count);
 }
 
 //==============================================================================
@@ -3893,7 +3893,7 @@ rmw_service_server_is_available(
     return RMW_RET_INVALID_ARGUMENT;
   }
 
-  return node->context->impl->service_server_is_available(
+  return node->context->impl->graph_cache()->service_server_is_available(
     client->service_name, service_type.c_str(), is_available);
 }
 
