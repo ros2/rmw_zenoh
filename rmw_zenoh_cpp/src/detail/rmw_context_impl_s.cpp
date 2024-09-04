@@ -107,6 +107,16 @@ rmw_ret_t rmw_context_impl_s::Data::subscribe()
   }
   // Setup the liveliness subscriber to receives updates from the ROS graph
   // and update the graph cache.
+  // TODO(Yadunund): This closure is still not 100% thread safe as we are
+  // passing Data* as the type erased argument to z_closure. Thus during
+  // the execution of graph_sub_data_handler, the rawptr may be freed/reset
+  // by a different thread. When we switch to zenoh-cpp we can replace z_closure
+  // with a lambda that captures a weak_ptr<Data> by copy. The lambda and caputed
+  // weak_ptr<Data> will have the same lifetime as the subscriber. Then within
+  // graph_sub_data_handler, we would first lock to weak_ptr to check if the
+  // shared_ptr<Data> exits. If it does, then even if a different thread calls
+  // rmw_context_fini() to destroy rmw_context_impl_s, the locked
+  // shared_ptr<Data> would live on until the graph_sub_data_handler callback.
   auto sub_options = zc_liveliness_subscriber_options_null();
   z_owned_closure_sample_t callback = z_closure(
     rmw_context_impl_s::graph_sub_data_handler, nullptr,
