@@ -412,10 +412,10 @@ bool rmw_context_impl_s::create_node_data(
     std::to_string(node_id),
     rmw_zenoh_cpp::liveliness::EntityType::Node,
     rmw_zenoh_cpp::liveliness::NodeInfo{
-      data_->domain_id_,
-      ns,
-      node_name,
-      data_->enclave_
+    data_->domain_id_,
+    ns,
+    node_name,
+    data_->enclave_
     }
   );
   if (entity == nullptr) {
@@ -443,12 +443,10 @@ bool rmw_context_impl_s::create_node_data(
   }
   free_token.cancel();
 
-  node_insertion.first->second = std::shared_ptr<rmw_zenoh_cpp::NodeData>(
-    new rmw_zenoh_cpp::NodeData(
-      std::move(node_id),
-      std::move(entity),
-      std::move(token)
-    )
+  node_insertion.first->second = std::make_shared<rmw_zenoh_cpp::NodeData>(
+    std::move(node_id),
+    std::move(entity),
+    std::move(token)
   );
 
   return true;
