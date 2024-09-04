@@ -81,19 +81,22 @@ void rmw_context_impl_s::graph_sub_data_handler(const z_sample_t * sample, void 
 
 ///=============================================================================
 rmw_context_impl_s::Data::Data(
+  std::size_t domain_id,
   const std::string & enclave,
   z_owned_session_t session,
   std::optional<zc_owned_shm_manager_t> shm_manager,
   const std::string & liveliness_str,
   std::shared_ptr<rmw_zenoh_cpp::GraphCache> graph_cache)
 : enclave_(std::move(enclave)),
+  domain_id_(std::move(domain_id)),
   session_(std::move(session)),
   shm_manager_(std::move(shm_manager)),
   liveliness_str_(std::move(liveliness_str)),
   graph_cache_(std::move(graph_cache)),
   is_shutdown_(false),
   next_entity_id_(0),
-  is_initialized_(false)
+  is_initialized_(false),
+  nodes_({})
 {
   graph_guard_condition_ = std::make_unique<rmw_guard_condition_t>();
   graph_guard_condition_->implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
@@ -308,6 +311,7 @@ rmw_context_impl_s::rmw_context_impl_s(
   free_shm_manager.cancel();
 
   data_ = std::make_shared<Data>(
+    domain_id,
     std::move(enclave),
     std::move(session),
     std::move(shm_manager),
@@ -349,7 +353,7 @@ rmw_guard_condition_t * rmw_context_impl_s::graph_guard_condition()
 }
 
 ///=============================================================================
-size_t rmw_context_impl_s::get_next_entity_id()
+std::size_t rmw_context_impl_s::get_next_entity_id()
 {
   std::lock_guard<std::mutex> lock(data_->mutex_);
   return data_->next_entity_id_++;
@@ -380,4 +384,91 @@ std::shared_ptr<rmw_zenoh_cpp::GraphCache> rmw_context_impl_s::graph_cache()
 {
   std::lock_guard<std::mutex> lock(data_->mutex_);
   return data_->graph_cache_;
+}
+
+///=============================================================================
+bool rmw_context_impl_s::create_node_data(
+  const rmw_node_t * const node,
+  const std::string & ns,
+  const std::string & node_name)
+{
+  std::lock_guard<std::mutex> lock(data_->mutex_);
+  auto node_insertion = data_->nodes_.insert(std::make_pair(node, nullptr));
+  if (!node_insertion.second) {
+    // Node already exists.
+    return false;
+  }
+
+  if (!z_check(data_->session_)) {
+    return false;
+  }
+
+  // Create the entity.
+  z_session_t session = z_loan(data_->session_);
+  const size_t node_id = this->data_->next_entity_id_++;
+  auto entity = rmw_zenoh_cpp::liveliness::Entity::make(
+    z_info_zid(session),
+    std::to_string(node_id),
+    std::to_string(node_id),
+    rmw_zenoh_cpp::liveliness::EntityType::Node,
+    rmw_zenoh_cpp::liveliness::NodeInfo{
+      data_->domain_id_,
+      ns,
+      node_name,
+      data_->enclave_
+    }
+  );
+  if (entity == nullptr) {
+    RMW_ZENOH_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to create node entity.");
+    return false;
+  }
+
+  // Create the liveliness token.
+  zc_owned_liveliness_token_t token = zc_liveliness_declare_token(
+    session,
+    z_keyexpr(entity->liveliness_keyexpr().c_str()),
+    NULL
+  );
+  auto free_token = rcpputils::make_scope_exit(
+    [&token]() {
+      z_drop(z_move(token));
+    });
+  if (!z_check(token)) {
+    RMW_ZENOH_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to create liveliness token for the node.");
+    return false;
+  }
+  free_token.cancel();
+
+  node_insertion.first->second = std::shared_ptr<rmw_zenoh_cpp::NodeData>(
+    new rmw_zenoh_cpp::NodeData(
+      std::move(node_id),
+      std::move(entity),
+      std::move(token)
+    )
+  );
+
+  return true;
+}
+
+///=============================================================================
+std::shared_ptr<rmw_zenoh_cpp::NodeData> rmw_context_impl_s::get_node_data(
+  const rmw_node_t * const node)
+{
+  std::lock_guard<std::mutex> lock(data_->mutex_);
+  auto node_it = data_->nodes_.find(node);
+  if (node_it == data_->nodes_.end()) {
+    return nullptr;
+  }
+  return node_it->second;
+}
+
+///=============================================================================
+void rmw_context_impl_s::delete_node_data(const rmw_node_t * const node)
+{
+  std::lock_guard<std::mutex> lock(data_->mutex_);
+  data_->nodes_.erase(node);
 }
