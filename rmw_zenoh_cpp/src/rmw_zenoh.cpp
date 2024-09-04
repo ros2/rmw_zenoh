@@ -1439,17 +1439,14 @@ rmw_create_subscription(
       rmw_subscription->topic_name);
     return nullptr;
   }
+
+  // TODO(ahcorde): This sintax is not support on Windows yet
   // z_owned_closure_sample_t callback =
   //   z_closure(rmw_zenoh_cpp::sub_data_handler, nullptr, sub_data);
   z_owned_closure_sample_t callback;
   callback.context = static_cast<void *>(sub_data);
   callback.call = rmw_zenoh_cpp::sub_data_handler;
   callback.drop = nullptr;
-  z_owned_keyexpr_t keyexpr = ros_topic_name_to_zenoh_key(
-    node->context->actual_domain_id,
-    topic_name,
-    sub_data->type_support->get_name(),
-    type_hash_c_str);
 
   z_owned_keyexpr_t keyexpr = z_keyexpr_new(sub_data->entity->topic_info()->topic_keyexpr_.c_str());
   auto always_free_ros_keyexpr = rcpputils::make_scope_exit(
@@ -2510,6 +2507,8 @@ rmw_send_request(
   // and any number.
   opts.consolidation = z_query_consolidation_latest();
   opts.value.payload = z_bytes_t{data_length, reinterpret_cast<const uint8_t *>(request_bytes)};
+
+  // TODO(ahcorde): This sintax is not support on Windows yet
   // z_owned_closure_reply_t zn_closure_reply =
   //   z_closure(rmw_zenoh_cpp::client_data_handler, rmw_zenoh_cpp::client_data_drop, client_data);
   z_owned_closure_reply_t zn_closure_reply;
@@ -2903,6 +2902,7 @@ rmw_create_service(
     return nullptr;
   }
 
+  // TODO(ahcorde): This sintax is not support on Windows yet
   // z_owned_closure_query_t callback = z_closure(
   //   rmw_zenoh_cpp::service_data_handler, nullptr,
   //   service_data);

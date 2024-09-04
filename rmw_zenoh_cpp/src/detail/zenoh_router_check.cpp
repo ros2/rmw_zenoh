@@ -43,6 +43,8 @@ rmw_ret_t zenoh_router_check(z_session_t session)
     };
 
   rmw_ret_t ret = RMW_RET_OK;
+
+  // TODO(ahcorde): This sintax is not support on Windows yet
   // z_owned_closure_zid_t router_callback = z_closure(callback, nullptr /* drop */, &context);
   z_owned_closure_zid_t router_callback;
   router_callback.context = static_cast<void *>(&context);
