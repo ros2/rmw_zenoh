@@ -18,8 +18,6 @@ jobs:
     timeout-minutes: 30
     steps:
     - uses: actions/checkout@v4
-    - name: check version
-      run: /ros_entrypoint.sh lsb_release -a
     - name: uncrustify
       run: /ros_entrypoint.sh ament_uncrustify rmw_zenoh_cpp/ --exclude rmw_zenoh_cpp/src/detail/ordered_hash.hpp rmw_zenoh_cpp/src/detail/ordered_map.hpp
     - name: cpplint
