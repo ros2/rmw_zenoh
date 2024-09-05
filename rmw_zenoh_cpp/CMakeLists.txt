@@ -116,10 +116,11 @@ install(
 )
 
 add_executable(rmw_zenohd
-  src/zenohd/main.cpp
-  src/detail/zenoh_config.cpp
   src/detail/liveliness_utils.cpp
   src/detail/logging.cpp
+  src/detail/qos.cpp
+  src/detail/zenoh_config.cpp
+  src/zenohd/main.cpp
 )
 
 target_link_libraries(rmw_zenohd

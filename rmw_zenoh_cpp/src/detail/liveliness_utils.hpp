@@ -50,9 +50,11 @@ struct TopicInfo
   std::string name_;
   std::string type_;
   std::string type_hash_;
+  std::string topic_keyexpr_;
   rmw_qos_profile_t qos_;
 
   TopicInfo(
+    std::size_t domain_id,
     std::string name,
     std::string type,
     std::string type_hash,
@@ -162,7 +164,7 @@ public:
   std::optional<TopicInfo> topic_info() const;
 
   /// Get the liveliness keyexpr for this entity.
-  std::string keyexpr() const;
+  std::string liveliness_keyexpr() const;
 
   // Two entities are equal if their guids are equal.
   bool operator==(const Entity & other) const;
@@ -183,7 +185,7 @@ private:
   EntityType type_;
   NodeInfo node_info_;
   std::optional<TopicInfo> topic_info_;
-  std::string keyexpr_;
+  std::string liveliness_keyexpr_;
 };
 
 ///=============================================================================
@@ -218,7 +220,7 @@ std::string demangle_name(const std::string & input);
  *
  * See rmw/types.h for the values of each policy enum.
  */
-std::string qos_to_keyexpr(rmw_qos_profile_t qos);
+std::string qos_to_keyexpr(const rmw_qos_profile_t & qos);
 
 ///=============================================================================
 /// Convert a rmw_qos_profile_t from a keyexpr. Return std::nullopt if invalid.
