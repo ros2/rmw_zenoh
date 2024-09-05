@@ -54,7 +54,7 @@ graph_sub_data_handler(const z_loaned_sample_t * sample, void * data)
   z_keyexpr_as_view_string(z_sample_keyexpr(sample), &keystr);
 
   // Get the context impl from data.
-  rmw_context_impl_s *context_impl = static_cast<rmw_context_impl_s *>(data);
+  rmw_context_impl_s * context_impl = static_cast<rmw_context_impl_s *>(data);
   if (context_impl == nullptr) {
     RMW_ZENOH_LOG_WARN_NAMED(
       "rmw_zenoh_cpp",
@@ -89,18 +89,21 @@ graph_sub_data_handler(const z_loaned_sample_t * sample, void * data)
 
 //==============================================================================
 /// Initialize the middleware with the given options, and yielding an context.
-rmw_ret_t rmw_init(const rmw_init_options_t *options, rmw_context_t *context)
+rmw_ret_t rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
 {
   RMW_CHECK_ARGUMENT_FOR_NULL(options, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(context, RMW_RET_INVALID_ARGUMENT);
-  RMW_CHECK_FOR_NULL_WITH_MSG(options->implementation_identifier,
-                              "expected initialized init options",
-                              return RMW_RET_INVALID_ARGUMENT);
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(options, options->implementation_identifier,
-                                   rmw_zenoh_cpp::rmw_zenoh_identifier,
-                                   return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
-  RMW_CHECK_FOR_NULL_WITH_MSG(options->enclave, "expected non-null enclave",
-                              return RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    options->implementation_identifier,
+    "expected initialized init options",
+    return RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    options, options->implementation_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    options->enclave, "expected non-null enclave",
+    return RMW_RET_INVALID_ARGUMENT);
   if (NULL != context->implementation_identifier) {
     RMW_SET_ERROR_MSG("expected a zero-initialized context");
     return RMW_RET_INVALID_ARGUMENT;
@@ -116,44 +119,52 @@ rmw_ret_t rmw_init(const rmw_init_options_t *options, rmw_context_t *context)
   context->actual_domain_id =
     RMW_DEFAULT_DOMAIN_ID != options->domain_id ? options->domain_id : 0u;
 
-  const rcutils_allocator_t *allocator = &options->allocator;
+  const rcutils_allocator_t * allocator = &options->allocator;
 
   context->impl = static_cast<rmw_context_impl_t *>(allocator->zero_allocate(
       1, sizeof(rmw_context_impl_t), allocator->state));
-  RMW_CHECK_FOR_NULL_WITH_MSG(context->impl, "failed to allocate context impl",
-                              return RMW_RET_BAD_ALLOC);
-  auto free_impl = rcpputils::make_scope_exit([context, allocator]() {
-        allocator->deallocate(context->impl, allocator->state);
-  });
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    context->impl, "failed to allocate context impl",
+    return RMW_RET_BAD_ALLOC);
+  auto free_impl = rcpputils::make_scope_exit(
+    [context, allocator]() {
+      allocator->deallocate(context->impl, allocator->state);
+    });
 
-  RMW_TRY_PLACEMENT_NEW(context->impl, context->impl, return RMW_RET_BAD_ALLOC,
-                        rmw_context_impl_t);
-  auto impl_destructor = rcpputils::make_scope_exit([context] {
-        RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(context->impl->~rmw_context_impl_t(),
-                                           rmw_context_impl_t *);
-  });
+  RMW_TRY_PLACEMENT_NEW(
+    context->impl, context->impl, return RMW_RET_BAD_ALLOC,
+    rmw_context_impl_t);
+  auto impl_destructor = rcpputils::make_scope_exit(
+    [context] {
+      RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(
+        context->impl->~rmw_context_impl_t(),
+        rmw_context_impl_t *);
+    });
 
   rmw_ret_t ret;
   if ((ret = rmw_init_options_copy(options, &context->options)) != RMW_RET_OK) {
     // error already set
     return ret;
   }
-  auto free_options = rcpputils::make_scope_exit([context]() {
-        rmw_ret_t ret = rmw_init_options_fini(&context->options);
-        if (ret != RMW_RET_OK) {
-          RMW_SAFE_FWRITE_TO_STDERR(
+  auto free_options = rcpputils::make_scope_exit(
+    [context]() {
+      rmw_ret_t ret = rmw_init_options_fini(&context->options);
+      if (ret != RMW_RET_OK) {
+        RMW_SAFE_FWRITE_TO_STDERR(
           "Failed to cleanup context options during error handling");
-        }
-  });
+      }
+    });
 
   // Set the enclave.
   context->impl->enclave = rcutils_strdup(options->enclave, *allocator);
-  RMW_CHECK_FOR_NULL_WITH_MSG(context->impl->enclave,
-                              "failed to allocate enclave",
-                              return RMW_RET_BAD_ALLOC);
-  auto free_enclave = rcpputils::make_scope_exit([context, allocator]() {
-        allocator->deallocate(context->impl->enclave, allocator->state);
-  });
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    context->impl->enclave,
+    "failed to allocate enclave",
+    return RMW_RET_BAD_ALLOC);
+  auto free_enclave = rcpputils::make_scope_exit(
+    [context, allocator]() {
+      allocator->deallocate(context->impl->enclave, allocator->state);
+    });
 
   // Initialize context's implementation
   context->impl->is_shutdown = false;
@@ -169,7 +180,7 @@ rmw_ret_t rmw_init(const rmw_init_options_t *options, rmw_context_t *context)
   // Initialize the zenoh configuration.
   z_owned_config_t config;
   if ((ret = rmw_zenoh_cpp::get_z_config(
-           rmw_zenoh_cpp::ConfigurableEntity::Session, &config)) !=
+      rmw_zenoh_cpp::ConfigurableEntity::Session, &config)) !=
     RMW_RET_OK)
   {
     RMW_SET_ERROR_MSG("Error configuring Zenoh session.");
@@ -186,7 +197,7 @@ rmw_ret_t rmw_init(const rmw_init_options_t *options, rmw_context_t *context)
     });
 
   // Initialize the zenoh session.
-  if(z_open(&context->impl->session, z_move(config))) {
+  if (z_open(&context->impl->session, z_move(config))) {
     RMW_SET_ERROR_MSG("Error setting up zenoh session");
     return RMW_RET_ERROR;
   }
@@ -209,7 +220,7 @@ rmw_ret_t rmw_init(const rmw_init_options_t *options, rmw_context_t *context)
       connection_attempts < configured_connection_attempts.value())
     {
       if ((ret = rmw_zenoh_cpp::zenoh_router_check(
-               z_loan(context->impl->session))) != RMW_RET_OK)
+          z_loan(context->impl->session))) != RMW_RET_OK)
       {
         ++connection_attempts;
       }
@@ -217,8 +228,8 @@ rmw_ret_t rmw_init(const rmw_init_options_t *options, rmw_context_t *context)
     }
     if (ret != RMW_RET_OK) {
       RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
-          "Unable to connect to a Zenoh router after %zu retries.",
-          configured_connection_attempts.value());
+        "Unable to connect to a Zenoh router after %zu retries.",
+        configured_connection_attempts.value());
       return ret;
     }
   }
@@ -252,40 +263,49 @@ rmw_ret_t rmw_init(const rmw_init_options_t *options, rmw_context_t *context)
   // Initialize the guard condition.
   context->impl->graph_guard_condition =
     static_cast<rmw_guard_condition_t *>(allocator->zero_allocate(
-          1, sizeof(rmw_guard_condition_t), allocator->state));
-  RMW_CHECK_FOR_NULL_WITH_MSG(context->impl->graph_guard_condition,
-                              "failed to allocate graph guard condition",
-                              return RMW_RET_BAD_ALLOC);
+      1, sizeof(rmw_guard_condition_t), allocator->state));
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    context->impl->graph_guard_condition,
+    "failed to allocate graph guard condition",
+    return RMW_RET_BAD_ALLOC);
   auto free_guard_condition =
-    rcpputils::make_scope_exit([context, allocator]() {
-        allocator->deallocate(context->impl->graph_guard_condition,
-                              allocator->state);
-      });
+    rcpputils::make_scope_exit(
+    [context, allocator]() {
+      allocator->deallocate(
+        context->impl->graph_guard_condition,
+        allocator->state);
+    });
 
   context->impl->graph_guard_condition->implementation_identifier =
     rmw_zenoh_cpp::rmw_zenoh_identifier;
 
   context->impl->graph_guard_condition->data = allocator->zero_allocate(
-      1, sizeof(rmw_zenoh_cpp::GuardCondition), allocator->state);
-  RMW_CHECK_FOR_NULL_WITH_MSG(context->impl->graph_guard_condition->data,
-                              "failed to allocate graph guard condition data",
-                              return RMW_RET_BAD_ALLOC);
+    1, sizeof(rmw_zenoh_cpp::GuardCondition), allocator->state);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    context->impl->graph_guard_condition->data,
+    "failed to allocate graph guard condition data",
+    return RMW_RET_BAD_ALLOC);
   auto free_guard_condition_data =
-    rcpputils::make_scope_exit([context, allocator]() {
-        allocator->deallocate(context->impl->graph_guard_condition->data,
-                              allocator->state);
-      });
+    rcpputils::make_scope_exit(
+    [context, allocator]() {
+      allocator->deallocate(
+        context->impl->graph_guard_condition->data,
+        allocator->state);
+    });
 
-  RMW_TRY_PLACEMENT_NEW(context->impl->graph_guard_condition->data,
-                        context->impl->graph_guard_condition->data,
-                        return RMW_RET_BAD_ALLOC,
-                        rmw_zenoh_cpp::GuardCondition);
-  auto destruct_guard_condition_data = rcpputils::make_scope_exit([context]() {
-        auto gc_data = static_cast<rmw_zenoh_cpp::GuardCondition *>(
-          context->impl->graph_guard_condition->data);
-        RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(gc_data->~GuardCondition(),
-                                           rmw_zenoh_cpp::GuardCondition);
-  });
+  RMW_TRY_PLACEMENT_NEW(
+    context->impl->graph_guard_condition->data,
+    context->impl->graph_guard_condition->data,
+    return RMW_RET_BAD_ALLOC,
+    rmw_zenoh_cpp::GuardCondition);
+  auto destruct_guard_condition_data = rcpputils::make_scope_exit(
+    [context]() {
+      auto gc_data = static_cast<rmw_zenoh_cpp::GuardCondition *>(
+        context->impl->graph_guard_condition->data);
+      RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(
+        gc_data->~GuardCondition(),
+        rmw_zenoh_cpp::GuardCondition);
+    });
 
   // Setup liveliness subscriptions for discovery.
   const std::string liveliness_str =
@@ -315,8 +335,9 @@ rmw_ret_t rmw_init(const rmw_init_options_t *options, rmw_context_t *context)
 
   z_view_keyexpr_t keyexpr;
   z_view_keyexpr_from_str(&keyexpr, liveliness_str.c_str());
-  zc_liveliness_get(z_loan(context->impl->session), z_loan(keyexpr),
-                    z_move(closure), NULL);
+  zc_liveliness_get(
+    z_loan(context->impl->session), z_loan(keyexpr),
+    z_move(closure), NULL);
   z_owned_reply_t reply;
 
   while (z_recv(z_loan(handler), &reply) == Z_OK) {
@@ -355,7 +376,7 @@ rmw_ret_t rmw_init(const rmw_init_options_t *options, rmw_context_t *context)
 
   z_view_keyexpr_from_str(&keyexpr, liveliness_str.c_str());
 
-  if(zc_liveliness_declare_subscriber(
+  if (zc_liveliness_declare_subscriber(
       &context->impl->graph_subscriber,
       z_loan(context->impl->session), z_loan(keyexpr),
       z_move(callback), &sub_options) != Z_OK)
@@ -381,14 +402,16 @@ rmw_ret_t rmw_init(const rmw_init_options_t *options, rmw_context_t *context)
 
 //==============================================================================
 /// Shutdown the middleware for a given context.
-rmw_ret_t rmw_shutdown(rmw_context_t *context)
+rmw_ret_t rmw_shutdown(rmw_context_t * context)
 {
   RMW_CHECK_ARGUMENT_FOR_NULL(context, RMW_RET_INVALID_ARGUMENT);
-  RMW_CHECK_FOR_NULL_WITH_MSG(context->impl, "expected initialized context",
-                              return RMW_RET_INVALID_ARGUMENT);
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(context, context->implementation_identifier,
-                                   rmw_zenoh_cpp::rmw_zenoh_identifier,
-                                   return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    context->impl, "expected initialized context",
+    return RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    context, context->implementation_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
 
   z_undeclare_subscriber(z_move(context->impl->graph_subscriber));
   if (context->impl->shm_provider.has_value()) {
@@ -407,35 +430,40 @@ rmw_ret_t rmw_shutdown(rmw_context_t *context)
 
 //==============================================================================
 /// Finalize a context.
-rmw_ret_t rmw_context_fini(rmw_context_t *context)
+rmw_ret_t rmw_context_fini(rmw_context_t * context)
 {
   RMW_CHECK_ARGUMENT_FOR_NULL(context, RMW_RET_INVALID_ARGUMENT);
-  RMW_CHECK_FOR_NULL_WITH_MSG(context->impl, "expected initialized context",
-                              return RMW_RET_INVALID_ARGUMENT);
-  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(context, context->implementation_identifier,
-                                   rmw_zenoh_cpp::rmw_zenoh_identifier,
-                                   return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    context->impl, "expected initialized context",
+    return RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    context, context->implementation_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   if (!context->impl->is_shutdown) {
     RCUTILS_SET_ERROR_MSG("context has not been shutdown");
     return RMW_RET_INVALID_ARGUMENT;
   }
 
-  const rcutils_allocator_t *allocator = &context->options.allocator;
+  const rcutils_allocator_t * allocator = &context->options.allocator;
 
-  RMW_TRY_DESTRUCTOR(static_cast<rmw_zenoh_cpp::GuardCondition *>(
+  RMW_TRY_DESTRUCTOR(
+    static_cast<rmw_zenoh_cpp::GuardCondition *>(
       context->impl->graph_guard_condition->data)
     ->~GuardCondition(),
-                     rmw_zenoh_cpp::GuardCondition, );
-  allocator->deallocate(context->impl->graph_guard_condition->data,
-                        allocator->state);
+    rmw_zenoh_cpp::GuardCondition, );
+  allocator->deallocate(
+    context->impl->graph_guard_condition->data,
+    allocator->state);
 
   allocator->deallocate(context->impl->graph_guard_condition, allocator->state);
   context->impl->graph_guard_condition = nullptr;
 
   allocator->deallocate(context->impl->enclave, allocator->state);
 
-  RMW_TRY_DESTRUCTOR(context->impl->~rmw_context_impl_t(),
-                     rmw_context_impl_t *, );
+  RMW_TRY_DESTRUCTOR(
+    context->impl->~rmw_context_impl_t(),
+    rmw_context_impl_t *, );
 
   allocator->deallocate(context->impl, allocator->state);
 

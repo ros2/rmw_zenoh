@@ -24,7 +24,8 @@
 namespace rmw_zenoh_cpp
 {
 
-class attachement_data_t final {
+class attachement_data_t final
+{
 public:
   int64_t sequence_number;
   int64_t source_timestamp;
@@ -41,19 +42,20 @@ public:
   z_result_t serialize_to_zbytes(z_owned_bytes_t *);
 };
 
-class attachement_context_t final {
+class attachement_context_t final
+{
 public:
-  const attachement_data_t *data;
+  const attachement_data_t * data;
   int length = 3;
   int idx = 0;
 
-  attachement_context_t(const attachement_data_t *_data)
+  attachement_context_t(const attachement_data_t * _data)
   : data(_data) {}
 };
 
 bool get_attachment(
   const z_loaned_bytes_t *const attachment,
-  const std::string & key, z_owned_bytes_t *val);
+  const std::string & key, z_owned_bytes_t * val);
 
 bool get_gid_from_attachment(
   const z_loaned_bytes_t *const attachment,

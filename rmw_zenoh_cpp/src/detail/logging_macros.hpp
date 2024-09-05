@@ -24,14 +24,14 @@
 // invoke GraphCache::parse_put() and GraphCache::parse_del() functions.
 // See https://github.com/ros2/rmw_zenoh/issues/182 for more details.
 #define RMW_ZENOH_LOG_DEBUG_NAMED(...) {rmw_zenoh_cpp::Logger::get().log_named( \
-      RCUTILS_LOG_SEVERITY_DEBUG, __func__, __FILE__, __LINE__, __VA_ARGS__);}
+            RCUTILS_LOG_SEVERITY_DEBUG, __func__, __FILE__, __LINE__, __VA_ARGS__);}
 #define RMW_ZENOH_LOG_ERROR_NAMED(...) {rmw_zenoh_cpp::Logger::get().log_named( \
-      RCUTILS_LOG_SEVERITY_ERROR, __func__, __FILE__, __LINE__, __VA_ARGS__);}
+            RCUTILS_LOG_SEVERITY_ERROR, __func__, __FILE__, __LINE__, __VA_ARGS__);}
 #define RMW_ZENOH_LOG_FATAL_NAMED(...) {rmw_zenoh_cpp::Logger::get().log_named( \
-      RCUTILS_LOG_SEVERITY_FATAL, __func__, __FILE__, __LINE__, __VA_ARGS__);}
+            RCUTILS_LOG_SEVERITY_FATAL, __func__, __FILE__, __LINE__, __VA_ARGS__);}
 #define RMW_ZENOH_LOG_INFO_NAMED(...) {rmw_zenoh_cpp::Logger::get().log_named( \
-      RCUTILS_LOG_SEVERITY_INFO, __func__, __FILE__, __LINE__, __VA_ARGS__);}
+            RCUTILS_LOG_SEVERITY_INFO, __func__, __FILE__, __LINE__, __VA_ARGS__);}
 #define RMW_ZENOH_LOG_WARN_NAMED(...) {rmw_zenoh_cpp::Logger::get().log_named( \
-      RCUTILS_LOG_SEVERITY_WARN, __func__, __FILE__, __LINE__, __VA_ARGS__);}
+            RCUTILS_LOG_SEVERITY_WARN, __func__, __FILE__, __LINE__, __VA_ARGS__);}
 
 #endif   // DETAIL__LOGGING_MACROS_HPP_

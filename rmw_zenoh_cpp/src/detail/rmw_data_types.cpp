@@ -32,7 +32,7 @@
 ///=============================================================================
 namespace
 {
-size_t hash_gid(const uint8_t *gid)
+size_t hash_gid(const uint8_t * gid)
 {
   std::stringstream hash_str;
   hash_str << std::hex;
@@ -80,7 +80,7 @@ size_t rmw_publisher_data_t::get_next_sequence_number()
 
 ///=============================================================================
 bool rmw_subscription_data_t::queue_has_data_and_attach_condition_if_not(
-  rmw_wait_set_data_t *wait_set_data)
+  rmw_wait_set_data_t * wait_set_data)
 {
   std::lock_guard<std::mutex> lock(condition_mutex_);
   if (!message_queue_.empty()) {
@@ -141,10 +141,10 @@ void rmw_subscription_data_t::add_new_message(
   {
     // Log warning if message is discarded due to hitting the queue depth
     RMW_ZENOH_LOG_DEBUG_NAMED(
-        "rmw_zenoh_cpp",
-        "Message queue depth of %ld reached, discarding oldest message "
-        "for subscription for %s",
-        adapted_qos_profile.depth, topic_name.c_str());
+      "rmw_zenoh_cpp",
+      "Message queue depth of %ld reached, discarding oldest message "
+      "for subscription for %s",
+      adapted_qos_profile.depth, topic_name.c_str());
 
     // If the adapted_qos_profile.depth is 0, the std::move command below will
     // result in UB and the z_drop will segfault. We explicitly set the depth to
@@ -169,8 +169,9 @@ void rmw_subscription_data_t::add_new_message(
       auto event_status = std::make_unique<rmw_zenoh_event_status_t>();
       event_status->total_count_change = num_msg_lost;
       event_status->total_count = total_messages_lost_;
-      events_mgr.add_new_event(ZENOH_EVENT_MESSAGE_LOST,
-                               std::move(event_status));
+      events_mgr.add_new_event(
+        ZENOH_EVENT_MESSAGE_LOST,
+        std::move(event_status));
     }
   }
   // Always update the last known sequence number for the publisher
@@ -186,7 +187,7 @@ void rmw_subscription_data_t::add_new_message(
 
 ///=============================================================================
 bool rmw_service_data_t::queue_has_data_and_attach_condition_if_not(
-  rmw_wait_set_data_t *wait_set_data)
+  rmw_wait_set_data_t * wait_set_data)
 {
   std::lock_guard<std::mutex> lock(condition_mutex_);
   if (!query_queue_.empty()) {
@@ -243,10 +244,10 @@ void rmw_service_data_t::add_new_query(std::unique_ptr<ZenohQuery> query)
     z_keyexpr_as_view_string(z_loan(this->keyexpr), &keystr);
 
     RMW_ZENOH_LOG_ERROR_NAMED(
-        "rmw_zenoh_cpp",
-        "Query queue depth of %ld reached, discarding oldest Query "
-        "for service for %s",
-        adapted_qos_profile.depth, z_string_data(z_loan(keystr)));
+      "rmw_zenoh_cpp",
+      "Query queue depth of %ld reached, discarding oldest Query "
+      "for service for %s",
+      adapted_qos_profile.depth, z_string_data(z_loan(keystr)));
     query_queue_.pop_front();
   }
   query_queue_.emplace_back(std::move(query));
@@ -284,7 +285,7 @@ bool rmw_service_data_t::add_to_query_map(
   }
 
   it->second.insert(
-      std::make_pair(request_id.sequence_number, std::move(query)));
+    std::make_pair(request_id.sequence_number, std::move(query)));
 
   return true;
 }
@@ -343,10 +344,10 @@ void rmw_client_data_t::add_new_reply(std::unique_ptr<ZenohReply> reply)
     z_view_string_t keystr;
     z_keyexpr_as_view_string(z_loan(this->keyexpr), &keystr);
     RMW_ZENOH_LOG_ERROR_NAMED(
-        "rmw_zenoh_cpp",
-        "Reply queue depth of %ld reached, discarding oldest reply "
-        "for client for %s",
-        adapted_qos_profile.depth, z_string_data(z_loan(keystr)));
+      "rmw_zenoh_cpp",
+      "Reply queue depth of %ld reached, discarding oldest reply "
+      "for client for %s",
+      adapted_qos_profile.depth, z_string_data(z_loan(keystr)));
     reply_queue_.pop_front();
   }
   reply_queue_.emplace_back(std::move(reply));
@@ -359,7 +360,7 @@ void rmw_client_data_t::add_new_reply(std::unique_ptr<ZenohReply> reply)
 
 ///=============================================================================
 bool rmw_client_data_t::queue_has_data_and_attach_condition_if_not(
-  rmw_wait_set_data_t *wait_set_data)
+  rmw_wait_set_data_t * wait_set_data)
 {
   std::lock_guard<std::mutex> lock(condition_mutex_);
   if (!reply_queue_.empty()) {
@@ -432,7 +433,7 @@ bool rmw_client_data_t::is_shutdown() const
 }
 
 //==============================================================================
-void sub_data_handler(const z_loaned_sample_t *sample, void *data)
+void sub_data_handler(const z_loaned_sample_t * sample, void * data)
 {
   z_view_string_t keystr;
   z_keyexpr_as_view_string(z_sample_keyexpr(sample), &keystr);
@@ -440,21 +441,21 @@ void sub_data_handler(const z_loaned_sample_t *sample, void *data)
   auto sub_data = static_cast<rmw_subscription_data_t *>(data);
   if (sub_data == nullptr) {
     RMW_ZENOH_LOG_ERROR_NAMED(
-        "rmw_zenoh_cpp",
-        "Unable to obtain rmw_subscription_data_t from data for "
-        "subscription for %s",
-        z_string_data(z_loan(keystr)));
+      "rmw_zenoh_cpp",
+      "Unable to obtain rmw_subscription_data_t from data for "
+      "subscription for %s",
+      z_string_data(z_loan(keystr)));
     return;
   }
 
   uint8_t pub_gid[RMW_GID_STORAGE_SIZE];
-  const z_loaned_bytes_t *attachment = z_sample_attachment(sample);
+  const z_loaned_bytes_t * attachment = z_sample_attachment(sample);
   if (!get_gid_from_attachment(attachment, pub_gid)) {
     // We failed to get the GID from the attachment.  While this isn't fatal,
     // it is unusual and so we should report it.
     memset(pub_gid, 0, RMW_GID_STORAGE_SIZE);
     RMW_ZENOH_LOG_ERROR_NAMED(
-        "rmw_zenoh_cpp", "Unable to obtain publisher GID from the attachment.");
+      "rmw_zenoh_cpp", "Unable to obtain publisher GID from the attachment.");
   }
 
   int64_t sequence_number =
@@ -464,8 +465,8 @@ void sub_data_handler(const z_loaned_sample_t *sample, void *data)
     // isn't fatal, it is unusual and so we should report it.
     sequence_number = 0;
     RMW_ZENOH_LOG_ERROR_NAMED(
-        "rmw_zenoh_cpp",
-        "Unable to obtain sequence number from the attachment.");
+      "rmw_zenoh_cpp",
+      "Unable to obtain sequence number from the attachment.");
   }
 
   int64_t source_timestamp =
@@ -475,24 +476,24 @@ void sub_data_handler(const z_loaned_sample_t *sample, void *data)
     // isn't fatal, it is unusual and so we should report it.
     source_timestamp = 0;
     RMW_ZENOH_LOG_ERROR_NAMED(
-        "rmw_zenoh_cpp",
-        "Unable to obtain sequence number from the attachment.");
+      "rmw_zenoh_cpp",
+      "Unable to obtain sequence number from the attachment.");
   }
 
-  const z_loaned_bytes_t *payload = z_sample_payload(sample);
+  const z_loaned_bytes_t * payload = z_sample_payload(sample);
 
   z_owned_slice_t slice;
   z_bytes_deserialize_into_slice(payload, &slice);
 
   sub_data->add_new_message(
-      std::make_unique<saved_msg_data>(
-          slice, z_timestamp_ntp64_time(z_sample_timestamp(sample)), pub_gid,
-          sequence_number, source_timestamp),
-      z_string_data(z_loan(keystr)));
+    std::make_unique<saved_msg_data>(
+      slice, z_timestamp_ntp64_time(z_sample_timestamp(sample)), pub_gid,
+      sequence_number, source_timestamp),
+    z_string_data(z_loan(keystr)));
 }
 
 ///=============================================================================
-ZenohQuery::ZenohQuery(const z_loaned_query_t *query)
+ZenohQuery::ZenohQuery(const z_loaned_query_t * query)
 {
   z_query_clone(&query_, query);
 }
@@ -507,18 +508,18 @@ const z_loaned_query_t * ZenohQuery::get_query() const
 }
 
 //==============================================================================
-void service_data_handler(const z_loaned_query_t *query, void *data)
+void service_data_handler(const z_loaned_query_t * query, void * data)
 {
   z_view_string_t keystr;
   z_keyexpr_as_view_string(z_query_keyexpr(query), &keystr);
 
-  rmw_service_data_t *service_data = static_cast<rmw_service_data_t *>(data);
+  rmw_service_data_t * service_data = static_cast<rmw_service_data_t *>(data);
   if (service_data == nullptr) {
     RMW_ZENOH_LOG_ERROR_NAMED(
-        "rmw_zenoh_cpp",
-        "Unable to obtain rmw_service_data_t from data for "
-        "service for %s",
-        z_string_data(z_loan(keystr)));
+      "rmw_zenoh_cpp",
+      "Unable to obtain rmw_service_data_t from data for "
+      "service for %s",
+      z_string_data(z_loan(keystr)));
     return;
   }
 
@@ -526,7 +527,7 @@ void service_data_handler(const z_loaned_query_t *query, void *data)
 }
 
 ///=============================================================================
-ZenohReply::ZenohReply(const z_owned_reply_t *reply) {reply_ = *reply;}
+ZenohReply::ZenohReply(const z_owned_reply_t * reply) {reply_ = *reply;}
 
 ///=============================================================================
 ZenohReply::~ZenohReply() {z_reply_drop(z_move(reply_));}
@@ -547,12 +548,13 @@ size_t rmw_client_data_t::get_next_sequence_number()
 }
 
 //==============================================================================
-void client_data_handler(const z_loaned_reply_t *reply, void *data)
+void client_data_handler(const z_loaned_reply_t * reply, void * data)
 {
   auto client_data = static_cast<rmw_client_data_t *>(data);
   if (client_data == nullptr) {
-    RMW_ZENOH_LOG_ERROR_NAMED("rmw_zenoh_cpp",
-                              "Unable to obtain client_data_t ");
+    RMW_ZENOH_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to obtain client_data_t ");
     return;
   }
 
@@ -569,28 +571,29 @@ void client_data_handler(const z_loaned_reply_t *reply, void *data)
   } else {
     z_view_string_t keystr;
     z_keyexpr_as_view_string(z_loan(client_data->keyexpr), &keystr);
-    const z_loaned_reply_err_t *err = z_reply_err(reply);
-    const z_loaned_bytes_t *err_payload = z_reply_err_payload(err);
+    const z_loaned_reply_err_t * err = z_reply_err(reply);
+    const z_loaned_bytes_t * err_payload = z_reply_err_payload(err);
 
     // TODO(yuyuan): z_view_string_t?
     z_owned_string_t err_str;
     z_bytes_deserialize_into_string(err_payload, &err_str);
     RMW_ZENOH_LOG_ERROR_NAMED(
-        "rmw_zenoh_cpp",
-        "z_reply_is_ok returned False for keyexpr %s. Reason: %.*s",
-        z_string_data(z_loan(keystr)), static_cast<int>(z_string_len(z_loan(err_str))),
-        z_string_data(z_loan(err_str)));
+      "rmw_zenoh_cpp",
+      "z_reply_is_ok returned False for keyexpr %s. Reason: %.*s",
+      z_string_data(z_loan(keystr)), static_cast<int>(z_string_len(z_loan(err_str))),
+      z_string_data(z_loan(err_str)));
     z_drop(z_move(err_str));
     return;
   }
 }
 
-void client_data_drop(void *data)
+void client_data_drop(void * data)
 {
   auto client_data = static_cast<rmw_client_data_t *>(data);
   if (client_data == nullptr) {
-    RMW_ZENOH_LOG_ERROR_NAMED("rmw_zenoh_cpp",
-                              "Unable to obtain client_data_t ");
+    RMW_ZENOH_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to obtain client_data_t ");
     return;
   }
 
@@ -598,14 +601,15 @@ void client_data_drop(void *data)
   // rmw_client_data_t class for why we need to do this.
   bool queries_in_flight = false;
   bool is_shutdown = client_data->decrement_queries_in_flight_and_is_shutdown(
-      queries_in_flight);
+    queries_in_flight);
 
   if (is_shutdown) {
     if (!queries_in_flight) {
-      RMW_TRY_DESTRUCTOR(client_data->~rmw_client_data_t(),
-                         rmw_client_data_t, );
+      RMW_TRY_DESTRUCTOR(
+        client_data->~rmw_client_data_t(),
+        rmw_client_data_t, );
       client_data->context->options.allocator.deallocate(
-          client_data, client_data->context->options.allocator.state);
+        client_data, client_data->context->options.allocator.state);
     }
   }
 }
