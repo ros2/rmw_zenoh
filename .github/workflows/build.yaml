@@ -28,10 +28,7 @@ jobs:
             BUILD_TYPE: binary
     env:
       ROS2_REPOS_FILE_URL: 'https://raw.githubusercontent.com/ros2/ros2/${{ matrix.ROS_DISTRO }}/ros2.repos'
-    runs-on:
-      - self-hosted
-      - X64
-      - ubuntu-ros
+    runs-on: ubuntu-latest
     container:
       image: ${{ matrix.BUILD_TYPE == 'binary' && format('ros:{0}-ros-base', matrix.ROS_DISTRO) || 'ubuntu:noble' }}
     steps:

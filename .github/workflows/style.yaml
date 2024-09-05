@@ -8,10 +8,7 @@ defaults:
     shell: bash
 jobs:
   test:
-    runs-on:
-      - self-hosted
-      - X64
-      - ubuntu-ros
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
