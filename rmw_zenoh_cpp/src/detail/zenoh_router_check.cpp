@@ -24,7 +24,7 @@
 namespace rmw_zenoh_cpp
 {
 ///=============================================================================
-rmw_ret_t zenoh_router_check(const z_loaned_session_t* session)
+rmw_ret_t zenoh_router_check(const z_loaned_session_t * session)
 {
   // Initialize context for callback
   int context = 0;

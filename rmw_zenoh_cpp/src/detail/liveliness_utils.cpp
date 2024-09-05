@@ -373,7 +373,7 @@ std::string zid_to_str(const z_id_t & id)
 {
   std::ostringstream oss;
   for (int i = sizeof(id.id) - 1; i >= 0; i--) {
-      oss << std::setw(2) << std::setfill('0') << std::hex << static_cast<int>(id.id[i]);
+    oss << std::setw(2) << std::setfill('0') << std::hex << static_cast<int>(id.id[i]);
   }
   return oss.str();
 }

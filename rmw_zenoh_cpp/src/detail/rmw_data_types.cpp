@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <vector>
 #include <zenoh.h>
 
 #include <condition_variable>
@@ -22,21 +21,19 @@
 #include <sstream>
 #include <string>
 #include <utility>
-#include <zenoh_macros.h>
 
 #include "logging_macros.hpp"
 
-#include "rcpputils/scope_exit.hpp"
-
-#include "rmw/error_handling.h"
 #include "rmw/impl/cpp/macros.hpp"
 
 #include "attachment_helpers.hpp"
 #include "rmw_data_types.hpp"
 
 ///=============================================================================
-namespace {
-size_t hash_gid(const uint8_t *gid) {
+namespace
+{
+size_t hash_gid(const uint8_t *gid)
+{
   std::stringstream hash_str;
   hash_str << std::hex;
   size_t i = 0;
@@ -47,21 +44,25 @@ size_t hash_gid(const uint8_t *gid) {
 }
 
 ///=============================================================================
-size_t hash_gid(const rmw_request_id_t &request_id) {
+size_t hash_gid(const rmw_request_id_t & request_id)
+{
   return hash_gid(request_id.writer_guid);
 }
-} // namespace
+}  // namespace
 
 ///=============================================================================
-size_t rmw_context_impl_s::get_next_entity_id() { return next_entity_id_++; }
+size_t rmw_context_impl_s::get_next_entity_id() {return next_entity_id_++;}
 
-namespace rmw_zenoh_cpp {
+namespace rmw_zenoh_cpp
+{
 ///=============================================================================
-saved_msg_data::saved_msg_data(z_owned_slice_t p, uint64_t recv_ts,
-                               const uint8_t pub_gid[RMW_GID_STORAGE_SIZE],
-                               int64_t seqnum, int64_t source_ts)
-    : payload(p), recv_timestamp(recv_ts), sequence_number(seqnum),
-      source_timestamp(source_ts) {
+saved_msg_data::saved_msg_data(
+  z_owned_slice_t p, uint64_t recv_ts,
+  const uint8_t pub_gid[RMW_GID_STORAGE_SIZE],
+  int64_t seqnum, int64_t source_ts)
+: payload(p), recv_timestamp(recv_ts), sequence_number(seqnum),
+  source_timestamp(source_ts)
+{
   memcpy(publisher_gid, pub_gid, RMW_GID_STORAGE_SIZE);
 }
 ///=============================================================================
@@ -71,14 +72,16 @@ saved_msg_data::~saved_msg_data()
 }
 
 ///=============================================================================
-size_t rmw_publisher_data_t::get_next_sequence_number() {
+size_t rmw_publisher_data_t::get_next_sequence_number()
+{
   std::lock_guard<std::mutex> lock(sequence_number_mutex_);
   return sequence_number_++;
 }
 
 ///=============================================================================
 bool rmw_subscription_data_t::queue_has_data_and_attach_condition_if_not(
-    rmw_wait_set_data_t *wait_set_data) {
+  rmw_wait_set_data_t *wait_set_data)
+{
   std::lock_guard<std::mutex> lock(condition_mutex_);
   if (!message_queue_.empty()) {
     return true;
@@ -90,7 +93,8 @@ bool rmw_subscription_data_t::queue_has_data_and_attach_condition_if_not(
 }
 
 ///=============================================================================
-void rmw_subscription_data_t::notify() {
+void rmw_subscription_data_t::notify()
+{
   std::lock_guard<std::mutex> lock(condition_mutex_);
   if (wait_set_data_ != nullptr) {
     std::lock_guard<std::mutex> wait_set_lock(wait_set_data_->condition_mutex);
@@ -100,7 +104,8 @@ void rmw_subscription_data_t::notify() {
 }
 
 ///=============================================================================
-bool rmw_subscription_data_t::detach_condition_and_queue_is_empty() {
+bool rmw_subscription_data_t::detach_condition_and_queue_is_empty()
+{
   std::lock_guard<std::mutex> lock(condition_mutex_);
   wait_set_data_ = nullptr;
 
@@ -108,7 +113,8 @@ bool rmw_subscription_data_t::detach_condition_and_queue_is_empty() {
 }
 
 ///=============================================================================
-std::unique_ptr<saved_msg_data> rmw_subscription_data_t::pop_next_message() {
+std::unique_ptr<saved_msg_data> rmw_subscription_data_t::pop_next_message()
+{
   std::lock_guard<std::mutex> lock(message_queue_mutex_);
 
   if (message_queue_.empty()) {
@@ -118,7 +124,7 @@ std::unique_ptr<saved_msg_data> rmw_subscription_data_t::pop_next_message() {
   }
 
   std::unique_ptr<rmw_zenoh_cpp::saved_msg_data> msg_data =
-      std::move(message_queue_.front());
+    std::move(message_queue_.front());
   message_queue_.pop_front();
 
   return msg_data;
@@ -126,11 +132,13 @@ std::unique_ptr<saved_msg_data> rmw_subscription_data_t::pop_next_message() {
 
 ///=============================================================================
 void rmw_subscription_data_t::add_new_message(
-    std::unique_ptr<saved_msg_data> msg, const std::string &topic_name) {
+  std::unique_ptr<saved_msg_data> msg, const std::string & topic_name)
+{
   std::lock_guard<std::mutex> lock(message_queue_mutex_);
 
   if (adapted_qos_profile.history != RMW_QOS_POLICY_HISTORY_KEEP_ALL &&
-      message_queue_.size() >= adapted_qos_profile.depth) {
+    message_queue_.size() >= adapted_qos_profile.depth)
+  {
     // Log warning if message is discarded due to hitting the queue depth
     RMW_ZENOH_LOG_DEBUG_NAMED(
         "rmw_zenoh_cpp",
@@ -154,7 +162,7 @@ void rmw_subscription_data_t::add_new_message(
   auto last_known_pub_it = last_known_published_msg_.find(gid_hash);
   if (last_known_pub_it != last_known_published_msg_.end()) {
     const int64_t seq_increment =
-        std::abs(msg->sequence_number - last_known_pub_it->second);
+      std::abs(msg->sequence_number - last_known_pub_it->second);
     if (seq_increment > 1) {
       const size_t num_msg_lost = seq_increment - 1;
       total_messages_lost_ += num_msg_lost;
@@ -178,7 +186,8 @@ void rmw_subscription_data_t::add_new_message(
 
 ///=============================================================================
 bool rmw_service_data_t::queue_has_data_and_attach_condition_if_not(
-    rmw_wait_set_data_t *wait_set_data) {
+  rmw_wait_set_data_t *wait_set_data)
+{
   std::lock_guard<std::mutex> lock(condition_mutex_);
   if (!query_queue_.empty()) {
     return true;
@@ -189,7 +198,8 @@ bool rmw_service_data_t::queue_has_data_and_attach_condition_if_not(
 }
 
 ///=============================================================================
-bool rmw_service_data_t::detach_condition_and_queue_is_empty() {
+bool rmw_service_data_t::detach_condition_and_queue_is_empty()
+{
   std::lock_guard<std::mutex> lock(condition_mutex_);
   wait_set_data_ = nullptr;
 
@@ -197,7 +207,8 @@ bool rmw_service_data_t::detach_condition_and_queue_is_empty() {
 }
 
 ///=============================================================================
-std::unique_ptr<ZenohQuery> rmw_service_data_t::pop_next_query() {
+std::unique_ptr<ZenohQuery> rmw_service_data_t::pop_next_query()
+{
   std::lock_guard<std::mutex> lock(query_queue_mutex_);
   if (query_queue_.empty()) {
     return nullptr;
@@ -210,7 +221,8 @@ std::unique_ptr<ZenohQuery> rmw_service_data_t::pop_next_query() {
 }
 
 ///=============================================================================
-void rmw_service_data_t::notify() {
+void rmw_service_data_t::notify()
+{
   std::lock_guard<std::mutex> lock(condition_mutex_);
   if (wait_set_data_ != nullptr) {
     std::lock_guard<std::mutex> wait_set_lock(wait_set_data_->condition_mutex);
@@ -220,10 +232,12 @@ void rmw_service_data_t::notify() {
 }
 
 ///=============================================================================
-void rmw_service_data_t::add_new_query(std::unique_ptr<ZenohQuery> query) {
+void rmw_service_data_t::add_new_query(std::unique_ptr<ZenohQuery> query)
+{
   std::lock_guard<std::mutex> lock(query_queue_mutex_);
   if (adapted_qos_profile.history != RMW_QOS_POLICY_HISTORY_KEEP_ALL &&
-      query_queue_.size() >= adapted_qos_profile.depth) {
+    query_queue_.size() >= adapted_qos_profile.depth)
+  {
     // Log warning if message is discarded due to hitting the queue depth
     z_view_string_t keystr;
     z_keyexpr_as_view_string(z_loan(this->keyexpr), &keystr);
@@ -244,14 +258,16 @@ void rmw_service_data_t::add_new_query(std::unique_ptr<ZenohQuery> query) {
 }
 
 ///=============================================================================
-bool rmw_service_data_t::add_to_query_map(const rmw_request_id_t &request_id,
-                                          std::unique_ptr<ZenohQuery> query) {
+bool rmw_service_data_t::add_to_query_map(
+  const rmw_request_id_t & request_id,
+  std::unique_ptr<ZenohQuery> query)
+{
   size_t hash = hash_gid(request_id);
 
   std::lock_guard<std::mutex> lock(sequence_to_query_map_mutex_);
 
   std::unordered_map<size_t, SequenceToQuery>::iterator it =
-      sequence_to_query_map_.find(hash);
+    sequence_to_query_map_.find(hash);
 
   if (it == sequence_to_query_map_.end()) {
     SequenceToQuery stq;
@@ -275,20 +291,21 @@ bool rmw_service_data_t::add_to_query_map(const rmw_request_id_t &request_id,
 
 ///=============================================================================
 std::unique_ptr<ZenohQuery>
-rmw_service_data_t::take_from_query_map(const rmw_request_id_t &request_id) {
+rmw_service_data_t::take_from_query_map(const rmw_request_id_t & request_id)
+{
   size_t hash = hash_gid(request_id);
 
   std::lock_guard<std::mutex> lock(sequence_to_query_map_mutex_);
 
   std::unordered_map<size_t, SequenceToQuery>::iterator it =
-      sequence_to_query_map_.find(hash);
+    sequence_to_query_map_.find(hash);
 
   if (it == sequence_to_query_map_.end()) {
     return nullptr;
   }
 
   SequenceToQuery::iterator query_it =
-      it->second.find(request_id.sequence_number);
+    it->second.find(request_id.sequence_number);
 
   if (query_it == it->second.end()) {
     return nullptr;
@@ -305,7 +322,8 @@ rmw_service_data_t::take_from_query_map(const rmw_request_id_t &request_id) {
 }
 
 ///=============================================================================
-void rmw_client_data_t::notify() {
+void rmw_client_data_t::notify()
+{
   std::lock_guard<std::mutex> lock(condition_mutex_);
   if (wait_set_data_ != nullptr) {
     std::lock_guard<std::mutex> wait_set_lock(wait_set_data_->condition_mutex);
@@ -315,10 +333,12 @@ void rmw_client_data_t::notify() {
 }
 
 ///=============================================================================
-void rmw_client_data_t::add_new_reply(std::unique_ptr<ZenohReply> reply) {
+void rmw_client_data_t::add_new_reply(std::unique_ptr<ZenohReply> reply)
+{
   std::lock_guard<std::mutex> lock(reply_queue_mutex_);
   if (adapted_qos_profile.history != RMW_QOS_POLICY_HISTORY_KEEP_ALL &&
-      reply_queue_.size() >= adapted_qos_profile.depth) {
+    reply_queue_.size() >= adapted_qos_profile.depth)
+  {
     // Log warning if message is discarded due to hitting the queue depth
     z_view_string_t keystr;
     z_keyexpr_as_view_string(z_loan(this->keyexpr), &keystr);
@@ -339,7 +359,8 @@ void rmw_client_data_t::add_new_reply(std::unique_ptr<ZenohReply> reply) {
 
 ///=============================================================================
 bool rmw_client_data_t::queue_has_data_and_attach_condition_if_not(
-    rmw_wait_set_data_t *wait_set_data) {
+  rmw_wait_set_data_t *wait_set_data)
+{
   std::lock_guard<std::mutex> lock(condition_mutex_);
   if (!reply_queue_.empty()) {
     return true;
@@ -350,7 +371,8 @@ bool rmw_client_data_t::queue_has_data_and_attach_condition_if_not(
 }
 
 ///=============================================================================
-bool rmw_client_data_t::detach_condition_and_queue_is_empty() {
+bool rmw_client_data_t::detach_condition_and_queue_is_empty()
+{
   std::lock_guard<std::mutex> lock(condition_mutex_);
   wait_set_data_ = nullptr;
 
@@ -358,7 +380,8 @@ bool rmw_client_data_t::detach_condition_and_queue_is_empty() {
 }
 
 ///=============================================================================
-std::unique_ptr<ZenohReply> rmw_client_data_t::pop_next_reply() {
+std::unique_ptr<ZenohReply> rmw_client_data_t::pop_next_reply()
+{
   std::lock_guard<std::mutex> lock(reply_queue_mutex_);
 
   if (reply_queue_.empty()) {
@@ -374,7 +397,8 @@ std::unique_ptr<ZenohReply> rmw_client_data_t::pop_next_reply() {
 //==============================================================================
 // See the comment about the "num_in_flight" class variable in the
 // rmw_client_data_t class for the use of this method.
-void rmw_client_data_t::increment_in_flight_callbacks() {
+void rmw_client_data_t::increment_in_flight_callbacks()
+{
   std::lock_guard<std::mutex> lock(in_flight_mutex_);
   num_in_flight_++;
 }
@@ -382,7 +406,8 @@ void rmw_client_data_t::increment_in_flight_callbacks() {
 //==============================================================================
 // See the comment about the "num_in_flight" class variable in the
 // rmw_client_data_t class for the use of this method.
-bool rmw_client_data_t::shutdown_and_query_in_flight() {
+bool rmw_client_data_t::shutdown_and_query_in_flight()
+{
   std::lock_guard<std::mutex> lock(in_flight_mutex_);
   is_shutdown_ = true;
 
@@ -393,19 +418,22 @@ bool rmw_client_data_t::shutdown_and_query_in_flight() {
 // See the comment about the "num_in_flight" class variable in the
 // rmw_client_data_t structure for the use of this method.
 bool rmw_client_data_t::decrement_queries_in_flight_and_is_shutdown(
-    bool &queries_in_flight) {
+  bool & queries_in_flight)
+{
   std::lock_guard<std::mutex> lock(in_flight_mutex_);
   queries_in_flight = --num_in_flight_ > 0;
   return is_shutdown_;
 }
 
-bool rmw_client_data_t::is_shutdown() const {
+bool rmw_client_data_t::is_shutdown() const
+{
   std::lock_guard<std::mutex> lock(in_flight_mutex_);
   return is_shutdown_;
 }
 
 //==============================================================================
-void sub_data_handler(const z_loaned_sample_t *sample, void *data) {
+void sub_data_handler(const z_loaned_sample_t *sample, void *data)
+{
   z_view_string_t keystr;
   z_keyexpr_as_view_string(z_sample_keyexpr(sample), &keystr);
 
@@ -430,7 +458,7 @@ void sub_data_handler(const z_loaned_sample_t *sample, void *data) {
   }
 
   int64_t sequence_number =
-      get_int64_from_attachment(attachment, "sequence_number");
+    get_int64_from_attachment(attachment, "sequence_number");
   if (sequence_number < 0) {
     // We failed to get the sequence number from the attachment.  While this
     // isn't fatal, it is unusual and so we should report it.
@@ -441,7 +469,7 @@ void sub_data_handler(const z_loaned_sample_t *sample, void *data) {
   }
 
   int64_t source_timestamp =
-      get_int64_from_attachment(attachment, "source_timestamp");
+    get_int64_from_attachment(attachment, "source_timestamp");
   if (source_timestamp < 0) {
     // We failed to get the source timestamp from the attachment.  While this
     // isn't fatal, it is unusual and so we should report it.
@@ -464,20 +492,23 @@ void sub_data_handler(const z_loaned_sample_t *sample, void *data) {
 }
 
 ///=============================================================================
-ZenohQuery::ZenohQuery(const z_loaned_query_t *query) {
+ZenohQuery::ZenohQuery(const z_loaned_query_t *query)
+{
   z_query_clone(&query_, query);
 }
 
 ///=============================================================================
-ZenohQuery::~ZenohQuery() { z_drop(z_move(query_)); }
+ZenohQuery::~ZenohQuery() {z_drop(z_move(query_));}
 
 ///=============================================================================
-const z_loaned_query_t *ZenohQuery::get_query() const {
+const z_loaned_query_t * ZenohQuery::get_query() const
+{
   return z_query_loan(&query_);
 }
 
 //==============================================================================
-void service_data_handler(const z_loaned_query_t *query, void *data) {
+void service_data_handler(const z_loaned_query_t *query, void *data)
+{
   z_view_string_t keystr;
   z_keyexpr_as_view_string(z_query_keyexpr(query), &keystr);
 
@@ -495,26 +526,29 @@ void service_data_handler(const z_loaned_query_t *query, void *data) {
 }
 
 ///=============================================================================
-ZenohReply::ZenohReply(const z_owned_reply_t *reply) { reply_ = *reply; }
+ZenohReply::ZenohReply(const z_owned_reply_t *reply) {reply_ = *reply;}
 
 ///=============================================================================
-ZenohReply::~ZenohReply() { z_reply_drop(z_move(reply_)); }
+ZenohReply::~ZenohReply() {z_reply_drop(z_move(reply_));}
 
 // TODO(yuyuan): z_reply_ok return a null pointer if not z_reply_is_ok,
 // so that's remove the additional optional wrapper.
 ///=============================================================================
-const z_loaned_sample_t *ZenohReply::get_sample() const {
+const z_loaned_sample_t * ZenohReply::get_sample() const
+{
   return z_reply_ok(z_loan(reply_));
 }
 
 ///=============================================================================
-size_t rmw_client_data_t::get_next_sequence_number() {
+size_t rmw_client_data_t::get_next_sequence_number()
+{
   std::lock_guard<std::mutex> lock(sequence_number_mutex_);
   return sequence_number_++;
 }
 
 //==============================================================================
-void client_data_handler(const z_loaned_reply_t *reply, void *data) {
+void client_data_handler(const z_loaned_reply_t *reply, void *data)
+{
   auto client_data = static_cast<rmw_client_data_t *>(data);
   if (client_data == nullptr) {
     RMW_ZENOH_LOG_ERROR_NAMED("rmw_zenoh_cpp",
@@ -528,8 +562,7 @@ void client_data_handler(const z_loaned_reply_t *reply, void *data) {
     return;
   }
 
-  if (z_reply_is_ok(reply))
-  {
+  if (z_reply_is_ok(reply)) {
     z_owned_reply_t owned_reply;
     z_reply_clone(&owned_reply, reply);
     client_data->add_new_reply(std::make_unique<ZenohReply>(&owned_reply));
@@ -545,14 +578,15 @@ void client_data_handler(const z_loaned_reply_t *reply, void *data) {
     RMW_ZENOH_LOG_ERROR_NAMED(
         "rmw_zenoh_cpp",
         "z_reply_is_ok returned False for keyexpr %s. Reason: %.*s",
-        z_string_data(z_loan(keystr)), (int)z_string_len(z_loan(err_str)),
+        z_string_data(z_loan(keystr)), static_cast<int>(z_string_len(z_loan(err_str))),
         z_string_data(z_loan(err_str)));
     z_drop(z_move(err_str));
     return;
   }
 }
 
-void client_data_drop(void *data) {
+void client_data_drop(void *data)
+{
   auto client_data = static_cast<rmw_client_data_t *>(data);
   if (client_data == nullptr) {
     RMW_ZENOH_LOG_ERROR_NAMED("rmw_zenoh_cpp",
@@ -576,4 +610,4 @@ void client_data_drop(void *data) {
   }
 }
 
-} // namespace rmw_zenoh_cpp
+}  // namespace rmw_zenoh_cpp

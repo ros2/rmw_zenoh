@@ -14,19 +14,16 @@
 
 #include "rmw/error_handling.h"
 #include "rmw/event.h"
-#include "rmw/events_statuses/events_statuses.h"
 #include "rmw/types.h"
 
 #include "detail/event.hpp"
 #include "detail/graph_cache.hpp"
 #include "detail/identifier.hpp"
 #include "detail/rmw_data_types.hpp"
-#include "detail/logging_macros.hpp"
 
 
 extern "C"
 {
-
 ///=============================================================================
 /// Initialize a rmw publisher event
 rmw_ret_t

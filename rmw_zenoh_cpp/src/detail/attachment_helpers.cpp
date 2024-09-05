@@ -12,13 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <cstdio>
 #include <zenoh.h>
 
 #include <cstdlib>
 #include <cstring>
 #include <string>
-#include <zenoh_macros.h>
 
 #include "rmw/types.h"
 
@@ -26,10 +24,12 @@
 
 #include "attachment_helpers.hpp"
 
-namespace rmw_zenoh_cpp {
+namespace rmw_zenoh_cpp
+{
 
-bool create_attachment_iter(z_owned_bytes_t *kv_pair, void *context) {
-  attachement_context_t *ctx = (attachement_context_t *)context;
+bool create_attachment_iter(z_owned_bytes_t *kv_pair, void *context)
+{
+  attachement_context_t *ctx = reinterpret_cast<attachement_context_t *>(context);
   z_owned_bytes_t k, v;
 
   if (ctx->idx == 0) {
@@ -51,14 +51,17 @@ bool create_attachment_iter(z_owned_bytes_t *kv_pair, void *context) {
   return true;
 }
 
-z_result_t attachement_data_t::serialize_to_zbytes(z_owned_bytes_t *attachment) {
+z_result_t attachement_data_t::serialize_to_zbytes(z_owned_bytes_t *attachment)
+{
   attachement_context_t context = attachement_context_t(this);
   return z_bytes_from_iter(attachment, create_attachment_iter,
-                                     (void *)&context);
+           reinterpret_cast<void *>(&context));
 }
 
-bool get_attachment(const z_loaned_bytes_t *const attachment,
-                    const std::string &key, z_owned_bytes_t *val) {
+bool get_attachment(
+  const z_loaned_bytes_t *const attachment,
+  const std::string & key, z_owned_bytes_t *val)
+{
   if (z_bytes_is_empty(attachment)) {
     return false;
   }
@@ -72,7 +75,7 @@ bool get_attachment(const z_loaned_bytes_t *const attachment,
     z_owned_string_t key_string;
     z_bytes_deserialize_into_string(z_loan(key_), &key_string);
 
-    const char* key_string_ptr = z_string_data(z_loan(key_string));
+    const char * key_string_ptr = z_string_data(z_loan(key_string));
     size_t key_string_len = z_string_len(z_loan(key_string));
     if (key_string_len == key.length() && strncmp(key_string_ptr, key.c_str(), key.length()) == 0) {
       found = true;
@@ -98,9 +101,10 @@ bool get_attachment(const z_loaned_bytes_t *const attachment,
   return true;
 }
 
-bool get_gid_from_attachment(const z_loaned_bytes_t *const attachment,
-                             uint8_t gid[RMW_GID_STORAGE_SIZE]) {
-
+bool get_gid_from_attachment(
+  const z_loaned_bytes_t *const attachment,
+  uint8_t gid[RMW_GID_STORAGE_SIZE])
+{
   if (z_bytes_is_empty(attachment)) {
     return false;
   }
@@ -124,8 +128,10 @@ bool get_gid_from_attachment(const z_loaned_bytes_t *const attachment,
   return true;
 }
 
-int64_t get_int64_from_attachment(const z_loaned_bytes_t *const attachment,
-                                  const std::string &name) {
+int64_t get_int64_from_attachment(
+  const z_loaned_bytes_t *const attachment,
+  const std::string & name)
+{
   // A valid request must have had an attachment
   if (z_bytes_is_empty(attachment)) {
     return -1;
@@ -154,4 +160,4 @@ int64_t get_int64_from_attachment(const z_loaned_bytes_t *const attachment,
   return num;
 }
 
-} // namespace rmw_zenoh_cpp
+}  // namespace rmw_zenoh_cpp
