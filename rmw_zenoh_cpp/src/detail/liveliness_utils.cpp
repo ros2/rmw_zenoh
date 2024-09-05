@@ -13,21 +13,17 @@
 // limitations under the License.
 
 #include "liveliness_utils.hpp"
+#include <zenoh.h>
 
 #include <functional>
-#include <iomanip>
 #include <optional>
-#include <sstream>
 #include <string>
-#include <type_traits>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
 #include "logging_macros.hpp"
 #include "qos.hpp"
-
-#include "rcpputils/scope_exit.hpp"
 
 #include "rmw/error_handling.h"
 
@@ -371,11 +367,11 @@ std::optional<rmw_qos_profile_t> keyexpr_to_qos(const std::string & keyexpr)
 ///=============================================================================
 std::string zid_to_str(const z_id_t & id)
 {
-  std::ostringstream oss;
-  for (int i = sizeof(id.id) - 1; i >= 0; i--) {
-    oss << std::setw(2) << std::setfill('0') << std::hex << static_cast<int>(id.id[i]);
-  }
-  return oss.str();
+  z_owned_string_t z_str;
+  z_id_to_string(&id, &z_str);
+  std::string str(z_string_data(z_loan(z_str)), z_string_len(z_loan(z_str)));
+  z_drop(z_move(z_str));
+  return str;
 }
 
 ///=============================================================================
