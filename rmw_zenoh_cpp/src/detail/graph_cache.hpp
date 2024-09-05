@@ -96,6 +96,12 @@ using GraphNodePtr = std::shared_ptr<GraphNode>;
 class GraphCache final
 {
 public:
+  /// @brief Signature for a function that will be invoked by the GraphCache when a QoS
+  ///   event is detected.
+  using GraphCacheEventCallback = std::function<void (std::unique_ptr<rmw_zenoh_event_status_t>)>;
+  /// Callback to be triggered when a publication cache is detected in the ROS Graph.
+  using QueryingSubscriberCallback = std::function<void (const std::string & queryable_prefix)>;
+
   /// @brief Constructor
   /// @param id The id of the zenoh session that is building the graph cache.
   ///   This is used to infer which entities originated from the current session
@@ -166,10 +172,6 @@ public:
     const char * service_type,
     bool * is_available) const;
 
-  /// @brief Signature for a function that will be invoked by the GraphCache when a QoS
-  ///   event is detected.
-  using GraphCacheEventCallback = std::function<void (std::unique_ptr<rmw_zenoh_event_status_t>)>;
-
   /// Set a qos event callback for an entity from the current session.
   /// @note The callback will be removed when the entity is removed from the graph.
   void set_qos_event_callback(
@@ -179,6 +181,10 @@ public:
 
   /// Returns true if the entity is a publisher or client. False otherwise.
   static bool is_entity_pub(const liveliness::Entity & entity);
+
+  void set_querying_subscriber_callback(
+    const std::string & keyexpr,
+    QueryingSubscriberCallback cb);
 
 private:
   // Helper function to convert an Entity into a GraphNode.
@@ -278,6 +284,8 @@ private:
   using GraphEventCallbackMap = std::unordered_map<liveliness::ConstEntityPtr, GraphEventCallbacks>;
   // EventCallbackMap for each type of event we support in rmw_zenoh_cpp.
   GraphEventCallbackMap event_callbacks_;
+  // Map keyexpressions to QueryingSubscriberCallback.
+  std::unordered_map<std::string, std::vector<QueryingSubscriberCallback>> querying_subs_cbs_;
   // Counters to track changes to event statues for each topic.
   std::unordered_map<std::string,
     std::array<rmw_zenoh_event_status_t, ZENOH_EVENT_ID_MAX + 1>> event_statuses_;

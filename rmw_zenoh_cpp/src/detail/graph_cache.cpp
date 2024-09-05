@@ -340,7 +340,7 @@ void GraphCache::parse_put(
   if (ignore_from_current_session && is_entity_local(*entity)) {
     RMW_ZENOH_LOG_DEBUG_NAMED(
       "rmw_zenoh_cpp",
-      "Ignoring parse_put for %s from the same session.\n", entity->keyexpr().c_str());
+      "Ignoring parse_put for %s from the same session.\n", entity->liveliness_keyexpr().c_str());
     return;
   }
 
@@ -402,6 +402,20 @@ void GraphCache::parse_put(
   // Otherwise, the entity represents a node that already exists in the graph.
   // Update topic info if required below.
   update_topic_maps_for_put(node_it->second, entity);
+
+  // If the newly added entity is a publisher with transient_local qos durability,
+  // we trigger any registered querying subscriber callbacks.
+  if (entity->type() == liveliness::EntityType::Publisher &&
+    entity->topic_info().has_value() &&
+    entity->topic_info()->qos_.durability == RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL)
+  {
+    auto sub_cbs_it = querying_subs_cbs_.find(entity->topic_info()->topic_keyexpr_);
+    if (sub_cbs_it != querying_subs_cbs_.end()) {
+      for (const auto & cb : sub_cbs_it->second) {
+        cb(entity->zid());
+      }
+    }
+  }
 }
 
 ///=============================================================================
@@ -558,7 +572,7 @@ void GraphCache::parse_del(
   if (ignore_from_current_session && is_entity_local(*entity)) {
     RMW_ZENOH_LOG_DEBUG_NAMED(
       "rmw_zenoh_cpp",
-      "Ignoring parse_del for %s from the same session.\n", entity->keyexpr().c_str());
+      "Ignoring parse_del for %s from the same session.\n", entity->liveliness_keyexpr().c_str());
     return;
   }
   // Lock the graph mutex before accessing the graph.
@@ -1314,4 +1328,18 @@ std::unique_ptr<rmw_zenoh_event_status_t> GraphCache::take_event_status(
   status_to_take.current_count_change = 0;
   return result;
 }
+
+///=============================================================================
+void GraphCache::set_querying_subscriber_callback(
+  const std::string & keyexpr,
+  QueryingSubscriberCallback cb)
+{
+  auto cb_it = querying_subs_cbs_.find(keyexpr);
+  if (cb_it == querying_subs_cbs_.end()) {
+    querying_subs_cbs_[keyexpr] = std::move(std::vector<QueryingSubscriberCallback>{});
+    cb_it = querying_subs_cbs_.find(keyexpr);
+  }
+  cb_it->second.push_back(std::move(cb));
+}
+
 }  // namespace rmw_zenoh_cpp
