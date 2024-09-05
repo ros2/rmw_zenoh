@@ -696,8 +696,8 @@ rmw_ret_t GraphCache::get_node_names(
       rcutils_ret_t ret = rcutils_string_array_fini(enclaves);
       if (ret != RCUTILS_RET_OK) {
         RMW_ZENOH_LOG_ERROR_NAMED(
-        "rmw_zenoh_cpp",
-        "failed to cleanup during error handling: %s", rcutils_get_error_string().str);
+          "rmw_zenoh_cpp",
+          "failed to cleanup during error handling: %s", rcutils_get_error_string().str);
       }
     };
 

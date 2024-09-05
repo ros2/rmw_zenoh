@@ -33,10 +33,10 @@ rmw_ret_t zenoh_router_check(const z_loaned_session_t * session)
   auto callback = [](const struct z_id_t * id, void * ctx) {
       const std::string id_str = liveliness::zid_to_str(*id);
       RMW_ZENOH_LOG_INFO_NAMED(
-      "rmw_zenoh_cpp",
-      "Successfully connected to a Zenoh router with id %s.", id_str.c_str());
-    // Note: Callback is guaranteed to never be called
-    // concurrently according to z_info_routers_zid docstring
+        "rmw_zenoh_cpp",
+        "Successfully connected to a Zenoh router with id %s.", id_str.c_str());
+      // Note: Callback is guaranteed to never be called
+      // concurrently according to z_info_routers_zid docstring
       (*(static_cast<int *>(ctx)))++;
     };
 

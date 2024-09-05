@@ -3392,10 +3392,10 @@ rmw_ret_t rmw_destroy_wait_set(rmw_wait_set_t * wait_set)
 namespace
 {
 bool check_and_attach_condition(
-  const rmw_subscriptions_t *const subscriptions,
-  const rmw_guard_conditions_t *const guard_conditions,
-  const rmw_services_t *const services, const rmw_clients_t *const clients,
-  const rmw_events_t *const events,
+  const rmw_subscriptions_t * const subscriptions,
+  const rmw_guard_conditions_t * const guard_conditions,
+  const rmw_services_t * const services, const rmw_clients_t * const clients,
+  const rmw_events_t * const events,
   rmw_zenoh_cpp::rmw_wait_set_data_t * wait_set_data)
 {
   if (guard_conditions) {

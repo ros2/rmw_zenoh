@@ -25,7 +25,7 @@ namespace rmw_zenoh_cpp
 {
 //==============================================================================
 /// Signature matching rmw_get_publishers_info_by_topic and rmw_get_subscriptions_info_by_topic
-using GetEndpointInfoByTopicFunction = std::function<rmw_ret_t (
+using GetEndpointInfoByTopicFunction = std::function<rmw_ret_t(
       const rmw_node_t *,
       rcutils_allocator_t *,
       const char *,

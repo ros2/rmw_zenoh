@@ -54,15 +54,15 @@ public:
 };
 
 bool get_attachment(
-  const z_loaned_bytes_t *const attachment,
+  const z_loaned_bytes_t * const attachment,
   const std::string & key, z_owned_bytes_t * val);
 
 bool get_gid_from_attachment(
-  const z_loaned_bytes_t *const attachment,
+  const z_loaned_bytes_t * const attachment,
   uint8_t gid[RMW_GID_STORAGE_SIZE]);
 
 int64_t get_int64_from_attachment(
-  const z_loaned_bytes_t *const attachment,
+  const z_loaned_bytes_t * const attachment,
   const std::string & name);
 }  // namespace rmw_zenoh_cpp
 
