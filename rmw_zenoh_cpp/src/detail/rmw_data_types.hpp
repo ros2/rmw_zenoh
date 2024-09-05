@@ -52,7 +52,6 @@ public:
   // An owned session.
   z_owned_session_t session;
 
-  // TODO(yuyuan): SHM
   std::optional<z_owned_shm_provider_t> shm_provider;
 
   z_owned_subscriber_t graph_subscriber;
