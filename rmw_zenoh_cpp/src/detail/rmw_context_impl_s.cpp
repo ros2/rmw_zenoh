@@ -14,8 +14,9 @@
 
 #include "rmw_context_impl_s.hpp"
 
-#include <utility>
+#include <mutex>
 #include <thread>
+#include <utility>
 
 #include "guard_condition.hpp"
 #include "identifier.hpp"
