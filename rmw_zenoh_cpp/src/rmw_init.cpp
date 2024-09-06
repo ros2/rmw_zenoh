@@ -373,12 +373,10 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   //   z_move(callback),
   //   &sub_options);
   auto sub_options = zc_liveliness_subscriber_options_null();
-  // TODO(ahcorde): This sintax is not support on Windows yet
-  // z_owned_closure_sample_t callback = z_closure(graph_sub_data_handler, nullptr, context->impl);
-  z_owned_closure_sample_t callback;
-  callback.context = static_cast<void *>(context->impl);
-  callback.call = graph_sub_data_handler;
-  callback.drop = nullptr;
+  z_owned_closure_sample_t callback =
+    rmw_zenoh_cpp::make_z_closure<z_owned_closure_sample_t, const z_sample_t>(
+      static_cast<void *>(context->impl), graph_sub_data_handler, nullptr
+    );
 
   context->impl->graph_subscriber = zc_liveliness_declare_subscriber(
     z_loan(context->impl->session),
