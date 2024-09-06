@@ -117,7 +117,7 @@ private:
     ~Data();
 
     // Mutex to lock when accessing members.
-    mutable std::mutex mutex_;
+    mutable std::recursive_mutex mutex_;
     // RMW allocator.
     const rcutils_allocator_t * allocator_;
     // Enclave, name used to find security artifacts in a sros2 keystore.

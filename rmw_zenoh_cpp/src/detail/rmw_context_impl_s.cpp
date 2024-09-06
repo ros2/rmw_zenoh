@@ -54,7 +54,7 @@ void rmw_context_impl_s::graph_sub_data_handler(const z_sample_t * sample, void 
   }
 
   // Update the graph cache.
-  std::lock_guard<std::mutex> lock(data_ptr->mutex_);
+  std::lock_guard<std::recursive_mutex> lock(data_ptr->mutex_);
   if (data_ptr->is_shutdown_) {
     return;
   }
@@ -106,7 +106,7 @@ rmw_context_impl_s::Data::Data(
 ///=============================================================================
 rmw_ret_t rmw_context_impl_s::Data::subscribe_to_ros_graph()
 {
-  std::lock_guard<std::mutex> lock(mutex_);
+  std::lock_guard<std::recursive_mutex> lock(mutex_);
   if (is_initialized_) {
     return RMW_RET_OK;
   }
@@ -148,7 +148,7 @@ rmw_ret_t rmw_context_impl_s::Data::subscribe_to_ros_graph()
 ///=============================================================================
 rmw_ret_t rmw_context_impl_s::Data::shutdown()
 {
-  std::lock_guard<std::mutex> lock(mutex_);
+  std::lock_guard<std::recursive_mutex> lock(mutex_);
   if (is_shutdown_) {
     return RMW_RET_OK;
   }
@@ -327,35 +327,35 @@ rmw_context_impl_s::rmw_context_impl_s(
 ///=============================================================================
 std::string rmw_context_impl_s::enclave() const
 {
-  std::lock_guard<std::mutex> lock(data_->mutex_);
+  std::lock_guard<std::recursive_mutex> lock(data_->mutex_);
   return data_->enclave_;
 }
 
 ///=============================================================================
 z_session_t rmw_context_impl_s::session() const
 {
-  std::lock_guard<std::mutex> lock(data_->mutex_);
+  std::lock_guard<std::recursive_mutex> lock(data_->mutex_);
   return z_loan(data_->session_);
 }
 
 ///=============================================================================
 std::optional<zc_owned_shm_manager_t> & rmw_context_impl_s::shm_manager()
 {
-  std::lock_guard<std::mutex> lock(data_->mutex_);
+  std::lock_guard<std::recursive_mutex> lock(data_->mutex_);
   return data_->shm_manager_;
 }
 
 ///=============================================================================
 rmw_guard_condition_t * rmw_context_impl_s::graph_guard_condition()
 {
-  std::lock_guard<std::mutex> lock(data_->mutex_);
+  std::lock_guard<std::recursive_mutex> lock(data_->mutex_);
   return data_->graph_guard_condition_.get();
 }
 
 ///=============================================================================
 std::size_t rmw_context_impl_s::get_next_entity_id()
 {
-  std::lock_guard<std::mutex> lock(data_->mutex_);
+  std::lock_guard<std::recursive_mutex> lock(data_->mutex_);
   return data_->next_entity_id_++;
 }
 
@@ -368,21 +368,21 @@ rmw_ret_t rmw_context_impl_s::shutdown()
 ///=============================================================================
 bool rmw_context_impl_s::is_shutdown() const
 {
-  std::lock_guard<std::mutex> lock(data_->mutex_);
+  std::lock_guard<std::recursive_mutex> lock(data_->mutex_);
   return data_->is_shutdown_;
 }
 
 ///=============================================================================
 bool rmw_context_impl_s::session_is_valid() const
 {
-  std::lock_guard<std::mutex> lock(data_->mutex_);
+  std::lock_guard<std::recursive_mutex> lock(data_->mutex_);
   return z_check(data_->session_);
 }
 
 ///=============================================================================
 std::shared_ptr<rmw_zenoh_cpp::GraphCache> rmw_context_impl_s::graph_cache()
 {
-  std::lock_guard<std::mutex> lock(data_->mutex_);
+  std::lock_guard<std::recursive_mutex> lock(data_->mutex_);
   return data_->graph_cache_;
 }
 
@@ -392,7 +392,7 @@ bool rmw_context_impl_s::create_node_data(
   const std::string & ns,
   const std::string & node_name)
 {
-  std::lock_guard<std::mutex> lock(data_->mutex_);
+  std::lock_guard<std::recursive_mutex> lock(data_->mutex_);
   auto node_insertion = data_->nodes_.insert(std::make_pair(node, nullptr));
   if (!node_insertion.second) {
     // Node already exists.
@@ -405,7 +405,7 @@ bool rmw_context_impl_s::create_node_data(
 
   // Create the entity.
   z_session_t session = z_loan(data_->session_);
-  const size_t node_id = this->data_->next_entity_id_++;
+  const size_t node_id = this->get_next_entity_id();
   auto entity = rmw_zenoh_cpp::liveliness::Entity::make(
     z_info_zid(session),
     std::to_string(node_id),
@@ -416,7 +416,7 @@ bool rmw_context_impl_s::create_node_data(
     ns,
     node_name,
     data_->enclave_
-    }
+  }
   );
   if (entity == nullptr) {
     RMW_ZENOH_LOG_ERROR_NAMED(
@@ -456,7 +456,7 @@ bool rmw_context_impl_s::create_node_data(
 std::shared_ptr<rmw_zenoh_cpp::NodeData> rmw_context_impl_s::get_node_data(
   const rmw_node_t * const node)
 {
-  std::lock_guard<std::mutex> lock(data_->mutex_);
+  std::lock_guard<std::recursive_mutex> lock(data_->mutex_);
   auto node_it = data_->nodes_.find(node);
   if (node_it == data_->nodes_.end()) {
     return nullptr;
@@ -467,6 +467,6 @@ std::shared_ptr<rmw_zenoh_cpp::NodeData> rmw_context_impl_s::get_node_data(
 ///=============================================================================
 void rmw_context_impl_s::delete_node_data(const rmw_node_t * const node)
 {
-  std::lock_guard<std::mutex> lock(data_->mutex_);
+  std::lock_guard<std::recursive_mutex> lock(data_->mutex_);
   data_->nodes_.erase(node);
 }

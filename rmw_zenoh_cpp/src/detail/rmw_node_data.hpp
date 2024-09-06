@@ -19,7 +19,6 @@
 
 #include <memory>
 #include <mutex>
-#include <string>
 
 #include "liveliness_utils.hpp"
 
@@ -27,7 +26,7 @@ namespace rmw_zenoh_cpp
 {
 ///=============================================================================
 // The NodeData can only be created via rmw_context_impl_s::create_node_data().
-class NodeData
+class NodeData final
 {
 public:
   // Constructor.
