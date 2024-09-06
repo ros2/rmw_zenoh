@@ -393,8 +393,7 @@ bool rmw_context_impl_s::create_node_data(
   const std::string & node_name)
 {
   std::lock_guard<std::recursive_mutex> lock(data_->mutex_);
-  auto node_insertion = data_->nodes_.insert(std::make_pair(node, nullptr));
-  if (!node_insertion.second) {
+  if (data_->nodes_.count(node) > 0) {
     // Node already exists.
     return false;
   }
@@ -419,7 +418,10 @@ bool rmw_context_impl_s::create_node_data(
     return false;
   }
 
-  node_insertion.first->second = std::move(node_data);
+  auto node_insertion = data_->nodes_.insert(std::make_pair(node, std::move(node_data)));
+  if (!node_insertion.second) {
+    return false;
+  }
 
   return true;
 }
