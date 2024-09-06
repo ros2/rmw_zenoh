@@ -1441,7 +1441,7 @@ rmw_create_subscription(
   }
 
   z_owned_closure_sample_t callback =
-    make_z_closure<z_owned_closure_sample_t, const z_sample_t>(
+    rmw_zenoh_cpp::make_z_closure<z_owned_closure_sample_t, const z_sample_t>(
       static_cast<void *>(sub_data),
       rmw_zenoh_cpp::sub_data_handler,
       nullptr);
