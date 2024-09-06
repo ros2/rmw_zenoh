@@ -92,7 +92,7 @@ private:
       rmw_guard_condition_t * graph_guard_condition);
 
     // Subscribe to the ROS graph.
-    rmw_ret_t subscribe();
+    rmw_ret_t subscribe_to_ros_graph();
 
     // Shutdown the Zenoh session.
     rmw_ret_t shutdown();

@@ -15,6 +15,8 @@
 #include "rmw_context_impl_s.hpp"
 
 #include <mutex>
+#include <optional>
+#include <string>
 #include <thread>
 #include <utility>
 
@@ -101,8 +103,9 @@ rmw_context_impl_s::Data::Data(
 }
 
 ///=============================================================================
-rmw_ret_t rmw_context_impl_s::Data::subscribe()
+rmw_ret_t rmw_context_impl_s::Data::subscribe_to_ros_graph()
 {
+  std::lock_guard<std::mutex> lock(mutex_);
   if (is_initialized_) {
     return RMW_RET_OK;
   }
@@ -120,8 +123,7 @@ rmw_ret_t rmw_context_impl_s::Data::subscribe()
   // shared_ptr<Data> would live on until the graph_sub_data_handler callback.
   auto sub_options = zc_liveliness_subscriber_options_null();
   z_owned_closure_sample_t callback = z_closure(
-    rmw_context_impl_s::graph_sub_data_handler, nullptr,
-    this->shared_from_this().get());
+    rmw_context_impl_s::graph_sub_data_handler, nullptr, this);
   graph_subscriber_ = zc_liveliness_declare_subscriber(
     z_loan(session_),
     z_keyexpr(liveliness_str_.c_str()),
@@ -186,6 +188,11 @@ rmw_context_impl_s::rmw_context_impl_s(
   const std::size_t domain_id,
   const std::string & enclave)
 {
+  // Check if allocator is valid.
+  if (!rcutils_allocator_is_valid(allocator)) {
+    throw std::runtime_error("Invalid allocator passed to rmw_context_impl_s.");
+  }
+
   // Initialize the zenoh configuration.
   z_owned_config_t config;
   rmw_ret_t ret;
@@ -366,7 +373,7 @@ rmw_context_impl_s::rmw_context_impl_s(
     std::move(graph_cache),
     graph_guard_condition);
 
-  ret = data_->subscribe();
+  ret = data_->subscribe_to_ros_graph();
   if (ret != RMW_RET_OK) {
     throw std::runtime_error("Unable to subscribe to ROS Graph updates.");
   }
