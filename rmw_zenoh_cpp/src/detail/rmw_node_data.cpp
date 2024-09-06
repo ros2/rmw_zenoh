@@ -14,6 +14,8 @@
 
 #include "rmw_node_data.hpp"
 
+#include <memory>
+#include <string>
 #include <utility>
 
 #include "logging_macros.hpp"
@@ -22,6 +24,61 @@
 
 namespace rmw_zenoh_cpp
 {
+///=============================================================================
+std::shared_ptr<NodeData> NodeData::make(
+  std::size_t id,
+  z_session_t session,
+  std::size_t domain_id,
+  const std::string & namespace_,
+  const std::string & node_name,
+  const std::string & enclave)
+{
+  // Create the entity.
+  auto entity = rmw_zenoh_cpp::liveliness::Entity::make(
+    z_info_zid(session),
+    std::to_string(id),
+    std::to_string(id),
+    rmw_zenoh_cpp::liveliness::EntityType::Node,
+    rmw_zenoh_cpp::liveliness::NodeInfo{
+      domain_id,
+      namespace_,
+      node_name,
+      enclave
+    }
+  );
+  if (entity == nullptr) {
+    RMW_ZENOH_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to make NodeData as node entity is invalid.");
+    return nullptr;
+  }
+
+  // Create the liveliness token.
+  zc_owned_liveliness_token_t token = zc_liveliness_declare_token(
+    session,
+    z_keyexpr(entity->liveliness_keyexpr().c_str()),
+    NULL
+  );
+  auto free_token = rcpputils::make_scope_exit(
+    [&token]() {
+      z_drop(z_move(token));
+    });
+  if (!z_check(token)) {
+    RMW_ZENOH_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to create liveliness token for the node.");
+    return nullptr;
+  }
+  free_token.cancel();
+
+  return std::shared_ptr<NodeData>(
+    new NodeData{
+      id,
+      std::move(entity),
+      std::move(token)
+    });
+}
+
 ///=============================================================================
 NodeData::NodeData(
   std::size_t id,

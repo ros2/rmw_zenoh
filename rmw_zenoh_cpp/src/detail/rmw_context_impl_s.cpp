@@ -399,55 +399,27 @@ bool rmw_context_impl_s::create_node_data(
     return false;
   }
 
+  // Check that the Zenoh session is still valid.
   if (!z_check(data_->session_)) {
+    RMW_ZENOH_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to create NodeData as Zenoh session is invalid.");
     return false;
   }
 
-  // Create the entity.
-  z_session_t session = z_loan(data_->session_);
-  const size_t node_id = this->get_next_entity_id();
-  auto entity = rmw_zenoh_cpp::liveliness::Entity::make(
-    z_info_zid(session),
-    std::to_string(node_id),
-    std::to_string(node_id),
-    rmw_zenoh_cpp::liveliness::EntityType::Node,
-    rmw_zenoh_cpp::liveliness::NodeInfo{
+  auto node_data = rmw_zenoh_cpp::NodeData::make(
+    this->get_next_entity_id(),
+    z_loan(data_->session_),
     data_->domain_id_,
     ns,
     node_name,
-    data_->enclave_
-  }
-  );
-  if (entity == nullptr) {
-    RMW_ZENOH_LOG_ERROR_NAMED(
-      "rmw_zenoh_cpp",
-      "Unable to create node entity.");
+    data_->enclave_);
+  if (node_data == nullptr) {
+    // Error already handled.
     return false;
   }
 
-  // Create the liveliness token.
-  zc_owned_liveliness_token_t token = zc_liveliness_declare_token(
-    session,
-    z_keyexpr(entity->liveliness_keyexpr().c_str()),
-    NULL
-  );
-  auto free_token = rcpputils::make_scope_exit(
-    [&token]() {
-      z_drop(z_move(token));
-    });
-  if (!z_check(token)) {
-    RMW_ZENOH_LOG_ERROR_NAMED(
-      "rmw_zenoh_cpp",
-      "Unable to create liveliness token for the node.");
-    return false;
-  }
-  free_token.cancel();
-
-  node_insertion.first->second = std::make_shared<rmw_zenoh_cpp::NodeData>(
-    std::move(node_id),
-    std::move(entity),
-    std::move(token)
-  );
+  node_insertion.first->second = std::move(node_data);
 
   return true;
 }
