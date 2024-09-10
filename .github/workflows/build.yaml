@@ -16,16 +16,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          # Rolling (source)
-          - ROS_DISTRO: rolling
-            BUILD_TYPE: source
-          # Jazzy (binary)
-          - ROS_DISTRO: jazzy
-            BUILD_TYPE: binary
-          # Iron (binary)
-          - ROS_DISTRO: iron
-            BUILD_TYPE: binary
+        ROS_DISTRO: [rolling, jazzy, iron]
+        BUILD_TYPE: [source, binary]
+        exclude:
+          - BUILD_TYPE: ${{ github.event_name != 'schedule' && 'source' || '' }}
     env:
       ROS2_REPOS_FILE_URL: 'https://raw.githubusercontent.com/ros2/ros2/${{ matrix.ROS_DISTRO }}/ros2.repos'
       RMW_MIDDLEWARE_TEST_PACKAGES: 'test_rclcpp rcl'
@@ -37,7 +31,6 @@ jobs:
       if: ${{ matrix.BUILD_TYPE == 'source' }}
       with:
         use-ros2-testing: true
-        required-ros-distributions: ${{ matrix.ROS_DISTRO }}
     - name: Install Coverage Tools
       if: ${{ matrix.BUILD_TYPE == 'binary' }}
       run: sudo apt update && sudo apt install -y python3-colcon-coveragepy-result python3-colcon-lcov-result lcov
@@ -57,9 +50,9 @@ jobs:
       run: |
         cd ${{ steps.action-ros-ci.outputs.ros-workspace-directory-name }}
         . install/setup.sh
-        launch_test install/rmw_zenoh_cpp/test/rclcpp_integration.test.py
-    - uses: actions/upload-artifact@v1
+        launch_test install/rmw_zenoh_cpp/test/rmw_zenoh_integration.test.py
+    - uses: actions/upload-artifact@v4
       if: ${{ matrix.BUILD_TYPE == 'source' }}
       with:
         name: colcon-logs
-        path: ${{ steps.action-ros-ci.outputs.ros-workspace-directory-name }}/log 
+        path: ${{ steps.action-ros-ci.outputs.ros-workspace-directory-name }}/log

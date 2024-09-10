@@ -98,7 +98,7 @@ if(BUILD_TESTING)
   ament_uncrustify(EXCLUDE ${_linter_excludes})
   ament_xmllint()
 
-  install(FILES test/rclcpp_integration.test.py
+  install(FILES test/rmw_zenoh_integration.test.py
     DESTINATION test)
 endif()
 
