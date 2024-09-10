@@ -21,6 +21,7 @@ import unittest
 
 import launch
 import launch.actions
+import launch.substitutions
 import launch_ros.actions
 import launch_testing.actions
 import launch_testing.markers
@@ -34,6 +35,11 @@ proc_env['RMW_IMPLEMENTATION'] = 'rmw_zenoh_cpp'
 @launch_testing.markers.keep_alive
 def generate_test_description():
  
+    selected_system_tests = launch.substitutions.LaunchConfiguration('selected_system_tests')
+    selected_system_tests_arg = launch.actions.DeclareLaunchArgument(
+        'selected_system_tests', 
+        default_value="test_rclcpp test_communication")
+
     zenoh_router = launch_ros.actions.Node(
         package="rmw_zenoh_cpp",
         executable="rmw_zenohd",
@@ -46,7 +52,7 @@ def generate_test_description():
             'colcon',
             'test',
             '--packages-select',
-            'test_rclcpp',
+            selected_system_tests,
             '--retest-until-pass',
             '2',
         ],
@@ -55,6 +61,7 @@ def generate_test_description():
     )
 
     return launch.LaunchDescription([
+        selected_system_tests_arg,
         zenoh_router,
         dut_process,
         # In tests where all of the procs under tests terminate themselves, it's necessary
