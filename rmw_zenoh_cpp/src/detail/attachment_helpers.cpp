@@ -161,5 +161,4 @@ int64_t get_int64_from_attachment(
 
   return num;
 }
-
 }  // namespace rmw_zenoh_cpp
