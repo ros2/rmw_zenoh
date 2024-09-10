@@ -148,7 +148,7 @@ int64_t get_int64_from_attachment(
   }
 
   int64_t num;
-  if (z_bytes_deserialize_into_int64(z_loan(val), &num)) {
+  if (z_bytes_deserialize_into_int64(z_loan(val), &num) != Z_OK) {
     return -1;
   }
 

@@ -196,7 +196,7 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
     });
 
   // Initialize the zenoh session.
-  if (z_open(&context->impl->session, z_move(config))) {
+  if (z_open(&context->impl->session, z_move(config)) != Z_OK) {
     RMW_SET_ERROR_MSG("Error setting up zenoh session");
     return RMW_RET_ERROR;
   }
@@ -241,7 +241,7 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
     z_memory_layout_new(&layout, SHM_BUFFER_SIZE_MB * 1024 * 1024, alignment);
 
     z_owned_shm_provider_t provider;
-    if (z_posix_shm_provider_new(&provider, z_loan(layout))) {
+    if (z_posix_shm_provider_new(&provider, z_loan(layout)) != Z_OK) {
       RMW_ZENOH_LOG_ERROR_NAMED("rmw_zenoh_cpp", "Unable to create a SHM provider.");
       return RMW_RET_ERROR;
     }
@@ -411,7 +411,7 @@ rmw_shutdown(rmw_context_t * context)
     z_drop(z_move(context->impl->shm_provider.value()));
   }
   // Close the zenoh session
-  if (z_close(z_move(context->impl->session)) < 0) {
+  if (z_close(z_move(context->impl->session)) != Z_OK) {
     RMW_SET_ERROR_MSG("Error while closing zenoh session");
     return RMW_RET_ERROR;
   }

@@ -43,7 +43,7 @@ rmw_ret_t zenoh_router_check(const z_loaned_session_t * session)
   rmw_ret_t ret = RMW_RET_OK;
   z_owned_closure_zid_t router_callback;
   z_closure(&router_callback, callback, NULL, &context);
-  if (z_info_routers_zid(session, z_move(router_callback))) {
+  if (z_info_routers_zid(session, z_move(router_callback)) != Z_OK) {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Failed to evaluate if Zenoh routers are connected to the session.");

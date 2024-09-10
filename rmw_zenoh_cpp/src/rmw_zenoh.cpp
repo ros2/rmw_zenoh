@@ -273,7 +273,7 @@ rmw_create_node(
       z_drop(z_move(node_data->token));
     });
   if (zc_liveliness_declare_token(
-      &node_data->token, z_loan(context->impl->session), z_loan(keyexpr), NULL))
+      &node_data->token, z_loan(context->impl->session), z_loan(keyexpr), NULL) != Z_OK)
   {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
@@ -641,7 +641,7 @@ rmw_create_publisher(
   }
   // TODO(clalancette): What happens if the key name is a valid but empty string?
   if (z_declare_publisher(
-      &publisher_data->pub, z_loan(context_impl->session), z_loan(pub_ke), &opts))
+      &publisher_data->pub, z_loan(context_impl->session), z_loan(pub_ke), &opts) != Z_OK)
   {
     RMW_SET_ERROR_MSG("unable to create zenoh publisher");
     return nullptr;
@@ -662,7 +662,7 @@ rmw_create_publisher(
     });
   if (zc_liveliness_declare_token(
       &publisher_data->token, z_loan(node->context->impl->session), z_loan(liveliness_ke),
-      NULL))
+      NULL) != Z_OK)
   {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
@@ -715,7 +715,7 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
     }
     RMW_TRY_DESTRUCTOR(publisher_data->type_support->~MessageTypeSupport(), MessageTypeSupport, );
     allocator->deallocate(publisher_data->type_support, allocator->state);
-    if (z_undeclare_publisher(z_move(publisher_data->pub))) {
+    if (z_undeclare_publisher(z_move(publisher_data->pub)) != Z_OK) {
       RMW_SET_ERROR_MSG("failed to undeclare pub");
       ret = RMW_RET_ERROR;
     }
@@ -940,7 +940,7 @@ rmw_publish(
     z_bytes_serialize_from_buf(&payload, reinterpret_cast<const uint8_t *>(msg_bytes), data_length);
   }
 
-  if (z_publisher_put(z_loan(publisher_data->pub), z_move(payload), &options)) {
+  if (z_publisher_put(z_loan(publisher_data->pub), z_move(payload), &options) != Z_OK) {
     RMW_SET_ERROR_MSG("unable to publish message");
     return RMW_RET_ERROR;
   }
@@ -1069,7 +1069,7 @@ rmw_publish_serialized_message(
   z_owned_bytes_t payload;
   z_bytes_serialize_from_buf(&payload, serialized_message->buffer, data_length);
 
-  if (z_publisher_put(z_loan(publisher_data->pub), z_move(payload), &options)) {
+  if (z_publisher_put(z_loan(publisher_data->pub), z_move(payload), &options) != Z_OK) {
     RMW_SET_ERROR_MSG("unable to publish message");
     return RMW_RET_ERROR;
   }
@@ -1400,7 +1400,7 @@ rmw_create_subscription(
 
   std::string topic_keyexpr = sub_data->entity->topic_info()->topic_keyexpr_;
   z_view_keyexpr_t sub_ke;
-  if (z_view_keyexpr_from_str(&sub_ke, topic_keyexpr.c_str())) {
+  if (z_view_keyexpr_from_str(&sub_ke, topic_keyexpr.c_str()) != Z_OK) {
     RMW_SET_ERROR_MSG("unable to create zenoh keyexpr.");
     return nullptr;
   }
@@ -1474,7 +1474,7 @@ rmw_create_subscription(
 
     z_owned_subscriber_t sub;
     if (z_declare_subscriber(
-        &sub, z_loan(context_impl->session), z_loan(sub_ke), z_move(callback), &sub_options))
+        &sub, z_loan(context_impl->session), z_loan(sub_ke), z_move(callback), &sub_options) != Z_OK)
     {
       RMW_SET_ERROR_MSG("unable to create zenoh subscription");
       return nullptr;
@@ -1507,7 +1507,7 @@ rmw_create_subscription(
       }
     });
   if (zc_liveliness_declare_token(
-      &sub_data->token, z_loan(context_impl->session), z_loan(liveliness_ke), NULL))
+      &sub_data->token, z_loan(context_impl->session), z_loan(liveliness_ke), NULL) != Z_OK)
   {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
@@ -1561,7 +1561,7 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
 
     z_owned_subscriber_t * sub = std::get_if<z_owned_subscriber_t>(&sub_data->sub);
     if (sub != nullptr) {
-      if (z_undeclare_subscriber(z_move(*sub))) {
+      if (z_undeclare_subscriber(z_move(*sub)) != Z_OK) {
         RMW_SET_ERROR_MSG("failed to undeclare sub");
         ret = RMW_RET_ERROR;
       }
@@ -2251,7 +2251,7 @@ rmw_create_client(
       z_keyexpr_drop(z_move(client_data->keyexpr));
     });
   if (z_keyexpr_from_str(
-      &client_data->keyexpr, client_data->entity->topic_info()->topic_keyexpr_.c_str()))
+      &client_data->keyexpr, client_data->entity->topic_info()->topic_keyexpr_.c_str()) != Z_OK)
   {
     RMW_SET_ERROR_MSG("unable to create zenoh keyexpr.");
     return nullptr;
@@ -2267,7 +2267,7 @@ rmw_create_client(
       }
     });
   if (zc_liveliness_declare_token(
-      &client_data->token, z_loan(node->context->impl->session), z_loan(liveliness_ke), NULL))
+      &client_data->token, z_loan(node->context->impl->session), z_loan(liveliness_ke), NULL) != Z_OK)
   {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
@@ -2830,7 +2830,7 @@ rmw_create_service(
     return nullptr;
   }
   if (z_keyexpr_from_str(
-      &service_data->keyexpr, service_data->entity->topic_info()->topic_keyexpr_.c_str()))
+      &service_data->keyexpr, service_data->entity->topic_info()->topic_keyexpr_.c_str()) != Z_OK)
   {
     RMW_SET_ERROR_MSG("unable to create zenoh keyexpr.");
     return nullptr;
@@ -2844,7 +2844,7 @@ rmw_create_service(
   qable_options.complete = true;
   if (z_declare_queryable(
       &service_data->qable, z_loan(context_impl->session), z_loan(service_data->keyexpr),
-      z_move(callback), &qable_options))
+      z_move(callback), &qable_options) != Z_OK)
   {
     RMW_SET_ERROR_MSG("unable to create zenoh queryable");
     return nullptr;
@@ -2864,7 +2864,7 @@ rmw_create_service(
       }
     });
   if (zc_liveliness_declare_token(
-      &service_data->token, z_loan(node->context->impl->session), z_loan(liveliness_ke), NULL))
+      &service_data->token, z_loan(node->context->impl->session), z_loan(liveliness_ke), NULL) != Z_OK)
   {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
