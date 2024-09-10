@@ -282,7 +282,6 @@ public:
 
   ~ZenohReply();
 
-  // TODO(yuyuan): rename this function
   const z_loaned_sample_t * get_sample() const;
 
 private:

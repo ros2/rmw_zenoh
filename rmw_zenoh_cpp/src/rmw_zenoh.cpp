@@ -2498,7 +2498,7 @@ rmw_take_response(
   }
 
   const z_loaned_sample_t * sample = latest_reply->get_sample();
-  if (!sample) {
+  if (sample == NULL) {
     RMW_SET_ERROR_MSG("invalid reply sample");
     return RMW_RET_ERROR;
   }
