@@ -108,7 +108,6 @@ const rosidl_service_type_support_t * find_service_type_support(
 
 extern "C"
 {
-
 // TODO(yuyuan): SHM, make this configurable
 #define SHM_BUF_OK_SIZE 2621440
 
