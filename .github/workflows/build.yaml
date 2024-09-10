@@ -42,6 +42,14 @@ jobs:
           ${{ matrix.BUILD_TYPE == 'source' && env.RMW_MIDDLEWARE_TEST_PACKAGES || '' }}
           rmw_zenoh_cpp
           zenoh_c_vendor
+        colcon-defaults: |
+          {
+            "build": {
+              "cmake-args": [
+                  "-DSKIP_MULTI_RMW_TESTS=ON"
+              ]
+            }
+          }
         target-ros2-distro: ${{ matrix.ROS_DISTRO }}
         vcs-repo-file-url: ${{ matrix.BUILD_TYPE == 'source' && env.ROS2_REPOS_FILE_URL || '' }}
         skip-tests: true
