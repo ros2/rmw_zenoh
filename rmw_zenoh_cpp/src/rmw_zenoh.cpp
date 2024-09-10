@@ -1053,9 +1053,9 @@ rmw_publish_serialized_message(
   }
   auto free_attachment =
     rcpputils::make_scope_exit(
-      [&attachment]() {
-        z_drop(z_move(attachment));
-      });
+    [&attachment]() {
+      z_drop(z_move(attachment));
+    });
 
   const size_t data_length = ser.get_serialized_data_length();
 
@@ -1474,7 +1474,8 @@ rmw_create_subscription(
 
     z_owned_subscriber_t sub;
     if (z_declare_subscriber(
-        &sub, z_loan(context_impl->session), z_loan(sub_ke), z_move(callback), &sub_options) != Z_OK)
+        &sub, z_loan(context_impl->session), z_loan(sub_ke), z_move(callback),
+        &sub_options) != Z_OK)
     {
       RMW_SET_ERROR_MSG("unable to create zenoh subscription");
       return nullptr;
@@ -2267,7 +2268,8 @@ rmw_create_client(
       }
     });
   if (zc_liveliness_declare_token(
-      &client_data->token, z_loan(node->context->impl->session), z_loan(liveliness_ke), NULL) != Z_OK)
+      &client_data->token, z_loan(node->context->impl->session), z_loan(liveliness_ke),
+      NULL) != Z_OK)
   {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
@@ -2864,7 +2866,8 @@ rmw_create_service(
       }
     });
   if (zc_liveliness_declare_token(
-      &service_data->token, z_loan(node->context->impl->session), z_loan(liveliness_ke), NULL) != Z_OK)
+      &service_data->token, z_loan(node->context->impl->session), z_loan(liveliness_ke),
+      NULL) != Z_OK)
   {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
@@ -2991,8 +2994,8 @@ rmw_take_request(
   rmw_zenoh_cpp::Cdr deser(fastbuffer);
   if (!service_data->request_type_support->deserialize_ros_message(
       deser.get_cdr(),
-    ros_request,
-    service_data->request_type_support_impl))
+      ros_request,
+      service_data->request_type_support_impl))
   {
     RMW_SET_ERROR_MSG("could not deserialize ROS message");
     return RMW_RET_ERROR;
