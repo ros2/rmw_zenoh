@@ -317,7 +317,7 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   // the OS that we're doing actual work when it could instead park the thread.
   z_owned_fifo_handler_reply_t handler;
   z_owned_closure_reply_t closure;
-  z_fifo_channel_reply_new(&closure, &handler, SIZE_MAX);
+  z_fifo_channel_reply_new(&closure, &handler, SIZE_MAX - 1);
 
   z_view_keyexpr_t keyexpr;
   z_view_keyexpr_from_str(&keyexpr, liveliness_str.c_str());
