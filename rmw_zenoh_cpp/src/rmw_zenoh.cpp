@@ -1708,7 +1708,7 @@ rmw_subscription_get_content_filter(
   rcutils_allocator_t * allocator,
   rmw_subscription_content_filter_options_t * options)
 {
-  // Reenable test on rclcpp when this feature is implemented
+  // Re-enable test in rclcpp when this feature is implemented
   // https://github.com/ros2/rclcpp/pull/2627
   static_cast<void>(subscription);
   static_cast<void>(allocator);
