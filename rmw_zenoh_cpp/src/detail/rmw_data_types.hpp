@@ -129,7 +129,7 @@ private:
 
 ///=============================================================================
 // z_owned_closure_sample_t
-void sub_data_handler(const z_loaned_sample_t * sample, void * sub_data);
+void sub_data_handler(z_loaned_sample_t * sample, void * sub_data);
 
 struct saved_msg_data
 {
@@ -198,10 +198,10 @@ private:
 
 
 ///=============================================================================
-void service_data_handler(const z_loaned_query_t * query, void * service_data);
+void service_data_handler(z_loaned_query_t * query, void * service_data);
 
 ///=============================================================================
-void client_data_handler(const z_loaned_reply_t * reply, void * client_data);
+void client_data_handler(z_loaned_reply_t * reply, void * client_data);
 void client_data_drop(void * data);
 
 ///=============================================================================

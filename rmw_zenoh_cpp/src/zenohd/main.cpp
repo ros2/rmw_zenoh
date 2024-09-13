@@ -79,13 +79,13 @@ int main(int argc, char ** argv)
   }
 
   z_owned_session_t session;
-  if (z_open(&session, z_move(config)) != Z_OK) {
+  if (z_open(&session, z_move(config), NULL) != Z_OK) {
     printf("Unable to open router session!\n");
     return 1;
   }
   auto always_close_session = rcpputils::make_scope_exit(
     [&session]() {
-      z_close(z_move(session));
+      z_close(z_move(session), NULL);
     });
 
   printf(
