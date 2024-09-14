@@ -112,7 +112,6 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
     context->impl,
     return RMW_RET_BAD_ALLOC,
     rmw_context_impl_t,
-    allocator,
     context->actual_domain_id,
     std::string(options->enclave)
   );

@@ -70,7 +70,7 @@ void rmw_context_impl_s::graph_sub_data_handler(const z_sample_t * sample, void 
   }
 
   // Trigger the ROS graph guard condition.
-  rmw_ret_t rmw_ret = rmw_trigger_guard_condition(data_ptr->graph_guard_condition_);
+  rmw_ret_t rmw_ret = rmw_trigger_guard_condition(data_ptr->graph_guard_condition_.get());
   if (RMW_RET_OK != rmw_ret) {
     RMW_ZENOH_LOG_WARN_NAMED(
       "rmw_zenoh_cpp",
@@ -81,25 +81,23 @@ void rmw_context_impl_s::graph_sub_data_handler(const z_sample_t * sample, void 
 
 ///=============================================================================
 rmw_context_impl_s::Data::Data(
-  const rcutils_allocator_t * allocator,
   const std::string & enclave,
   z_owned_session_t session,
   std::optional<zc_owned_shm_manager_t> shm_manager,
   const std::string & liveliness_str,
-  std::shared_ptr<rmw_zenoh_cpp::GraphCache> graph_cache,
-  rmw_guard_condition_t * graph_guard_condition)
-: allocator_(allocator),
-  enclave_(std::move(enclave)),
+  std::shared_ptr<rmw_zenoh_cpp::GraphCache> graph_cache)
+: enclave_(std::move(enclave)),
   session_(std::move(session)),
   shm_manager_(std::move(shm_manager)),
   liveliness_str_(std::move(liveliness_str)),
   graph_cache_(std::move(graph_cache)),
-  graph_guard_condition_(graph_guard_condition),
   is_shutdown_(false),
   next_entity_id_(0),
   is_initialized_(false)
 {
-  // Do nothing.
+  graph_guard_condition_ = std::make_unique<rmw_guard_condition_t>();
+  graph_guard_condition_->implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
+  graph_guard_condition_->data = &guard_condition_data_;
 }
 
 ///=============================================================================
@@ -168,31 +166,15 @@ rmw_ret_t rmw_context_impl_s::Data::shutdown()
 ///=============================================================================
 rmw_context_impl_s::Data::~Data()
 {
-  RMW_TRY_DESTRUCTOR(
-    static_cast<rmw_zenoh_cpp::GuardCondition *>(
-      graph_guard_condition_->data)->~GuardCondition(),
-    rmw_zenoh_cpp::GuardCondition, );
-  if (rcutils_allocator_is_valid(allocator_)) {
-    allocator_->deallocate(graph_guard_condition_->data, allocator_->state);
-    allocator_->deallocate(graph_guard_condition_, allocator_->state);
-    graph_guard_condition_ = nullptr;
-  }
-
   auto ret = this->shutdown();
   static_cast<void>(ret);
 }
 
 ///=============================================================================
 rmw_context_impl_s::rmw_context_impl_s(
-  const rcutils_allocator_t * allocator,
   const std::size_t domain_id,
   const std::string & enclave)
 {
-  // Check if allocator is valid.
-  if (!rcutils_allocator_is_valid(allocator)) {
-    throw std::runtime_error("Invalid allocator passed to rmw_context_impl_s.");
-  }
-
   // Initialize the zenoh configuration.
   z_owned_config_t config;
   rmw_ret_t ret;
@@ -322,56 +304,15 @@ rmw_context_impl_s::rmw_context_impl_s(
       }
     });
 
-  // Initialize the guard condition.
-  rmw_guard_condition_t * graph_guard_condition =
-    static_cast<rmw_guard_condition_t *>(allocator->zero_allocate(
-      1, sizeof(rmw_guard_condition_t), allocator->state));
-  if (graph_guard_condition == NULL) {
-    throw std::runtime_error("failed to allocate graph guard condition");
-  }
-  auto free_guard_condition = rcpputils::make_scope_exit(
-    [graph_guard_condition, allocator]() {
-      allocator->deallocate(graph_guard_condition, allocator->state);
-    });
-  graph_guard_condition->implementation_identifier =
-    rmw_zenoh_cpp::rmw_zenoh_identifier;
-  graph_guard_condition->data =
-    allocator->zero_allocate(1, sizeof(rmw_zenoh_cpp::GuardCondition), allocator->state);
-  if (graph_guard_condition->data == NULL) {
-    throw std::runtime_error("failed to allocate graph guard condition data");
-  }
-  auto free_guard_condition_data = rcpputils::make_scope_exit(
-    [graph_guard_condition, allocator]() {
-      allocator->deallocate(graph_guard_condition->data, allocator->state);
-    });
-  RMW_TRY_PLACEMENT_NEW(
-    graph_guard_condition->data,
-    graph_guard_condition->data,
-    throw std::runtime_error("failed to initialize graph_guard_condition->data."),
-    rmw_zenoh_cpp::GuardCondition);
-  auto destruct_guard_condition_data = rcpputils::make_scope_exit(
-    [graph_guard_condition]() {
-      auto gc_data =
-      static_cast<rmw_zenoh_cpp::GuardCondition *>(graph_guard_condition->data);
-      RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(
-        gc_data->~GuardCondition(),
-        rmw_zenoh_cpp::GuardCondition);
-    });
-
   close_session.cancel();
   free_shm_manager.cancel();
-  destruct_guard_condition_data.cancel();
-  free_guard_condition_data.cancel();
-  free_guard_condition.cancel();
 
   data_ = std::make_shared<Data>(
-    allocator,
     std::move(enclave),
     std::move(session),
     std::move(shm_manager),
     std::move(liveliness_str),
-    std::move(graph_cache),
-    graph_guard_condition);
+    std::move(graph_cache));
 
   ret = data_->subscribe_to_ros_graph();
   if (ret != RMW_RET_OK) {
@@ -404,7 +345,7 @@ std::optional<zc_owned_shm_manager_t> & rmw_context_impl_s::shm_manager()
 rmw_guard_condition_t * rmw_context_impl_s::graph_guard_condition()
 {
   std::lock_guard<std::mutex> lock(data_->mutex_);
-  return data_->graph_guard_condition_;
+  return data_->graph_guard_condition_.get();
 }
 
 ///=============================================================================

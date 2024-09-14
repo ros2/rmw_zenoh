@@ -23,6 +23,7 @@
 #include <string>
 
 #include "graph_cache.hpp"
+#include "guard_condition.hpp"
 #include "liveliness_utils.hpp"
 
 #include "rcutils/types.h"
@@ -39,7 +40,6 @@ public:
   // router in a separate thread. Instead block when creating a node if router
   // check has not succeeded.
   rmw_context_impl_s(
-    const rcutils_allocator_t * allocator,
     const std::size_t domain_id,
     const std::string & enclave);
 
@@ -83,13 +83,11 @@ private:
   {
     // Constructor.
     Data(
-      const rcutils_allocator_t * allocator,
       const std::string & enclave,
       z_owned_session_t session,
       std::optional<zc_owned_shm_manager_t> shm_manager,
       const std::string & liveliness_str,
-      std::shared_ptr<rmw_zenoh_cpp::GraphCache> graph_cache,
-      rmw_guard_condition_t * graph_guard_condition);
+      std::shared_ptr<rmw_zenoh_cpp::GraphCache> graph_cache);
 
     // Subscribe to the ROS graph.
     rmw_ret_t subscribe_to_ros_graph();
@@ -119,7 +117,9 @@ private:
     z_owned_subscriber_t graph_subscriber_;
     // Equivalent to rmw_dds_common::Context's guard condition
     /// Guard condition that should be triggered when the graph changes.
-    rmw_guard_condition_t * graph_guard_condition_;
+    std::unique_ptr<rmw_guard_condition_t> graph_guard_condition_;
+    // The GuardCondition data structure.
+    rmw_zenoh_cpp::GuardCondition guard_condition_data_;
     /// Shutdown flag.
     bool is_shutdown_;
     // A counter to assign a local id for every entity created in this session.
