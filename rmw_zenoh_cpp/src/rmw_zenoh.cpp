@@ -1427,8 +1427,8 @@ rmw_create_subscription(
     sub_options.query_consolidation = z_query_consolidation_none();
     if (sub_data->adapted_qos_profile.reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE) {
       RMW_ZENOH_LOG_WARN_NAMED(
-      "rmw_zenoh_cpp",
-      "`reliability` no longer supported on subscriber. `reliability` on `declare_publisher` or `put`. Ignoring...");
+        "rmw_zenoh_cpp",
+        "`reliability` no longer supported on subscriber. Ignoring...");
     }
 
     ze_owned_querying_subscriber_t sub;
