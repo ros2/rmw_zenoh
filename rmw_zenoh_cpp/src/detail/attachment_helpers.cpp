@@ -64,7 +64,7 @@ bool get_attachment(
   const z_loaned_bytes_t * const attachment,
   const std::string & key, z_owned_bytes_t * val)
 {
-  if (z_bytes_is_empty(attachment)) {
+  if (attachment == NULL || z_bytes_is_empty(attachment)) {
     return false;
   }
 
@@ -89,6 +89,8 @@ bool get_attachment(
 
     if (found) {
       break;
+    } else {
+      z_drop(z_move(*val));
     }
   }
 
@@ -107,7 +109,7 @@ bool get_gid_from_attachment(
   const z_loaned_bytes_t * const attachment,
   uint8_t gid[RMW_GID_STORAGE_SIZE])
 {
-  if (z_bytes_is_empty(attachment)) {
+  if (attachment == NULL || z_bytes_is_empty(attachment)) {
     return false;
   }
 
@@ -135,7 +137,7 @@ int64_t get_int64_from_attachment(
   const std::string & name)
 {
   // A valid request must have had an attachment
-  if (z_bytes_is_empty(attachment)) {
+  if (attachment == NULL || z_bytes_is_empty(attachment)) {
     return -1;
   }
 
