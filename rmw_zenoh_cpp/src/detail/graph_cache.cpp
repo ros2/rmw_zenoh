@@ -412,8 +412,8 @@ void GraphCache::parse_put(
   {
     auto sub_cbs_it = querying_subs_cbs_.find(entity->topic_info()->topic_keyexpr_);
     if (sub_cbs_it != querying_subs_cbs_.end()) {
-      for (const auto & cb : sub_cbs_it->second) {
-        cb(entity->zid());
+      for (auto sub_it = sub_cbs_it->second.begin(); sub_it != sub_cbs_it->second.end(); ++sub_it) {
+        sub_it->second(entity->zid());
       }
     }
   }
@@ -1332,15 +1332,28 @@ std::unique_ptr<rmw_zenoh_event_status_t> GraphCache::take_event_status(
 
 ///=============================================================================
 void GraphCache::set_querying_subscriber_callback(
-  const std::string & keyexpr,
+  const rmw_subscription_data_t * sub_data,
   QueryingSubscriberCallback cb)
 {
+  const std::string keyexpr = sub_data->entity->topic_info()->topic_keyexpr_;
   auto cb_it = querying_subs_cbs_.find(keyexpr);
   if (cb_it == querying_subs_cbs_.end()) {
-    querying_subs_cbs_[keyexpr] = std::move(std::vector<QueryingSubscriberCallback>{});
+    querying_subs_cbs_[keyexpr] = std::move(std::unordered_map<const rmw_subscription_data_t *,
+        QueryingSubscriberCallback>{});
     cb_it = querying_subs_cbs_.find(keyexpr);
   }
-  cb_it->second.push_back(std::move(cb));
+  cb_it->second.insert(std::make_pair(sub_data, std::move(cb)));
+}
+
+///=============================================================================
+void GraphCache::remove_querying_subscriber_callback(
+  const rmw_subscription_data_t * sub_data)
+{
+  auto cb_map_it = querying_subs_cbs_.find(sub_data->entity->topic_info()->topic_keyexpr_);
+  if (cb_map_it == querying_subs_cbs_.end()) {
+    return;
+  }
+  cb_map_it->second.erase(sub_data);
 }
 
 }  // namespace rmw_zenoh_cpp
