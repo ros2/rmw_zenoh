@@ -68,6 +68,8 @@ int main(int argc, char ** argv)
     return 1;
   }
 
+  zc_try_init_log_from_env();
+
   // Initialize the zenoh configuration for the router.
   z_owned_config_t config;
   if ((rmw_zenoh_cpp::get_z_config(
