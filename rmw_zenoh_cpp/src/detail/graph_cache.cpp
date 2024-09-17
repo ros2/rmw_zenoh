@@ -1338,8 +1338,9 @@ void GraphCache::set_querying_subscriber_callback(
   const std::string keyexpr = sub_data->entity->topic_info()->topic_keyexpr_;
   auto cb_it = querying_subs_cbs_.find(keyexpr);
   if (cb_it == querying_subs_cbs_.end()) {
-    querying_subs_cbs_[keyexpr] = std::move(std::unordered_map<const rmw_subscription_data_t *,
-        QueryingSubscriberCallback>{});
+    querying_subs_cbs_[keyexpr] = std::move(
+      std::unordered_map<const rmw_subscription_data_t *,
+      QueryingSubscriberCallback>{});
     cb_it = querying_subs_cbs_.find(keyexpr);
   }
   cb_it->second.insert(std::make_pair(sub_data, std::move(cb)));
