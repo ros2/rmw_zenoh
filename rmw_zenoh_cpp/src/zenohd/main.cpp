@@ -30,6 +30,7 @@
 #include "../detail/zenoh_config.hpp"
 #include "../detail/liveliness_utils.hpp"
 
+#include "rcutils/env.h"
 #include "rmw/error_handling.h"
 
 #include "rcpputils/scope_exit.hpp"
@@ -63,9 +64,23 @@ int main(int argc, char ** argv)
   // If not already defined, set the logging environment variable for Zenoh router
   // to info level by default.
   // TODO(Yadunund): Switch to rcutils_get_env once it supports not overwriting values.
-  if (setenv(ZENOH_LOG_ENV_VAR_STR, ZENOH_LOG_INFO_LEVEL_STR, 0) != 0) {
-    RMW_SET_ERROR_MSG("Error configuring Zenoh logging.");
-    return 1;
+
+  const char * value;
+  const char * error_message = rcutils_get_env(ZENOH_LOG_ENV_VAR_STR, &value);
+  if (error_message != NULL) {
+    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
+      "Error configuring Zenoh logging. Unable to get %s environment variable: %s",
+      ZENOH_LOG_ENV_VAR_STR,
+      error_message);
+    return RMW_RET_ERROR;
+  }
+  if (value == nullptr) {
+    if (!rcutils_set_env(ZENOH_LOG_ENV_VAR_STR, ZENOH_LOG_INFO_LEVEL_STR)) {
+      RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
+        "Error configuring Zenoh logging. Unable to set %s environment variable.",
+        ZENOH_LOG_ENV_VAR_STR);
+      return RMW_RET_ERROR;
+    }
   }
 
   // Initialize the zenoh configuration for the router.

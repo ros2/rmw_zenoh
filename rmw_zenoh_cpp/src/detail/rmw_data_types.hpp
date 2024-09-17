@@ -374,6 +374,17 @@ private:
   bool is_shutdown_{false};
   size_t num_in_flight_{0};
 };
+
+///=============================================================================
+template<typename T, typename H>
+T make_z_closure(void * context, void (*call)(H *, void *), void (*drop)(void *))
+{
+  T closure;
+  closure.context = context;
+  closure.call = call;
+  closure.drop = drop;
+  return closure;
+}
 }  // namespace rmw_zenoh_cpp
 
 #endif  // DETAIL__RMW_DATA_TYPES_HPP_

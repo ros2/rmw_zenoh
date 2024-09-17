@@ -1415,7 +1415,7 @@ rmw_create_subscription(
       allocator->deallocate(type_hash_c_str, allocator->state);
     });
 
-  // Everything above succeeded and is setup properly.  Now declare a subscriber
+  // Everything above succeeded and is setup properly. Now declare a subscriber
   // with Zenoh; after this, callbacks may come in at any time.
   sub_data->entity = rmw_zenoh_cpp::liveliness::Entity::make(
     z_info_zid(z_loan(node->context->impl->session)),
@@ -1439,7 +1439,13 @@ rmw_create_subscription(
       rmw_subscription->topic_name);
     return nullptr;
   }
-  z_owned_closure_sample_t callback = z_closure(rmw_zenoh_cpp::sub_data_handler, nullptr, sub_data);
+
+  z_owned_closure_sample_t callback =
+    rmw_zenoh_cpp::make_z_closure<z_owned_closure_sample_t, const z_sample_t>(
+      static_cast<void *>(sub_data),
+      rmw_zenoh_cpp::sub_data_handler,
+      nullptr);
+
   z_owned_keyexpr_t keyexpr = z_keyexpr_new(sub_data->entity->topic_info()->topic_keyexpr_.c_str());
   auto always_free_ros_keyexpr = rcpputils::make_scope_exit(
     [&keyexpr]() {
@@ -2509,8 +2515,12 @@ rmw_send_request(
   // and any number.
   opts.consolidation = z_query_consolidation_latest();
   opts.value.payload = z_bytes_t{data_length, reinterpret_cast<const uint8_t *>(request_bytes)};
+
   z_owned_closure_reply_t zn_closure_reply =
-    z_closure(rmw_zenoh_cpp::client_data_handler, rmw_zenoh_cpp::client_data_drop, client_data);
+    rmw_zenoh_cpp::make_z_closure<z_owned_closure_reply_t, z_owned_reply_t>(
+      static_cast<void *>(client_data),
+      &rmw_zenoh_cpp::client_data_handler,
+      rmw_zenoh_cpp::client_data_drop);
   z_get(
     z_loan(context_impl->session),
     z_loan(client_data->keyexpr), "",
@@ -2898,9 +2908,11 @@ rmw_create_service(
     return nullptr;
   }
 
-  z_owned_closure_query_t callback = z_closure(
-    rmw_zenoh_cpp::service_data_handler, nullptr,
-    service_data);
+  z_owned_closure_query_t callback =
+    rmw_zenoh_cpp::make_z_closure<z_owned_closure_query_t, const z_query_t>(
+      static_cast<void *>(service_data),
+      &rmw_zenoh_cpp::service_data_handler,
+      nullptr);
   // Configure the queryable to process complete queries.
   z_queryable_options_t qable_options = z_queryable_options_default();
   qable_options.complete = true;

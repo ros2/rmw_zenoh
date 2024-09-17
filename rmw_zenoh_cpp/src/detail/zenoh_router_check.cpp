@@ -22,28 +22,35 @@
 
 #include "logging_macros.hpp"
 #include "liveliness_utils.hpp"
+#include "rmw_data_types.hpp"
 
 namespace rmw_zenoh_cpp
 {
+// Define callback
+void callback_id(const struct z_id_t * id, void * ctx)
+{
+  const std::string id_str = liveliness::zid_to_str(*id);
+  RMW_ZENOH_LOG_INFO_NAMED(
+    "rmw_zenoh_cpp",
+    "Successfully connected to a Zenoh router with id %s.", id_str.c_str());
+  // Note: Callback is guaranteed to never be called
+  // concurrently according to z_info_routers_zid docstring
+  (*(static_cast<int *>(ctx)))++;
+}
 ///=============================================================================
 rmw_ret_t zenoh_router_check(z_session_t session)
 {
   // Initialize context for callback
   int context = 0;
 
-  // Define callback
-  auto callback = [](const struct z_id_t * id, void * ctx) {
-      const std::string id_str = liveliness::zid_to_str(*id);
-      RMW_ZENOH_LOG_INFO_NAMED(
-        "rmw_zenoh_cpp",
-        "Successfully connected to a Zenoh router with id %s.", id_str.c_str());
-      // Note: Callback is guaranteed to never be called
-      // concurrently according to z_info_routers_zid docstring
-      (*(static_cast<int *>(ctx)))++;
-    };
-
   rmw_ret_t ret = RMW_RET_OK;
-  z_owned_closure_zid_t router_callback = z_closure(callback, nullptr /* drop */, &context);
+
+  z_owned_closure_zid_t router_callback =
+    rmw_zenoh_cpp::make_z_closure<z_owned_closure_zid_t, const z_id_t>(
+      static_cast<void *>(&context),
+      &callback_id,
+      nullptr);
+
   if (z_info_routers_zid(session, z_move(router_callback))) {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
