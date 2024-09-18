@@ -62,5 +62,5 @@ jobs:
     - uses: actions/upload-artifact@v3
       if: ${{ matrix.BUILD_TYPE == 'source' }}
       with:
-        name: colcon-logs
+        name: colcon-logs-${{ matrix.ROS_DISTRO }}-latest
         path: ${{ steps.action-ros-ci.outputs.ros-workspace-directory-name }}/log
