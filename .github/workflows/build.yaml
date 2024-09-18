@@ -58,8 +58,8 @@ jobs:
       run: |
         cd ${{ steps.action-ros-ci.outputs.ros-workspace-directory-name }}
         . install/setup.sh
-        launch_test install/rmw_zenoh_cpp/test/rmw_zenoh_integration.test.py
-    - uses: actions/upload-artifact@v4
+        launch_test install/rmw_zenoh_cpp/test/rmw_zenoh_integration.test.py 'selected_system_tests:=${{ env.RMW_MIDDLEWARE_TEST_PACKAGES }}'
+    - uses: actions/upload-artifact@v3
       if: ${{ matrix.BUILD_TYPE == 'source' }}
       with:
         name: colcon-logs
