@@ -68,6 +68,7 @@ int main(int argc, char ** argv)
     return 1;
   }
 
+  // Enable the zenoh built-in logger
   zc_try_init_log_from_env();
 
   // Initialize the zenoh configuration for the router.

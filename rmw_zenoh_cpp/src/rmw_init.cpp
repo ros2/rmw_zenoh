@@ -176,6 +176,7 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
     return RMW_RET_ERROR;
   }
 
+  // Enable the zenoh built-in logger
   zc_try_init_log_from_env();
 
   // Initialize the zenoh configuration.
