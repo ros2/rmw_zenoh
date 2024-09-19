@@ -2500,7 +2500,7 @@ rmw_take_response(
     return RMW_RET_OK;
   }
 
-  const z_loaned_sample_t * sample = latest_reply->get_sample();
+  const z_loaned_sample_t * sample = z_reply_ok(latest_reply->get_reply());
   if (sample == NULL) {
     RMW_SET_ERROR_MSG("invalid reply sample");
     return RMW_RET_ERROR;

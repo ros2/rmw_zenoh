@@ -17,6 +17,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#include <utility>
 
 #include "rmw/types.h"
 
@@ -26,6 +27,9 @@
 
 namespace rmw_zenoh_cpp
 {
+
+attachement_context_t::attachement_context_t(std::unique_ptr<attachement_data_t> && _data)
+: data(std::move(_data)) {}
 
 bool create_attachment_iter(z_owned_bytes_t * kv_pair, void * context)
 {
@@ -52,13 +56,25 @@ bool create_attachment_iter(z_owned_bytes_t * kv_pair, void * context)
   return true;
 }
 
+attachement_data_t::attachement_data_t(
+  const int64_t _sequence_number,
+  const int64_t _source_timestamp,
+  const uint8_t _source_gid[RMW_GID_STORAGE_SIZE])
+{
+  sequence_number = _sequence_number;
+  source_timestamp = _source_timestamp;
+  memcpy(source_gid, _source_gid, RMW_GID_STORAGE_SIZE);
+}
+
 z_result_t attachement_data_t::serialize_to_zbytes(z_owned_bytes_t * attachment)
 {
-  attachement_context_t context = attachement_context_t(this);
+  attachement_context_t context =
+    attachement_context_t(std::make_unique<attachement_data_t>(*this));
   return z_bytes_from_iter(
     attachment, create_attachment_iter,
     reinterpret_cast<void *>(&context));
 }
+
 
 bool get_attachment(
   const z_loaned_bytes_t * const attachment,

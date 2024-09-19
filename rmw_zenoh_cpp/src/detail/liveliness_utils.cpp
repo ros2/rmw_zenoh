@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "liveliness_utils.hpp"
+
 #include <zenoh.h>
 
 #include <functional>

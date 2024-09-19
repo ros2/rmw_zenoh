@@ -52,6 +52,8 @@ public:
   // An owned session.
   z_owned_session_t session;
 
+  // An optional SHM provider that is initialized of SHM is enabled in the
+  // zenoh session config.
   std::optional<z_owned_shm_provider_t> shm_provider;
 
   z_owned_subscriber_t graph_subscriber;
@@ -208,14 +210,14 @@ void client_data_drop(void * data);
 class ZenohQuery final
 {
 public:
-  ZenohQuery(const z_loaned_query_t * query);
+  ZenohQuery(z_owned_query_t * query);
 
   ~ZenohQuery();
 
   const z_loaned_query_t * get_query() const;
 
 private:
-  z_owned_query_t query_;
+  z_owned_query_t * query_;
 };
 
 ///=============================================================================
@@ -278,14 +280,14 @@ private:
 class ZenohReply final
 {
 public:
-  ZenohReply(const z_owned_reply_t * reply);
+  ZenohReply(z_owned_reply_t * reply);
 
   ~ZenohReply();
 
-  const z_loaned_sample_t * get_sample() const;
+  const z_loaned_reply_t * get_reply() const;
 
 private:
-  z_owned_reply_t reply_;
+  z_owned_reply_t * reply_;
 };
 
 ///=============================================================================

@@ -69,6 +69,7 @@ saved_msg_data::saved_msg_data(
 {
   memcpy(publisher_gid, pub_gid, RMW_GID_STORAGE_SIZE);
 }
+
 ///=============================================================================
 saved_msg_data::~saved_msg_data()
 {
@@ -441,7 +442,8 @@ void sub_data_handler(
       "rmw_zenoh_cpp",
       "Unable to obtain rmw_subscription_data_t from data for "
       "subscription for %s",
-      z_string_data(z_loan(keystr)));
+      z_string_data(z_loan(keystr))
+    );
     return;
   }
 
@@ -456,8 +458,7 @@ void sub_data_handler(
       "Unable to obtain publisher GID from the attachment.");
   }
 
-  int64_t sequence_number =
-    get_int64_from_attachment(attachment, "sequence_number");
+  int64_t sequence_number = get_int64_from_attachment(attachment, "sequence_number");
   if (sequence_number < 0) {
     // We failed to get the sequence number from the attachment.  While this
     // isn't fatal, it is unusual and so we should report it.
@@ -486,26 +487,27 @@ void sub_data_handler(
       slice,
       z_timestamp_ntp64_time(z_sample_timestamp(sample)),
       pub_gid,
-      sequence_number, source_timestamp),
+      sequence_number,
+      source_timestamp),
     z_string_data(z_loan(keystr)));
 }
 
 ///=============================================================================
-ZenohQuery::ZenohQuery(const z_loaned_query_t * query)
+ZenohQuery::ZenohQuery(z_owned_query_t * query)
 {
-  z_query_clone(&query_, query);
+  query_ = query;
 }
 
 ///=============================================================================
 ZenohQuery::~ZenohQuery()
 {
-  z_drop(z_move(query_));
+  z_drop(z_move(*query_));
 }
 
 ///=============================================================================
 const z_loaned_query_t * ZenohQuery::get_query() const
 {
-  return z_query_loan(&query_);
+  return z_loan(*query_);
 }
 
 //==============================================================================
@@ -514,7 +516,8 @@ void service_data_handler(z_loaned_query_t * query, void * data)
   z_view_string_t keystr;
   z_keyexpr_as_view_string(z_query_keyexpr(query), &keystr);
 
-  rmw_service_data_t * service_data = static_cast<rmw_service_data_t *>(data);
+  rmw_service_data_t * service_data =
+    static_cast<rmw_service_data_t *>(data);
   if (service_data == nullptr) {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
@@ -524,26 +527,28 @@ void service_data_handler(z_loaned_query_t * query, void * data)
     return;
   }
 
-  service_data->add_new_query(std::make_unique<ZenohQuery>(query));
+  z_owned_query_t owned_query;
+  z_query_clone(&owned_query, query);
+
+  service_data->add_new_query(std::make_unique<ZenohQuery>(&owned_query));
 }
 
 ///=============================================================================
-ZenohReply::ZenohReply(const z_owned_reply_t * reply)
+ZenohReply::ZenohReply(z_owned_reply_t * reply)
 {
-  reply_ = *reply;
+  reply_ = reply;
 }
 
 ///=============================================================================
 ZenohReply::~ZenohReply()
 {
-  z_reply_drop(z_move(reply_));
+  z_drop(z_move(*reply_));
 }
 
 ///=============================================================================
-const z_loaned_sample_t * ZenohReply::get_sample() const
+const z_loaned_reply_t * ZenohReply::get_reply() const
 {
-  // z_reply_ok return a null pointer if not z_reply_is_ok
-  return z_reply_ok(z_loan(reply_));
+  return z_loan(*reply_);
 }
 
 ///=============================================================================
