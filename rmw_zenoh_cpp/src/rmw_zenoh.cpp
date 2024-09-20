@@ -1438,6 +1438,8 @@ rmw_create_subscription(
       RMW_SET_ERROR_MSG("unable to create zenoh subscription");
       return nullptr;
     }
+    sub_data->sub = sub;
+
     // Register the querying subscriber with the graph cache to get latest
     // messages from publishers that were discovered after their first publication.
     context_impl->graph_cache->set_querying_subscriber_callback(
@@ -1566,7 +1568,7 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
     allocator->deallocate(sub_data->type_support, allocator->state);
 
     z_owned_subscriber_t * sub = std::get_if<z_owned_subscriber_t>(&sub_data->sub);
-    if (sub != nullptr) {
+    if (sub != NULL) {
       if (z_undeclare_subscriber(z_move(*sub)) != Z_OK) {
         RMW_SET_ERROR_MSG("failed to undeclare sub");
         ret = RMW_RET_ERROR;
@@ -1574,7 +1576,7 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
     } else {
       ze_owned_querying_subscriber_t * querying_sub =
         std::get_if<ze_owned_querying_subscriber_t>(&sub_data->sub);
-      if (querying_sub == nullptr || ze_undeclare_querying_subscriber(z_move(*querying_sub))) {
+      if (querying_sub == NULL || ze_undeclare_querying_subscriber(z_move(*querying_sub))) {
         RMW_SET_ERROR_MSG("failed to undeclare sub");
         ret = RMW_RET_ERROR;
       }
