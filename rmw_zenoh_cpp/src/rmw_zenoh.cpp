@@ -1441,7 +1441,7 @@ rmw_create_subscription(
     // Register the querying subscriber with the graph cache to get latest
     // messages from publishers that were discovered after their first publication.
     context_impl->graph_cache->set_querying_subscriber_callback(
-      sub_data->entity->topic_info()->topic_keyexpr_,
+      sub_data,
       [sub_data](const std::string & queryable_prefix) -> void
       {
         if (sub_data == nullptr) {
@@ -1537,6 +1537,10 @@ rmw_ret_t
 rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
 {
   RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->context, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
+  rmw_context_impl_s * context_impl = static_cast<rmw_context_impl_s *>(node->context->impl);
+  RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node,
@@ -1574,6 +1578,8 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
         RMW_SET_ERROR_MSG("failed to undeclare sub");
         ret = RMW_RET_ERROR;
       }
+      // Also remove the registered callback from the GraphCache.
+      context_impl->graph_cache->remove_querying_subscriber_callback(sub_data);
     }
 
     RMW_TRY_DESTRUCTOR(sub_data->~rmw_subscription_data_t(), rmw_subscription_data_t, );
@@ -1641,6 +1647,8 @@ rmw_subscription_set_content_filter(
   rmw_subscription_t * subscription,
   const rmw_subscription_content_filter_options_t * options)
 {
+  // Re-enable test in rclcpp when this feature is implemented
+  // https://github.com/ros2/rclcpp/pull/2627
   static_cast<void>(subscription);
   static_cast<void>(options);
   return RMW_RET_UNSUPPORTED;
@@ -1654,6 +1662,8 @@ rmw_subscription_get_content_filter(
   rcutils_allocator_t * allocator,
   rmw_subscription_content_filter_options_t * options)
 {
+  // Re-enable test in rclcpp when this feature is implemented
+  // https://github.com/ros2/rclcpp/pull/2627
   static_cast<void>(subscription);
   static_cast<void>(allocator);
   static_cast<void>(options);

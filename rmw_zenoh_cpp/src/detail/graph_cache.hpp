@@ -36,6 +36,11 @@
 
 namespace rmw_zenoh_cpp
 {
+// Forward declare to prevent circular dependency.
+// TODO(Yadunund): Remove this once we move rmw_subscription_data_t out of
+// rmw_data_types.hpp.
+class rmw_subscription_data_t;
+
 ///=============================================================================
 // TODO(Yadunund): Consider changing this to an array of unordered_set where the index of the
 // array corresponds to the EntityType enum. This way we don't need to mix
@@ -184,8 +189,11 @@ public:
   static bool is_entity_pub(const liveliness::Entity & entity);
 
   void set_querying_subscriber_callback(
-    const std::string & keyexpr,
+    const rmw_subscription_data_t * sub_data,
     QueryingSubscriberCallback cb);
+
+  void remove_querying_subscriber_callback(
+    const rmw_subscription_data_t * sub_data);
 
 private:
   // Helper function to convert an Entity into a GraphNode.
@@ -286,7 +294,8 @@ private:
   // EventCallbackMap for each type of event we support in rmw_zenoh_cpp.
   GraphEventCallbackMap event_callbacks_;
   // Map keyexpressions to QueryingSubscriberCallback.
-  std::unordered_map<std::string, std::vector<QueryingSubscriberCallback>> querying_subs_cbs_;
+  std::unordered_map<std::string, std::unordered_map<const rmw_subscription_data_t *,
+    QueryingSubscriberCallback>> querying_subs_cbs_;
   // Counters to track changes to event statues for each topic.
   std::unordered_map<std::string,
     std::array<rmw_zenoh_event_status_t, ZENOH_EVENT_ID_MAX + 1>> event_statuses_;
