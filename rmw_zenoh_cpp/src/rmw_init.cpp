@@ -224,7 +224,7 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
       if ((ret = rmw_zenoh_cpp::zenoh_router_check(z_loan(context->impl->session))) != RMW_RET_OK) {
         ++connection_attempts;
       }
-      std::this_thread::sleep_for(std::chrono::seconds(1));
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     if (ret != RMW_RET_OK) {
       RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
