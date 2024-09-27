@@ -25,6 +25,7 @@
 #include <unordered_map>
 
 #include "graph_cache.hpp"
+#include "guard_condition.hpp"
 #include "liveliness_utils.hpp"
 #include "rmw_node_data.hpp"
 
