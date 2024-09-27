@@ -214,17 +214,20 @@ void GraphCache::handle_matched_events_for_put(
   for (const auto & [_, topic_data_ptr] : topic_qos_map) {
     if (is_pub) {
       // Count the number of matching subs for each set of qos settings.
-      if (!topic_data_ptr->subs_.empty()) {
-        match_count_for_entity += topic_data_ptr->subs_.size();
-      }
+      match_count_for_entity += topic_data_ptr->subs_.size();
       // Also iterate through the subs to check if any are local and if update event counters.
       for (liveliness::ConstEntityPtr sub_entity : topic_data_ptr->subs_) {
-        update_event_counters(
-          topic_info.name_,
-          ZENOH_EVENT_SUBSCRIPTION_MATCHED,
-          static_cast<int32_t>(1));
-        if (is_entity_local(*sub_entity)) {
-          local_entities_with_events[sub_entity].insert(ZENOH_EVENT_SUBSCRIPTION_MATCHED);
+        // Update counters only if key expressions match.
+        if (entity->topic_info()->topic_keyexpr_ ==
+          sub_entity->topic_info().value().topic_keyexpr_)
+        {
+          update_event_counters(
+            topic_info.name_,
+            ZENOH_EVENT_SUBSCRIPTION_MATCHED,
+            static_cast<int32_t>(1));
+          if (is_entity_local(*sub_entity)) {
+            local_entities_with_events[sub_entity].insert(ZENOH_EVENT_SUBSCRIPTION_MATCHED);
+          }
         }
       }
       // Update event counters for the new entity->
@@ -238,17 +241,20 @@ void GraphCache::handle_matched_events_for_put(
     } else {
       // Entity is a sub.
       // Count the number of matching pubs for each set of qos settings.
-      if (!topic_data_ptr->pubs_.empty()) {
-        match_count_for_entity += topic_data_ptr->pubs_.size();
-      }
+      match_count_for_entity += topic_data_ptr->pubs_.size();
       // Also iterate through the pubs to check if any are local and if update event counters.
       for (liveliness::ConstEntityPtr pub_entity : topic_data_ptr->pubs_) {
-        update_event_counters(
-          topic_info.name_,
-          ZENOH_EVENT_PUBLICATION_MATCHED,
-          static_cast<int32_t>(1));
-        if (is_entity_local(*pub_entity)) {
-          local_entities_with_events[pub_entity].insert(ZENOH_EVENT_PUBLICATION_MATCHED);
+        // Update counters only if key expressions match.
+        if (entity->topic_info()->topic_keyexpr_ ==
+          pub_entity->topic_info().value().topic_keyexpr_)
+        {
+          update_event_counters(
+            topic_info.name_,
+            ZENOH_EVENT_PUBLICATION_MATCHED,
+            static_cast<int32_t>(1));
+          if (is_entity_local(*pub_entity)) {
+            local_entities_with_events[pub_entity].insert(ZENOH_EVENT_PUBLICATION_MATCHED);
+          }
         }
       }
       // Update event counters for the new entity->
@@ -308,7 +314,7 @@ void GraphCache::handle_matched_events_for_del(
 }
 
 ///=============================================================================
-void GraphCache::take_entities_with_events(EntityEventMap & entities_with_events)
+void GraphCache::take_entities_with_events(const EntityEventMap & entities_with_events)
 {
   for (const auto & [local_entity, event_set] : entities_with_events) {
     // Trigger callback set for this entity for the event type.
@@ -412,8 +418,8 @@ void GraphCache::parse_put(
   {
     auto sub_cbs_it = querying_subs_cbs_.find(entity->topic_info()->topic_keyexpr_);
     if (sub_cbs_it != querying_subs_cbs_.end()) {
-      for (const auto & cb : sub_cbs_it->second) {
-        cb(entity->zid());
+      for (auto sub_it = sub_cbs_it->second.begin(); sub_it != sub_cbs_it->second.end(); ++sub_it) {
+        sub_it->second(entity->zid());
       }
     }
   }
@@ -1261,6 +1267,13 @@ void GraphCache::set_qos_event_callback(
 }
 
 ///=============================================================================
+void GraphCache::remove_qos_event_callbacks(liveliness::ConstEntityPtr entity)
+{
+  std::lock_guard<std::mutex> lock(graph_mutex_);
+  event_callbacks_.erase(entity);
+}
+
+///=============================================================================
 bool GraphCache::is_entity_local(const liveliness::Entity & entity) const
 {
   // For now zenoh does not expose unique IDs for its entities and hence the id
@@ -1300,8 +1313,8 @@ void GraphCache::update_event_counters(
   }
 
   rmw_zenoh_event_status_t & status_to_update = event_statuses_[topic_name][event_id];
-  status_to_update.total_count += std::abs(change);
-  status_to_update.total_count_change += std::abs(change);
+  status_to_update.total_count += std::max(0, change);
+  status_to_update.total_count_change += std::max(0, change);
   status_to_update.current_count += change;
   status_to_update.current_count_change = change;
 }
@@ -1332,15 +1345,29 @@ std::unique_ptr<rmw_zenoh_event_status_t> GraphCache::take_event_status(
 
 ///=============================================================================
 void GraphCache::set_querying_subscriber_callback(
-  const std::string & keyexpr,
+  const rmw_subscription_data_t * sub_data,
   QueryingSubscriberCallback cb)
 {
+  const std::string keyexpr = sub_data->entity->topic_info()->topic_keyexpr_;
   auto cb_it = querying_subs_cbs_.find(keyexpr);
   if (cb_it == querying_subs_cbs_.end()) {
-    querying_subs_cbs_[keyexpr] = std::move(std::vector<QueryingSubscriberCallback>{});
+    querying_subs_cbs_[keyexpr] = std::move(
+      std::unordered_map<const rmw_subscription_data_t *,
+      QueryingSubscriberCallback>{});
     cb_it = querying_subs_cbs_.find(keyexpr);
   }
-  cb_it->second.push_back(std::move(cb));
+  cb_it->second.insert(std::make_pair(sub_data, std::move(cb)));
+}
+
+///=============================================================================
+void GraphCache::remove_querying_subscriber_callback(
+  const rmw_subscription_data_t * sub_data)
+{
+  auto cb_map_it = querying_subs_cbs_.find(sub_data->entity->topic_info()->topic_keyexpr_);
+  if (cb_map_it == querying_subs_cbs_.end()) {
+    return;
+  }
+  cb_map_it->second.erase(sub_data);
 }
 
 }  // namespace rmw_zenoh_cpp

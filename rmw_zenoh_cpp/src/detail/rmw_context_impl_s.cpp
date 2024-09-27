@@ -215,7 +215,7 @@ rmw_context_impl_s::rmw_context_impl_s(
       if ((ret = rmw_zenoh_cpp::zenoh_router_check(z_loan(session))) != RMW_RET_OK) {
         ++connection_attempts;
       }
-      std::this_thread::sleep_for(std::chrono::seconds(1));
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     if (ret != RMW_RET_OK) {
       throw std::runtime_error(
