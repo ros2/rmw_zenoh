@@ -60,7 +60,7 @@ struct rmw_zenoh_event_status_t
   size_t total_count;
   size_t total_count_change;
   size_t current_count;
-  size_t current_count_change;
+  int32_t current_count_change;
   // The data field can be used to store serialized information for more complex statuses.
   std::string data;
 
@@ -97,7 +97,7 @@ private:
   size_t unread_count_ {0};
 };
 
-/// Base class to be inherited by entities that support events.
+/// A class to manage QoS related events.
 class EventsManager
 {
 public:
