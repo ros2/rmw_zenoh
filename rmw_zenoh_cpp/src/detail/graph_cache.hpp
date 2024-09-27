@@ -185,6 +185,9 @@ public:
     const rmw_zenoh_event_type_t & event_type,
     GraphCacheEventCallback callback);
 
+  /// Remove all qos event callbacks for an entity.
+  void remove_qos_event_callbacks(liveliness::ConstEntityPtr entity);
+
   /// Returns true if the entity is a publisher or client. False otherwise.
   static bool is_entity_pub(const liveliness::Entity & entity);
 
@@ -246,7 +249,7 @@ private:
 
   using EntityEventMap =
     std::unordered_map<liveliness::ConstEntityPtr, std::unordered_set<rmw_zenoh_event_type_t>>;
-  void take_entities_with_events(EntityEventMap & entities_with_events);
+  void take_entities_with_events(const EntityEventMap & entities_with_events);
 
   std::string zid_str_;
   /*

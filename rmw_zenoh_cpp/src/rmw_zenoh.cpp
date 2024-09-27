@@ -689,6 +689,10 @@ rmw_ret_t
 rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
 {
   RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->context, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
+  rmw_context_impl_s * context_impl = static_cast<rmw_context_impl_s *>(node->context->impl);
+  RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(publisher, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(publisher->data, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
@@ -718,6 +722,10 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
       RMW_SET_ERROR_MSG("failed to undeclare pub");
       ret = RMW_RET_ERROR;
     }
+
+    // Remove any event callbacks registered to this publisher.
+    context_impl->graph_cache->remove_qos_event_callbacks(publisher_data->entity);
+
     RMW_TRY_DESTRUCTOR(publisher_data->~rmw_publisher_data_t(), rmw_publisher_data_t, );
     allocator->deallocate(publisher_data, allocator->state);
   }
@@ -1583,6 +1591,9 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
       // Also remove the registered callback from the GraphCache.
       context_impl->graph_cache->remove_querying_subscriber_callback(sub_data);
     }
+
+    // Remove any event callbacks registered to this subscription.
+    context_impl->graph_cache->remove_qos_event_callbacks(sub_data->entity);
 
     RMW_TRY_DESTRUCTOR(sub_data->~rmw_subscription_data_t(), rmw_subscription_data_t, );
     allocator->deallocate(sub_data, allocator->state);
