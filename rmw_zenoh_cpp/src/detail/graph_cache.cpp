@@ -217,12 +217,17 @@ void GraphCache::handle_matched_events_for_put(
       match_count_for_entity += topic_data_ptr->subs_.size();
       // Also iterate through the subs to check if any are local and if update event counters.
       for (liveliness::ConstEntityPtr sub_entity : topic_data_ptr->subs_) {
-        update_event_counters(
-          topic_info.name_,
-          ZENOH_EVENT_SUBSCRIPTION_MATCHED,
-          static_cast<int32_t>(1));
-        if (is_entity_local(*sub_entity)) {
-          local_entities_with_events[sub_entity].insert(ZENOH_EVENT_SUBSCRIPTION_MATCHED);
+        // Update counters only if key expressions match.
+        if (entity->topic_info()->topic_keyexpr_ ==
+          sub_entity->topic_info().value().topic_keyexpr_)
+        {
+          update_event_counters(
+            topic_info.name_,
+            ZENOH_EVENT_SUBSCRIPTION_MATCHED,
+            static_cast<int32_t>(1));
+          if (is_entity_local(*sub_entity)) {
+            local_entities_with_events[sub_entity].insert(ZENOH_EVENT_SUBSCRIPTION_MATCHED);
+          }
         }
       }
       // Update event counters for the new entity->
@@ -239,12 +244,17 @@ void GraphCache::handle_matched_events_for_put(
       match_count_for_entity += topic_data_ptr->pubs_.size();
       // Also iterate through the pubs to check if any are local and if update event counters.
       for (liveliness::ConstEntityPtr pub_entity : topic_data_ptr->pubs_) {
-        update_event_counters(
-          topic_info.name_,
-          ZENOH_EVENT_PUBLICATION_MATCHED,
-          static_cast<int32_t>(1));
-        if (is_entity_local(*pub_entity)) {
-          local_entities_with_events[pub_entity].insert(ZENOH_EVENT_PUBLICATION_MATCHED);
+        // Update counters only if key expressions match.
+        if (entity->topic_info()->topic_keyexpr_ ==
+          pub_entity->topic_info().value().topic_keyexpr_)
+        {
+          update_event_counters(
+            topic_info.name_,
+            ZENOH_EVENT_PUBLICATION_MATCHED,
+            static_cast<int32_t>(1));
+          if (is_entity_local(*pub_entity)) {
+            local_entities_with_events[pub_entity].insert(ZENOH_EVENT_PUBLICATION_MATCHED);
+          }
         }
       }
       // Update event counters for the new entity->
