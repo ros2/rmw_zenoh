@@ -210,14 +210,14 @@ void client_data_drop(void * data);
 class ZenohQuery final
 {
 public:
-  ZenohQuery(z_owned_query_t * query);
+  ZenohQuery(z_owned_query_t query);
 
   ~ZenohQuery();
 
   const z_loaned_query_t * get_query() const;
 
 private:
-  z_owned_query_t * query_;
+  z_owned_query_t query_;
 };
 
 ///=============================================================================
@@ -280,14 +280,14 @@ private:
 class ZenohReply final
 {
 public:
-  ZenohReply(z_owned_reply_t * reply);
+  ZenohReply(z_owned_reply_t reply);
 
   ~ZenohReply();
 
   const z_loaned_reply_t * get_reply() const;
 
 private:
-  z_owned_reply_t * reply_;
+  z_owned_reply_t reply_;
 };
 
 ///=============================================================================
