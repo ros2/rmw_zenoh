@@ -196,7 +196,7 @@ rmw_context_impl_s::rmw_context_impl_s(
   // Initialize the zenoh session.
   z_owned_session_t session = z_open(z_move(config));
   if (!z_session_check(&session)) {
-    throw std::runtime_error("Error setting up zenoh session");
+    throw std::runtime_error("Error setting up zenoh session.");
   }
   auto close_session = rcpputils::make_scope_exit(
     [&session]() {
@@ -267,7 +267,7 @@ rmw_context_impl_s::rmw_context_impl_s(
       z_drop(z_move(keystr));
     } else {
       RMW_ZENOH_LOG_DEBUG_NAMED(
-        "rmw_zenoh_cpp", "[rmw_context_impl_s] z_call received an invalid reply\n");
+        "rmw_zenoh_cpp", "[rmw_context_impl_s] z_call received an invalid reply.\n");
     }
   }
   z_drop(z_move(reply));

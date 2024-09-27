@@ -17,6 +17,7 @@
 
 #include <zenoh.h>
 
+# include <cstddef>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -115,12 +116,12 @@ private:
     std::shared_ptr<rmw_zenoh_cpp::GraphCache> graph_cache_;
     // ROS graph liveliness subscriber.
     z_owned_subscriber_t graph_subscriber_;
-    // Equivalent to rmw_dds_common::Context's guard condition
-    /// Guard condition that should be triggered when the graph changes.
+    // Equivalent to rmw_dds_common::Context's guard condition.
+    // Guard condition that should be triggered when the graph changes.
     std::unique_ptr<rmw_guard_condition_t> graph_guard_condition_;
     // The GuardCondition data structure.
     rmw_zenoh_cpp::GuardCondition guard_condition_data_;
-    /// Shutdown flag.
+    // Shutdown flag.
     bool is_shutdown_;
     // A counter to assign a local id for every entity created in this session.
     size_t next_entity_id_;
