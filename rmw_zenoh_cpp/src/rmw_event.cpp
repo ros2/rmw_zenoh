@@ -19,6 +19,7 @@
 #include "detail/event.hpp"
 #include "detail/graph_cache.hpp"
 #include "detail/identifier.hpp"
+#include "detail/rmw_context_impl_s.hpp"
 #include "detail/rmw_data_types.hpp"
 
 
@@ -40,6 +41,8 @@ rmw_publisher_event_init(
     static_cast<rmw_zenoh_cpp::rmw_publisher_data_t *>(publisher->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(pub_data, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(pub_data->context, RMW_RET_INVALID_ARGUMENT);
+  rmw_context_impl_t * context_impl = static_cast<rmw_context_impl_t *>(pub_data->context->impl);
+  RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(pub_data->entity, RMW_RET_INVALID_ARGUMENT);
 
   if (publisher->implementation_identifier != rmw_zenoh_cpp::rmw_zenoh_identifier) {
@@ -60,7 +63,7 @@ rmw_publisher_event_init(
   rmw_event->event_type = event_type;
 
   // Register the event with graph cache.
-  pub_data->context->impl->graph_cache->set_qos_event_callback(
+  context_impl->graph_cache()->set_qos_event_callback(
     pub_data->entity,
     zenoh_event_type,
     [pub_data,
@@ -94,6 +97,8 @@ rmw_subscription_event_init(
     static_cast<rmw_zenoh_cpp::rmw_subscription_data_t *>(subscription->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data->context, RMW_RET_INVALID_ARGUMENT);
+  rmw_context_impl_t * context_impl = static_cast<rmw_context_impl_t *>(sub_data->context->impl);
+  RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data->entity, RMW_RET_INVALID_ARGUMENT);
 
   if (subscription->implementation_identifier != rmw_zenoh_cpp::rmw_zenoh_identifier) {
@@ -120,7 +125,7 @@ rmw_subscription_event_init(
     return RMW_RET_OK;
   }
 
-  sub_data->context->impl->graph_cache->set_qos_event_callback(
+  context_impl->graph_cache()->set_qos_event_callback(
     sub_data->entity,
     zenoh_event_type,
     [sub_data,

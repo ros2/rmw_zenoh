@@ -35,6 +35,7 @@
 #include "detail/logging_macros.hpp"
 #include "detail/message_type_support.hpp"
 #include "detail/qos.hpp"
+#include "detail/rmw_context_impl_s.hpp"
 #include "detail/rmw_data_types.hpp"
 #include "detail/serialization_format.hpp"
 #include "detail/type_support_common.hpp"
@@ -162,11 +163,7 @@ rmw_create_node(
     context->impl,
     "expected initialized context",
     return nullptr);
-  RMW_CHECK_FOR_NULL_WITH_MSG(
-    context->impl->enclave,
-    "expected initialized enclave",
-    return nullptr);
-  if (context->impl->is_shutdown) {
+  if (context->impl->is_shutdown()) {
     RCUTILS_SET_ERROR_MSG("context has been shutdown");
     return nullptr;
   }
@@ -249,13 +246,14 @@ rmw_create_node(
 
   // Initialize liveliness token for the node to advertise that a new node is in town.
   node_data->id = context->impl->get_next_entity_id();
+  z_session_t session = context->impl->session();
   node_data->entity = rmw_zenoh_cpp::liveliness::Entity::make(
-    z_info_zid(z_loan(context->impl->session)),
+    z_info_zid(session),
     std::to_string(node_data->id),
     std::to_string(node_data->id),
     rmw_zenoh_cpp::liveliness::EntityType::Node,
     rmw_zenoh_cpp::liveliness::NodeInfo{context->actual_domain_id, namespace_, name,
-      context->impl->enclave});
+      context->impl->enclave()});
   if (node_data->entity == nullptr) {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
@@ -342,7 +340,7 @@ rmw_node_get_graph_guard_condition(const rmw_node_t * node)
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context, nullptr);
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, nullptr);
 
-  return node->context->impl->graph_guard_condition;
+  return node->context->impl->graph_guard_condition();
 }
 
 //==============================================================================
@@ -564,7 +562,8 @@ rmw_create_publisher(
       allocator->deallocate(type_hash_c_str, allocator->state);
     });
 
-  const z_id_t zid = z_info_zid(z_loan(node->context->impl->session));
+  z_session_t session = context_impl->session();
+  const z_id_t zid = z_info_zid(session);
 
   publisher_data->entity = rmw_zenoh_cpp::liveliness::Entity::make(
     zid,
@@ -573,7 +572,7 @@ rmw_create_publisher(
       context_impl->get_next_entity_id()),
     rmw_zenoh_cpp::liveliness::EntityType::Publisher,
     rmw_zenoh_cpp::liveliness::NodeInfo{
-      node->context->actual_domain_id, node->namespace_, node->name, context_impl->enclave},
+      node->context->actual_domain_id, node->namespace_, node->name, context_impl->enclave()},
     rmw_zenoh_cpp::liveliness::TopicInfo{
       node->context->actual_domain_id,
       rmw_publisher->topic_name,
@@ -724,7 +723,7 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
     }
 
     // Remove any event callbacks registered to this publisher.
-    context_impl->graph_cache->remove_qos_event_callbacks(publisher_data->entity);
+    context_impl->graph_cache()->remove_qos_event_callbacks(publisher_data->entity);
 
     RMW_TRY_DESTRUCTOR(publisher_data->~rmw_publisher_data_t(), rmw_publisher_data_t, );
     allocator->deallocate(publisher_data, allocator->state);
@@ -992,7 +991,7 @@ rmw_publisher_count_matched_subscriptions(
   rmw_context_impl_t * context_impl = static_cast<rmw_context_impl_t *>(pub_data->context->impl);
   RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
 
-  return context_impl->graph_cache->publisher_count_matched_subscriptions(
+  return context_impl->graph_cache()->publisher_count_matched_subscriptions(
     publisher, subscription_count);
 }
 
@@ -1378,16 +1377,18 @@ rmw_create_subscription(
       allocator->deallocate(type_hash_c_str, allocator->state);
     });
 
+  z_session_t session = context_impl->session();
+
   // Everything above succeeded and is setup properly.  Now declare a subscriber
   // with Zenoh; after this, callbacks may come in at any time.
   sub_data->entity = rmw_zenoh_cpp::liveliness::Entity::make(
-    z_info_zid(z_loan(node->context->impl->session)),
+    z_info_zid(session),
     std::to_string(node_data->id),
     std::to_string(
       context_impl->get_next_entity_id()),
     rmw_zenoh_cpp::liveliness::EntityType::Subscription,
     rmw_zenoh_cpp::liveliness::NodeInfo{
-      node->context->actual_domain_id, node->namespace_, node->name, context_impl->enclave},
+      node->context->actual_domain_id, node->namespace_, node->name, context_impl->enclave()},
     rmw_zenoh_cpp::liveliness::TopicInfo{
       node->context->actual_domain_id,
       rmw_subscription->topic_name,
@@ -1450,7 +1451,7 @@ rmw_create_subscription(
 
     // Register the querying subscriber with the graph cache to get latest
     // messages from publishers that were discovered after their first publication.
-    context_impl->graph_cache->set_querying_subscriber_callback(
+    context_impl->graph_cache()->set_querying_subscriber_callback(
       sub_data,
       [sub_data](const std::string & queryable_prefix) -> void
       {
@@ -1589,11 +1590,11 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
         ret = RMW_RET_ERROR;
       }
       // Also remove the registered callback from the GraphCache.
-      context_impl->graph_cache->remove_querying_subscriber_callback(sub_data);
+      context_impl->graph_cache()->remove_querying_subscriber_callback(sub_data);
     }
 
     // Remove any event callbacks registered to this subscription.
-    context_impl->graph_cache->remove_qos_event_callbacks(sub_data->entity);
+    context_impl->graph_cache()->remove_qos_event_callbacks(sub_data->entity);
 
     RMW_TRY_DESTRUCTOR(sub_data->~rmw_subscription_data_t(), rmw_subscription_data_t, );
     allocator->deallocate(sub_data, allocator->state);
@@ -1627,7 +1628,7 @@ rmw_subscription_count_matched_publishers(
   rmw_context_impl_t * context_impl = static_cast<rmw_context_impl_t *>(sub_data->context->impl);
   RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
 
-  return context_impl->graph_cache->subscription_count_matched_publishers(
+  return context_impl->graph_cache()->subscription_count_matched_publishers(
     subscription, publisher_count);
 }
 
@@ -1846,7 +1847,7 @@ rmw_take_sequence(
   auto sub_data = static_cast<rmw_zenoh_cpp::rmw_subscription_data_t *>(subscription->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
 
-  if (sub_data->context->impl->is_shutdown) {
+  if (sub_data->context->impl->is_shutdown()) {
     return RMW_RET_OK;
   }
 
@@ -1906,7 +1907,7 @@ __rmw_take_serialized(
   auto sub_data = static_cast<rmw_zenoh_cpp::rmw_subscription_data_t *>(subscription->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
 
-  if (sub_data->context->impl->is_shutdown) {
+  if (sub_data->context->impl->is_shutdown()) {
     return RMW_RET_OK;
   }
 
@@ -2248,14 +2249,15 @@ rmw_create_client(
       allocator->deallocate(type_hash_c_str, allocator->state);
     });
 
+  z_session_t session = context_impl->session();
   client_data->entity = rmw_zenoh_cpp::liveliness::Entity::make(
-    z_info_zid(z_loan(node->context->impl->session)),
+    z_info_zid(session),
     std::to_string(node_data->id),
     std::to_string(
       context_impl->get_next_entity_id()),
     rmw_zenoh_cpp::liveliness::EntityType::Client,
     rmw_zenoh_cpp::liveliness::NodeInfo{
-      node->context->actual_domain_id, node->namespace_, node->name, context_impl->enclave},
+      node->context->actual_domain_id, node->namespace_, node->name, context_impl->enclave()},
     rmw_zenoh_cpp::liveliness::TopicInfo{
       node->context->actual_domain_id,
       rmw_client->service_name,
@@ -2481,7 +2483,7 @@ rmw_send_request(
   z_owned_closure_reply_t callback;
   z_closure(&callback, rmw_zenoh_cpp::client_data_handler, NULL, client_data);
   z_get(
-    z_loan(context_impl->session),
+    context_impl->session(),
     z_loan(client_data->keyexpr), "",
     z_move(callback),
     &opts);
@@ -2833,14 +2835,16 @@ rmw_create_service(
       allocator->deallocate(type_hash_c_str, allocator->state);
     });
 
+  z_session_t session = context_impl->session();
+
   service_data->entity = rmw_zenoh_cpp::liveliness::Entity::make(
-    z_info_zid(z_loan(node->context->impl->session)),
+    z_info_zid(session),
     std::to_string(node_data->id),
     std::to_string(
       context_impl->get_next_entity_id()),
     rmw_zenoh_cpp::liveliness::EntityType::Service,
     rmw_zenoh_cpp::liveliness::NodeInfo{
-      node->context->actual_domain_id, node->namespace_, node->name, context_impl->enclave},
+      node->context->actual_domain_id, node->namespace_, node->name, context_impl->enclave()},
     rmw_zenoh_cpp::liveliness::TopicInfo{
       node->context->actual_domain_id,
       rmw_service->service_name,
@@ -3634,7 +3638,7 @@ rmw_get_node_names(
   rcutils_allocator_t * allocator = &node->context->options.allocator;
   RMW_CHECK_ARGUMENT_FOR_NULL(allocator, RMW_RET_INVALID_ARGUMENT);
 
-  return node->context->impl->graph_cache->get_node_names(
+  return node->context->impl->graph_cache()->get_node_names(
     node_names, node_namespaces, nullptr, allocator);
 }
 
@@ -3657,7 +3661,7 @@ rmw_get_node_names_with_enclaves(
   rcutils_allocator_t * allocator = &node->context->options.allocator;
   RMW_CHECK_ARGUMENT_FOR_NULL(allocator, RMW_RET_INVALID_ARGUMENT);
 
-  return node->context->impl->graph_cache->get_node_names(
+  return node->context->impl->graph_cache()->get_node_names(
     node_names, node_namespaces, enclaves, allocator);
 }
 
@@ -3688,7 +3692,7 @@ rmw_count_publishers(
   }
   RMW_CHECK_ARGUMENT_FOR_NULL(count, RMW_RET_INVALID_ARGUMENT);
 
-  return node->context->impl->graph_cache->count_publishers(topic_name, count);
+  return node->context->impl->graph_cache()->count_publishers(topic_name, count);
 }
 
 //==============================================================================
@@ -3718,7 +3722,7 @@ rmw_count_subscribers(
   }
   RMW_CHECK_ARGUMENT_FOR_NULL(count, RMW_RET_INVALID_ARGUMENT);
 
-  return node->context->impl->graph_cache->count_subscriptions(topic_name, count);
+  return node->context->impl->graph_cache()->count_subscriptions(topic_name, count);
 }
 
 //==============================================================================
@@ -3748,7 +3752,7 @@ rmw_count_clients(
   }
   RMW_CHECK_ARGUMENT_FOR_NULL(count, RMW_RET_INVALID_ARGUMENT);
 
-  return node->context->impl->graph_cache->count_clients(service_name, count);
+  return node->context->impl->graph_cache()->count_clients(service_name, count);
 }
 
 //==============================================================================
@@ -3778,7 +3782,7 @@ rmw_count_services(
   }
   RMW_CHECK_ARGUMENT_FOR_NULL(count, RMW_RET_INVALID_ARGUMENT);
 
-  return node->context->impl->graph_cache->count_services(service_name, count);
+  return node->context->impl->graph_cache()->count_services(service_name, count);
 }
 
 //==============================================================================
@@ -3878,7 +3882,7 @@ rmw_service_server_is_available(
     return RMW_RET_INVALID_ARGUMENT;
   }
 
-  return node->context->impl->graph_cache->service_server_is_available(
+  return node->context->impl->graph_cache()->service_server_is_available(
     client->service_name, service_type.c_str(), is_available);
 }
 

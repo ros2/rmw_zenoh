@@ -42,38 +42,6 @@
 
 /// Structs for various type erased data fields.
 
-///=============================================================================
-class rmw_context_impl_s final
-{
-public:
-  // Enclave, name used to find security artifacts in a sros2 keystore.
-  char * enclave;
-
-  // An owned session.
-  z_owned_session_t session;
-
-  // An optional SHM provider that is initialized of SHM is enabled in the
-  // zenoh session config.
-  std::optional<z_owned_shm_provider_t> shm_provider;
-
-  z_owned_subscriber_t graph_subscriber;
-
-  /// Shutdown flag.
-  bool is_shutdown;
-
-  // Equivalent to rmw_dds_common::Context's guard condition
-  /// Guard condition that should be triggered when the graph changes.
-  rmw_guard_condition_t * graph_guard_condition;
-
-  std::unique_ptr<rmw_zenoh_cpp::GraphCache> graph_cache;
-
-  size_t get_next_entity_id();
-
-private:
-  // A counter to assign a local id for every entity created in this session.
-  size_t next_entity_id_{0};
-};
-
 namespace rmw_zenoh_cpp
 {
 ///=============================================================================
