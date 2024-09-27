@@ -159,7 +159,7 @@ rmw_event_set_callback(
     return RMW_RET_ERROR;
   }
 
-  // Both rmw_subscription_data_t and rmw_publisher_data_t inherit EventsBase.
+  // Both rmw_subscription_data_t and rmw_publisher_data_t store an EventsManager object.
   rmw_zenoh_cpp::EventsManager * event_data =
     static_cast<rmw_zenoh_cpp::EventsManager *>(rmw_event->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(event_data, RMW_RET_INVALID_ARGUMENT);
