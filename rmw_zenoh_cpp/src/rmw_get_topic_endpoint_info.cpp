@@ -15,7 +15,7 @@
 
 #include "detail/identifier.hpp"
 #include "detail/liveliness_utils.hpp"
-#include "detail/rmw_data_types.hpp"
+#include "detail/rmw_context_impl_s.hpp"
 
 #include "rcutils/allocator.h"
 
@@ -43,7 +43,9 @@ rmw_get_publishers_info_by_topic(
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
-  return node->context->impl->graph_cache->get_entities_info_by_topic(
+  rmw_context_impl_t * context_impl = static_cast<rmw_context_impl_t *>(node->context->impl);
+  RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
+  return context_impl->graph_cache()->get_entities_info_by_topic(
     rmw_zenoh_cpp::liveliness::EntityType::Publisher,
     allocator,
     topic_name,
@@ -69,7 +71,9 @@ rmw_get_subscriptions_info_by_topic(
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
-  return node->context->impl->graph_cache->get_entities_info_by_topic(
+  rmw_context_impl_t * context_impl = static_cast<rmw_context_impl_t *>(node->context->impl);
+  RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
+  return context_impl->graph_cache()->get_entities_info_by_topic(
     rmw_zenoh_cpp::liveliness::EntityType::Subscription,
     allocator,
     topic_name,

@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <zenoh.h>
-
 #include <condition_variable>
 #include <cstring>
 #include <memory>
@@ -53,12 +51,6 @@ size_t hash_gid(const rmw_request_id_t & request_id)
   return hash_gid(request_id.writer_guid);
 }
 }  // namespace
-
-///=============================================================================
-size_t rmw_context_impl_s::get_next_entity_id()
-{
-  return next_entity_id_++;
-}
 
 namespace rmw_zenoh_cpp
 {
