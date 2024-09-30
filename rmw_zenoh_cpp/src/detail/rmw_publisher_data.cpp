@@ -373,10 +373,17 @@ rmw_ret_t PublisherData::publish(
 }
 
 ///=============================================================================
-std::shared_ptr<const liveliness::Entity> PublisherData::entity() const
+std::size_t PublisherData::guid() const
 {
   std::lock_guard<std::mutex> lock(mutex_);
-  return entity_;
+  return entity_->guid();
+}
+
+///=============================================================================
+liveliness::TopicInfo PublisherData::topic_info() const
+{
+  std::lock_guard<std::mutex> lock(mutex_);
+  return entity_->topic_info().value();
 }
 
 ///=============================================================================

@@ -319,7 +319,7 @@ void GraphCache::take_entities_with_events(const EntityEventMap & entities_with_
   for (const auto & [local_entity, event_set] : entities_with_events) {
     // Trigger callback set for this entity for the event type.
     GraphEventCallbackMap::const_iterator event_callbacks_it =
-      event_callbacks_.find(local_entity);
+      event_callbacks_.find(local_entity->guid());
     if (event_callbacks_it != event_callbacks_.end()) {
       for (const rmw_zenoh_event_type_t & event_type : event_set) {
         GraphEventCallbacks::const_iterator callback_it =
@@ -858,7 +858,7 @@ rmw_ret_t GraphCache::publisher_count_matched_subscriptions(
   // TODO(Yadunund): Replace this logic by returning a number that is tracked once
   // we support matched qos events.
   *subscription_count = 0;
-  auto topic_info = pub_data->entity()->topic_info().value();
+  auto topic_info = pub_data->topic_info();
   GraphNode::TopicMap::const_iterator topic_it = graph_topics_.find(topic_info.name_);
   if (topic_it != graph_topics_.end()) {
     GraphNode::TopicTypeMap::const_iterator topic_data_it = topic_it->second.find(
@@ -1243,7 +1243,7 @@ rmw_ret_t GraphCache::service_server_is_available(
 
 ///=============================================================================
 void GraphCache::set_qos_event_callback(
-  liveliness::ConstEntityPtr entity,
+  std::size_t entity_guid,
   const rmw_zenoh_event_type_t & event_type,
   GraphCacheEventCallback callback)
 {
@@ -1256,20 +1256,20 @@ void GraphCache::set_qos_event_callback(
     return;
   }
 
-  const GraphEventCallbackMap::iterator event_cb_it = event_callbacks_.find(entity);
+  const GraphEventCallbackMap::iterator event_cb_it = event_callbacks_.find(entity_guid);
   if (event_cb_it == event_callbacks_.end()) {
     // First time a callback is being set for this entity.
-    event_callbacks_[entity] = {std::make_pair(event_type, std::move(callback))};
+    event_callbacks_[entity_guid] = {std::make_pair(event_type, std::move(callback))};
     return;
   }
   event_cb_it->second[event_type] = std::move(callback);
 }
 
 ///=============================================================================
-void GraphCache::remove_qos_event_callbacks(liveliness::ConstEntityPtr entity)
+void GraphCache::remove_qos_event_callbacks(std::size_t entity_guid)
 {
   std::lock_guard<std::mutex> lock(graph_mutex_);
-  event_callbacks_.erase(entity);
+  event_callbacks_.erase(entity_guid);
 }
 
 ///=============================================================================

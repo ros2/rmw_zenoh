@@ -70,7 +70,7 @@ rmw_publisher_event_init(
 
   // Register the event with graph cache.
   context_impl->graph_cache()->set_qos_event_callback(
-    pub_data->entity(),
+    pub_data->guid(),
     zenoh_event_type,
     [pub_data,
     zenoh_event_type](std::unique_ptr<rmw_zenoh_cpp::rmw_zenoh_event_status_t> zenoh_event)
@@ -132,7 +132,7 @@ rmw_subscription_event_init(
   }
 
   context_impl->graph_cache()->set_qos_event_callback(
-    sub_data->entity,
+    sub_data->entity->guid(),
     zenoh_event_type,
     [sub_data,
     zenoh_event_type](std::unique_ptr<rmw_zenoh_cpp::rmw_zenoh_event_status_t> zenoh_event)

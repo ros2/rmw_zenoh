@@ -59,11 +59,14 @@ public:
     const void * ros_message,
     std::optional<zc_owned_shm_manager_t> & shm_manager);
 
-  // Get the entity from this PublisherData.
-  std::shared_ptr<const liveliness::Entity> entity() const;
-
   // Get the next sequence number.
   size_t get_next_sequence_number();
+
+  // Get a copy of the GUID of this PublisherData's liveliness::Entity.
+  std::size_t guid() const;
+
+  // Get a copy of the TopicInfo of this PublisherData.
+  liveliness::TopicInfo topic_info() const;
 
   // Get the GID of this PublisherData.
   const uint8_t * gid() const;

@@ -487,7 +487,7 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
     return RMW_RET_INVALID_ARGUMENT;
   }
   // Remove any event callbacks registered to this publisher.
-  context_impl->graph_cache()->remove_qos_event_callbacks(pub_data->entity());
+  context_impl->graph_cache()->remove_qos_event_callbacks(pub_data->guid());
   // Remove the PublisherData from NodeData.
   node_data->delete_pub_data(publisher);
 
@@ -1326,7 +1326,7 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
     }
 
     // Remove any event callbacks registered to this subscription.
-    context_impl->graph_cache()->remove_qos_event_callbacks(sub_data->entity);
+    context_impl->graph_cache()->remove_qos_event_callbacks(sub_data->entity->guid());
 
     RMW_TRY_DESTRUCTOR(sub_data->~rmw_subscription_data_t(), rmw_subscription_data_t, );
     allocator->deallocate(sub_data, allocator->state);
