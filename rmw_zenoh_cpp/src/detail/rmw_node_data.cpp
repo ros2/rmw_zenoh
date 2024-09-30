@@ -14,7 +14,9 @@
 
 #include "rmw_node_data.hpp"
 
+#include <cstddef>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <utility>
 
