@@ -20,6 +20,7 @@
 #include <thread>
 #include <utility>
 
+#include "guard_condition.hpp"
 #include "identifier.hpp"
 #include "liveliness_utils.hpp"
 #include "logging_macros.hpp"
@@ -28,6 +29,7 @@
 
 #include "rcpputils/scope_exit.hpp"
 #include "rmw/error_handling.h"
+#include "rmw/impl/cpp/macros.hpp"
 
 // Megabytes of SHM to reserve.
 // TODO(clalancette): Make this configurable, or get it from the configuration
