@@ -59,8 +59,10 @@ public:
     const void * ros_message,
     std::optional<zc_owned_shm_manager_t> & shm_manager);
 
-  // Get the next sequence number.
-  size_t get_next_sequence_number();
+  // Publish a serialized ROS message.
+  rmw_ret_t publish_serialized_message(
+    const rmw_serialized_message_t * serialized_message,
+    std::optional<zc_owned_shm_manager_t> & shm_manager);
 
   // Get a copy of the GUID of this PublisherData's liveliness::Entity.
   std::size_t guid() const;
@@ -70,9 +72,6 @@ public:
 
   // Get the GID of this PublisherData.
   const uint8_t * gid() const;
-
-  // Get the Zenoh publisher.
-  z_publisher_t publisher() const;
 
   // Returns true if liveliness token is still valid.
   bool liveliness_is_valid() const;

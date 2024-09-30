@@ -39,6 +39,7 @@
 #include "detail/rmw_data_types.hpp"
 #include "detail/serialization_format.hpp"
 #include "detail/type_support_common.hpp"
+#include "detail/zenoh_utils.hpp"
 
 #include "rcpputils/scope_exit.hpp"
 
@@ -568,51 +569,6 @@ rmw_return_loaned_message_from_publisher(
   return RMW_RET_UNSUPPORTED;
 }
 
-namespace
-{
-z_owned_bytes_map_t
-create_map_and_set_sequence_num(int64_t sequence_number, const uint8_t gid[RMW_GID_STORAGE_SIZE])
-{
-  z_owned_bytes_map_t map = z_bytes_map_new();
-  if (!z_check(map)) {
-    RMW_SET_ERROR_MSG("failed to allocate map for sequence number");
-    return z_bytes_map_null();
-  }
-  auto free_attachment_map = rcpputils::make_scope_exit(
-    [&map]() {
-      z_bytes_map_drop(z_move(map));
-    });
-
-  // The largest possible int64_t number is INT64_MAX, i.e. 9223372036854775807.
-  // That is 19 characters long, plus one for the trailing \0, means we need 20 bytes.
-  char seq_id_str[20];
-  if (rcutils_snprintf(seq_id_str, sizeof(seq_id_str), "%" PRId64, sequence_number) < 0) {
-    RMW_SET_ERROR_MSG("failed to print sequence_number into buffer");
-    return z_bytes_map_null();
-  }
-  z_bytes_map_insert_by_copy(&map, z_bytes_new("sequence_number"), z_bytes_new(seq_id_str));
-
-  auto now = std::chrono::system_clock::now().time_since_epoch();
-  auto now_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now);
-  char source_ts_str[20];
-  if (rcutils_snprintf(source_ts_str, sizeof(source_ts_str), "%" PRId64, now_ns.count()) < 0) {
-    RMW_SET_ERROR_MSG("failed to print sequence_number into buffer");
-    return z_bytes_map_null();
-  }
-  z_bytes_map_insert_by_copy(&map, z_bytes_new("source_timestamp"), z_bytes_new(source_ts_str));
-
-  z_bytes_t gid_bytes;
-  gid_bytes.len = RMW_GID_STORAGE_SIZE;
-  gid_bytes.start = gid;
-
-  z_bytes_map_insert_by_copy(&map, z_bytes_new("source_gid"), gid_bytes);
-
-  free_attachment_map.cancel();
-
-  return map;
-}
-}  // namespace
-
 //==============================================================================
 /// Publish a ROS message.
 rmw_ret_t
@@ -755,48 +711,9 @@ rmw_publish_serialized_message(
   auto publisher_data = node_data->get_pub_data(publisher);
   RMW_CHECK_ARGUMENT_FOR_NULL(publisher_data, RMW_RET_INVALID_ARGUMENT);
 
-  eprosima::fastcdr::FastBuffer buffer(
-    reinterpret_cast<char *>(serialized_message->buffer), serialized_message->buffer_length);
-  rmw_zenoh_cpp::Cdr ser(buffer);
-  if (!ser.get_cdr().jump(serialized_message->buffer_length)) {
-    RMW_SET_ERROR_MSG("cannot correctly set serialized buffer");
-    return RMW_RET_ERROR;
-  }
-
-  uint64_t sequence_number = publisher_data->get_next_sequence_number();
-
-  z_owned_bytes_map_t map =
-    create_map_and_set_sequence_num(sequence_number, publisher_data->gid());
-
-  if (!z_check(map)) {
-    // create_map_and_set_sequence_num already set the error
-    return RMW_RET_ERROR;
-  }
-  auto free_attachment_map = rcpputils::make_scope_exit(
-    [&map]() {
-      z_bytes_map_drop(z_move(map));
-    });
-
-  const size_t data_length = ser.get_serialized_data_length();
-
-  // The encoding is simply forwarded and is useful when key expressions in the
-  // session use different encoding formats. In our case, all key expressions
-  // will be encoded with CDR so it does not really matter.
-  z_publisher_put_options_t options = z_publisher_put_options_default();
-  options.attachment = z_bytes_map_as_attachment(&map);
-  // Returns 0 if success.
-  int8_t ret = z_publisher_put(
-    publisher_data->publisher(),
-    serialized_message->buffer,
-    data_length,
-    &options);
-
-  if (ret) {
-    RMW_SET_ERROR_MSG("unable to publish message");
-    return RMW_RET_ERROR;
-  }
-
-  return RMW_RET_OK;
+  return publisher_data->publish_serialized_message(
+    serialized_message,
+    context_impl->shm_manager());
 }
 
 //==============================================================================
@@ -2170,7 +2087,9 @@ rmw_send_request(
   // Send request
   z_get_options_t opts = z_get_options_default();
 
-  z_owned_bytes_map_t map = create_map_and_set_sequence_num(*sequence_id, client_data->client_gid);
+  z_owned_bytes_map_t map = rmw_zenoh_cpp::create_map_and_set_sequence_num(
+    *sequence_id,
+    client_data->client_gid);
   if (!z_check(map)) {
     // create_map_and_set_sequence_num already set the error
     return RMW_RET_ERROR;
@@ -2861,7 +2780,7 @@ rmw_send_response(
   const z_query_t loaned_query = query->get_query();
   z_query_reply_options_t options = z_query_reply_options_default();
 
-  z_owned_bytes_map_t map = create_map_and_set_sequence_num(
+  z_owned_bytes_map_t map = rmw_zenoh_cpp::create_map_and_set_sequence_num(
     request_header->sequence_number, request_header->writer_guid);
   if (!z_check(map)) {
     // create_map_and_set_sequence_num already set the error

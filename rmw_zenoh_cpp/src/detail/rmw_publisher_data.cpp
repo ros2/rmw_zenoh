@@ -27,6 +27,7 @@
 #include "message_type_support.hpp"
 #include "logging_macros.hpp"
 #include "qos.hpp"
+#include "zenoh_utils.hpp"
 
 #include "rcpputils/scope_exit.hpp"
 
@@ -36,50 +37,6 @@
 
 namespace rmw_zenoh_cpp
 {
-namespace
-{
-z_owned_bytes_map_t
-create_map_and_set_sequence_num(int64_t sequence_number, uint8_t gid[RMW_GID_STORAGE_SIZE])
-{
-  z_owned_bytes_map_t map = z_bytes_map_new();
-  if (!z_check(map)) {
-    RMW_SET_ERROR_MSG("failed to allocate map for sequence number");
-    return z_bytes_map_null();
-  }
-  auto free_attachment_map = rcpputils::make_scope_exit(
-    [&map]() {
-      z_bytes_map_drop(z_move(map));
-    });
-
-  // The largest possible int64_t number is INT64_MAX, i.e. 9223372036854775807.
-  // That is 19 characters long, plus one for the trailing \0, means we need 20 bytes.
-  char seq_id_str[20];
-  if (rcutils_snprintf(seq_id_str, sizeof(seq_id_str), "%" PRId64, sequence_number) < 0) {
-    RMW_SET_ERROR_MSG("failed to print sequence_number into buffer");
-    return z_bytes_map_null();
-  }
-  z_bytes_map_insert_by_copy(&map, z_bytes_new("sequence_number"), z_bytes_new(seq_id_str));
-
-  auto now = std::chrono::system_clock::now().time_since_epoch();
-  auto now_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now);
-  char source_ts_str[20];
-  if (rcutils_snprintf(source_ts_str, sizeof(source_ts_str), "%" PRId64, now_ns.count()) < 0) {
-    RMW_SET_ERROR_MSG("failed to print sequence_number into buffer");
-    return z_bytes_map_null();
-  }
-  z_bytes_map_insert_by_copy(&map, z_bytes_new("source_timestamp"), z_bytes_new(source_ts_str));
-
-  z_bytes_t gid_bytes;
-  gid_bytes.len = RMW_GID_STORAGE_SIZE;
-  gid_bytes.start = gid;
-
-  z_bytes_map_insert_by_copy(&map, z_bytes_new("source_gid"), gid_bytes);
-
-  free_attachment_map.cancel();
-
-  return map;
-}
-}  // namespace
 ///=============================================================================
 std::shared_ptr<PublisherData> PublisherData::make(
   z_session_t session,
@@ -332,10 +289,8 @@ rmw_ret_t PublisherData::publish(
 
   const size_t data_length = ser.get_serialized_data_length();
 
-  const int64_t sequence_number = sequence_number_++;
-
   z_owned_bytes_map_t map =
-    create_map_and_set_sequence_num(sequence_number, gid_);
+    create_map_and_set_sequence_num(sequence_number_++, gid_);
   if (!z_check(map)) {
     // create_map_and_set_sequence_num already set the error
     return RMW_RET_ERROR;
@@ -373,6 +328,56 @@ rmw_ret_t PublisherData::publish(
 }
 
 ///=============================================================================
+rmw_ret_t PublisherData::publish_serialized_message(
+  const rmw_serialized_message_t * serialized_message,
+  std::optional<zc_owned_shm_manager_t> & /*shm_manager*/)
+{
+  eprosima::fastcdr::FastBuffer buffer(
+    reinterpret_cast<char *>(serialized_message->buffer), serialized_message->buffer_length);
+  rmw_zenoh_cpp::Cdr ser(buffer);
+  if (!ser.get_cdr().jump(serialized_message->buffer_length)) {
+    RMW_SET_ERROR_MSG("cannot correctly set serialized buffer");
+    return RMW_RET_ERROR;
+  }
+
+  std::lock_guard<std::mutex> lock(mutex_);
+
+  z_owned_bytes_map_t map =
+    rmw_zenoh_cpp::create_map_and_set_sequence_num(sequence_number_++, gid_);
+
+  if (!z_check(map)) {
+    // create_map_and_set_sequence_num already set the error
+    return RMW_RET_ERROR;
+  }
+  auto free_attachment_map = rcpputils::make_scope_exit(
+    [&map]() {
+      z_bytes_map_drop(z_move(map));
+    });
+
+  const size_t data_length = ser.get_serialized_data_length();
+
+  // The encoding is simply forwarded and is useful when key expressions in the
+  // session use different encoding formats. In our case, all key expressions
+  // will be encoded with CDR so it does not really matter.
+  z_publisher_put_options_t options = z_publisher_put_options_default();
+  options.attachment = z_bytes_map_as_attachment(&map);
+
+  // Returns 0 if success.
+  int8_t ret = z_publisher_put(
+    z_loan(pub_),
+    serialized_message->buffer,
+    data_length,
+    &options);
+
+  if (ret) {
+    RMW_SET_ERROR_MSG("unable to publish message");
+    return RMW_RET_ERROR;
+  }
+
+  return RMW_RET_OK;
+}
+
+///=============================================================================
 std::size_t PublisherData::guid() const
 {
   std::lock_guard<std::mutex> lock(mutex_);
@@ -387,24 +392,10 @@ liveliness::TopicInfo PublisherData::topic_info() const
 }
 
 ///=============================================================================
-size_t PublisherData::get_next_sequence_number()
-{
-  std::lock_guard<std::mutex> lock(mutex_);
-  return sequence_number_++;
-}
-
-///=============================================================================
 const uint8_t * PublisherData::gid() const
 {
   std::lock_guard<std::mutex> lock(mutex_);
   return gid_;
-}
-
-///=============================================================================
-z_publisher_t PublisherData::publisher() const
-{
-  std::lock_guard<std::mutex> lock(mutex_);
-  return z_loan(pub_);
 }
 
 ///=============================================================================
