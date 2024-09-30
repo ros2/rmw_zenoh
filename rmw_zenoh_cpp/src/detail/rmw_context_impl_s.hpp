@@ -22,10 +22,12 @@
 #include <mutex>
 #include <optional>
 #include <string>
+#include <unordered_map>
 
 #include "graph_cache.hpp"
 #include "guard_condition.hpp"
 #include "liveliness_utils.hpp"
+#include "rmw_node_data.hpp"
 
 #include "rcutils/types.h"
 #include "rmw/rmw.h"
@@ -34,7 +36,7 @@
 class rmw_context_impl_s final
 {
 public:
-  // Constructor that internally initializees the Zenoh session and other artifacts.
+  // Constructor that internally initializes the Zenoh session and other artifacts.
   // Throws an std::runtime_error if any of the initializations fail.
   // The construction will block until a Zenoh router is detected.
   // TODO(Yadunund): Make this a non-blocking call by checking for the Zenoh
@@ -62,7 +64,7 @@ public:
   rmw_guard_condition_t * graph_guard_condition();
 
   // Get a unique id for a new entity.
-  size_t get_next_entity_id();
+  std::size_t get_next_entity_id();
 
   // Shutdown the Zenoh session.
   rmw_ret_t shutdown();
@@ -76,6 +78,21 @@ public:
   /// Return a shared_ptr to the GraphCache stored in this context.
   std::shared_ptr<rmw_zenoh_cpp::GraphCache> graph_cache();
 
+  /// Create a NodeData and store it within this context. The NodeData can be
+  /// retrieved using get_node().
+  /// Returns false if parameters are invalid.
+  bool create_node_data(
+    const rmw_node_t * const node,
+    const std::string & ns,
+    const std::string & node_name);
+
+  /// Retrieve the NodeData for a given rmw_node_t if present.
+  std::shared_ptr<rmw_zenoh_cpp::NodeData> get_node_data(
+    const rmw_node_t * const node);
+
+  /// Delete the NodeData for a given rmw_node_t if present.
+  void delete_node_data(const rmw_node_t * const node);
+
 private:
   // Bundle all class members into a data struct which can be passed as a
   // weak ptr to various threads for thread-safe access without capturing
@@ -84,6 +101,7 @@ private:
   {
     // Constructor.
     Data(
+      std::size_t domain_id,
       const std::string & enclave,
       z_owned_session_t session,
       std::optional<zc_owned_shm_manager_t> shm_manager,
@@ -100,11 +118,13 @@ private:
     ~Data();
 
     // Mutex to lock when accessing members.
-    mutable std::mutex mutex_;
+    mutable std::recursive_mutex mutex_;
     // RMW allocator.
     const rcutils_allocator_t * allocator_;
     // Enclave, name used to find security artifacts in a sros2 keystore.
     std::string enclave_;
+    // The ROS domain id of this context.
+    std::size_t domain_id_;
     // An owned session.
     z_owned_session_t session_;
     // An optional SHM manager that is initialized of SHM is enabled in the
@@ -124,9 +144,11 @@ private:
     // Shutdown flag.
     bool is_shutdown_;
     // A counter to assign a local id for every entity created in this session.
-    size_t next_entity_id_;
+    std::size_t next_entity_id_;
     // True once graph subscriber is initialized.
     bool is_initialized_;
+    // Nodes created from this context.
+    std::unordered_map<const rmw_node_t *, std::shared_ptr<rmw_zenoh_cpp::NodeData>> nodes_;
   };
 
   std::shared_ptr<Data> data_{nullptr};
