@@ -246,7 +246,7 @@ rmw_create_node(
 
   // Initialize liveliness token for the node to advertise that a new node is in town.
   node_data->id = context->impl->get_next_entity_id();
-  z_session_t session = context->impl->session();
+  const z_loaned_session_t * session = context->impl->session();
   node_data->entity = rmw_zenoh_cpp::liveliness::Entity::make(
     z_info_zid(session),
     std::to_string(node_data->id),
@@ -270,7 +270,7 @@ rmw_create_node(
       z_drop(z_move(node_data->token));
     });
   if (zc_liveliness_declare_token(
-      &node_data->token, z_loan(context->impl->session), z_loan(keyexpr), NULL) != Z_OK)
+      &node_data->token, session, z_loan(keyexpr), NULL) != Z_OK)
   {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
@@ -453,10 +453,6 @@ rmw_create_publisher(
     context_impl,
     "unable to get rmw_context_impl_s",
     return nullptr);
-  RMW_CHECK_FOR_NULL_WITH_MSG(
-    context_impl->enclave,
-    "expected initialized enclave",
-    return nullptr);
 
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
@@ -562,7 +558,7 @@ rmw_create_publisher(
       allocator->deallocate(type_hash_c_str, allocator->state);
     });
 
-  z_session_t session = context_impl->session();
+  const z_loaned_session_t * session = context_impl->session();
   const z_id_t zid = z_info_zid(session);
 
   publisher_data->entity = rmw_zenoh_cpp::liveliness::Entity::make(
@@ -611,7 +607,7 @@ rmw_create_publisher(
 
     ze_owned_publication_cache_t pub_cache;
     if (ze_declare_publication_cache(
-        &pub_cache, z_loan(context_impl->session), z_loan(pub_ke), &pub_cache_opts))
+        &pub_cache, session, z_loan(pub_ke), &pub_cache_opts))
     {
       RMW_SET_ERROR_MSG("unable to create zenoh publisher cache");
       return nullptr;
@@ -639,7 +635,7 @@ rmw_create_publisher(
   }
   // TODO(clalancette): What happens if the key name is a valid but empty string?
   if (z_declare_publisher(
-      &publisher_data->pub, z_loan(context_impl->session), z_loan(pub_ke), &opts) != Z_OK)
+      &publisher_data->pub, session, z_loan(pub_ke), &opts) != Z_OK)
   {
     RMW_SET_ERROR_MSG("unable to create zenoh publisher");
     return nullptr;
@@ -659,7 +655,7 @@ rmw_create_publisher(
       }
     });
   if (zc_liveliness_declare_token(
-      &publisher_data->token, z_loan(node->context->impl->session), z_loan(liveliness_ke),
+      &publisher_data->token, session, z_loan(liveliness_ke),
       NULL) != Z_OK)
   {
     RMW_ZENOH_LOG_ERROR_NAMED(
@@ -877,10 +873,10 @@ rmw_publish(
     });
 
   // Get memory from SHM buffer if available.
-  if (publisher_data->context->impl->shm_provider.has_value()) {
+  if (publisher_data->context->impl->shm_provider().has_value()) {
     RMW_ZENOH_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "SHM is enabled.");
 
-    auto provider = publisher_data->context->impl->shm_provider.value();
+    auto provider = publisher_data->context->impl->shm_provider().value();
     z_buf_layout_alloc_result_t alloc;
     // TODO(yuyuan): SHM, configure this
     z_alloc_alignment_t alignment = {5};
@@ -1268,10 +1264,6 @@ rmw_create_subscription(
     context_impl,
     "unable to get rmw_context_impl_s",
     return nullptr);
-  RMW_CHECK_FOR_NULL_WITH_MSG(
-    context_impl->enclave,
-    "expected initialized enclave",
-    return nullptr);
 
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
@@ -1377,7 +1369,7 @@ rmw_create_subscription(
       allocator->deallocate(type_hash_c_str, allocator->state);
     });
 
-  z_session_t session = context_impl->session();
+  const z_loaned_session_t * session = context_impl->session();
 
   // Everything above succeeded and is setup properly.  Now declare a subscriber
   // with Zenoh; after this, callbacks may come in at any time.
@@ -1442,7 +1434,7 @@ rmw_create_subscription(
 
     ze_owned_querying_subscriber_t sub;
     if (ze_declare_querying_subscriber(
-        &sub, z_loan(context_impl->session), z_loan(ke), z_move(callback), &sub_options))
+        &sub, session, z_loan(ke), z_move(callback), &sub_options))
     {
       RMW_SET_ERROR_MSG("unable to create zenoh subscription");
       return nullptr;
@@ -1486,7 +1478,7 @@ rmw_create_subscription(
 
     z_owned_subscriber_t sub;
     if (z_declare_subscriber(
-        &sub, z_loan(context_impl->session), z_loan(sub_ke), z_move(callback),
+        &sub, session, z_loan(sub_ke), z_move(callback),
         &sub_options) != Z_OK)
     {
       RMW_SET_ERROR_MSG("unable to create zenoh subscription");
@@ -1520,7 +1512,7 @@ rmw_create_subscription(
       }
     });
   if (zc_liveliness_declare_token(
-      &sub_data->token, z_loan(context_impl->session), z_loan(liveliness_ke), NULL) != Z_OK)
+      &sub_data->token, session, z_loan(liveliness_ke), NULL) != Z_OK)
   {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
@@ -2063,10 +2055,6 @@ rmw_create_client(
     context_impl,
     "unable to get rmw_context_impl_s",
     return nullptr);
-  RMW_CHECK_FOR_NULL_WITH_MSG(
-    context_impl->enclave,
-    "expected initialized enclave",
-    return nullptr);
 
   RMW_CHECK_ARGUMENT_FOR_NULL(node->data, nullptr);
   const rmw_zenoh_cpp::rmw_node_data_t * node_data =
@@ -2249,7 +2237,7 @@ rmw_create_client(
       allocator->deallocate(type_hash_c_str, allocator->state);
     });
 
-  z_session_t session = context_impl->session();
+  const z_loaned_session_t * session = context_impl->session();
   client_data->entity = rmw_zenoh_cpp::liveliness::Entity::make(
     z_info_zid(session),
     std::to_string(node_data->id),
@@ -2294,7 +2282,7 @@ rmw_create_client(
       }
     });
   if (zc_liveliness_declare_token(
-      &client_data->token, z_loan(node->context->impl->session), z_loan(liveliness_ke),
+      &client_data->token, session, z_loan(liveliness_ke),
       NULL) != Z_OK)
   {
     RMW_ZENOH_LOG_ERROR_NAMED(
@@ -2676,10 +2664,6 @@ rmw_create_service(
     context_impl,
     "unable to get rmw_context_impl_s",
     return nullptr);
-  RMW_CHECK_FOR_NULL_WITH_MSG(
-    context_impl->enclave,
-    "expected initialized enclave",
-    return nullptr);
 
   // SERVICE DATA ==============================================================
   rcutils_allocator_t * allocator = &node->context->options.allocator;
@@ -2835,7 +2819,7 @@ rmw_create_service(
       allocator->deallocate(type_hash_c_str, allocator->state);
     });
 
-  z_session_t session = context_impl->session();
+  const z_loaned_session_t * session = context_impl->session();
 
   service_data->entity = rmw_zenoh_cpp::liveliness::Entity::make(
     z_info_zid(session),
@@ -2873,7 +2857,7 @@ rmw_create_service(
   z_queryable_options_default(&qable_options);
   qable_options.complete = true;
   if (z_declare_queryable(
-      &service_data->qable, z_loan(context_impl->session), z_loan(service_data->keyexpr),
+      &service_data->qable, session, z_loan(service_data->keyexpr),
       z_move(callback), &qable_options) != Z_OK)
   {
     RMW_SET_ERROR_MSG("unable to create zenoh queryable");
@@ -2894,7 +2878,7 @@ rmw_create_service(
       }
     });
   if (zc_liveliness_declare_token(
-      &service_data->token, z_loan(node->context->impl->session), z_loan(liveliness_ke),
+      &service_data->token, session, z_loan(liveliness_ke),
       NULL) != Z_OK)
   {
     RMW_ZENOH_LOG_ERROR_NAMED(
