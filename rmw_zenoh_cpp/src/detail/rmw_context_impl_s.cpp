@@ -158,7 +158,12 @@ rmw_ret_t rmw_context_impl_s::Data::shutdown()
   for (auto node_it = nodes_.begin(); node_it != nodes_.end(); ++node_it) {
     ret = node_it->second->shutdown();
     if (ret != RMW_RET_OK) {
-      return ret;
+      RMW_ZENOH_LOG_ERROR_NAMED(
+        "rmw_zenoh_cpp",
+        "Unable to shutdown node with id %zu. rmw_ret_t code: %zu",
+        node_it->second->id(),
+        ret
+      );
     }
   }
 
