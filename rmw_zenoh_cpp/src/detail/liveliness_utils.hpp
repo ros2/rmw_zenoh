@@ -160,7 +160,10 @@ public:
 
   std::string node_enclave() const;
 
-  /// Get the topic_info.
+  /// Get the NodeInfo.
+  NodeInfo node_info() const;
+
+  /// Get the TopicInfo if present.
   std::optional<TopicInfo> topic_info() const;
 
   /// Get the liveliness keyexpr for this entity.
@@ -230,7 +233,12 @@ std::optional<rmw_qos_profile_t> keyexpr_to_qos(const std::string & keyexpr);
 /// Convert a Zenoh id to a string.
 std::string zid_to_str(const z_id_t & id);
 }  // namespace liveliness
+
+///=============================================================================
+// Helper function to generate a randon GID.
+void generate_random_gid(uint8_t gid[RMW_GID_STORAGE_SIZE]);
 }  // namespace rmw_zenoh_cpp
+
 
 ///=============================================================================
 // Allow Entity to be hashed and used as a key in unordered_maps/sets

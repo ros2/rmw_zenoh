@@ -852,25 +852,24 @@ rmw_ret_t GraphCache::get_topic_names_and_types(
 
 ///=============================================================================
 rmw_ret_t GraphCache::publisher_count_matched_subscriptions(
-  const rmw_publisher_t * publisher,
+  PublisherDataConstPtr pub_data,
   size_t * subscription_count)
 {
   // TODO(Yadunund): Replace this logic by returning a number that is tracked once
   // we support matched qos events.
   *subscription_count = 0;
-  GraphNode::TopicMap::const_iterator topic_it = graph_topics_.find(publisher->topic_name);
+  auto topic_info = pub_data->entity()->topic_info().value();
+  GraphNode::TopicMap::const_iterator topic_it = graph_topics_.find(topic_info.name_);
   if (topic_it != graph_topics_.end()) {
-    rmw_publisher_data_t * pub_data =
-      static_cast<rmw_publisher_data_t *>(publisher->data);
     GraphNode::TopicTypeMap::const_iterator topic_data_it = topic_it->second.find(
-      pub_data->type_support->get_name());
+      topic_info.type_);
     if (topic_data_it != topic_it->second.end()) {
       for (const auto & [_, topic_data]  : topic_data_it->second) {
         // If a subscription exists with compatible QoS, update the subscription count.
         if (!topic_data->subs_.empty()) {
           rmw_qos_compatibility_type_t is_compatible;
           rmw_ret_t ret = rmw_qos_profile_check_compatible(
-            pub_data->adapted_qos_profile,
+            pub_data->adapted_qos_profile(),
             topic_data->info_.qos_,
             &is_compatible,
             nullptr,
@@ -1348,7 +1347,7 @@ void GraphCache::set_querying_subscriber_callback(
   const rmw_subscription_data_t * sub_data,
   QueryingSubscriberCallback cb)
 {
-  const std::string keyexpr = sub_data->entity->topic_info()->topic_keyexpr_;
+  const std::string keyexpr = sub_data->entity->topic_info().value().topic_keyexpr_;
   auto cb_it = querying_subs_cbs_.find(keyexpr);
   if (cb_it == querying_subs_cbs_.end()) {
     querying_subs_cbs_[keyexpr] = std::move(

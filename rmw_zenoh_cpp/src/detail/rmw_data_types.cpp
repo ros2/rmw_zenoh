@@ -73,13 +73,6 @@ saved_msg_data::~saved_msg_data()
 }
 
 ///=============================================================================
-size_t rmw_publisher_data_t::get_next_sequence_number()
-{
-  std::lock_guard<std::mutex> lock(sequence_number_mutex_);
-  return sequence_number_++;
-}
-
-///=============================================================================
 bool rmw_subscription_data_t::queue_has_data_and_attach_condition_if_not(
   rmw_wait_set_data_t * wait_set_data)
 {

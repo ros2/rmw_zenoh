@@ -149,8 +149,17 @@ rmw_ret_t rmw_context_impl_s::Data::subscribe_to_ros_graph()
 rmw_ret_t rmw_context_impl_s::Data::shutdown()
 {
   std::lock_guard<std::recursive_mutex> lock(mutex_);
+  rmw_ret_t ret = RMW_RET_OK;
   if (is_shutdown_) {
-    return RMW_RET_OK;
+    return ret;
+  }
+
+  // Shutdown all the nodes in this context.
+  for (auto node_it = nodes_.begin(); node_it != nodes_.end(); ++node_it) {
+    ret = node_it->second->shutdown();
+    if (ret != RMW_RET_OK) {
+      return ret;
+    }
   }
 
   z_undeclare_subscriber(z_move(graph_subscriber_));
@@ -170,6 +179,7 @@ rmw_ret_t rmw_context_impl_s::Data::shutdown()
 rmw_context_impl_s::Data::~Data()
 {
   auto ret = this->shutdown();
+  nodes_.clear();
   static_cast<void>(ret);
 }
 
@@ -407,6 +417,7 @@ bool rmw_context_impl_s::create_node_data(
   }
 
   auto node_data = rmw_zenoh_cpp::NodeData::make(
+    node,
     this->get_next_entity_id(),
     z_loan(data_->session_),
     data_->domain_id_,

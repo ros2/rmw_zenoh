@@ -27,6 +27,7 @@
 #include "event.hpp"
 #include "liveliness_utils.hpp"
 #include "ordered_map.hpp"
+#include "rmw_publisher_data.hpp"
 
 #include "rcutils/allocator.h"
 #include "rcutils/types.h"
@@ -133,7 +134,7 @@ public:
     rmw_names_and_types_t * topic_names_and_types) const;
 
   rmw_ret_t publisher_count_matched_subscriptions(
-    const rmw_publisher_t * publisher,
+    PublisherDataConstPtr pub_data,
     size_t * subscription_count);
 
   rmw_ret_t subscription_count_matched_publishers(

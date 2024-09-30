@@ -28,6 +28,7 @@ namespace rmw_zenoh_cpp
 {
 ///=============================================================================
 std::shared_ptr<NodeData> NodeData::make(
+  const rmw_node_t * const node,
   std::size_t id,
   z_session_t session,
   std::size_t domain_id,
@@ -75,6 +76,7 @@ std::shared_ptr<NodeData> NodeData::make(
 
   return std::shared_ptr<NodeData>(
     new NodeData{
+      node,
       id,
       std::move(entity),
       std::move(token)
@@ -83,12 +85,16 @@ std::shared_ptr<NodeData> NodeData::make(
 
 ///=============================================================================
 NodeData::NodeData(
+  const rmw_node_t * const node,
   std::size_t id,
   std::shared_ptr<liveliness::Entity> entity,
   zc_owned_liveliness_token_t token)
-: id_(std::move(id)),
+: node_(node),
+  id_(std::move(id)),
   entity_(std::move(entity)),
-  token_(std::move(token))
+  token_(std::move(token)),
+  is_shutdown_(false),
+  pubs_({})
 {
   // Do nothing.
 }
@@ -96,7 +102,14 @@ NodeData::NodeData(
 ///=============================================================================
 NodeData::~NodeData()
 {
-  zc_liveliness_undeclare_token(z_move(token_));
+  const rmw_ret_t ret = this->shutdown();
+  if (ret != RMW_RET_OK) {
+    RMW_ZENOH_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Error destructing node /%s.",
+      entity_->node_name().c_str()
+    );
+  }
 }
 
 ///=============================================================================
@@ -105,4 +118,103 @@ std::size_t NodeData::id() const
   std::lock_guard<std::mutex> lock(mutex_);
   return id_;
 }
+
+///=============================================================================
+bool NodeData::create_pub_data(
+  const rmw_publisher_t * const publisher,
+  z_session_t session,
+  std::size_t id,
+  const std::string & topic_name,
+  const rosidl_message_type_support_t * type_support,
+  const rmw_qos_profile_t * qos_profile)
+{
+  std::lock_guard<std::mutex> lock_guard(mutex_);
+  if (is_shutdown_) {
+    RMW_ZENOH_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to create PublisherData as the NodeData has been shutdown.");
+    return false;
+  }
+
+  if (pubs_.count(publisher) > 0) {
+    RMW_ZENOH_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "PublisherData already exists.");
+    return false;
+  }
+
+  auto pub_data = PublisherData::make(
+    std::move(session),
+    node_,
+    entity_->node_info(),
+    id_,
+    std::move(id),
+    std::move(topic_name),
+    type_support,
+    qos_profile);
+  if (pub_data == nullptr) {
+    RMW_ZENOH_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to make PublisherData.");
+    return false;
+  }
+
+  auto insertion = pubs_.insert(std::make_pair(publisher, std::move(pub_data)));
+  if (!insertion.second) {
+    return false;
+  }
+  return true;
+}
+
+///=============================================================================
+PublisherDataPtr NodeData::get_pub_data(const rmw_publisher_t * const publisher)
+{
+  std::lock_guard<std::mutex> lock_guard(mutex_);
+  auto it = pubs_.find(publisher);
+  if (it == pubs_.end()) {
+    return nullptr;
+  }
+
+  return it->second;
+}
+
+///=============================================================================
+void NodeData::delete_pub_data(const rmw_publisher_t * const publisher)
+{
+  std::lock_guard<std::mutex> lock_guard(mutex_);
+  pubs_.erase(publisher);
+}
+
+///=============================================================================
+rmw_ret_t NodeData::shutdown()
+{
+  std::lock_guard<std::mutex> lock(mutex_);
+  rmw_ret_t ret = RMW_RET_OK;
+  if (is_shutdown_) {
+    return ret;
+  }
+
+  // Shutdown all the entities within this node.
+  for (auto pub_it = pubs_.begin(); pub_it != pubs_.end(); ++pub_it) {
+    ret = pub_it->second->shutdown();
+    if (ret != RMW_RET_OK) {
+      return ret;
+    }
+  }
+
+  // Unregister this node from the ROS graph.
+  zc_liveliness_undeclare_token(z_move(token_));
+
+  is_shutdown_ = true;
+  return RMW_RET_OK;
+}
+
+///=============================================================================
+// Check if the Node is shutdown.
+bool NodeData::is_shutdown() const
+{
+  std::lock_guard<std::mutex> lock(mutex_);
+  return is_shutdown_;
+}
+
 }  // namespace rmw_zenoh_cpp
