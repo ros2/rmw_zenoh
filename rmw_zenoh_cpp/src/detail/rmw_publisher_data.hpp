@@ -17,6 +17,8 @@
 
 #include <zenoh.h>
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <optional>
