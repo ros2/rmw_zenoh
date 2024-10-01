@@ -152,6 +152,7 @@ In this scenario, the `Context` will be shutdown inside the `Context`'s destruct
 Since the ordering of global/static objects is not defined, this often leads to the above panic.
 
 The recommendation is to ensure the `Context` is shutdown before a program terminates.
-For example, when using `rclcpp`, ensure `rclcpp::shutdown()` is invoked the  program exits.
+One way to ensure this is to call `rclcpp::shutdown()` when the program exits.
+Note that composable nodes should *never* call `rclcpp::shutdown()`, as the composable node container will automatically do this.
 
 For more details, see https://github.com/ros2/rmw_zenoh/issues/170.
