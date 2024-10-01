@@ -2089,7 +2089,13 @@ rmw_send_request(
 
   z_owned_bytes_map_t map = rmw_zenoh_cpp::create_map_and_set_sequence_num(
     *sequence_id,
-    client_data->client_gid);
+    [client_data](z_owned_bytes_map_t * map, const char * key)
+    {
+      z_bytes_t gid_bytes;
+      gid_bytes.len = RMW_GID_STORAGE_SIZE;
+      gid_bytes.start = client_data->client_gid;
+      z_bytes_map_insert_by_copy(map, z_bytes_new(key), gid_bytes);
+    });
   if (!z_check(map)) {
     // create_map_and_set_sequence_num already set the error
     return RMW_RET_ERROR;
@@ -2781,7 +2787,14 @@ rmw_send_response(
   z_query_reply_options_t options = z_query_reply_options_default();
 
   z_owned_bytes_map_t map = rmw_zenoh_cpp::create_map_and_set_sequence_num(
-    request_header->sequence_number, request_header->writer_guid);
+    request_header->sequence_number,
+    [request_header](z_owned_bytes_map_t * map, const char * key)
+    {
+      z_bytes_t gid_bytes;
+      gid_bytes.len = RMW_GID_STORAGE_SIZE;
+      gid_bytes.start = request_header->writer_guid;
+      z_bytes_map_insert_by_copy(map, z_bytes_new(key), gid_bytes);
+    });
   if (!z_check(map)) {
     // create_map_and_set_sequence_num already set the error
     return RMW_RET_ERROR;
@@ -3438,7 +3451,7 @@ rmw_get_gid_for_publisher(const rmw_publisher_t * publisher, rmw_gid_t * gid)
   RMW_CHECK_ARGUMENT_FOR_NULL(pub_data, RMW_RET_INVALID_ARGUMENT);
 
   gid->implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
-  memcpy(gid->data, pub_data->gid(), RMW_GID_STORAGE_SIZE);
+  pub_data->copy_gid(gid);
 
   return RMW_RET_OK;
 }

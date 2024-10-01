@@ -25,7 +25,9 @@ namespace rmw_zenoh_cpp
 {
 ///=============================================================================
 z_owned_bytes_map_t
-create_map_and_set_sequence_num(int64_t sequence_number, const uint8_t gid[RMW_GID_STORAGE_SIZE])
+create_map_and_set_sequence_num(
+  int64_t sequence_number,
+  GIDCopier gid_copier)
 {
   z_owned_bytes_map_t map = z_bytes_map_new();
   if (!z_check(map)) {
@@ -54,12 +56,7 @@ create_map_and_set_sequence_num(int64_t sequence_number, const uint8_t gid[RMW_G
     return z_bytes_map_null();
   }
   z_bytes_map_insert_by_copy(&map, z_bytes_new("source_timestamp"), z_bytes_new(source_ts_str));
-
-  z_bytes_t gid_bytes;
-  gid_bytes.len = RMW_GID_STORAGE_SIZE;
-  gid_bytes.start = gid;
-
-  z_bytes_map_insert_by_copy(&map, z_bytes_new("source_gid"), gid_bytes);
+  gid_copier(&map, "source_gid");
 
   free_attachment_map.cancel();
 

@@ -70,8 +70,8 @@ public:
   // Get a copy of the TopicInfo of this PublisherData.
   liveliness::TopicInfo topic_info() const;
 
-  // Get the GID of this PublisherData.
-  const uint8_t * gid() const;
+  // Copy the GID of this PublisherData into an rmw_gid_t.
+  void copy_gid(rmw_gid_t * gid) const;
 
   // Returns true if liveliness token is still valid.
   bool liveliness_is_valid() const;

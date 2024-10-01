@@ -289,7 +289,16 @@ rmw_ret_t PublisherData::publish(
   const size_t data_length = ser.get_serialized_data_length();
 
   z_owned_bytes_map_t map =
-    create_map_and_set_sequence_num(sequence_number_++, gid_);
+    create_map_and_set_sequence_num(
+    sequence_number_++,
+    [this](z_owned_bytes_map_t * map, const char * key)
+    {
+      // Mutex already locked.
+      z_bytes_t gid_bytes;
+      gid_bytes.len = RMW_GID_STORAGE_SIZE;
+      gid_bytes.start = gid_;
+      z_bytes_map_insert_by_copy(map, z_bytes_new(key), gid_bytes);
+    });
   if (!z_check(map)) {
     // create_map_and_set_sequence_num already set the error
     return RMW_RET_ERROR;
@@ -341,8 +350,16 @@ rmw_ret_t PublisherData::publish_serialized_message(
 
   std::lock_guard<std::mutex> lock(mutex_);
 
-  z_owned_bytes_map_t map =
-    rmw_zenoh_cpp::create_map_and_set_sequence_num(sequence_number_++, gid_);
+  z_owned_bytes_map_t map = rmw_zenoh_cpp::create_map_and_set_sequence_num(
+    sequence_number_++,
+    [this](z_owned_bytes_map_t * map, const char * key)
+    {
+      // Mutex already locked.
+      z_bytes_t gid_bytes;
+      gid_bytes.len = RMW_GID_STORAGE_SIZE;
+      gid_bytes.start = gid_;
+      z_bytes_map_insert_by_copy(map, z_bytes_new(key), gid_bytes);
+    });
 
   if (!z_check(map)) {
     // create_map_and_set_sequence_num already set the error
@@ -391,10 +408,10 @@ liveliness::TopicInfo PublisherData::topic_info() const
 }
 
 ///=============================================================================
-const uint8_t * PublisherData::gid() const
+void PublisherData::copy_gid(rmw_gid_t * gid) const
 {
   std::lock_guard<std::mutex> lock(mutex_);
-  return gid_;
+  memcpy(gid->data, gid_, RMW_GID_STORAGE_SIZE);
 }
 
 ///=============================================================================

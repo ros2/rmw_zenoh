@@ -17,13 +17,19 @@
 
 #include <zenoh.h>
 
+#include <functional>
+
 #include "rmw/types.h"
 
 namespace rmw_zenoh_cpp
 {
 ///=============================================================================
+// A function to safely copy an entity's GID as a z_bytes_t into a
+// z_owned_bytes_map_t for a given key.
+using GIDCopier = std::function<void (z_owned_bytes_map_t *, const char *)>;
+///=============================================================================
 z_owned_bytes_map_t
-create_map_and_set_sequence_num(int64_t sequence_number, const uint8_t gid[RMW_GID_STORAGE_SIZE]);
+create_map_and_set_sequence_num(int64_t sequence_number, GIDCopier gid_copier);
 
 }  // namespace rmw_zenoh_cpp
 
