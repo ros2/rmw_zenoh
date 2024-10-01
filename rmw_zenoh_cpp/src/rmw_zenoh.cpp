@@ -163,7 +163,12 @@ rmw_create_node(
     context->impl,
     "expected initialized context",
     return nullptr);
-  if (context->impl->is_shutdown()) {
+  rmw_context_impl_t * context_impl = static_cast<rmw_context_impl_t *>(context->impl);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    context_impl,
+    "expected initialized context_impl",
+    return nullptr);
+  if (context_impl->is_shutdown()) {
     RCUTILS_SET_ERROR_MSG("context has been shutdown");
     return nullptr;
   }
@@ -223,68 +228,18 @@ rmw_create_node(
       allocator->deallocate(const_cast<char *>(node->namespace_), allocator->state);
     });
 
-  // Put metadata into node->data.
-  auto node_data = static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(
-    allocator->allocate(sizeof(rmw_zenoh_cpp::rmw_node_data_t), allocator->state));
-  RMW_CHECK_FOR_NULL_WITH_MSG(
-    node_data,
-    "failed to allocate memory for node data",
-    return nullptr);
-  auto free_node_data = rcpputils::make_scope_exit(
-    [node_data, allocator]() {
-      allocator->deallocate(node_data, allocator->state);
-    });
-
-  RMW_TRY_PLACEMENT_NEW(
-    node_data, node_data, return nullptr,
-    rmw_zenoh_cpp::rmw_node_data_t);
-  auto destruct_node_data = rcpputils::make_scope_exit(
-    [node_data]() {
-      RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(
-        node_data->~rmw_node_data_t(), rmw_zenoh_cpp::rmw_node_data_t);
-    });
-
-  // Initialize liveliness token for the node to advertise that a new node is in town.
-  node_data->id = context->impl->get_next_entity_id();
-  const z_loaned_session_t * session = context->impl->session();
-  node_data->entity = rmw_zenoh_cpp::liveliness::Entity::make(
-    z_info_zid(session),
-    std::to_string(node_data->id),
-    std::to_string(node_data->id),
-    rmw_zenoh_cpp::liveliness::EntityType::Node,
-    rmw_zenoh_cpp::liveliness::NodeInfo{context->actual_domain_id, namespace_, name,
-      context->impl->enclave()});
-  if (node_data->entity == nullptr) {
-    RMW_ZENOH_LOG_ERROR_NAMED(
-      "rmw_zenoh_cpp",
-      "Unable to generate keyexpr for liveliness token for the node %s.",
-      name);
-    return nullptr;
-  }
-
-  std::string liveliness_keyexpr = node_data->entity->liveliness_keyexpr();
-  z_view_keyexpr_t keyexpr;
-  z_view_keyexpr_from_str(&keyexpr, liveliness_keyexpr.c_str());
-  auto free_token = rcpputils::make_scope_exit(
-    [node_data]() {
-      z_drop(z_move(node_data->token));
-    });
-  if (zc_liveliness_declare_token(
-      &node_data->token, session, z_loan(keyexpr), NULL) != Z_OK)
-  {
-    RMW_ZENOH_LOG_ERROR_NAMED(
-      "rmw_zenoh_cpp",
-      "Unable to create liveliness token for the node.");
+  // Create the NodeData for this node.
+  if (!context_impl->create_node_data(node, namespace_, name)) {
+    // Error already set.
     return nullptr;
   }
 
   node->implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
   node->context = context;
-  node->data = node_data;
+  // Store type erased rmw_context_impl_s in node->data so that the NodeData
+  // can be safely accessed.
+  node->data = context->impl;
 
-  free_token.cancel();
-  free_node_data.cancel();
-  destruct_node_data.cancel();
   free_namespace.cancel();
   free_name.cancel();
   free_node.cancel();
@@ -310,13 +265,14 @@ rmw_destroy_node(rmw_node_t * node)
 
   // Undeclare liveliness token for the node to advertise that the node has ridden
   // off into the sunset.
-  rmw_zenoh_cpp::rmw_node_data_t * node_data =
-    static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(node->data);
-  if (node_data != nullptr) {
-    zc_liveliness_undeclare_token(z_move(node_data->token));
-    RMW_TRY_DESTRUCTOR(node_data->~rmw_node_data_t(), rmw_node_data_t, );
-    allocator->deallocate(node_data, allocator->state);
+  rmw_context_impl_s * context_impl =
+    static_cast<rmw_context_impl_s *>(node->data);
+  if (context_impl == nullptr) {
+    RMW_SET_ERROR_MSG("Unable to cast node->data into rmw_context_impl_s.");
+    return RMW_RET_ERROR;
   }
+
+  context_impl->delete_node_data(node);
 
   allocator->deallocate(const_cast<char *>(node->namespace_), allocator->state);
   allocator->deallocate(const_cast<char *>(node->name), allocator->state);
@@ -428,9 +384,6 @@ rmw_create_publisher(
       "Strict requirement on unique network flow endpoints for publishers not supported");
     return nullptr;
   }
-  const rmw_zenoh_cpp::rmw_node_data_t * node_data =
-    static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(node->data);
-  RMW_CHECK_ARGUMENT_FOR_NULL(node_data, nullptr);
 
   // Get the RMW type support.
   const rosidl_message_type_support_t * type_support = find_message_type_support(type_supports);
@@ -560,10 +513,14 @@ rmw_create_publisher(
 
   const z_loaned_session_t * session = context_impl->session();
   const z_id_t zid = z_info_zid(session);
-
+  auto node_data = context_impl->get_node_data(node);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    node_data,
+    "NodeData not found.",
+    return nullptr);
   publisher_data->entity = rmw_zenoh_cpp::liveliness::Entity::make(
     zid,
-    std::to_string(node_data->id),
+    std::to_string(node_data->id()),
     std::to_string(
       context_impl->get_next_entity_id()),
     rmw_zenoh_cpp::liveliness::EntityType::Publisher,
@@ -1244,10 +1201,6 @@ rmw_create_subscription(
   }
 
   RMW_CHECK_ARGUMENT_FOR_NULL(node->data, nullptr);
-  auto node_data = static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(node->data);
-  RMW_CHECK_FOR_NULL_WITH_MSG(
-    node_data, "unable to create subscription as node_data is invalid.",
-    return nullptr);
   // TODO(yadunund): Check if a duplicate entry for the same topic name + topic type
   // is present in node_data->subscriptions and if so return error;
   RMW_CHECK_FOR_NULL_WITH_MSG(
@@ -1370,12 +1323,16 @@ rmw_create_subscription(
     });
 
   const z_loaned_session_t * session = context_impl->session();
-
+  auto node_data = context_impl->get_node_data(node);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    node_data,
+    "NodeData not found.",
+    return nullptr);
   // Everything above succeeded and is setup properly.  Now declare a subscriber
   // with Zenoh; after this, callbacks may come in at any time.
   sub_data->entity = rmw_zenoh_cpp::liveliness::Entity::make(
     z_info_zid(session),
-    std::to_string(node_data->id),
+    std::to_string(node_data->id()),
     std::to_string(
       context_impl->get_next_entity_id()),
     rmw_zenoh_cpp::liveliness::EntityType::Subscription,
@@ -2056,15 +2013,6 @@ rmw_create_client(
     "unable to get rmw_context_impl_s",
     return nullptr);
 
-  RMW_CHECK_ARGUMENT_FOR_NULL(node->data, nullptr);
-  const rmw_zenoh_cpp::rmw_node_data_t * node_data =
-    static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(node->data);
-  if (node_data == nullptr) {
-    RMW_SET_ERROR_MSG(
-      "Unable to create client as node data is invalid.");
-    return nullptr;
-  }
-
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
   // Validate service name
@@ -2238,9 +2186,14 @@ rmw_create_client(
     });
 
   const z_loaned_session_t * session = context_impl->session();
+  auto node_data = context_impl->get_node_data(node);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    node_data,
+    "NodeData not found.",
+    return nullptr);
   client_data->entity = rmw_zenoh_cpp::liveliness::Entity::make(
     z_info_zid(session),
-    std::to_string(node_data->id),
+    std::to_string(node_data->id()),
     std::to_string(
       context_impl->get_next_entity_id()),
     rmw_zenoh_cpp::liveliness::EntityType::Client,
@@ -2642,14 +2595,6 @@ rmw_create_service(
       return nullptr;
     }
   }
-  RMW_CHECK_ARGUMENT_FOR_NULL(node->data, nullptr);
-  const rmw_zenoh_cpp::rmw_node_data_t * node_data =
-    static_cast<rmw_zenoh_cpp::rmw_node_data_t *>(node->data);
-  if (node_data == nullptr) {
-    RMW_SET_ERROR_MSG(
-      "Unable to create service as node data is invalid.");
-    return nullptr;
-  }
   RMW_CHECK_FOR_NULL_WITH_MSG(
     node->context,
     "expected initialized context",
@@ -2820,10 +2765,14 @@ rmw_create_service(
     });
 
   const z_loaned_session_t * session = context_impl->session();
-
+  auto node_data = context_impl->get_node_data(node);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    node_data,
+    "NodeData not found.",
+    return nullptr);
   service_data->entity = rmw_zenoh_cpp::liveliness::Entity::make(
     z_info_zid(session),
-    std::to_string(node_data->id),
+    std::to_string(node_data->id()),
     std::to_string(
       context_impl->get_next_entity_id()),
     rmw_zenoh_cpp::liveliness::EntityType::Service,

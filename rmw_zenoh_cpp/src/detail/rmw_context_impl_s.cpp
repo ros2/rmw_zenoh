@@ -51,7 +51,7 @@ void rmw_context_impl_s::graph_sub_data_handler(z_loaned_sample_t * sample, void
   }
 
   // Update the graph cache.
-  std::lock_guard<std::mutex> lock(data_ptr->mutex_);
+  std::lock_guard<std::recursive_mutex> lock(data_ptr->mutex_);
   if (data_ptr->is_shutdown_) {
     return;
   }
@@ -79,19 +79,22 @@ void rmw_context_impl_s::graph_sub_data_handler(z_loaned_sample_t * sample, void
 
 ///=============================================================================
 rmw_context_impl_s::Data::Data(
+  std::size_t domain_id,
   const std::string & enclave,
   z_owned_session_t session,
   std::optional<z_owned_shm_provider_t> shm_provider,
   const std::string & liveliness_str,
   std::shared_ptr<rmw_zenoh_cpp::GraphCache> graph_cache)
 : enclave_(std::move(enclave)),
+  domain_id_(std::move(domain_id)),
   session_(std::move(session)),
   shm_provider_(std::move(shm_provider)),
   liveliness_str_(std::move(liveliness_str)),
   graph_cache_(std::move(graph_cache)),
   is_shutdown_(false),
   next_entity_id_(0),
-  is_initialized_(false)
+  is_initialized_(false),
+  nodes_({})
 {
   graph_guard_condition_ = std::make_unique<rmw_guard_condition_t>();
   graph_guard_condition_->implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
@@ -101,7 +104,7 @@ rmw_context_impl_s::Data::Data(
 ///=============================================================================
 rmw_ret_t rmw_context_impl_s::Data::subscribe_to_ros_graph()
 {
-  std::lock_guard<std::mutex> lock(mutex_);
+  std::lock_guard<std::recursive_mutex> lock(mutex_);
   if (is_initialized_) {
     return RMW_RET_OK;
   }
@@ -144,7 +147,7 @@ rmw_ret_t rmw_context_impl_s::Data::subscribe_to_ros_graph()
 ///=============================================================================
 rmw_ret_t rmw_context_impl_s::Data::shutdown()
 {
-  std::lock_guard<std::mutex> lock(mutex_);
+  std::lock_guard<std::recursive_mutex> lock(mutex_);
   if (is_shutdown_) {
     return RMW_RET_OK;
   }
@@ -304,6 +307,7 @@ rmw_context_impl_s::rmw_context_impl_s(
   free_shm_provider.cancel();
 
   data_ = std::make_shared<Data>(
+    domain_id,
     std::move(enclave),
     std::move(session),
     std::move(shm_provider),
@@ -319,35 +323,35 @@ rmw_context_impl_s::rmw_context_impl_s(
 ///=============================================================================
 std::string rmw_context_impl_s::enclave() const
 {
-  std::lock_guard<std::mutex> lock(data_->mutex_);
+  std::lock_guard<std::recursive_mutex> lock(data_->mutex_);
   return data_->enclave_;
 }
 
 ///=============================================================================
 const z_loaned_session_t * rmw_context_impl_s::session() const
 {
-  std::lock_guard<std::mutex> lock(data_->mutex_);
+  std::lock_guard<std::recursive_mutex> lock(data_->mutex_);
   return z_loan(data_->session_);
 }
 
 ///=============================================================================
 std::optional<z_owned_shm_provider_t> & rmw_context_impl_s::shm_provider()
 {
-  std::lock_guard<std::mutex> lock(data_->mutex_);
+  std::lock_guard<std::recursive_mutex> lock(data_->mutex_);
   return data_->shm_provider_;
 }
 
 ///=============================================================================
 rmw_guard_condition_t * rmw_context_impl_s::graph_guard_condition()
 {
-  std::lock_guard<std::mutex> lock(data_->mutex_);
+  std::lock_guard<std::recursive_mutex> lock(data_->mutex_);
   return data_->graph_guard_condition_.get();
 }
 
 ///=============================================================================
-size_t rmw_context_impl_s::get_next_entity_id()
+std::size_t rmw_context_impl_s::get_next_entity_id()
 {
-  std::lock_guard<std::mutex> lock(data_->mutex_);
+  std::lock_guard<std::recursive_mutex> lock(data_->mutex_);
   return data_->next_entity_id_++;
 }
 
@@ -360,13 +364,72 @@ rmw_ret_t rmw_context_impl_s::shutdown()
 ///=============================================================================
 bool rmw_context_impl_s::is_shutdown() const
 {
-  std::lock_guard<std::mutex> lock(data_->mutex_);
+  std::lock_guard<std::recursive_mutex> lock(data_->mutex_);
   return data_->is_shutdown_;
 }
 
 ///=============================================================================
 std::shared_ptr<rmw_zenoh_cpp::GraphCache> rmw_context_impl_s::graph_cache()
 {
-  std::lock_guard<std::mutex> lock(data_->mutex_);
+  std::lock_guard<std::recursive_mutex> lock(data_->mutex_);
   return data_->graph_cache_;
+}
+
+///=============================================================================
+bool rmw_context_impl_s::create_node_data(
+  const rmw_node_t * const node,
+  const std::string & ns,
+  const std::string & node_name)
+{
+  std::lock_guard<std::recursive_mutex> lock(data_->mutex_);
+  if (data_->nodes_.count(node) > 0) {
+    // Node already exists.
+    return false;
+  }
+
+  // Check that the Zenoh session is still valid.
+  if (!z_check(data_->session_)) {
+    RMW_ZENOH_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to create NodeData as Zenoh session is invalid.");
+    return false;
+  }
+
+  auto node_data = rmw_zenoh_cpp::NodeData::make(
+    this->get_next_entity_id(),
+    z_loan(data_->session_),
+    data_->domain_id_,
+    ns,
+    node_name,
+    data_->enclave_);
+  if (node_data == nullptr) {
+    // Error already handled.
+    return false;
+  }
+
+  auto node_insertion = data_->nodes_.insert(std::make_pair(node, std::move(node_data)));
+  if (!node_insertion.second) {
+    return false;
+  }
+
+  return true;
+}
+
+///=============================================================================
+std::shared_ptr<rmw_zenoh_cpp::NodeData> rmw_context_impl_s::get_node_data(
+  const rmw_node_t * const node)
+{
+  std::lock_guard<std::recursive_mutex> lock(data_->mutex_);
+  auto node_it = data_->nodes_.find(node);
+  if (node_it == data_->nodes_.end()) {
+    return nullptr;
+  }
+  return node_it->second;
+}
+
+///=============================================================================
+void rmw_context_impl_s::delete_node_data(const rmw_node_t * const node)
+{
+  std::lock_guard<std::recursive_mutex> lock(data_->mutex_);
+  data_->nodes_.erase(node);
 }
