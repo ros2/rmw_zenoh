@@ -137,8 +137,9 @@ For more information on the `RUST_LOG` syntax, see https://docs.rs/env_logger/la
 ### Crash when program terminates
 
 When a program terminates, global and static objects are destructed in the reverse order of their
-construction. The `Thread Local Storage` is one such entity which the `tokio` runtime in Zenoh
-uses. If the Zenoh session is closed after this entity is cleared, it causes a panic like seen below.
+construction.
+The `Thread Local Storage` is one such entity which the `tokio` runtime in Zenoh uses.
+If the Zenoh session is closed after this entity is cleared, it causes a panic like seen below.
 
 ```
 thread '<unnamed>' panicked at /rustc/aedd173a2c086e558c2b66d3743b344f977621a7/library/std/src/thread/local.rs:262:26:
