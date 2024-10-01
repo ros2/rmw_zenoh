@@ -15,7 +15,9 @@
 #include "liveliness_utils.hpp"
 
 #include <functional>
+#include <limits>
 #include <optional>
+#include <random>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -610,6 +612,12 @@ std::string Entity::node_enclave() const
 }
 
 ///=============================================================================
+NodeInfo Entity::node_info() const
+{
+  return this->node_info_;
+}
+
+///=============================================================================
 std::optional<TopicInfo> Entity::topic_info() const
 {
   return this->topic_info_;
@@ -657,4 +665,17 @@ std::string demangle_name(const std::string & input)
   return output;
 }
 }  // namespace liveliness
+
+void
+generate_random_gid(uint8_t gid[RMW_GID_STORAGE_SIZE])
+{
+  std::random_device dev;
+  std::mt19937 rng(dev());
+  std::uniform_int_distribution<std::mt19937::result_type> dist(
+    std::numeric_limits<unsigned char>::min(), std::numeric_limits<unsigned char>::max());
+
+  for (size_t i = 0; i < RMW_GID_STORAGE_SIZE; ++i) {
+    gid[i] = dist(rng);
+  }
+}
 }  // namespace rmw_zenoh_cpp
