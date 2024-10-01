@@ -146,10 +146,10 @@ thread '<unnamed>' panicked at /rustc/aedd173a2c086e558c2b66d3743b344f977621a7/l
 cannot access a Thread Local Storage value during or after destruction: AccessError
 ```
 
-This can happen with `rmw_zenoh` if a ROS 2 node's `Context` is not shutdown explicitly before the
-program terminates. In this scenario, the `Context` will be shutdown inside the `Context`'s destructor
-which then closes the Zenoh session. Since the ordering of global/static objects is not clear, this
-often leads to the above panic.
+This can happen with `rmw_zenoh` if the ROS 2 `Context` is not shutdown explicitly before the
+program terminates.
+In this scenario, the `Context` will be shutdown inside the `Context`'s destructor which then closes the Zenoh session.
+Since the ordering of global/static objects is not defined, this often leads to the above panic.
 
 The recommendation is to ensure the `Context` is shutdown before a program terminates.
 For example, when using `rclcpp`, ensure `rclcpp::shutdown()` is invoked the  program exits.
