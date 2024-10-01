@@ -213,7 +213,6 @@ rmw_qos_profile_t PublisherData::adapted_qos_profile() const
   return entity_->topic_info()->qos_;
 }
 
-
 ///=============================================================================
 rmw_ret_t PublisherData::publish(
   const void * ros_message,
@@ -261,7 +260,7 @@ rmw_ret_t PublisherData::publish(
       shmbuf = zc_shm_alloc(&shm_manager.value(), max_data_length);
       if (!z_check(shmbuf.value())) {
         // TODO(Yadunund): Should we revert to regular allocation and not return an error?
-        RMW_SET_ERROR_MSG("Failed to allocate a SHM buffer, even after GCing");
+        RMW_SET_ERROR_MSG("Failed to allocate a SHM buffer, even after GCing.");
         return RMW_RET_ERROR;
       }
     }

@@ -160,7 +160,7 @@ rmw_ret_t rmw_context_impl_s::Data::shutdown()
     if (ret != RMW_RET_OK) {
       RMW_ZENOH_LOG_ERROR_NAMED(
         "rmw_zenoh_cpp",
-        "Unable to shutdown node with id %zu. rmw_ret_t code: %zu",
+        "Unable to shutdown node with id %zu. rmw_ret_t code: %zu.",
         node_it->second->id(),
         ret
       );

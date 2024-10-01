@@ -17,6 +17,8 @@
 
 #include <zenoh.h>
 
+#include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -238,7 +240,6 @@ std::string zid_to_str(const z_id_t & id);
 // Helper function to generate a randon GID.
 void generate_random_gid(uint8_t gid[RMW_GID_STORAGE_SIZE]);
 }  // namespace rmw_zenoh_cpp
-
 
 ///=============================================================================
 // Allow Entity to be hashed and used as a key in unordered_maps/sets
