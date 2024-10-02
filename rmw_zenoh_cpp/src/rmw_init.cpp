@@ -14,22 +14,12 @@
 
 #include <zenoh.h>
 
-#include <new>
 #include <string>
-#include <thread>
 
-
-#include "detail/guard_condition.hpp"
 #include "detail/identifier.hpp"
-#include "detail/liveliness_utils.hpp"
 #include "detail/rmw_context_impl_s.hpp"
-#include "detail/rmw_data_types.hpp"
 #include "detail/zenoh_config.hpp"
 
-#include "rcutils/env.h"
-#include "detail/logging_macros.hpp"
-#include "rcutils/strdup.h"
-#include "rcutils/types.h"
 
 #include "rmw/init.h"
 #include "rmw/impl/cpp/macros.hpp"

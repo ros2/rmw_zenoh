@@ -26,8 +26,6 @@
 #include "liveliness_utils.hpp"
 #include "rmw_publisher_data.hpp"
 
-#include "rmw/rmw.h"
-
 namespace rmw_zenoh_cpp
 {
 ///=============================================================================
@@ -51,7 +49,7 @@ public:
   // Create a new PublisherData for a publisher in this node.
   bool create_pub_data(
     const rmw_publisher_t * const publisher,
-    z_session_t session,
+    const z_loaned_session_t * session,
     std::size_t id,
     const std::string & topic_name,
     const rosidl_message_type_support_t * type_support,

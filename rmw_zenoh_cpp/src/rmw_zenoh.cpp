@@ -600,7 +600,7 @@ rmw_publish(
 
   return pub_data->publish(
     ros_message,
-    context_impl->shm_manager());
+    context_impl->shm_provider());
 }
 
 //==============================================================================
@@ -707,7 +707,7 @@ rmw_publish_serialized_message(
 
   return publisher_data->publish_serialized_message(
     serialized_message,
-    context_impl->shm_manager());
+    context_impl->shm_provider());
 }
 
 //==============================================================================
@@ -2075,16 +2075,9 @@ rmw_send_request(
   z_get_options_default(&opts);
 
   z_owned_bytes_t attachment;
-  if (!create_map_and_set_sequence_num(&attachment, *sequence_id, client_data->client_gid)) {
-  z_owned_bytes_map_t map = rmw_zenoh_cpp::create_map_and_set_sequence_num(
-    *sequence_id,
-    [client_data](z_owned_bytes_map_t * map, const char * key)
-    {
-      z_bytes_t gid_bytes;
-      gid_bytes.len = RMW_GID_STORAGE_SIZE;
-      gid_bytes.start = client_data->client_gid;
-      z_bytes_map_insert_by_copy(map, z_bytes_new(key), gid_bytes);
-    });
+  if (!rmw_zenoh_cpp::create_map_and_set_sequence_num(&attachment, *sequence_id,
+      client_data->client_gid))
+  {
     // create_map_and_set_sequence_num already set the error
     return RMW_RET_ERROR;
   }
@@ -2775,18 +2768,9 @@ rmw_send_response(
   z_query_reply_options_default(&options);
 
   z_owned_bytes_t attachment;
-  if (!create_map_and_set_sequence_num(
+  if (!rmw_zenoh_cpp::create_map_and_set_sequence_num(
       &attachment, request_header->sequence_number, request_header->writer_guid))
   {
-  z_owned_bytes_map_t map = rmw_zenoh_cpp::create_map_and_set_sequence_num(
-    request_header->sequence_number,
-    [request_header](z_owned_bytes_map_t * map, const char * key)
-    {
-      z_bytes_t gid_bytes;
-      gid_bytes.len = RMW_GID_STORAGE_SIZE;
-      gid_bytes.start = request_header->writer_guid;
-      z_bytes_map_insert_by_copy(map, z_bytes_new(key), gid_bytes);
-    });
     // create_map_and_set_sequence_num already set the error
     return RMW_RET_ERROR;
   }

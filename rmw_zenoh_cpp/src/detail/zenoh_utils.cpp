@@ -12,54 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "zenoh_utils.hpp"
-
 #include <chrono>
-#include <cinttypes>
 
-#include "rcpputils/scope_exit.hpp"
+#include "zenoh_utils.hpp"
+#include "attachment_helpers.hpp"
+#include "logging_macros.hpp"
 
-#include "rmw/error_handling.h"
+#include "rmw/types.h"
 
 namespace rmw_zenoh_cpp
 {
 ///=============================================================================
-z_owned_bytes_map_t
+bool
 create_map_and_set_sequence_num(
+  z_owned_bytes_t * out_bytes,
   int64_t sequence_number,
-  GIDCopier gid_copier)
+  uint8_t gid[RMW_GID_STORAGE_SIZE])
 {
-  z_owned_bytes_map_t map = z_bytes_map_new();
-  if (!z_check(map)) {
-    RMW_SET_ERROR_MSG("failed to allocate map for sequence number");
-    return z_bytes_map_null();
-  }
-  auto free_attachment_map = rcpputils::make_scope_exit(
-    [&map]() {
-      z_bytes_map_drop(z_move(map));
-    });
-
-  // The largest possible int64_t number is INT64_MAX, i.e. 9223372036854775807.
-  // That is 19 characters long, plus one for the trailing \0, means we need 20 bytes.
-  char seq_id_str[20];
-  if (rcutils_snprintf(seq_id_str, sizeof(seq_id_str), "%" PRId64, sequence_number) < 0) {
-    RMW_SET_ERROR_MSG("failed to print sequence_number into buffer");
-    return z_bytes_map_null();
-  }
-  z_bytes_map_insert_by_copy(&map, z_bytes_new("sequence_number"), z_bytes_new(seq_id_str));
-
   auto now = std::chrono::system_clock::now().time_since_epoch();
   auto now_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now);
-  char source_ts_str[20];
-  if (rcutils_snprintf(source_ts_str, sizeof(source_ts_str), "%" PRId64, now_ns.count()) < 0) {
-    RMW_SET_ERROR_MSG("failed to print sequence_number into buffer");
-    return z_bytes_map_null();
+  int64_t source_timestamp = now_ns.count();
+
+  rmw_zenoh_cpp::attachement_data_t data(sequence_number, source_timestamp, gid);
+  if (data.serialize_to_zbytes(out_bytes)) {
+    RMW_ZENOH_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Failed to serialize the attachment");
+    return false;
   }
-  z_bytes_map_insert_by_copy(&map, z_bytes_new("source_timestamp"), z_bytes_new(source_ts_str));
-  gid_copier(&map, "source_gid");
 
-  free_attachment_map.cancel();
-
-  return map;
+  return true;
 }
 }  // namespace rmw_zenoh_cpp

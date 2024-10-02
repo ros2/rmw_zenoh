@@ -26,11 +26,7 @@
 
 #include "graph_cache.hpp"
 #include "guard_condition.hpp"
-#include "liveliness_utils.hpp"
 #include "rmw_node_data.hpp"
-
-#include "rcutils/types.h"
-#include "rmw/rmw.h"
 
 ///=============================================================================
 class rmw_context_impl_s final

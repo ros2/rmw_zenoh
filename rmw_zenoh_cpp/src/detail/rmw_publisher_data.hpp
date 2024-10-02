@@ -27,11 +27,7 @@
 #include "event.hpp"
 #include "liveliness_utils.hpp"
 #include "message_type_support.hpp"
-#include "type_support_common.hpp"
 
-#include "rcutils/allocator.h"
-
-#include "rmw/rmw.h"
 #include "rmw/ret_types.h"
 
 namespace rmw_zenoh_cpp
@@ -42,7 +38,7 @@ class PublisherData final
 public:
   // Make a shared_ptr of PublisherData.
   static std::shared_ptr<PublisherData> make(
-    z_session_t session,
+    const z_loaned_session_t * session,
     const rmw_node_t * const node,
     liveliness::NodeInfo node_info,
     std::size_t node_id,
@@ -57,12 +53,12 @@ public:
   // Publish a ROS message.
   rmw_ret_t publish(
     const void * ros_message,
-    std::optional<zc_owned_shm_manager_t> & shm_manager);
+    std::optional<z_owned_shm_provider_t> & shm_provider);
 
   // Publish a serialized ROS message.
   rmw_ret_t publish_serialized_message(
     const rmw_serialized_message_t * serialized_message,
-    std::optional<zc_owned_shm_manager_t> & shm_manager);
+    std::optional<z_owned_shm_provider_t> & shm_provider);
 
   // Get a copy of the GUID of this PublisherData's liveliness::Entity.
   std::size_t guid() const;
