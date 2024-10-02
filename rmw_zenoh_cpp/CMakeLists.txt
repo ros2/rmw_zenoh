@@ -36,12 +36,14 @@ add_library(rmw_zenoh_cpp SHARED
   src/detail/qos.cpp
   src/detail/rmw_context_impl_s.cpp
   src/detail/rmw_data_types.cpp
+  src/detail/rmw_publisher_data.cpp
   src/detail/rmw_node_data.cpp
   src/detail/service_type_support.cpp
   src/detail/type_support.cpp
   src/detail/type_support_common.cpp
   src/detail/zenoh_config.cpp
   src/detail/zenoh_router_check.cpp
+  src/detail/zenoh_utils.cpp
   src/rmw_event.cpp
   src/rmw_get_network_flow_endpoints.cpp
   src/rmw_get_node_info_and_types.cpp

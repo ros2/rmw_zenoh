@@ -45,45 +45,6 @@
 namespace rmw_zenoh_cpp
 {
 ///=============================================================================
-class rmw_publisher_data_t final
-{
-public:
-  // The Entity generated for the publisher.
-  std::shared_ptr<liveliness::Entity> entity;
-
-  // An owned publisher.
-  z_owned_publisher_t pub;
-
-  // Optional publication cache when durability is transient_local.
-  std::optional<ze_owned_publication_cache_t> pub_cache;
-
-  // Store the actual QoS profile used to configure this publisher.
-  rmw_qos_profile_t adapted_qos_profile;
-
-  // Liveliness token for the publisher.
-  zc_owned_liveliness_token_t token;
-
-  // Type support fields
-  const void * type_support_impl;
-  const char * typesupport_identifier;
-  const rosidl_type_hash_t * type_hash;
-  MessageTypeSupport * type_support;
-
-  // Context for memory allocation for messages.
-  rmw_context_t * context;
-
-  uint8_t pub_gid[RMW_GID_STORAGE_SIZE];
-
-  size_t get_next_sequence_number();
-
-  EventsManager events_mgr;
-
-private:
-  std::mutex sequence_number_mutex_;
-  size_t sequence_number_{1};
-};
-
-///=============================================================================
 // z_owned_closure_sample_t
 void sub_data_handler(z_loaned_sample_t * sample, void * sub_data);
 

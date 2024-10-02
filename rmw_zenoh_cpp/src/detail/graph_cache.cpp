@@ -318,7 +318,7 @@ void GraphCache::take_entities_with_events(const EntityEventMap & entities_with_
   for (const auto & [local_entity, event_set] : entities_with_events) {
     // Trigger callback set for this entity for the event type.
     GraphEventCallbackMap::const_iterator event_callbacks_it =
-      event_callbacks_.find(local_entity);
+      event_callbacks_.find(local_entity->guid());
     if (event_callbacks_it != event_callbacks_.end()) {
       for (const rmw_zenoh_event_type_t & event_type : event_set) {
         GraphEventCallbacks::const_iterator callback_it =
@@ -854,25 +854,24 @@ rmw_ret_t GraphCache::get_topic_names_and_types(
 
 ///=============================================================================
 rmw_ret_t GraphCache::publisher_count_matched_subscriptions(
-  const rmw_publisher_t * publisher,
+  PublisherDataConstPtr pub_data,
   size_t * subscription_count)
 {
   // TODO(Yadunund): Replace this logic by returning a number that is tracked once
   // we support matched qos events.
   *subscription_count = 0;
-  GraphNode::TopicMap::const_iterator topic_it = graph_topics_.find(publisher->topic_name);
+  auto topic_info = pub_data->topic_info();
+  GraphNode::TopicMap::const_iterator topic_it = graph_topics_.find(topic_info.name_);
   if (topic_it != graph_topics_.end()) {
-    rmw_publisher_data_t * pub_data =
-      static_cast<rmw_publisher_data_t *>(publisher->data);
     GraphNode::TopicTypeMap::const_iterator topic_data_it = topic_it->second.find(
-      pub_data->type_support->get_name());
+      topic_info.type_);
     if (topic_data_it != topic_it->second.end()) {
       for (const auto & [_, topic_data]  : topic_data_it->second) {
         // If a subscription exists with compatible QoS, update the subscription count.
         if (!topic_data->subs_.empty()) {
           rmw_qos_compatibility_type_t is_compatible;
           rmw_ret_t ret = rmw_qos_profile_check_compatible(
-            pub_data->adapted_qos_profile,
+            pub_data->adapted_qos_profile(),
             topic_data->info_.qos_,
             &is_compatible,
             nullptr,
@@ -1246,7 +1245,7 @@ rmw_ret_t GraphCache::service_server_is_available(
 
 ///=============================================================================
 void GraphCache::set_qos_event_callback(
-  liveliness::ConstEntityPtr entity,
+  std::size_t entity_guid,
   const rmw_zenoh_event_type_t & event_type,
   GraphCacheEventCallback callback)
 {
@@ -1259,20 +1258,20 @@ void GraphCache::set_qos_event_callback(
     return;
   }
 
-  const GraphEventCallbackMap::iterator event_cb_it = event_callbacks_.find(entity);
+  const GraphEventCallbackMap::iterator event_cb_it = event_callbacks_.find(entity_guid);
   if (event_cb_it == event_callbacks_.end()) {
     // First time a callback is being set for this entity.
-    event_callbacks_[entity] = {std::make_pair(event_type, std::move(callback))};
+    event_callbacks_[entity_guid] = {std::make_pair(event_type, std::move(callback))};
     return;
   }
   event_cb_it->second[event_type] = std::move(callback);
 }
 
 ///=============================================================================
-void GraphCache::remove_qos_event_callbacks(liveliness::ConstEntityPtr entity)
+void GraphCache::remove_qos_event_callbacks(std::size_t entity_guid)
 {
   std::lock_guard<std::mutex> lock(graph_mutex_);
-  event_callbacks_.erase(entity);
+  event_callbacks_.erase(entity_guid);
 }
 
 ///=============================================================================
@@ -1350,7 +1349,7 @@ void GraphCache::set_querying_subscriber_callback(
   const rmw_subscription_data_t * sub_data,
   QueryingSubscriberCallback cb)
 {
-  const std::string keyexpr = sub_data->entity->topic_info()->topic_keyexpr_;
+  const std::string keyexpr = sub_data->entity->topic_info().value().topic_keyexpr_;
   auto cb_it = querying_subs_cbs_.find(keyexpr);
   if (cb_it == querying_subs_cbs_.end()) {
     querying_subs_cbs_[keyexpr] = std::move(
