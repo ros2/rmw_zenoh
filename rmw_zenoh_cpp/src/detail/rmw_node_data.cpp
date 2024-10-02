@@ -198,7 +198,13 @@ rmw_ret_t NodeData::shutdown()
   for (auto pub_it = pubs_.begin(); pub_it != pubs_.end(); ++pub_it) {
     ret = pub_it->second->shutdown();
     if (ret != RMW_RET_OK) {
-      return ret;
+      RMW_ZENOH_LOG_ERROR_NAMED(
+        "rmw_zenoh_cpp",
+        "Unable to shutdown publisher %s within id %zu. rmw_ret_t code: %zu.",
+        pub_it->second->topic_info().name_.c_str(),
+        id_,
+        ret
+      );
     }
   }
 
