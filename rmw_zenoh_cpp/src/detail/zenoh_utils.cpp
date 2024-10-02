@@ -16,14 +16,13 @@
 
 #include "zenoh_utils.hpp"
 #include "attachment_helpers.hpp"
-#include "logging_macros.hpp"
 
 #include "rmw/types.h"
 
 namespace rmw_zenoh_cpp
 {
 ///=============================================================================
-bool
+void
 create_map_and_set_sequence_num(
   z_owned_bytes_t * out_bytes,
   int64_t sequence_number,
@@ -34,13 +33,6 @@ create_map_and_set_sequence_num(
   int64_t source_timestamp = now_ns.count();
 
   rmw_zenoh_cpp::attachement_data_t data(sequence_number, source_timestamp, gid);
-  if (data.serialize_to_zbytes(out_bytes)) {
-    RMW_ZENOH_LOG_ERROR_NAMED(
-      "rmw_zenoh_cpp",
-      "Failed to serialize the attachment");
-    return false;
-  }
-
-  return true;
+  data.serialize_to_zbytes(out_bytes);
 }
 }  // namespace rmw_zenoh_cpp

@@ -54,12 +54,9 @@ namespace rmw_zenoh_cpp
 saved_msg_data::saved_msg_data(
   z_owned_slice_t p,
   uint64_t recv_ts,
-  const uint8_t pub_gid[RMW_GID_STORAGE_SIZE],
-  int64_t seqnum,
-  int64_t source_ts)
-: payload(p), recv_timestamp(recv_ts), sequence_number(seqnum), source_timestamp(source_ts)
+  attachement_data_t && attachment_)
+: payload(p), recv_timestamp(recv_ts), attachment(std::move(attachment_))
 {
-  memcpy(publisher_gid, pub_gid, RMW_GID_STORAGE_SIZE);
 }
 
 ///=============================================================================
@@ -146,10 +143,11 @@ void rmw_subscription_data_t::add_new_message(
   }
 
   // Check for messages lost if the new sequence number is not monotonically increasing.
-  const size_t gid_hash = hash_gid(msg->publisher_gid);
+  const size_t gid_hash = hash_gid(msg->attachment.source_gid);
   auto last_known_pub_it = last_known_published_msg_.find(gid_hash);
   if (last_known_pub_it != last_known_published_msg_.end()) {
-    const int64_t seq_increment = std::abs(msg->sequence_number - last_known_pub_it->second);
+    const int64_t seq_increment = std::abs(msg->attachment.sequence_number -
+        last_known_pub_it->second);
     if (seq_increment > 1) {
       const size_t num_msg_lost = seq_increment - 1;
       total_messages_lost_ += num_msg_lost;
@@ -162,7 +160,7 @@ void rmw_subscription_data_t::add_new_message(
     }
   }
   // Always update the last known sequence number for the publisher
-  last_known_published_msg_[gid_hash] = msg->sequence_number;
+  last_known_published_msg_[gid_hash] = msg->attachment.sequence_number;
 
   message_queue_.emplace_back(std::move(msg));
 
@@ -432,48 +430,17 @@ void sub_data_handler(
     return;
   }
 
-  uint8_t pub_gid[RMW_GID_STORAGE_SIZE];
-  const z_loaned_bytes_t * attachment = z_sample_attachment(sample);
-  if (!get_gid_from_attachment(attachment, pub_gid)) {
-    // We failed to get the GID from the attachment.  While this isn't fatal,
-    // it is unusual and so we should report it.
-    memset(pub_gid, 0, RMW_GID_STORAGE_SIZE);
-    RMW_ZENOH_LOG_ERROR_NAMED(
-      "rmw_zenoh_cpp",
-      "Unable to obtain publisher GID from the attachment.");
-  }
-
-  int64_t sequence_number = get_int64_from_attachment(attachment, "sequence_number");
-  if (sequence_number < 0) {
-    // We failed to get the sequence number from the attachment.  While this
-    // isn't fatal, it is unusual and so we should report it.
-    sequence_number = 0;
-    RMW_ZENOH_LOG_ERROR_NAMED(
-      "rmw_zenoh_cpp", "Unable to obtain sequence number from the attachment.");
-  }
-
-  int64_t source_timestamp = get_int64_from_attachment(attachment, "source_timestamp");
-  if (source_timestamp < 0) {
-    // We failed to get the source timestamp from the attachment.  While this
-    // isn't fatal, it is unusual and so we should report it.
-    source_timestamp = 0;
-    RMW_ZENOH_LOG_ERROR_NAMED(
-      "rmw_zenoh_cpp",
-      "Unable to obtain sequence number from the attachment.");
-  }
-
+  attachement_data_t attachment(z_sample_attachment(sample));
   const z_loaned_bytes_t * payload = z_sample_payload(sample);
 
   z_owned_slice_t slice;
-  z_bytes_deserialize_into_slice(payload, &slice);
+  z_bytes_to_slice(payload, &slice);
 
   sub_data->add_new_message(
     std::make_unique<saved_msg_data>(
       slice,
       z_timestamp_ntp64_time(z_sample_timestamp(sample)),
-      pub_gid,
-      sequence_number,
-      source_timestamp),
+      std::move(attachment)),
     z_string_data(z_loan(keystr)));
 }
 
@@ -572,7 +539,7 @@ void client_data_handler(z_loaned_reply_t * reply, void * data)
     const z_loaned_bytes_t * err_payload = z_reply_err_payload(err);
 
     z_owned_string_t err_str;
-    z_bytes_deserialize_into_string(err_payload, &err_str);
+    z_bytes_to_string(err_payload, &err_str);
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "z_reply_is_ok returned False for keyexpr %s. Reason: %.*s",

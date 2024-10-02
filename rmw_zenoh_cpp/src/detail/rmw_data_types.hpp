@@ -39,6 +39,7 @@
 #include "message_type_support.hpp"
 #include "rmw_wait_set_data.hpp"
 #include "service_type_support.hpp"
+#include "attachment_helpers.hpp"
 
 /// Structs for various type erased data fields.
 
@@ -50,20 +51,13 @@ void sub_data_handler(z_loaned_sample_t * sample, void * sub_data);
 
 struct saved_msg_data
 {
-  explicit saved_msg_data(
-    z_owned_slice_t p,
-    uint64_t recv_ts,
-    const uint8_t pub_gid[RMW_GID_STORAGE_SIZE],
-    int64_t seqnum,
-    int64_t source_ts);
+  explicit saved_msg_data(z_owned_slice_t p, uint64_t recv_ts, attachement_data_t && attachment);
 
   ~saved_msg_data();
 
   z_owned_slice_t payload;
   uint64_t recv_timestamp;
-  uint8_t publisher_gid[RMW_GID_STORAGE_SIZE];
-  int64_t sequence_number;
-  int64_t source_timestamp;
+  attachement_data_t attachment;
 };
 
 ///=============================================================================

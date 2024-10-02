@@ -287,34 +287,31 @@ rmw_ret_t PublisherData::publish(
 
   const size_t data_length = ser.get_serialized_data_length();
 
-  z_owned_bytes_t attachment;
-  auto free_attachment = rcpputils::make_scope_exit(
-    [&attachment]() {
-      z_drop(z_move(attachment));
-    });
-  if (!create_map_and_set_sequence_num(&attachment, sequence_number_++, gid_)) {
-    // create_map_and_set_sequence_num already set the error
-    return RMW_RET_ERROR;
-  }
-
   // The encoding is simply forwarded and is useful when key expressions in the
   // session use different encoding formats. In our case, all key expressions
   // will be encoded with CDR so it does not really matter.
   z_publisher_put_options_t options;
   z_publisher_put_options_default(&options);
-  free_attachment.cancel();
+  z_owned_bytes_t attachment;
+  create_map_and_set_sequence_num(&attachment, sequence_number_++, gid_);
   options.attachment = z_move(attachment);
 
   z_owned_bytes_t payload;
   if (shmbuf.has_value()) {
-    z_bytes_serialize_from_shm_mut(&payload, z_move(shmbuf.value()));
+    z_bytes_from_shm_mut(&payload, z_move(shmbuf.value()));
   } else {
-    z_bytes_serialize_from_buf(&payload, reinterpret_cast<const uint8_t *>(msg_bytes), data_length);
+    z_bytes_copy_from_buf(&payload, reinterpret_cast<const uint8_t *>(msg_bytes), data_length);
   }
 
-  if (z_publisher_put(z_loan(pub_), z_move(payload), &options) != Z_OK) {
-    RMW_SET_ERROR_MSG("unable to publish message");
-    return RMW_RET_ERROR;
+  z_result_t res = z_publisher_put(z_loan(pub_), z_move(payload), &options);
+  if (res != Z_OK) {
+    if (res == Z_ESESSION_CLOSED) {
+      RMW_ZENOH_LOG_WARN_NAMED("rmw_zenoh_cpp",
+          "unable to publish message since the zenoh session is closed");
+    } else {
+      RMW_SET_ERROR_MSG("unable to publish message");
+      return RMW_RET_ERROR;
+    }
   }
 
   return RMW_RET_OK;
@@ -335,16 +332,6 @@ rmw_ret_t PublisherData::publish_serialized_message(
 
   std::lock_guard<std::mutex> lock(mutex_);
 
-  z_owned_bytes_t attachment;
-  auto free_attachment = rcpputils::make_scope_exit(
-    [&attachment]() {
-      z_drop(z_move(attachment));
-    });
-  if (!create_map_and_set_sequence_num(&attachment, sequence_number_++, gid_)) {
-    // create_map_and_set_sequence_num already set the error
-    return RMW_RET_ERROR;
-  }
-
   const size_t data_length = ser.get_serialized_data_length();
 
   // The encoding is simply forwarded and is useful when key expressions in the
@@ -352,11 +339,13 @@ rmw_ret_t PublisherData::publish_serialized_message(
   // will be encoded with CDR so it does not really matter.
   z_publisher_put_options_t options;
   z_publisher_put_options_default(&options);
-  free_attachment.cancel();
+  z_owned_bytes_t attachment;
+  create_map_and_set_sequence_num(&attachment, sequence_number_++, gid_);
+
   options.attachment = z_move(attachment);
 
   z_owned_bytes_t payload;
-  z_bytes_serialize_from_buf(&payload, serialized_message->buffer, data_length);
+  z_bytes_copy_from_buf(&payload, serialized_message->buffer, data_length);
 
   if (z_publisher_put(z_loan(pub_), z_move(payload), &options) != Z_OK) {
     RMW_SET_ERROR_MSG("unable to publish message");

@@ -746,10 +746,6 @@ rmw_publisher_assert_liveliness(const rmw_publisher_t * publisher)
   auto pub_data = node_data->get_pub_data(publisher);
   RMW_CHECK_ARGUMENT_FOR_NULL(pub_data, RMW_RET_INVALID_ARGUMENT);
 
-  if (!pub_data->liveliness_is_valid()) {
-    return RMW_RET_ERROR;
-  }
-
   return RMW_RET_OK;
 }
 
@@ -1354,13 +1350,13 @@ __rmw_take_one(
   }
 
   if (message_info != nullptr) {
-    message_info->source_timestamp = msg_data->source_timestamp;
+    message_info->source_timestamp = msg_data->attachment.source_timestamp;
     message_info->received_timestamp = msg_data->recv_timestamp;
-    message_info->publication_sequence_number = msg_data->sequence_number;
+    message_info->publication_sequence_number = msg_data->attachment.sequence_number;
     // TODO(clalancette): fill in reception_sequence_number
     message_info->reception_sequence_number = 0;
     message_info->publisher_gid.implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
-    memcpy(message_info->publisher_gid.data, msg_data->publisher_gid, RMW_GID_STORAGE_SIZE);
+    memcpy(message_info->publisher_gid.data, msg_data->attachment.source_gid, RMW_GID_STORAGE_SIZE);
     message_info->from_intra_process = false;
   }
 
@@ -1569,13 +1565,13 @@ __rmw_take_serialized(
   *taken = true;
 
   if (message_info != nullptr) {
-    message_info->source_timestamp = msg_data->source_timestamp;
+    message_info->source_timestamp = msg_data->attachment.source_timestamp;
     message_info->received_timestamp = msg_data->recv_timestamp;
-    message_info->publication_sequence_number = msg_data->sequence_number;
+    message_info->publication_sequence_number = msg_data->attachment.sequence_number;
     // TODO(clalancette): fill in reception_sequence_number
     message_info->reception_sequence_number = 0;
     message_info->publisher_gid.implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
-    memcpy(message_info->publisher_gid.data, msg_data->publisher_gid, RMW_GID_STORAGE_SIZE);
+    memcpy(message_info->publisher_gid.data, msg_data->attachment.source_gid, RMW_GID_STORAGE_SIZE);
     message_info->from_intra_process = false;
   }
 
@@ -2075,12 +2071,8 @@ rmw_send_request(
   z_get_options_default(&opts);
 
   z_owned_bytes_t attachment;
-  if (!rmw_zenoh_cpp::create_map_and_set_sequence_num(&attachment, *sequence_id,
-      client_data->client_gid))
-  {
-    // create_map_and_set_sequence_num already set the error
-    return RMW_RET_ERROR;
-  }
+  rmw_zenoh_cpp::create_map_and_set_sequence_num(&attachment, *sequence_id,
+      client_data->client_gid);
   auto free_attachment = rcpputils::make_scope_exit(
     [&attachment]() {
       z_drop(z_move(attachment));
@@ -2104,7 +2096,7 @@ rmw_send_request(
   opts.consolidation = z_query_consolidation_latest();
 
   z_owned_bytes_t payload;
-  z_bytes_serialize_from_buf(
+  z_bytes_copy_from_buf(
     &payload, reinterpret_cast<const uint8_t *>(request_bytes), data_length);
   opts.payload = z_move(payload);
 
@@ -2160,7 +2152,7 @@ rmw_take_response(
   }
 
   z_owned_slice_t payload;
-  z_bytes_deserialize_into_slice(z_sample_payload(sample), &payload);
+  z_bytes_to_slice(z_sample_payload(sample), &payload);
 
   // Object that manages the raw buffer
   eprosima::fastcdr::FastBuffer fastbuffer(
@@ -2180,25 +2172,17 @@ rmw_take_response(
 
   // Fill in the request_header
 
-  request_header->request_id.sequence_number =
-    rmw_zenoh_cpp::get_int64_from_attachment(z_sample_attachment(sample), "sequence_number");
+  rmw_zenoh_cpp::attachement_data_t attachment(z_sample_attachment(sample));
+
+  request_header->request_id.sequence_number = attachment.sequence_number;
   if (request_header->request_id.sequence_number < 0) {
     RMW_SET_ERROR_MSG("Failed to get sequence_number from client call attachment");
     return RMW_RET_ERROR;
   }
 
-  request_header->source_timestamp =
-    rmw_zenoh_cpp::get_int64_from_attachment(z_sample_attachment(sample), "source_timestamp");
+  request_header->source_timestamp = attachment.source_timestamp;
   if (request_header->source_timestamp < 0) {
     RMW_SET_ERROR_MSG("Failed to get source_timestamp from client call attachment");
-    return RMW_RET_ERROR;
-  }
-
-  if (!rmw_zenoh_cpp::get_gid_from_attachment(
-      z_sample_attachment(sample),
-      request_header->request_id.writer_guid))
-  {
-    RMW_SET_ERROR_MSG("Could not get client gid from attachment");
     return RMW_RET_ERROR;
   }
 
@@ -2631,7 +2615,7 @@ rmw_take_request(
 
   // DESERIALIZE MESSAGE ========================================================
   z_owned_slice_t payload;
-  z_bytes_deserialize_into_slice(z_query_payload(loaned_query), &payload);
+  z_bytes_to_slice(z_query_payload(loaned_query), &payload);
 
   // Object that manages the raw buffer
   eprosima::fastcdr::FastBuffer fastbuffer(
@@ -2651,29 +2635,17 @@ rmw_take_request(
 
   // Fill in the request header.
 
-  // Get the sequence_number out of the attachment
-  const z_loaned_bytes_t * attachment = z_query_attachment(loaned_query);
+  rmw_zenoh_cpp::attachement_data_t attachment(z_query_attachment(loaned_query));
 
-  request_header->request_id.sequence_number =
-    rmw_zenoh_cpp::get_int64_from_attachment(attachment, "sequence_number");
+  request_header->request_id.sequence_number = attachment.sequence_number;
   if (request_header->request_id.sequence_number < 0) {
     RMW_SET_ERROR_MSG("Failed to get sequence_number from client call attachment");
     return RMW_RET_ERROR;
   }
 
-  request_header->source_timestamp = rmw_zenoh_cpp::get_int64_from_attachment(
-    attachment,
-    "source_timestamp");
+  request_header->source_timestamp = attachment.source_timestamp;
   if (request_header->source_timestamp < 0) {
     RMW_SET_ERROR_MSG("Failed to get source_timestamp from client call attachment");
-    return RMW_RET_ERROR;
-  }
-
-  if (!rmw_zenoh_cpp::get_gid_from_attachment(
-      attachment,
-      request_header->request_id.writer_guid))
-  {
-    RMW_SET_ERROR_MSG("Could not get client GID from attachment");
     return RMW_RET_ERROR;
   }
 
@@ -2768,16 +2740,12 @@ rmw_send_response(
   z_query_reply_options_default(&options);
 
   z_owned_bytes_t attachment;
-  if (!rmw_zenoh_cpp::create_map_and_set_sequence_num(
-      &attachment, request_header->sequence_number, request_header->writer_guid))
-  {
-    // create_map_and_set_sequence_num already set the error
-    return RMW_RET_ERROR;
-  }
+  rmw_zenoh_cpp::create_map_and_set_sequence_num(&attachment, request_header->sequence_number,
+      request_header->writer_guid);
   options.attachment = z_move(attachment);
 
   z_owned_bytes_t payload;
-  z_bytes_serialize_from_buf(
+  z_bytes_copy_from_buf(
     &payload, reinterpret_cast<const uint8_t *>(response_bytes), data_length);
   z_query_reply(
     loaned_query, z_loan(service_data->keyexpr), z_move(payload), &options);
