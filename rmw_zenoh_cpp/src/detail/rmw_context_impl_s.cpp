@@ -387,14 +387,6 @@ bool rmw_context_impl_s::create_node_data(
     return false;
   }
 
-  // Check that the Zenoh session is still valid.
-  if (!z_check(data_->session_)) {
-    RMW_ZENOH_LOG_ERROR_NAMED(
-      "rmw_zenoh_cpp",
-      "Unable to create NodeData as Zenoh session is invalid.");
-    return false;
-  }
-
   auto node_data = rmw_zenoh_cpp::NodeData::make(
     this->get_next_entity_id(),
     z_loan(data_->session_),

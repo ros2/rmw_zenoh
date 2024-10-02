@@ -29,7 +29,7 @@ namespace rmw_zenoh_cpp
 ///=============================================================================
 std::shared_ptr<NodeData> NodeData::make(
   std::size_t id,
-  z_session_t session,
+  const z_loaned_session_t * session,
   std::size_t domain_id,
   const std::string & namespace_,
   const std::string & node_name,
@@ -56,16 +56,15 @@ std::shared_ptr<NodeData> NodeData::make(
   }
 
   // Create the liveliness token.
-  zc_owned_liveliness_token_t token = zc_liveliness_declare_token(
-    session,
-    z_keyexpr(entity->liveliness_keyexpr().c_str()),
-    NULL
-  );
+  std::string liveliness_keyexpr = entity->liveliness_keyexpr();
+  z_view_keyexpr_t liveliness_ke;
+  z_view_keyexpr_from_str(&liveliness_ke, liveliness_keyexpr.c_str());
+  zc_owned_liveliness_token_t token;
   auto free_token = rcpputils::make_scope_exit(
     [&token]() {
       z_drop(z_move(token));
     });
-  if (!z_check(token)) {
+  if (zc_liveliness_declare_token(&token, session, z_loan(liveliness_ke), NULL) != Z_OK) {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to create liveliness token for the node.");

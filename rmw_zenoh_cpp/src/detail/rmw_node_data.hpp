@@ -34,7 +34,7 @@ public:
   // Make a shared_ptr of NodeData. Returns nullptr if construction fails.
   static std::shared_ptr<NodeData> make(
     std::size_t id,
-    z_session_t session,
+    const z_loaned_session_t * session,
     std::size_t domain_id,
     const std::string & namespace_,
     const std::string & node_name,
