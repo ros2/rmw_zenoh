@@ -23,8 +23,10 @@
 #include <string>
 #include <unordered_map>
 
+#include "graph_cache.hpp"
 #include "liveliness_utils.hpp"
 #include "rmw_publisher_data.hpp"
+#include "rmw_subscription_data.hpp"
 
 #include "rmw/rmw.h"
 
@@ -63,6 +65,22 @@ public:
   // Delete the PublisherData for a given rmw_publisher_t if present.
   void delete_pub_data(const rmw_publisher_t * const publisher);
 
+  // Create a new SubscriptionData for a publisher in this node.
+  bool create_sub_data(
+    const rmw_subscription_t * const publisher,
+    z_session_t session,
+    std::shared_ptr<GraphCache> graph_cache,
+    std::size_t id,
+    const std::string & topic_name,
+    const rosidl_message_type_support_t * type_support,
+    const rmw_qos_profile_t * qos_profile);
+
+  /// Retrieve the SubscriptionData for a given rmw_subscription_t if present.
+  SubscriptionDataPtr get_sub_data(const rmw_subscription_t * const publisher);
+
+  // Delete the SubscriptionData for a given rmw_subscription_t if present.
+  void delete_sub_data(const rmw_subscription_t * const publisher);
+
   // Shutdown this NodeData.
   rmw_ret_t shutdown();
 
@@ -94,6 +112,8 @@ private:
   bool is_shutdown_;
   // Map of publishers.
   std::unordered_map<const rmw_publisher_t *, PublisherDataPtr> pubs_;
+  // Map of subscriptions.
+  std::unordered_map<const rmw_subscription_t *, SubscriptionDataPtr> subs_;
 };
 }  // namespace rmw_zenoh_cpp
 
