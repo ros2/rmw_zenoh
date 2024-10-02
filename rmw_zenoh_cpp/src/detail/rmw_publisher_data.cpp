@@ -347,9 +347,15 @@ rmw_ret_t PublisherData::publish_serialized_message(
   z_owned_bytes_t payload;
   z_bytes_copy_from_buf(&payload, serialized_message->buffer, data_length);
 
-  if (z_publisher_put(z_loan(pub_), z_move(payload), &options) != Z_OK) {
-    RMW_SET_ERROR_MSG("unable to publish message");
-    return RMW_RET_ERROR;
+  z_result_t res = z_publisher_put(z_loan(pub_), z_move(payload), &options);
+  if (res != Z_OK) {
+    if (res == Z_ESESSION_CLOSED) {
+      RMW_ZENOH_LOG_WARN_NAMED("rmw_zenoh_cpp",
+          "unable to publish message since the zenoh session is closed");
+    } else {
+      RMW_SET_ERROR_MSG("unable to publish message");
+      return RMW_RET_ERROR;
+    }
   }
 
   return RMW_RET_OK;
