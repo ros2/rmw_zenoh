@@ -291,6 +291,7 @@ std::shared_ptr<SubscriptionData> SubscriptionData::make(
       return nullptr;
     }
   }
+  sub_data->graph_cache_ = graph_cache;
 
   auto undeclare_z_sub = rcpputils::make_scope_exit(
     [data = sub_data]() {
@@ -612,4 +613,12 @@ void SubscriptionData::set_on_new_message_callback(
   std::lock_guard<std::mutex> lock(mutex_);
   data_callback_mgr_.set_callback(user_data, callback);
 }
+
+//==============================================================================
+std::shared_ptr<GraphCache> SubscriptionData::graph_cache() const
+{
+  std::lock_guard<std::mutex> lock(mutex_);
+  return graph_cache_;
+}
+
 }  // namespace rmw_zenoh_cpp

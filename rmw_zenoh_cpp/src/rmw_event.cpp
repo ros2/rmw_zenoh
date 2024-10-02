@@ -101,15 +101,8 @@ rmw_subscription_event_init(
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription->implementation_identifier, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription->data, RMW_RET_INVALID_ARGUMENT);
-  rmw_node_t * node =
-    static_cast<rmw_node_t *>(subscription->data);
-  RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
-  rmw_context_impl_s * context_impl =
-    static_cast<rmw_context_impl_s *>(node->context->impl);
-  RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
-  auto node_data = context_impl->get_node_data(node);
-  RMW_CHECK_ARGUMENT_FOR_NULL(node_data, RMW_RET_INVALID_ARGUMENT);
-  auto sub_data = node_data->get_sub_data(subscription);
+  rmw_zenoh_cpp::SubscriptionData * sub_data =
+    static_cast<rmw_zenoh_cpp::SubscriptionData *>(subscription->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
   if (subscription->implementation_identifier != rmw_zenoh_cpp::rmw_zenoh_identifier) {
     RMW_SET_ERROR_MSG(
@@ -135,14 +128,14 @@ rmw_subscription_event_init(
     return RMW_RET_OK;
   }
 
-  std::weak_ptr<rmw_zenoh_cpp::SubscriptionData> data_wp = sub_data;
-  context_impl->graph_cache()->set_qos_event_callback(
+  // std::weak_ptr<rmw_zenoh_cpp::SubscriptionData> data_wp = sub_data;
+  sub_data->graph_cache()->set_qos_event_callback(
     sub_data->guid(),
     zenoh_event_type,
-    [data_wp,
+    [sub_data,
     zenoh_event_type](std::unique_ptr<rmw_zenoh_cpp::rmw_zenoh_event_status_t> zenoh_event)
     {
-      auto sub_data = data_wp.lock();
+      // auto sub_data = data_wp.lock();
       if (sub_data == nullptr) {
         return;
       }

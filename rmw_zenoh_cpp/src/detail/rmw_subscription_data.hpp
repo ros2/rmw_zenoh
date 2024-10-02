@@ -123,6 +123,8 @@ public:
     rmw_event_callback_t callback,
     const void * user_data);
 
+  std::shared_ptr<GraphCache> graph_cache() const;
+
   // Destructor.
   ~SubscriptionData();
 
@@ -153,6 +155,8 @@ private:
   std::shared_ptr<EventsManager> events_mgr_;
   // Shutdown flag.
   bool is_shutdown_;
+  // The graph cache.
+  std::shared_ptr<GraphCache> graph_cache_;
 };
 using SubscriptionDataPtr = std::shared_ptr<SubscriptionData>;
 using SubscriptionDataConstPtr = std::shared_ptr<const SubscriptionData>;

@@ -972,7 +972,11 @@ rmw_create_subscription(
 
   // Store type erased node in rmw_subscription->data so that the
   // Subscription can be safely accessed.
-  rmw_subscription->data = reinterpret_cast<void *>(const_cast<rmw_node_t *>(node));
+  // TODO(Yadunund): We cannot store the rmw_node_t * here since this type erased
+  // subscription handle will be returned in the rmw_subscriptions_t in rmw_wait
+  // from which we cannot obtain SubscriptionData.
+  // rmw_subscription->data = reinterpret_cast<void *>(const_cast<rmw_node_t *>(node));
+  rmw_subscription->data = static_cast<void *>(node_data->get_sub_data(rmw_subscription).get());
   rmw_subscription->implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
   rmw_subscription->options = *subscription_options;
   rmw_subscription->can_loan_messages = false;
@@ -1058,18 +1062,11 @@ rmw_subscription_count_matched_publishers(
     rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_ARGUMENT_FOR_NULL(publisher_count, RMW_RET_INVALID_ARGUMENT);
-  rmw_node_t * node =
-    static_cast<rmw_node_t *>(subscription->data);
-  RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
-  rmw_context_impl_s * context_impl =
-    static_cast<rmw_context_impl_s *>(node->context->impl);
-  RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
-  auto node_data = context_impl->get_node_data(node);
-  RMW_CHECK_ARGUMENT_FOR_NULL(node_data, RMW_RET_INVALID_ARGUMENT);
-  auto sub_data = node_data->get_sub_data(subscription);
+  rmw_zenoh_cpp::SubscriptionData * sub_data =
+    static_cast<rmw_zenoh_cpp::SubscriptionData *>(subscription->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
 
-  return context_impl->graph_cache()->subscription_count_matched_publishers(
+  return sub_data->graph_cache()->subscription_count_matched_publishers(
     sub_data->topic_info(), publisher_count);
 }
 
@@ -1087,15 +1084,8 @@ rmw_subscription_get_actual_qos(
     rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_ARGUMENT_FOR_NULL(qos, RMW_RET_INVALID_ARGUMENT);
-  rmw_node_t * node =
-    static_cast<rmw_node_t *>(subscription->data);
-  RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
-  rmw_context_impl_s * context_impl =
-    static_cast<rmw_context_impl_s *>(node->context->impl);
-  RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
-  auto node_data = context_impl->get_node_data(node);
-  RMW_CHECK_ARGUMENT_FOR_NULL(node_data, RMW_RET_INVALID_ARGUMENT);
-  auto sub_data = node_data->get_sub_data(subscription);
+  rmw_zenoh_cpp::SubscriptionData * sub_data =
+    static_cast<rmw_zenoh_cpp::SubscriptionData *>(subscription->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
 
   *qos = sub_data->adapted_qos_profile();
@@ -1152,15 +1142,8 @@ rmw_take(
     subscription handle,
     subscription->implementation_identifier, rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
-  rmw_node_t * node =
-    static_cast<rmw_node_t *>(subscription->data);
-  RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
-  rmw_context_impl_s * context_impl =
-    static_cast<rmw_context_impl_s *>(node->context->impl);
-  RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
-  auto node_data = context_impl->get_node_data(node);
-  RMW_CHECK_ARGUMENT_FOR_NULL(node_data, RMW_RET_INVALID_ARGUMENT);
-  auto sub_data = node_data->get_sub_data(subscription);
+  rmw_zenoh_cpp::SubscriptionData * sub_data =
+    static_cast<rmw_zenoh_cpp::SubscriptionData *>(subscription->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
 
   return sub_data->take_one_message(ros_message, nullptr, taken);
@@ -1188,15 +1171,8 @@ rmw_take_with_info(
     subscription handle,
     subscription->implementation_identifier, rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
-  rmw_node_t * node =
-    static_cast<rmw_node_t *>(subscription->data);
-  RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
-  rmw_context_impl_s * context_impl =
-    static_cast<rmw_context_impl_s *>(node->context->impl);
-  RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
-  auto node_data = context_impl->get_node_data(node);
-  RMW_CHECK_ARGUMENT_FOR_NULL(node_data, RMW_RET_INVALID_ARGUMENT);
-  auto sub_data = node_data->get_sub_data(subscription);
+  rmw_zenoh_cpp::SubscriptionData * sub_data =
+    static_cast<rmw_zenoh_cpp::SubscriptionData *>(subscription->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
 
   return sub_data->take_one_message(ros_message, message_info, taken);
@@ -1225,15 +1201,8 @@ rmw_take_sequence(
     subscription handle,
     subscription->implementation_identifier, rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
-  rmw_node_t * node =
-    static_cast<rmw_node_t *>(subscription->data);
-  RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
-  rmw_context_impl_s * context_impl =
-    static_cast<rmw_context_impl_s *>(node->context->impl);
-  RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
-  auto node_data = context_impl->get_node_data(node);
-  RMW_CHECK_ARGUMENT_FOR_NULL(node_data, RMW_RET_INVALID_ARGUMENT);
-  auto sub_data = node_data->get_sub_data(subscription);
+  rmw_zenoh_cpp::SubscriptionData * sub_data =
+    static_cast<rmw_zenoh_cpp::SubscriptionData *>(subscription->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
 
   if (0u == count) {
@@ -1308,15 +1277,8 @@ __rmw_take_serialized(
     subscription handle,
     subscription->implementation_identifier, rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
-  rmw_node_t * node =
-    static_cast<rmw_node_t *>(subscription->data);
-  RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
-  rmw_context_impl_s * context_impl =
-    static_cast<rmw_context_impl_s *>(node->context->impl);
-  RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
-  auto node_data = context_impl->get_node_data(node);
-  RMW_CHECK_ARGUMENT_FOR_NULL(node_data, RMW_RET_INVALID_ARGUMENT);
-  auto sub_data = node_data->get_sub_data(subscription);
+  rmw_zenoh_cpp::SubscriptionData * sub_data =
+    static_cast<rmw_zenoh_cpp::SubscriptionData *>(subscription->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
 
   return sub_data->take_serialized_message(
@@ -2795,24 +2757,8 @@ check_and_attach_condition(
 
   if (subscriptions) {
     for (size_t i = 0; i < subscriptions->subscriber_count; ++i) {
-      rmw_node_t * node =
-        static_cast<rmw_node_t *>(subscriptions->subscribers[i]);
-      if (node == nullptr) {
-        continue;
-      }
-      rmw_context_impl_s * context_impl =
-        static_cast<rmw_context_impl_s *>(node->context->impl);
-      if (context_impl == nullptr) {
-        continue;
-      }
-      auto node_data = context_impl->get_node_data(node);
-      if (node_data == nullptr) {
-        continue;
-      }
-      auto sub_data = node_data->get_sub_data(subscriptions->subscribers[i]);
-      if (sub_data == nullptr) {
-        continue;
-      }
+      rmw_zenoh_cpp::SubscriptionData * sub_data =
+        static_cast<rmw_zenoh_cpp::SubscriptionData *>(subscriptions->subscribers[i]);
       if (sub_data->queue_has_data_and_attach_condition_if_not(wait_set_data)) {
         return true;
       }
@@ -2962,24 +2908,8 @@ rmw_wait(
 
   if (subscriptions) {
     for (size_t i = 0; i < subscriptions->subscriber_count; ++i) {
-      rmw_node_t * node =
-        static_cast<rmw_node_t *>(subscriptions->subscribers[i]);
-      if (node == nullptr) {
-        continue;
-      }
-      rmw_context_impl_s * context_impl =
-        static_cast<rmw_context_impl_s *>(node->context->impl);
-      if (context_impl == nullptr) {
-        continue;
-      }
-      auto node_data = context_impl->get_node_data(node);
-      if (node_data == nullptr) {
-        continue;
-      }
-      auto sub_data = node_data->get_sub_data(subscriptions->subscribers[i]);
-      if (sub_data == nullptr) {
-        continue;
-      }
+      rmw_zenoh_cpp::SubscriptionData * sub_data =
+        static_cast<rmw_zenoh_cpp::SubscriptionData *>(subscriptions->subscribers[i]);
       if (sub_data == nullptr) {
         continue;
       }
@@ -3335,15 +3265,8 @@ rmw_subscription_set_on_new_message_callback(
   const void * user_data)
 {
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription, RMW_RET_INVALID_ARGUMENT);
-  rmw_node_t * node =
-    static_cast<rmw_node_t *>(subscription->data);
-  RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
-  rmw_context_impl_s * context_impl =
-    static_cast<rmw_context_impl_s *>(node->context->impl);
-  RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
-  auto node_data = context_impl->get_node_data(node);
-  RMW_CHECK_ARGUMENT_FOR_NULL(node_data, RMW_RET_INVALID_ARGUMENT);
-  auto sub_data = node_data->get_sub_data(subscription);
+  rmw_zenoh_cpp::SubscriptionData * sub_data =
+    static_cast<rmw_zenoh_cpp::SubscriptionData *>(subscription->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
 
   sub_data->set_on_new_message_callback(callback, user_data);
