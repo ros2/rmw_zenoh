@@ -1050,9 +1050,9 @@ rmw_create_subscription(
     // '*' in place of the queryable_prefix of each PublicationCache
     const std::string selector = "*/" +
       sub_data->entity->topic_info()->topic_keyexpr_;
-    z_view_keyexpr_t ke;
-    z_view_keyexpr_from_str(&ke, selector.c_str());
-    sub_options.query_selector = z_loan(ke);
+    z_view_keyexpr_t selector_ke;
+    z_view_keyexpr_from_str(&selector_ke, selector.c_str());
+    sub_options.query_selector = z_loan(selector_ke);
     // Tell the PublicationCache's Queryable that the query accepts any key expression as a reply.
     // By default a query accepts only replies that matches its query selector.
     // This allows us to selectively query certain PublicationCaches when defining the
@@ -1072,7 +1072,7 @@ rmw_create_subscription(
 
     ze_owned_querying_subscriber_t sub;
     if (ze_declare_querying_subscriber(
-        &sub, session, z_loan(ke), z_move(callback), &sub_options))
+        &sub, session, z_loan(sub_ke), z_move(callback), &sub_options))
     {
       RMW_SET_ERROR_MSG("unable to create zenoh subscription");
       return nullptr;
