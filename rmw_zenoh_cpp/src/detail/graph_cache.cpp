@@ -1208,7 +1208,28 @@ rmw_ret_t GraphCache::get_entities_info_by_topic(
           }
         }
 
-        // TODO(Yadunund): Set gid.
+        liveliness::ConstEntityPtr entity;
+        if (entity_type == EntityType::Publisher)
+        {
+          entity = (*topic_data->pubs_.begin());
+        } else {
+          entity = (*topic_data->subs_.begin());
+        }
+
+        if (entity)
+        {
+          uint8_t gid[RMW_GID_STORAGE_SIZE];
+          entity->get_gid(gid);
+
+          ret = rmw_topic_endpoint_info_set_gid(
+            &endpoint_info,
+            gid,
+            RMW_GID_STORAGE_SIZE
+          );
+          if (RMW_RET_OK != ret) {
+            return ret;
+          }
+        }
       }
     }
   }

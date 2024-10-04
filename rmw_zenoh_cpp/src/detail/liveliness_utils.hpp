@@ -153,6 +153,12 @@ public:
   // This is named guid and not gid to remain distinct as it is not of type rmw_gid_t.
   std::size_t guid() const;
 
+  // Generate the 16byte GID from the keyexpr guid
+  // The size of guid is std::size_t. It can vary depending on the platform and architecture.
+  // On most 32-bit systems, it is usually 32 bits, while on 64-bit systems,
+  // it is typically 64 bits. It fit in the RMW_GID_STORAGE_SIZE.
+  void get_gid(uint8_t gid[RMW_GID_STORAGE_SIZE]) const;
+
   /// Get the entity type.
   EntityType type() const;
 
