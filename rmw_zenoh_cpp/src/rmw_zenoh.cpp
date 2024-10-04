@@ -1085,7 +1085,7 @@ rmw_subscription_get_actual_qos(
     static_cast<rmw_zenoh_cpp::SubscriptionData *>(subscription->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
 
-  *qos = sub_data->adapted_qos_profile();
+  *qos = sub_data->topic_info().qos_;
   return RMW_RET_OK;
 }
 

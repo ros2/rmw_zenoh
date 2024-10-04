@@ -345,14 +345,6 @@ SubscriptionData::SubscriptionData()
 }
 
 ///=============================================================================
-rmw_qos_profile_t SubscriptionData::adapted_qos_profile() const
-{
-  std::lock_guard<std::mutex> lock(mutex_);
-  return entity_->topic_info()->qos_;
-}
-
-
-///=============================================================================
 std::size_t SubscriptionData::guid() const
 {
   std::lock_guard<std::mutex> lock(mutex_);
@@ -403,7 +395,9 @@ rmw_ret_t SubscriptionData::shutdown()
   }
 
   // Unregister this node from the ROS graph.
-  zc_liveliness_undeclare_token(z_move(token_));
+  if (zc_liveliness_token_check(&token_)) {
+    zc_liveliness_undeclare_token(z_move(token_));
+  }
 
   z_owned_subscriber_t * sub = std::get_if<z_owned_subscriber_t>(&sub_);
   if (sub != nullptr) {
