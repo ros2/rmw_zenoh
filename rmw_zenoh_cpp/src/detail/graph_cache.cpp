@@ -1209,15 +1209,13 @@ rmw_ret_t GraphCache::get_entities_info_by_topic(
         }
 
         liveliness::ConstEntityPtr entity;
-        if (entity_type == EntityType::Publisher)
-        {
+        if (entity_type == EntityType::Publisher) {
           entity = (*topic_data->pubs_.begin());
         } else {
           entity = (*topic_data->subs_.begin());
         }
 
-        if (entity)
-        {
+        if (entity) {
           uint8_t gid[RMW_GID_STORAGE_SIZE];
           entity->get_gid(gid);
 

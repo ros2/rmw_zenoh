@@ -595,8 +595,7 @@ void Entity::get_gid(uint8_t gid[RMW_GID_STORAGE_SIZE]) const
 {
   std::vector<uint8_t> guid_bytes(sizeof(this->guid_));
   memcpy(guid_bytes.data(), &this->guid_, sizeof(this->guid_));
-  for(size_t i = 0; i < guid_bytes.size(); ++i)
-  {
+  for(size_t i = 0; i < guid_bytes.size(); ++i) {
     gid[i] = guid_bytes[i];
   }
 }
