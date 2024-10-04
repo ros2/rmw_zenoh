@@ -681,7 +681,7 @@ generate_random_gid(uint8_t gid[RMW_GID_STORAGE_SIZE])
 }
 
 ///=============================================================================
-size_t hash_gid(const uint8_t * gid)
+size_t hash_gid(const uint8_t gid[RMW_GID_STORAGE_SIZE])
 {
   std::stringstream hash_str;
   hash_str << std::hex;

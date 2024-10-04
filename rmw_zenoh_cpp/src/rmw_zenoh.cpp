@@ -970,12 +970,9 @@ rmw_create_subscription(
     return nullptr;
   }
 
-  // Store type erased node in rmw_subscription->data so that the
-  // Subscription can be safely accessed.
   // TODO(Yadunund): We cannot store the rmw_node_t * here since this type erased
   // subscription handle will be returned in the rmw_subscriptions_t in rmw_wait
   // from which we cannot obtain SubscriptionData.
-  // rmw_subscription->data = reinterpret_cast<void *>(const_cast<rmw_node_t *>(node));
   rmw_subscription->data = static_cast<void *>(node_data->get_sub_data(rmw_subscription).get());
   rmw_subscription->implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
   rmw_subscription->options = *subscription_options;
@@ -2759,6 +2756,9 @@ check_and_attach_condition(
     for (size_t i = 0; i < subscriptions->subscriber_count; ++i) {
       rmw_zenoh_cpp::SubscriptionData * sub_data =
         static_cast<rmw_zenoh_cpp::SubscriptionData *>(subscriptions->subscribers[i]);
+      if (sub_data == nullptr) {
+        continue;
+      }
       if (sub_data->queue_has_data_and_attach_condition_if_not(wait_set_data)) {
         return true;
       }

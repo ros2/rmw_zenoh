@@ -135,7 +135,6 @@ rmw_subscription_event_init(
     [sub_data,
     zenoh_event_type](std::unique_ptr<rmw_zenoh_cpp::rmw_zenoh_event_status_t> zenoh_event)
     {
-      // auto sub_data = data_wp.lock();
       if (sub_data == nullptr) {
         return;
       }
