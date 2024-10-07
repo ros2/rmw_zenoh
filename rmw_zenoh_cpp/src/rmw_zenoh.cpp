@@ -405,7 +405,7 @@ rmw_create_publisher(
     return nullptr;
   }
 
-  // Create the publisher.
+  // Create the rmw_publisher.
   auto rmw_publisher =
     static_cast<rmw_publisher_t *>(allocator->zero_allocate(
       1, sizeof(rmw_publisher_t), allocator->state));
@@ -650,7 +650,7 @@ rmw_publisher_count_matched_subscriptions(
   RMW_CHECK_ARGUMENT_FOR_NULL(pub_data, RMW_RET_INVALID_ARGUMENT);
 
   return context_impl->graph_cache()->publisher_count_matched_subscriptions(
-    pub_data, subscription_count);
+    pub_data->topic_info(), subscription_count);
 }
 
 //==============================================================================
@@ -871,6 +871,7 @@ rmw_create_subscription(
   const rmw_subscription_options_t * subscription_options)
 {
   RMW_CHECK_ARGUMENT_FOR_NULL(node, nullptr);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->data, nullptr);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node,
     node->implementation_identifier,
@@ -883,7 +884,26 @@ rmw_create_subscription(
     return nullptr;
   }
   RMW_CHECK_ARGUMENT_FOR_NULL(qos_profile, nullptr);
+  if (!qos_profile->avoid_ros_namespace_conventions) {
+    int validation_result = RMW_TOPIC_VALID;
+    rmw_ret_t ret = rmw_validate_full_topic_name(topic_name, &validation_result, nullptr);
+    if (RMW_RET_OK != ret) {
+      return nullptr;
+    }
+    if (RMW_TOPIC_VALID != validation_result) {
+      const char * reason = rmw_full_topic_name_validation_result_string(validation_result);
+      RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("invalid topic name: %s", reason);
+      return nullptr;
+    }
+  }
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription_options, nullptr);
+  if (subscription_options->require_unique_network_flow_endpoints ==
+    RMW_UNIQUE_NETWORK_FLOW_ENDPOINTS_STRICTLY_REQUIRED)
+  {
+    RMW_SET_ERROR_MSG(
+      "Strict requirement on unique network flow endpoints for subscriptions not supported");
+    return nullptr;
+  }
 
   const rosidl_message_type_support_t * type_support = find_message_type_support(type_supports);
   if (type_support == nullptr) {
@@ -891,7 +911,6 @@ rmw_create_subscription(
     return nullptr;
   }
 
-  RMW_CHECK_ARGUMENT_FOR_NULL(node->data, nullptr);
   // TODO(yadunund): Check if a duplicate entry for the same topic name + topic type
   // is present in node_data->subscriptions and if so return error;
   RMW_CHECK_FOR_NULL_WITH_MSG(
@@ -914,6 +933,10 @@ rmw_create_subscription(
   }
 
   rcutils_allocator_t * allocator = &node->context->options.allocator;
+  if (!rcutils_allocator_is_valid(allocator)) {
+    RMW_SET_ERROR_MSG("allocator is invalid.");
+    return nullptr;
+  }
 
   // Create the rmw_subscription.
   rmw_subscription_t * rmw_subscription =
@@ -928,65 +951,33 @@ rmw_create_subscription(
       allocator->deallocate(rmw_subscription, allocator->state);
     });
 
-  auto sub_data = static_cast<rmw_zenoh_cpp::rmw_subscription_data_t *>(
-    allocator->allocate(sizeof(rmw_zenoh_cpp::rmw_subscription_data_t), allocator->state));
+  auto node_data = context_impl->get_node_data(node);
   RMW_CHECK_FOR_NULL_WITH_MSG(
-    sub_data,
-    "failed to allocate memory for subscription data",
+    node_data,
+    "NodeData not found.",
     return nullptr);
-  auto free_sub_data = rcpputils::make_scope_exit(
-    [sub_data, allocator]() {
-      allocator->deallocate(sub_data, allocator->state);
-    });
 
-  RMW_TRY_PLACEMENT_NEW(sub_data, sub_data, return nullptr, rmw_zenoh_cpp::rmw_subscription_data_t);
-  auto destruct_sub_data = rcpputils::make_scope_exit(
-    [sub_data]() {
-      RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(
-        sub_data->~rmw_subscription_data_t(),
-        rmw_zenoh_cpp::rmw_subscription_data_t);
-    });
-
-  // Adapt any 'best available' QoS options
-  sub_data->adapted_qos_profile = *qos_profile;
-  rmw_ret_t ret = rmw_zenoh_cpp::QoS::get().best_available_qos(
-    node, topic_name, &sub_data->adapted_qos_profile, rmw_get_publishers_info_by_topic);
-  if (RMW_RET_OK != ret) {
-    RMW_SET_ERROR_MSG("Failed to obtain adapted_qos_profile.");
+  if (!node_data->create_sub_data(
+      rmw_subscription,
+      context_impl->session(),
+      context_impl->graph_cache(),
+      context_impl->get_next_entity_id(),
+      topic_name,
+      type_support,
+      qos_profile))
+  {
+    // Error already handled.
     return nullptr;
   }
 
-  sub_data->typesupport_identifier = type_support->typesupport_identifier;
-  sub_data->type_hash = type_support->get_type_hash_func(type_support);
-  sub_data->type_support_impl = type_support->data;
-  auto callbacks = static_cast<const message_type_support_callbacks_t *>(type_support->data);
-  sub_data->type_support = static_cast<rmw_zenoh_cpp::MessageTypeSupport *>(
-    allocator->allocate(sizeof(rmw_zenoh_cpp::MessageTypeSupport), allocator->state));
-  RMW_CHECK_FOR_NULL_WITH_MSG(
-    sub_data->type_support,
-    "Failed to allocate MessageTypeSupport",
-    return nullptr);
-  auto free_type_support = rcpputils::make_scope_exit(
-    [sub_data, allocator]() {
-      allocator->deallocate(sub_data->type_support, allocator->state);
-    });
-
-  RMW_TRY_PLACEMENT_NEW(
-    sub_data->type_support,
-    sub_data->type_support,
-    return nullptr,
-    rmw_zenoh_cpp::MessageTypeSupport, callbacks);
-  auto destruct_msg_type_support = rcpputils::make_scope_exit(
-    [sub_data]() {
-      RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(
-        sub_data->type_support->~MessageTypeSupport(),
-        rmw_zenoh_cpp::MessageTypeSupport);
-    });
-
-  sub_data->context = node->context;
-
+  // TODO(Yadunund): We cannot store the rmw_node_t * here since this type erased
+  // subscription handle will be returned in the rmw_subscriptions_t in rmw_wait
+  // from which we cannot obtain SubscriptionData.
+  rmw_subscription->data = static_cast<void *>(node_data->get_sub_data(rmw_subscription).get());
   rmw_subscription->implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
-
+  rmw_subscription->options = *subscription_options;
+  rmw_subscription->can_loan_messages = false;
+  rmw_subscription->is_cft_enabled = false;
   rmw_subscription->topic_name = rcutils_strdup(topic_name, *allocator);
   RMW_CHECK_FOR_NULL_WITH_MSG(
     rmw_subscription->topic_name,
@@ -997,195 +988,7 @@ rmw_create_subscription(
       allocator->deallocate(const_cast<char *>(rmw_subscription->topic_name), allocator->state);
     });
 
-  rmw_subscription->options = *subscription_options;
-  rmw_subscription->can_loan_messages = false;
-  rmw_subscription->is_cft_enabled = false;
-
-  // Convert the type hash to a string so that it can be included in
-  // the keyexpr.
-  char * type_hash_c_str = nullptr;
-  rcutils_ret_t stringify_ret = rosidl_stringify_type_hash(
-    sub_data->type_hash,
-    *allocator,
-    &type_hash_c_str);
-  if (RCUTILS_RET_BAD_ALLOC == stringify_ret) {
-    RMW_SET_ERROR_MSG("Failed to allocate type_hash_c_str.");
-    return nullptr;
-  }
-  auto free_type_hash_c_str = rcpputils::make_scope_exit(
-    [&allocator, &type_hash_c_str]() {
-      allocator->deallocate(type_hash_c_str, allocator->state);
-    });
-
-  z_session_t session = context_impl->session();
-  auto node_data = context_impl->get_node_data(node);
-  RMW_CHECK_FOR_NULL_WITH_MSG(
-    node_data,
-    "NodeData not found.",
-    return nullptr);
-  // Everything above succeeded and is setup properly.  Now declare a subscriber
-  // with Zenoh; after this, callbacks may come in at any time.
-  sub_data->entity = rmw_zenoh_cpp::liveliness::Entity::make(
-    z_info_zid(session),
-    std::to_string(node_data->id()),
-    std::to_string(
-      context_impl->get_next_entity_id()),
-    rmw_zenoh_cpp::liveliness::EntityType::Subscription,
-    rmw_zenoh_cpp::liveliness::NodeInfo{
-      node->context->actual_domain_id, node->namespace_, node->name, context_impl->enclave()},
-    rmw_zenoh_cpp::liveliness::TopicInfo{
-      node->context->actual_domain_id,
-      rmw_subscription->topic_name,
-      sub_data->type_support->get_name(),
-      type_hash_c_str,
-      sub_data->adapted_qos_profile}
-  );
-  if (sub_data->entity == nullptr) {
-    RMW_ZENOH_LOG_ERROR_NAMED(
-      "rmw_zenoh_cpp",
-      "Unable to generate keyexpr for liveliness token for the subscription %s.",
-      rmw_subscription->topic_name);
-    return nullptr;
-  }
-  z_owned_closure_sample_t callback = z_closure(rmw_zenoh_cpp::sub_data_handler, nullptr, sub_data);
-  z_owned_keyexpr_t keyexpr = z_keyexpr_new(sub_data->entity->topic_info()->topic_keyexpr_.c_str());
-  auto always_free_ros_keyexpr = rcpputils::make_scope_exit(
-    [&keyexpr]() {
-      z_keyexpr_drop(z_move(keyexpr));
-    });
-  if (!z_keyexpr_check(&keyexpr)) {
-    RMW_SET_ERROR_MSG("unable to create zenoh keyexpr.");
-    return nullptr;
-  }
-  // Instantiate the subscription with suitable options depending on the
-  // adapted_qos_profile.
-  // TODO(Yadunund): Rely on a separate function to return the sub
-  // as we start supporting more qos settings.
-  z_owned_str_t owned_key_str = z_keyexpr_to_string(z_loan(keyexpr));
-  auto always_drop_keystr = rcpputils::make_scope_exit(
-    [&owned_key_str]() {
-      z_drop(z_move(owned_key_str));
-    });
-
-  if (sub_data->adapted_qos_profile.durability == RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL) {
-    ze_querying_subscriber_options_t sub_options = ze_querying_subscriber_options_default();
-    // Make the initial query to hit all the PublicationCaches, using a query_selector with
-    // '*' in place of the queryable_prefix of each PublicationCache
-    const std::string selector = "*/" +
-      sub_data->entity->topic_info()->topic_keyexpr_;
-    sub_options.query_selector = z_keyexpr(selector.c_str());
-    // Tell the PublicationCache's Queryable that the query accepts any key expression as a reply.
-    // By default a query accepts only replies that matches its query selector.
-    // This allows us to selectively query certain PublicationCaches when defining the
-    // set_querying_subscriber_callback below.
-    sub_options.query_accept_replies = ZCU_REPLY_KEYEXPR_ANY;
-    // As this initial query is now using a "*", the query target is not COMPLETE.
-    sub_options.query_target = Z_QUERY_TARGET_ALL;
-    // We set consolidation to none as we need to receive transient local messages
-    // from a number of publishers. Eg: To receive TF data published over /tf_static
-    // by various publishers.
-    sub_options.query_consolidation = z_query_consolidation_none();
-    if (sub_data->adapted_qos_profile.reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE) {
-      sub_options.reliability = Z_RELIABILITY_RELIABLE;
-    }
-    sub_data->sub = ze_declare_querying_subscriber(
-      session,
-      z_loan(keyexpr),
-      z_move(callback),
-      &sub_options
-    );
-    if (!z_check(std::get<ze_owned_querying_subscriber_t>(sub_data->sub))) {
-      RMW_SET_ERROR_MSG("unable to create zenoh subscription");
-      return nullptr;
-    }
-    // Register the querying subscriber with the graph cache to get latest
-    // messages from publishers that were discovered after their first publication.
-    context_impl->graph_cache()->set_querying_subscriber_callback(
-      sub_data,
-      [sub_data](const std::string & queryable_prefix) -> void
-      {
-        if (sub_data == nullptr) {
-          return;
-        }
-        const std::string selector = queryable_prefix +
-        "/" +
-        sub_data->entity->topic_info()->topic_keyexpr_;
-        RMW_ZENOH_LOG_DEBUG_NAMED(
-          "rmw_zenoh_cpp",
-          "QueryingSubscriberCallback triggered over %s.",
-          selector.c_str()
-        );
-        z_get_options_t opts = z_get_options_default();
-        opts.timeout_ms = std::numeric_limits<uint64_t>::max();
-        opts.consolidation = z_query_consolidation_latest();
-        opts.accept_replies = ZCU_REPLY_KEYEXPR_ANY;
-        ze_querying_subscriber_get(
-          z_loan(std::get<ze_owned_querying_subscriber_t>(sub_data->sub)),
-          z_keyexpr(selector.c_str()),
-          &opts
-        );
-      }
-    );
-  } else {
-    // Create a regular subscriber for all other durability settings.
-    z_subscriber_options_t sub_options = z_subscriber_options_default();
-    if (qos_profile->reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE) {
-      sub_options.reliability = Z_RELIABILITY_RELIABLE;
-    }
-    sub_data->sub = z_declare_subscriber(
-      session,
-      z_loan(keyexpr),
-      z_move(callback),
-      &sub_options
-    );
-    if (!z_check(std::get<z_owned_subscriber_t>(sub_data->sub))) {
-      RMW_SET_ERROR_MSG("unable to create zenoh subscription");
-      return nullptr;
-    }
-  }
-
-  auto undeclare_z_sub = rcpputils::make_scope_exit(
-    [sub_data]() {
-      z_owned_subscriber_t * sub = std::get_if<z_owned_subscriber_t>(&sub_data->sub);
-      if (sub == nullptr || z_undeclare_subscriber(sub)) {
-        RMW_SET_ERROR_MSG("failed to undeclare sub");
-      } else {
-        ze_owned_querying_subscriber_t * querying_sub =
-        std::get_if<ze_owned_querying_subscriber_t>(&sub_data->sub);
-        if (querying_sub == nullptr || ze_undeclare_querying_subscriber(querying_sub)) {
-          RMW_SET_ERROR_MSG("failed to undeclare sub");
-        }
-      }
-    });
-
-  // Publish to the graph that a new subscription is in town.
-  sub_data->token = zc_liveliness_declare_token(
-    session,
-    z_keyexpr(sub_data->entity->liveliness_keyexpr().c_str()),
-    NULL
-  );
-  auto free_token = rcpputils::make_scope_exit(
-    [sub_data]() {
-      if (sub_data != nullptr) {
-        z_drop(z_move(sub_data->token));
-      }
-    });
-  if (!z_check(sub_data->token)) {
-    RMW_ZENOH_LOG_ERROR_NAMED(
-      "rmw_zenoh_cpp",
-      "Unable to create liveliness token for the subscription.");
-    return nullptr;
-  }
-
-  rmw_subscription->data = sub_data;
-
-  free_token.cancel();
-  undeclare_z_sub.cancel();
   free_topic_name.cancel();
-  destruct_msg_type_support.cancel();
-  free_type_support.cancel();
-  destruct_sub_data.cancel();
-  free_sub_data.cancel();
   free_rmw_subscription.cancel();
 
   return rmw_subscription;
@@ -1212,42 +1015,29 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
     subscription->implementation_identifier,
     rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
-
+  auto node_data = context_impl->get_node_data(node);
+  if (node_data == nullptr) {
+    return RMW_RET_INVALID_ARGUMENT;
+  }
+  auto sub_data = node_data->get_sub_data(subscription);
+  if (sub_data == nullptr) {
+    return RMW_RET_INVALID_ARGUMENT;
+  }
   rmw_ret_t ret = RMW_RET_OK;
 
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
-  auto sub_data = static_cast<rmw_zenoh_cpp::rmw_subscription_data_t *>(subscription->data);
-  if (sub_data != nullptr) {
-    // Publish to the graph that a subscription has ridden off into the sunset
-    zc_liveliness_undeclare_token(z_move(sub_data->token));
+  // Remove the registered callback from the GraphCache if any.
+  const std::size_t guid = sub_data->guid();
+  context_impl->graph_cache()->remove_querying_subscriber_callback(
+    sub_data->topic_info().topic_keyexpr_,
+    guid
+  );
+  // Remove any event callbacks registered to this subscription.
+  context_impl->graph_cache()->remove_qos_event_callbacks(guid);
+  // Finally remove the SubscriptionData from NodeData.
+  node_data->delete_sub_data(subscription);
 
-    RMW_TRY_DESTRUCTOR(sub_data->type_support->~MessageTypeSupport(), MessageTypeSupport, );
-    allocator->deallocate(sub_data->type_support, allocator->state);
-
-    z_owned_subscriber_t * sub = std::get_if<z_owned_subscriber_t>(&sub_data->sub);
-    if (sub != nullptr) {
-      if (z_undeclare_subscriber(sub)) {
-        RMW_SET_ERROR_MSG("failed to undeclare sub");
-        ret = RMW_RET_ERROR;
-      }
-    } else {
-      ze_owned_querying_subscriber_t * querying_sub =
-        std::get_if<ze_owned_querying_subscriber_t>(&sub_data->sub);
-      if (querying_sub == nullptr || ze_undeclare_querying_subscriber(querying_sub)) {
-        RMW_SET_ERROR_MSG("failed to undeclare sub");
-        ret = RMW_RET_ERROR;
-      }
-      // Also remove the registered callback from the GraphCache.
-      context_impl->graph_cache()->remove_querying_subscriber_callback(sub_data);
-    }
-
-    // Remove any event callbacks registered to this subscription.
-    context_impl->graph_cache()->remove_qos_event_callbacks(sub_data->entity->guid());
-
-    RMW_TRY_DESTRUCTOR(sub_data->~rmw_subscription_data_t(), rmw_subscription_data_t, );
-    allocator->deallocate(sub_data, allocator->state);
-  }
   allocator->deallocate(const_cast<char *>(subscription->topic_name), allocator->state);
   allocator->deallocate(subscription, allocator->state);
 
@@ -1269,16 +1059,12 @@ rmw_subscription_count_matched_publishers(
     rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_ARGUMENT_FOR_NULL(publisher_count, RMW_RET_INVALID_ARGUMENT);
-
-  rmw_zenoh_cpp::rmw_subscription_data_t * sub_data =
-    static_cast<rmw_zenoh_cpp::rmw_subscription_data_t *>(subscription->data);
+  rmw_zenoh_cpp::SubscriptionData * sub_data =
+    static_cast<rmw_zenoh_cpp::SubscriptionData *>(subscription->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
-  RMW_CHECK_ARGUMENT_FOR_NULL(sub_data->context, RMW_RET_INVALID_ARGUMENT);
-  rmw_context_impl_t * context_impl = static_cast<rmw_context_impl_t *>(sub_data->context->impl);
-  RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
 
-  return context_impl->graph_cache()->subscription_count_matched_publishers(
-    subscription, publisher_count);
+  return sub_data->graph_cache()->subscription_count_matched_publishers(
+    sub_data->topic_info(), publisher_count);
 }
 
 //==============================================================================
@@ -1295,11 +1081,11 @@ rmw_subscription_get_actual_qos(
     rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_ARGUMENT_FOR_NULL(qos, RMW_RET_INVALID_ARGUMENT);
-
-  auto sub_data = static_cast<rmw_zenoh_cpp::rmw_subscription_data_t *>(subscription->data);
+  rmw_zenoh_cpp::SubscriptionData * sub_data =
+    static_cast<rmw_zenoh_cpp::SubscriptionData *>(subscription->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
 
-  *qos = sub_data->adapted_qos_profile;
+  *qos = sub_data->topic_info().qos_;
   return RMW_RET_OK;
 }
 
@@ -1333,56 +1119,6 @@ rmw_subscription_get_content_filter(
   return RMW_RET_UNSUPPORTED;
 }
 
-namespace
-{
-rmw_ret_t
-__rmw_take_one(
-  rmw_zenoh_cpp::rmw_subscription_data_t * sub_data,
-  void * ros_message,
-  rmw_message_info_t * message_info,
-  bool * taken)
-{
-  *taken = false;
-
-  std::unique_ptr<rmw_zenoh_cpp::saved_msg_data> msg_data = sub_data->pop_next_message();
-  if (msg_data == nullptr) {
-    // There are no more messages to take.
-    return RMW_RET_OK;
-  }
-
-  // Object that manages the raw buffer
-  eprosima::fastcdr::FastBuffer fastbuffer(
-    reinterpret_cast<char *>(const_cast<uint8_t *>(msg_data->payload.payload.start)),
-    msg_data->payload.payload.len);
-
-  // Object that serializes the data
-  rmw_zenoh_cpp::Cdr deser(fastbuffer);
-  if (!sub_data->type_support->deserialize_ros_message(
-      deser.get_cdr(),
-      ros_message,
-      sub_data->type_support_impl))
-  {
-    RMW_SET_ERROR_MSG("could not deserialize ROS message");
-    return RMW_RET_ERROR;
-  }
-
-  if (message_info != nullptr) {
-    message_info->source_timestamp = msg_data->source_timestamp;
-    message_info->received_timestamp = msg_data->recv_timestamp;
-    message_info->publication_sequence_number = msg_data->sequence_number;
-    // TODO(clalancette): fill in reception_sequence_number
-    message_info->reception_sequence_number = 0;
-    message_info->publisher_gid.implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
-    memcpy(message_info->publisher_gid.data, msg_data->publisher_gid, RMW_GID_STORAGE_SIZE);
-    message_info->from_intra_process = false;
-  }
-
-  *taken = true;
-
-  return RMW_RET_OK;
-}
-}  // namespace
-
 //==============================================================================
 /// Take an incoming ROS message.
 rmw_ret_t
@@ -1403,13 +1139,11 @@ rmw_take(
     subscription handle,
     subscription->implementation_identifier, rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
-
-  *taken = false;
-
-  auto sub_data = static_cast<rmw_zenoh_cpp::rmw_subscription_data_t *>(subscription->data);
+  rmw_zenoh_cpp::SubscriptionData * sub_data =
+    static_cast<rmw_zenoh_cpp::SubscriptionData *>(subscription->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
 
-  return __rmw_take_one(sub_data, ros_message, nullptr, taken);
+  return sub_data->take_one_message(ros_message, nullptr, taken);
 }
 
 //==============================================================================
@@ -1434,13 +1168,11 @@ rmw_take_with_info(
     subscription handle,
     subscription->implementation_identifier, rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
-
-  *taken = false;
-
-  auto sub_data = static_cast<rmw_zenoh_cpp::rmw_subscription_data_t *>(subscription->data);
+  rmw_zenoh_cpp::SubscriptionData * sub_data =
+    static_cast<rmw_zenoh_cpp::SubscriptionData *>(subscription->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
 
-  return __rmw_take_one(sub_data, ros_message, message_info, taken);
+  return sub_data->take_one_message(ros_message, message_info, taken);
 }
 
 //==============================================================================
@@ -1466,6 +1198,9 @@ rmw_take_sequence(
     subscription handle,
     subscription->implementation_identifier, rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  rmw_zenoh_cpp::SubscriptionData * sub_data =
+    static_cast<rmw_zenoh_cpp::SubscriptionData *>(subscription->data);
+  RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
 
   if (0u == count) {
     RMW_SET_ERROR_MSG("count cannot be 0");
@@ -1491,20 +1226,11 @@ rmw_take_sequence(
 
   *taken = 0;
 
-  auto sub_data = static_cast<rmw_zenoh_cpp::rmw_subscription_data_t *>(subscription->data);
-  RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
-
-  if (sub_data->context->impl->is_shutdown()) {
-    return RMW_RET_OK;
-  }
-
   rmw_ret_t ret;
-
   while (*taken < count) {
     bool one_taken = false;
-
-    ret = __rmw_take_one(
-      sub_data, message_sequence->data[*taken],
+    ret = sub_data->take_one_message(
+      message_sequence->data[*taken],
       &message_info_sequence->data[*taken], &one_taken);
     if (ret != RMW_RET_OK) {
       // If we are taking a sequence and the 2nd take in the sequence failed, we'll report
@@ -1548,50 +1274,15 @@ __rmw_take_serialized(
     subscription handle,
     subscription->implementation_identifier, rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
-
-  *taken = false;
-
-  auto sub_data = static_cast<rmw_zenoh_cpp::rmw_subscription_data_t *>(subscription->data);
+  rmw_zenoh_cpp::SubscriptionData * sub_data =
+    static_cast<rmw_zenoh_cpp::SubscriptionData *>(subscription->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
 
-  if (sub_data->context->impl->is_shutdown()) {
-    return RMW_RET_OK;
-  }
-
-  // RETRIEVE SERIALIZED MESSAGE ===============================================
-
-  std::unique_ptr<rmw_zenoh_cpp::saved_msg_data> msg_data = sub_data->pop_next_message();
-  if (msg_data == nullptr) {
-    // This tells rcl that the check for a new message was done, but no messages have come in yet.
-    return RMW_RET_OK;
-  }
-
-  if (serialized_message->buffer_capacity < msg_data->payload.payload.len) {
-    rmw_ret_t ret =
-      rmw_serialized_message_resize(serialized_message, msg_data->payload.payload.len);
-    if (ret != RMW_RET_OK) {
-      return ret;  // Error message already set
-    }
-  }
-  serialized_message->buffer_length = msg_data->payload.payload.len;
-  memcpy(
-    serialized_message->buffer, msg_data->payload.payload.start,
-    msg_data->payload.payload.len);
-
-  *taken = true;
-
-  if (message_info != nullptr) {
-    message_info->source_timestamp = msg_data->source_timestamp;
-    message_info->received_timestamp = msg_data->recv_timestamp;
-    message_info->publication_sequence_number = msg_data->sequence_number;
-    // TODO(clalancette): fill in reception_sequence_number
-    message_info->reception_sequence_number = 0;
-    message_info->publisher_gid.implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
-    memcpy(message_info->publisher_gid.data, msg_data->publisher_gid, RMW_GID_STORAGE_SIZE);
-    message_info->from_intra_process = false;
-  }
-
-  return RMW_RET_OK;
+  return sub_data->take_serialized_message(
+    serialized_message,
+    taken,
+    message_info
+  );
 }
 }  // namespace
 
@@ -3063,8 +2754,8 @@ check_and_attach_condition(
 
   if (subscriptions) {
     for (size_t i = 0; i < subscriptions->subscriber_count; ++i) {
-      auto sub_data =
-        static_cast<rmw_zenoh_cpp::rmw_subscription_data_t *>(subscriptions->subscribers[i]);
+      rmw_zenoh_cpp::SubscriptionData * sub_data =
+        static_cast<rmw_zenoh_cpp::SubscriptionData *>(subscriptions->subscribers[i]);
       if (sub_data == nullptr) {
         continue;
       }
@@ -3217,12 +2908,11 @@ rmw_wait(
 
   if (subscriptions) {
     for (size_t i = 0; i < subscriptions->subscriber_count; ++i) {
-      auto sub_data =
-        static_cast<rmw_zenoh_cpp::rmw_subscription_data_t *>(subscriptions->subscribers[i]);
+      rmw_zenoh_cpp::SubscriptionData * sub_data =
+        static_cast<rmw_zenoh_cpp::SubscriptionData *>(subscriptions->subscribers[i]);
       if (sub_data == nullptr) {
         continue;
       }
-
       if (sub_data->detach_condition_and_queue_is_empty()) {
         // Setting to nullptr lets rcl know that this subscription is not ready
         subscriptions->subscribers[i] = nullptr;
@@ -3575,11 +3265,11 @@ rmw_subscription_set_on_new_message_callback(
   const void * user_data)
 {
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription, RMW_RET_INVALID_ARGUMENT);
-  rmw_zenoh_cpp::rmw_subscription_data_t * sub_data =
-    static_cast<rmw_zenoh_cpp::rmw_subscription_data_t *>(subscription->data);
+  rmw_zenoh_cpp::SubscriptionData * sub_data =
+    static_cast<rmw_zenoh_cpp::SubscriptionData *>(subscription->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
-  sub_data->data_callback_mgr.set_callback(
-    user_data, callback);
+
+  sub_data->set_on_new_message_callback(callback, user_data);
   return RMW_RET_OK;
 }
 

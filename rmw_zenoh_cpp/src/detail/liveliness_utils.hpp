@@ -237,8 +237,12 @@ std::string zid_to_str(const z_id_t & id);
 }  // namespace liveliness
 
 ///=============================================================================
-// Helper function to generate a randon GID.
+/// Helper function to generate a random GID.
 void generate_random_gid(uint8_t gid[RMW_GID_STORAGE_SIZE]);
+
+///=============================================================================
+/// Generate a hash for a given GID.
+size_t hash_gid(const uint8_t gid[RMW_GID_STORAGE_SIZE]);
 }  // namespace rmw_zenoh_cpp
 
 ///=============================================================================

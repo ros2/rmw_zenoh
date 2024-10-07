@@ -101,10 +101,11 @@ private:
 
   // Internal mutex.
   mutable std::mutex mutex_;
-  // The parent node
+  // The parent node.
   const rmw_node_t * rmw_node_;
   // The Entity generated for the publisher.
   std::shared_ptr<liveliness::Entity> entity_;
+  // The GID for this publisher.
   uint8_t gid_[RMW_GID_STORAGE_SIZE];
   // An owned publisher.
   z_owned_publisher_t pub_;

@@ -477,7 +477,6 @@ rmw_ret_t PublisherData::shutdown()
 }
 
 ///=============================================================================
-// Check if the Node is shutdown.
 bool PublisherData::is_shutdown() const
 {
   std::lock_guard<std::mutex> lock(mutex_);

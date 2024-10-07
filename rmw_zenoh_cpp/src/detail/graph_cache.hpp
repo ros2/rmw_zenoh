@@ -28,7 +28,6 @@
 #include "event.hpp"
 #include "liveliness_utils.hpp"
 #include "ordered_map.hpp"
-#include "rmw_publisher_data.hpp"
 
 #include "rcutils/allocator.h"
 #include "rcutils/types.h"
@@ -40,11 +39,6 @@
 
 namespace rmw_zenoh_cpp
 {
-// Forward declare to prevent circular dependency.
-// TODO(Yadunund): Remove this once we move rmw_subscription_data_t out of
-// rmw_data_types.hpp.
-class rmw_subscription_data_t;
-
 ///=============================================================================
 // TODO(Yadunund): Consider changing this to an array of unordered_set where the index of the
 // array corresponds to the EntityType enum. This way we don't need to mix
@@ -135,11 +129,11 @@ public:
     rmw_names_and_types_t * topic_names_and_types) const;
 
   rmw_ret_t publisher_count_matched_subscriptions(
-    PublisherDataConstPtr pub_data,
+    const liveliness::TopicInfo & pub_topic_info,
     size_t * subscription_count);
 
   rmw_ret_t subscription_count_matched_publishers(
-    const rmw_subscription_t * subscription,
+    const liveliness::TopicInfo & sub_topic_info,
     size_t * publisher_count);
 
   rmw_ret_t get_service_names_and_types(
@@ -196,11 +190,13 @@ public:
   static bool is_entity_pub(const liveliness::Entity & entity);
 
   void set_querying_subscriber_callback(
-    const rmw_subscription_data_t * sub_data,
+    const std::string & sub_keyexpr,
+    const std::size_t sub_guid,
     QueryingSubscriberCallback cb);
 
   void remove_querying_subscriber_callback(
-    const rmw_subscription_data_t * sub_data);
+    const std::string & sub_keyexpr,
+    const std::size_t sub_guid);
 
 private:
   // Helper function to convert an Entity into a GraphNode.
@@ -300,8 +296,8 @@ private:
   using GraphEventCallbackMap = std::unordered_map<std::size_t, GraphEventCallbacks>;
   // EventCallbackMap for each type of event we support in rmw_zenoh_cpp.
   GraphEventCallbackMap event_callbacks_;
-  // Map keyexpressions to QueryingSubscriberCallback.
-  std::unordered_map<std::string, std::unordered_map<const rmw_subscription_data_t *,
+  // Map key expressions to a map of sub guid and QueryingSubscriberCallback.
+  std::unordered_map<std::string, std::unordered_map<std::size_t,
     QueryingSubscriberCallback>> querying_subs_cbs_;
   // Counters to track changes to event statues for each topic.
   std::unordered_map<std::string,
