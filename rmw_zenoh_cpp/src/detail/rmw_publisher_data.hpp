@@ -83,7 +83,14 @@ public:
 
 private:
   // Constructor.
-  PublisherData();
+  PublisherData(
+    const rmw_node_t * rmw_node,
+    std::shared_ptr<liveliness::Entity> entity,
+    z_owned_publisher_t pub,
+    std::optional<ze_owned_publication_cache_t> pub_cache,
+    zc_owned_liveliness_token_t token,
+    const void * type_support_impl,
+    std::unique_ptr<MessageTypeSupport> type_support);
 
   // Internal mutex.
   mutable std::mutex mutex_;
