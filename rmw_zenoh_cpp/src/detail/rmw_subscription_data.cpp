@@ -65,7 +65,7 @@ void sub_data_handler(const z_sample_t * sample, void * data)
 
   uint8_t pub_gid[RMW_GID_STORAGE_SIZE];
   if (!get_gid_from_attachment(&sample->attachment, pub_gid)) {
-    // We failed to get the GID from the attachment.  While this isn't fatal,
+    // We failed to get the GID from the attachment. While this isn't fatal,
     // it is unusual and so we should report it.
     memset(pub_gid, 0, RMW_GID_STORAGE_SIZE);
     RMW_ZENOH_LOG_ERROR_NAMED(
@@ -157,7 +157,7 @@ std::shared_ptr<SubscriptionData> SubscriptionData::make(
       allocator->deallocate(type_hash_c_str, allocator->state);
     });
 
-  // Everything above succeeded and is setup properly.  Now declare a subscriber
+  // Everything above succeeded and is setup properly. Now declare a subscriber
   // with Zenoh; after this, callbacks may come in at any time.
   std::size_t domain_id = node_info.domain_id_;
   auto entity = liveliness::Entity::make(
