@@ -128,8 +128,6 @@ std::shared_ptr<SubscriptionData> SubscriptionData::make(
   const rosidl_message_type_support_t * type_support,
   const rmw_qos_profile_t * qos_profile)
 {
-  auto sub_data = std::shared_ptr<SubscriptionData>(new SubscriptionData{});
-  sub_data->rmw_node_ = node;
   rmw_qos_profile_t adapted_qos_profile = *qos_profile;
   rmw_ret_t ret = QoS::get().best_available_qos(
     node, topic_name.c_str(), &adapted_qos_profile, rmw_get_publishers_info_by_topic);
@@ -140,9 +138,8 @@ std::shared_ptr<SubscriptionData> SubscriptionData::make(
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
   const rosidl_type_hash_t * type_hash = type_support->get_type_hash_func(type_support);
-  sub_data->type_support_impl_ = type_support->data;
   auto callbacks = static_cast<const message_type_support_callbacks_t *>(type_support->data);
-  sub_data->type_support_ = std::make_unique<MessageTypeSupport>(callbacks);
+  auto message_type_support = std::make_unique<MessageTypeSupport>(callbacks);
 
   // Convert the type hash to a string so that it can be included in
   // the keyexpr.
@@ -163,7 +160,7 @@ std::shared_ptr<SubscriptionData> SubscriptionData::make(
   // Everything above succeeded and is setup properly.  Now declare a subscriber
   // with Zenoh; after this, callbacks may come in at any time.
   std::size_t domain_id = node_info.domain_id_;
-  sub_data->entity_ = liveliness::Entity::make(
+  auto entity = liveliness::Entity::make(
     z_info_zid(session),
     std::to_string(node_id),
     std::to_string(subscription_id),
@@ -172,17 +169,27 @@ std::shared_ptr<SubscriptionData> SubscriptionData::make(
     liveliness::TopicInfo{
       std::move(domain_id),
       topic_name,
-      sub_data->type_support_->get_name(),
+      message_type_support->get_name(),
       type_hash_c_str,
       adapted_qos_profile}
   );
-  if (sub_data->entity_ == nullptr) {
+  if (entity == nullptr) {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to generate keyexpr for liveliness token for the subscription %s.",
       topic_name.c_str());
     return nullptr;
   }
+
+  auto sub_data = std::shared_ptr<SubscriptionData>(
+    new SubscriptionData{
+      node,
+      graph_cache,
+      std::move(entity),
+      type_support->data,
+      std::move(message_type_support)
+    });
+
   // TODO(Yadunund): Instead of passing a rawptr, rely on capturing weak_ptr<SubscriptionData>
   // in the closure callback once we switch to zenoh-cpp.
   z_owned_closure_sample_t callback = z_closure(sub_data_handler, nullptr, sub_data.get());
@@ -291,16 +298,15 @@ std::shared_ptr<SubscriptionData> SubscriptionData::make(
       return nullptr;
     }
   }
-  sub_data->graph_cache_ = graph_cache;
 
   auto undeclare_z_sub = rcpputils::make_scope_exit(
-    [data = sub_data]() {
-      z_owned_subscriber_t * sub = std::get_if<z_owned_subscriber_t>(&data->sub_);
+    [sub_data]() {
+      z_owned_subscriber_t * sub = std::get_if<z_owned_subscriber_t>(&sub_data->sub_);
       if (sub == nullptr || z_undeclare_subscriber(sub)) {
         RMW_SET_ERROR_MSG("failed to undeclare sub");
       } else {
         ze_owned_querying_subscriber_t * querying_sub =
-        std::get_if<ze_owned_querying_subscriber_t>(&data->sub_);
+        std::get_if<ze_owned_querying_subscriber_t>(&sub_data->sub_);
         if (querying_sub == nullptr || ze_undeclare_querying_subscriber(querying_sub)) {
           RMW_SET_ERROR_MSG("failed to undeclare sub");
         }
@@ -326,22 +332,30 @@ std::shared_ptr<SubscriptionData> SubscriptionData::make(
     return nullptr;
   }
 
-  // Initialize the events manager.
-  sub_data->events_mgr_ = std::make_shared<EventsManager>();
-
-  free_token.cancel();
   undeclare_z_sub.cancel();
+  free_token.cancel();
 
   return sub_data;
 }
 
 ///=============================================================================
-SubscriptionData::SubscriptionData()
-: total_messages_lost_(0),
+SubscriptionData::SubscriptionData(
+  const rmw_node_t * rmw_node,
+  std::shared_ptr<GraphCache> graph_cache,
+  std::shared_ptr<liveliness::Entity> entity,
+  const void * type_support_impl,
+  std::unique_ptr<MessageTypeSupport> type_support)
+: rmw_node_(rmw_node),
+  graph_cache_(std::move(graph_cache)),
+  entity_(std::move(entity)),
+  type_support_impl_(type_support_impl),
+  type_support_(std::move(type_support)),
+  last_known_published_msg_({}),
+  total_messages_lost_(0),
   wait_set_data_(nullptr),
   is_shutdown_(false)
 {
-  // Do nothing.
+  events_mgr_ = std::make_shared<EventsManager>();
 }
 
 ///=============================================================================
@@ -400,7 +414,7 @@ rmw_ret_t SubscriptionData::shutdown()
   }
 
   z_owned_subscriber_t * sub = std::get_if<z_owned_subscriber_t>(&sub_);
-  if (sub != nullptr) {
+  if (sub != nullptr && z_subscriber_check(sub)) {
     if (z_undeclare_subscriber(sub)) {
       RMW_SET_ERROR_MSG("failed to undeclare sub.");
       ret = RMW_RET_ERROR;
@@ -408,9 +422,11 @@ rmw_ret_t SubscriptionData::shutdown()
   } else {
     ze_owned_querying_subscriber_t * querying_sub =
       std::get_if<ze_owned_querying_subscriber_t>(&sub_);
-    if (querying_sub == nullptr || ze_undeclare_querying_subscriber(querying_sub)) {
-      RMW_SET_ERROR_MSG("failed to undeclare sub.");
-      ret = RMW_RET_ERROR;
+    if (querying_sub != nullptr && ze_querying_subscriber_check(querying_sub)) {
+      if (ze_undeclare_querying_subscriber(querying_sub)) {
+        RMW_SET_ERROR_MSG("failed to undeclare querying sub.");
+        ret = RMW_RET_ERROR;
+      }
     }
   }
 

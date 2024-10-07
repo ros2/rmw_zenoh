@@ -125,12 +125,19 @@ public:
   ~SubscriptionData();
 
 private:
-  SubscriptionData();
+  SubscriptionData(
+    const rmw_node_t * rmw_node,
+    std::shared_ptr<GraphCache> graph_cache,
+    std::shared_ptr<liveliness::Entity> entity,
+    const void * type_support_impl,
+    std::unique_ptr<MessageTypeSupport> type_support);
 
   // Internal mutex.
   mutable std::mutex mutex_;
   // The parent node.
   const rmw_node_t * rmw_node_;
+  // The graph cache.
+  std::shared_ptr<GraphCache> graph_cache_;
   // The Entity generated for the subscription.
   std::shared_ptr<liveliness::Entity> entity_;
   // An owned subscriber or querying_subscriber depending on the QoS settings.
@@ -143,16 +150,14 @@ private:
   std::deque<std::unique_ptr<Message>> message_queue_;
   // Map GID of a subscription to the sequence number of the message it published.
   std::unordered_map<size_t, int64_t> last_known_published_msg_;
-  size_t total_messages_lost_{0};
+  size_t total_messages_lost_;
   // Wait set data.
-  rmw_wait_set_data_t * wait_set_data_{nullptr};
+  rmw_wait_set_data_t * wait_set_data_;
   // std::mutex condition_mutex_;
   DataCallbackManager data_callback_mgr_;
   std::shared_ptr<EventsManager> events_mgr_;
   // Shutdown flag.
   bool is_shutdown_;
-  // The graph cache.
-  std::shared_ptr<GraphCache> graph_cache_;
 };
 using SubscriptionDataPtr = std::shared_ptr<SubscriptionData>;
 using SubscriptionDataConstPtr = std::shared_ptr<const SubscriptionData>;
