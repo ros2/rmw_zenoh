@@ -88,7 +88,7 @@ int main(int argc, char ** argv)
   }
   auto always_close_session = rcpputils::make_scope_exit(
     [&session]() {
-      z_close(z_move(session), NULL);
+      z_close(z_loan_mut(session), NULL);
     });
 
   printf(

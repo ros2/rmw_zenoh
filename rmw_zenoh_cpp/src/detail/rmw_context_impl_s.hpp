@@ -89,6 +89,9 @@ public:
   /// Delete the NodeData for a given rmw_node_t if present.
   void delete_node_data(const rmw_node_t * const node);
 
+  // Destructor.
+  ~rmw_context_impl_s();
+
 private:
   // Bundle all class members into a data struct which can be passed as a
   // weak ptr to various threads for thread-safe access without capturing

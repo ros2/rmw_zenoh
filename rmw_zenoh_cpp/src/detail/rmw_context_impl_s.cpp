@@ -168,11 +168,7 @@ rmw_ret_t rmw_context_impl_s::Data::shutdown()
   if (shm_provider_.has_value()) {
     z_drop(z_move(shm_provider_.value()));
   }
-  // Close the zenoh session
-  if (z_close(z_move(session_), NULL) != Z_OK) {
-    RMW_SET_ERROR_MSG("Error while closing zenoh session");
-    return RMW_RET_ERROR;
-  }
+  z_close(z_loan_mut(session_), NULL);
   is_shutdown_ = true;
   return RMW_RET_OK;
 }
@@ -217,7 +213,7 @@ rmw_context_impl_s::rmw_context_impl_s(
   }
   auto close_session = rcpputils::make_scope_exit(
     [&session]() {
-      z_close(z_move(session), NULL);
+      z_close(z_loan_mut(session), NULL);
     });
 
   // TODO(Yadunund) Move this check into a separate thread.
@@ -334,6 +330,12 @@ rmw_context_impl_s::rmw_context_impl_s(
 }
 
 ///=============================================================================
+rmw_context_impl_s::~rmw_context_impl_s() {
+  std::lock_guard<std::recursive_mutex> lock(data_->mutex_);
+  z_drop(z_move(data_->session_));
+}
+
+///=============================================================================
 std::string rmw_context_impl_s::enclave() const
 {
   std::lock_guard<std::recursive_mutex> lock(data_->mutex_);
@@ -379,6 +381,13 @@ bool rmw_context_impl_s::is_shutdown() const
 {
   std::lock_guard<std::recursive_mutex> lock(data_->mutex_);
   return data_->is_shutdown_;
+}
+
+///=============================================================================
+bool rmw_context_impl_s::session_is_valid() const
+{
+  std::lock_guard<std::recursive_mutex> lock(data_->mutex_);
+  return z_session_is_closed(z_loan(data_->session_));
 }
 
 ///=============================================================================
