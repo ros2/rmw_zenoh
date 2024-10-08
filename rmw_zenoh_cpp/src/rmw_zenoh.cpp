@@ -1004,6 +1004,12 @@ rmw_create_subscription(
     });
 
   const z_loaned_session_t * session = context_impl->session();
+
+  if (z_session_is_closed(session)) {
+    RMW_SET_ERROR_MSG("Session is closed.");
+    return nullptr;
+  }
+
   auto node_data = context_impl->get_node_data(node);
   RMW_CHECK_FOR_NULL_WITH_MSG(
     node_data,
