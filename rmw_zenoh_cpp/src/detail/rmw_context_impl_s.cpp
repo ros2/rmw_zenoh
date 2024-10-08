@@ -120,6 +120,9 @@ rmw_ret_t rmw_context_impl_s::Data::subscribe_to_ros_graph()
   // shared_ptr<Data> would live on until the graph_sub_data_handler callback.
   zc_liveliness_subscriber_options_t sub_options;
   zc_liveliness_subscriber_options_default(&sub_options);
+  // Enable history option to retrieve the old graph info in case there is
+  // something updated after getting the graph info.
+  sub_options.history = true;
   z_owned_closure_sample_t callback;
   z_closure(&callback, graph_sub_data_handler, nullptr, this);
   z_view_keyexpr_t keyexpr;
