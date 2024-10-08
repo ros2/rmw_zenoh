@@ -334,8 +334,8 @@ rmw_context_impl_s::rmw_context_impl_s(
 
 ///=============================================================================
 rmw_context_impl_s::~rmw_context_impl_s() {
-  std::lock_guard<std::recursive_mutex> lock(data_->mutex_);
-  z_drop(z_move(data_->session_));
+  // std::lock_guard<std::recursive_mutex> lock(data_->mutex_);
+  // z_drop(z_move(data_->session_));
 }
 
 ///=============================================================================
