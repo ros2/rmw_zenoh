@@ -21,6 +21,7 @@ find_package(rcutils REQUIRED)
 find_package(rosidl_typesupport_fastrtps_c REQUIRED)
 find_package(rosidl_typesupport_fastrtps_cpp REQUIRED)
 find_package(rmw REQUIRED)
+find_package(tracetools REQUIRED)
 find_package(zenoh_c_vendor REQUIRED)
 find_package(zenohc_debug QUIET)
 if(NOT zenohc_debug_FOUND)
@@ -70,6 +71,7 @@ target_link_libraries(rmw_zenoh_cpp
     rosidl_typesupport_fastrtps_c::rosidl_typesupport_fastrtps_c
     rosidl_typesupport_fastrtps_cpp::rosidl_typesupport_fastrtps_cpp
     rmw::rmw
+    tracetools::tracetools
     zenohc::lib
 )
 

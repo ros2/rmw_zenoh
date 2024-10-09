@@ -29,7 +29,8 @@ namespace rmw_zenoh_cpp
 using GIDCopier = std::function<void (z_owned_bytes_map_t *, const char *)>;
 ///=============================================================================
 z_owned_bytes_map_t
-create_map_and_set_sequence_num(int64_t sequence_number, GIDCopier gid_copier);
+create_map_and_set_sequence_num(
+  int64_t sequence_number, GIDCopier gid_copier, int64_t * source_timestamp = nullptr);
 
 }  // namespace rmw_zenoh_cpp
 
