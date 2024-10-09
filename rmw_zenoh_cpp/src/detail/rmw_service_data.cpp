@@ -521,9 +521,6 @@ rmw_ret_t ServiceData::shutdown()
   if (z_check(qable_)) {
     z_undeclare_queryable(z_move(qable_));
   }
-  if (z_check(token_)) {
-    z_drop(z_move(token_));
-  }
 
   is_shutdown_ = true;
   return RMW_RET_OK;
