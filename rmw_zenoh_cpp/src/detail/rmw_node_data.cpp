@@ -319,6 +319,73 @@ void NodeData::delete_service_data(const rmw_service_t * const service)
   services_.erase(service);
 }
 
+
+///=============================================================================
+bool NodeData::create_client_data(
+  const rmw_client_t * const client,
+  z_session_t session,
+  std::size_t id,
+  const std::string & service_name,
+  const rosidl_service_type_support_t * type_supports,
+  const rmw_qos_profile_t * qos_profile)
+{
+  std::lock_guard<std::mutex> lock_guard(mutex_);
+  if (is_shutdown_) {
+    RMW_ZENOH_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to create ClientData as the NodeData has been shutdown.");
+    return false;
+  }
+
+  if (clients_.count(client) > 0) {
+    RMW_ZENOH_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "ClientData already exists.");
+    return false;
+  }
+
+  auto client_data = ClientData::make(
+    std::move(session),
+    node_,
+    entity_->node_info(),
+    id_,
+    std::move(id),
+    std::move(service_name),
+    type_supports,
+    qos_profile);
+  if (client_data == nullptr) {
+    RMW_ZENOH_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to make ClientData.");
+    return false;
+  }
+
+  auto insertion = clients_.insert(std::make_pair(client, std::move(client_data)));
+  if (!insertion.second) {
+    return false;
+  }
+  return true;
+}
+
+///=============================================================================
+ClientDataPtr NodeData::get_client_data(const rmw_client_t * const client)
+{
+  std::lock_guard<std::mutex> lock_guard(mutex_);
+  auto it = clients_.find(client);
+  if (it == clients_.end()) {
+    return nullptr;
+  }
+
+  return it->second;
+}
+
+///=============================================================================
+void NodeData::delete_client_data(const rmw_client_t * const client)
+{
+  std::lock_guard<std::mutex> lock_guard(mutex_);
+  clients_.erase(client);
+}
+
 ///=============================================================================
 rmw_ret_t NodeData::shutdown()
 {
@@ -360,6 +427,18 @@ rmw_ret_t NodeData::shutdown()
         "rmw_zenoh_cpp",
         "Unable to shutdown service %s within id %zu. rmw_ret_t code: %zu.",
         srv_it->second->topic_info().name_.c_str(),
+        id_,
+        ret
+      );
+    }
+  }
+  for (auto cli_it = clients_.begin(); cli_it != clients_.end(); ++cli_it) {
+    ret = cli_it->second->shutdown();
+    if (ret != RMW_RET_OK) {
+      RMW_ZENOH_LOG_ERROR_NAMED(
+        "rmw_zenoh_cpp",
+        "Unable to shutdown client %s within id %zu. rmw_ret_t code: %zu.",
+        cli_it->second->topic_info().name_.c_str(),
         id_,
         ret
       );
