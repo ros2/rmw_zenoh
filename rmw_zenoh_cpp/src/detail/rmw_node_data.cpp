@@ -187,7 +187,7 @@ void NodeData::delete_pub_data(const rmw_publisher_t * const publisher)
 ///=============================================================================
 bool NodeData::create_sub_data(
   const rmw_subscription_t * const subscription,
-  z_session_t session,
+  const z_loaned_session_t * session,
   std::shared_ptr<GraphCache> graph_cache,
   std::size_t id,
   const std::string & topic_name,

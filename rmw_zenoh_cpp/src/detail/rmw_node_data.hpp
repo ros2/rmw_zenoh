@@ -66,7 +66,7 @@ public:
   // Create a new SubscriptionData for a publisher in this node.
   bool create_sub_data(
     const rmw_subscription_t * const publisher,
-    z_session_t session,
+    const z_loaned_session_t * session,
     std::shared_ptr<GraphCache> graph_cache,
     std::size_t id,
     const std::string & topic_name,

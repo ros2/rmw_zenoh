@@ -17,35 +17,24 @@
 
 #include <zenoh.h>
 
-#include <condition_variable>
 #include <deque>
 #include <memory>
 #include <mutex>
-#include <optional>
-#include <string>
 #include <unordered_map>
-#include <utility>
-#include <vector>
-
-#include "rcutils/allocator.h"
-
-#include "rmw/rmw.h"
 
 #include "rosidl_runtime_c/type_hash.h"
 
 #include "event.hpp"
 #include "graph_cache.hpp"
-#include "message_type_support.hpp"
 #include "rmw_wait_set_data.hpp"
 #include "service_type_support.hpp"
-#include "attachment_helpers.hpp"
 
 /// Structs for various type erased data fields.
 
 namespace rmw_zenoh_cpp
 {
 ///=============================================================================
-void service_data_handler(const z_query_t * query, void * service_data);
+void service_data_handler(z_loaned_query_t * query, void * service_data);
 
 ///=============================================================================
 void client_data_handler(z_loaned_reply_t * reply, void * client_data);

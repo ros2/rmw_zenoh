@@ -16,7 +16,6 @@
 
 #include <fastcdr/FastBuffer.h>
 
-#include <cinttypes>
 #include <limits>
 #include <memory>
 #include <mutex>
@@ -27,7 +26,6 @@
 #include "attachment_helpers.hpp"
 #include "cdr.hpp"
 #include "identifier.hpp"
-#include "rmw_context_impl_s.hpp"
 #include "message_type_support.hpp"
 #include "logging_macros.hpp"
 #include "qos.hpp"
@@ -36,7 +34,6 @@
 
 #include "rmw/error_handling.h"
 #include "rmw/get_topic_endpoint_info.h"
-#include "rmw/impl/cpp/macros.hpp"
 
 namespace rmw_zenoh_cpp
 {
@@ -45,13 +42,10 @@ namespace
 //==============================================================================
 // TODO(Yadunund): Make this a class member and lambda capture weak_from_this()
 // instead of passing a rawptr to SubscriptionData when we switch to zenoh-cpp.
-void sub_data_handler(const z_sample_t * sample, void * data)
+void sub_data_handler(z_loaned_sample_t * sample, void * data)
 {
-  z_owned_str_t keystr = z_keyexpr_to_string(sample->keyexpr);
-  auto drop_keystr = rcpputils::make_scope_exit(
-    [&keystr]() {
-      z_drop(z_move(keystr));
-    });
+  z_view_string_t keystr;
+  z_keyexpr_as_view_string(z_sample_keyexpr(sample), &keystr);
 
   auto sub_data = static_cast<SubscriptionData *>(data);
   if (sub_data == nullptr) {
@@ -63,51 +57,28 @@ void sub_data_handler(const z_sample_t * sample, void * data)
     return;
   }
 
-  uint8_t pub_gid[RMW_GID_STORAGE_SIZE];
-  if (!get_gid_from_attachment(&sample->attachment, pub_gid)) {
-    // We failed to get the GID from the attachment. While this isn't fatal,
-    // it is unusual and so we should report it.
-    memset(pub_gid, 0, RMW_GID_STORAGE_SIZE);
-    RMW_ZENOH_LOG_ERROR_NAMED(
-      "rmw_zenoh_cpp",
-      "Unable to obtain publisher GID from the attachment.");
-  }
+  attachement_data_t attachment(z_sample_attachment(sample));
+  const z_loaned_bytes_t * payload = z_sample_payload(sample);
 
-  int64_t sequence_number = get_int64_from_attachment(&sample->attachment, "sequence_number");
-  if (sequence_number < 0) {
-    // We failed to get the sequence number from the attachment.  While this
-    // isn't fatal, it is unusual and so we should report it.
-    sequence_number = 0;
-    RMW_ZENOH_LOG_ERROR_NAMED(
-      "rmw_zenoh_cpp", "Unable to obtain sequence number from the attachment.");
-  }
-
-  int64_t source_timestamp = get_int64_from_attachment(&sample->attachment, "source_timestamp");
-  if (source_timestamp < 0) {
-    // We failed to get the source timestamp from the attachment.  While this
-    // isn't fatal, it is unusual and so we should report it.
-    source_timestamp = 0;
-    RMW_ZENOH_LOG_ERROR_NAMED(
-      "rmw_zenoh_cpp", "Unable to obtain sequence number from the attachment.");
-  }
+  z_owned_slice_t slice;
+  z_bytes_to_slice(payload, &slice);
 
   sub_data->add_new_message(
     std::make_unique<SubscriptionData::Message>(
-      zc_sample_payload_rcinc(sample),
-      sample->timestamp.time, pub_gid, sequence_number, source_timestamp), z_loan(keystr));
+      slice,
+      z_timestamp_ntp64_time(z_sample_timestamp(sample)),
+      std::move(attachment)),
+    z_string_data(z_loan(keystr)));
 }
 }  // namespace
 
 ///=============================================================================
 SubscriptionData::Message::Message(
-  zc_owned_payload_t p,
+  z_owned_slice_t p,
   uint64_t recv_ts,
-  const uint8_t pub_gid[RMW_GID_STORAGE_SIZE],
-  int64_t seqnum,
-  int64_t source_ts)
-: payload(p), recv_timestamp(recv_ts), sequence_number(seqnum), source_timestamp(source_ts)
+  attachement_data_t && attachment_)
+: payload(p), recv_timestamp(recv_ts), attachment(std::move(attachment_))
 {
-  memcpy(publisher_gid, pub_gid, RMW_GID_STORAGE_SIZE);
 }
 
 ///=============================================================================
@@ -118,7 +89,7 @@ SubscriptionData::Message::~Message()
 
 ///=============================================================================
 std::shared_ptr<SubscriptionData> SubscriptionData::make(
-  z_session_t session,
+  const z_loaned_session_t * session,
   std::shared_ptr<GraphCache> graph_cache,
   const rmw_node_t * const node,
   liveliness::NodeInfo node_info,
@@ -192,58 +163,70 @@ std::shared_ptr<SubscriptionData> SubscriptionData::make(
 
   // TODO(Yadunund): Instead of passing a rawptr, rely on capturing weak_ptr<SubscriptionData>
   // in the closure callback once we switch to zenoh-cpp.
-  z_owned_closure_sample_t callback = z_closure(sub_data_handler, nullptr, sub_data.get());
-  z_owned_keyexpr_t keyexpr =
-    z_keyexpr_new(sub_data->entity_->topic_info()->topic_keyexpr_.c_str());
-  auto always_free_ros_keyexpr = rcpputils::make_scope_exit(
-    [&keyexpr]() {
-      z_keyexpr_drop(z_move(keyexpr));
-    });
-  if (!z_keyexpr_check(&keyexpr)) {
+  z_owned_closure_sample_t callback;
+  z_closure(&callback, sub_data_handler, nullptr, sub_data.get());
+
+  std::string topic_keyexpr = sub_data->entity_->topic_info()->topic_keyexpr_;
+  z_view_keyexpr_t sub_ke;
+  if (z_view_keyexpr_from_str(&sub_ke, topic_keyexpr.c_str()) != Z_OK) {
     RMW_SET_ERROR_MSG("unable to create zenoh keyexpr.");
     return nullptr;
   }
+
+  if (adapted_qos_profile.reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE) {
+    RMW_ZENOH_LOG_WARN_NAMED(
+      "rmw_zenoh_cpp",
+      "`reliability` no longer supported on subscriber. Ignoring...");
+  }
+
+  auto undeclare_z_sub = rcpputils::make_scope_exit(
+    [sub_data]() {
+      z_owned_subscriber_t * sub = std::get_if<z_owned_subscriber_t>(&sub_data->sub_);
+      if (sub == nullptr || z_undeclare_subscriber(z_move(*sub))) {
+        RMW_SET_ERROR_MSG("failed to undeclare sub");
+      } else {
+        ze_owned_querying_subscriber_t * querying_sub =
+        std::get_if<ze_owned_querying_subscriber_t>(&sub_data->sub_);
+        if (querying_sub == nullptr || ze_undeclare_querying_subscriber(z_move(*querying_sub))) {
+          RMW_SET_ERROR_MSG("failed to undeclare sub");
+        }
+      }
+    });
+
   // Instantiate the subscription with suitable options depending on the
   // adapted_qos_profile.
   // TODO(Yadunund): Rely on a separate function to return the sub
   // as we start supporting more qos settings.
-  z_owned_str_t owned_key_str = z_keyexpr_to_string(z_loan(keyexpr));
-  auto always_drop_keystr = rcpputils::make_scope_exit(
-    [&owned_key_str]() {
-      z_drop(z_move(owned_key_str));
-    });
-
   if (adapted_qos_profile.durability == RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL) {
-    ze_querying_subscriber_options_t sub_options = ze_querying_subscriber_options_default();
+    ze_querying_subscriber_options_t sub_options;
+    ze_querying_subscriber_options_default(&sub_options);
     // Make the initial query to hit all the PublicationCaches, using a query_selector with
     // '*' in place of the queryable_prefix of each PublicationCache
     const std::string selector = "*/" +
-      sub_data->entity_->topic_info()->topic_keyexpr_;
-    sub_options.query_selector = z_keyexpr(selector.c_str());
+    sub_data->entity_->topic_info()->topic_keyexpr_;
+    z_view_keyexpr_t selector_ke;
+    z_view_keyexpr_from_str(&selector_ke, selector.c_str());
+    sub_options.query_selector = z_loan(selector_ke);
     // Tell the PublicationCache's Queryable that the query accepts any key expression as a reply.
     // By default a query accepts only replies that matches its query selector.
     // This allows us to selectively query certain PublicationCaches when defining the
     // set_querying_subscriber_callback below.
-    sub_options.query_accept_replies = ZCU_REPLY_KEYEXPR_ANY;
+    sub_options.query_accept_replies = ZC_REPLY_KEYEXPR_ANY;
     // As this initial query is now using a "*", the query target is not COMPLETE.
     sub_options.query_target = Z_QUERY_TARGET_ALL;
     // We set consolidation to none as we need to receive transient local messages
     // from a number of publishers. Eg: To receive TF data published over /tf_static
     // by various publishers.
     sub_options.query_consolidation = z_query_consolidation_none();
-    if (adapted_qos_profile.reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE) {
-      sub_options.reliability = Z_RELIABILITY_RELIABLE;
-    }
-    sub_data->sub_ = ze_declare_querying_subscriber(
-      session,
-      z_loan(keyexpr),
-      z_move(callback),
-      &sub_options
-    );
-    if (!z_check(std::get<ze_owned_querying_subscriber_t>(sub_data->sub_))) {
+    ze_owned_querying_subscriber_t sub;
+    if (ze_declare_querying_subscriber(
+        &sub, session, z_loan(sub_ke), z_move(callback), &sub_options))
+    {
       RMW_SET_ERROR_MSG("unable to create zenoh subscription");
       return nullptr;
     }
+    sub_data->sub_ = sub;
+
     // Register the querying subscriber with the graph cache to get latest
     // messages from publishers that were discovered after their first publication.
     std::weak_ptr<SubscriptionData> data_wp = sub_data;
@@ -270,62 +253,50 @@ std::shared_ptr<SubscriptionData> SubscriptionData::make(
           "QueryingSubscriberCallback triggered over %s.",
           selector.c_str()
         );
-        z_get_options_t opts = z_get_options_default();
+        z_get_options_t opts;
+        z_get_options_default(&opts);
         opts.timeout_ms = std::numeric_limits<uint64_t>::max();
         opts.consolidation = z_query_consolidation_latest();
-        opts.accept_replies = ZCU_REPLY_KEYEXPR_ANY;
+        opts.accept_replies = ZC_REPLY_KEYEXPR_ANY;
+
+        z_view_keyexpr_t ke;
+        z_view_keyexpr_from_str(&ke, selector.c_str());
         ze_querying_subscriber_get(
           z_loan(std::get<ze_owned_querying_subscriber_t>(sub_data->sub_)),
-          z_keyexpr(selector.c_str()),
-          &opts
-        );
+          z_loan(ke),
+          &opts);
       }
     );
   } else {
     // Create a regular subscriber for all other durability settings.
-    z_subscriber_options_t sub_options = z_subscriber_options_default();
-    if (qos_profile->reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE) {
-      sub_options.reliability = Z_RELIABILITY_RELIABLE;
-    }
-    sub_data->sub_ = z_declare_subscriber(
-      session,
-      z_loan(keyexpr),
-      z_move(callback),
-      &sub_options
-    );
-    if (!z_check(std::get<z_owned_subscriber_t>(sub_data->sub_))) {
+    z_subscriber_options_t sub_options;
+    z_subscriber_options_default(&sub_options);
+
+    z_owned_subscriber_t sub;
+    if (z_declare_subscriber(
+        &sub, session, z_loan(sub_ke), z_move(callback),
+        &sub_options) != Z_OK)
+    {
       RMW_SET_ERROR_MSG("unable to create zenoh subscription");
       return nullptr;
     }
+    sub_data->sub_ = sub;
   }
 
-  auto undeclare_z_sub = rcpputils::make_scope_exit(
-    [sub_data]() {
-      z_owned_subscriber_t * sub = std::get_if<z_owned_subscriber_t>(&sub_data->sub_);
-      if (sub == nullptr || z_undeclare_subscriber(sub)) {
-        RMW_SET_ERROR_MSG("failed to undeclare sub");
-      } else {
-        ze_owned_querying_subscriber_t * querying_sub =
-        std::get_if<ze_owned_querying_subscriber_t>(&sub_data->sub_);
-        if (querying_sub == nullptr || ze_undeclare_querying_subscriber(querying_sub)) {
-          RMW_SET_ERROR_MSG("failed to undeclare sub");
-        }
-      }
-    });
-
   // Publish to the graph that a new subscription is in town.
-  sub_data->token_ = zc_liveliness_declare_token(
-    session,
-    z_keyexpr(sub_data->entity_->liveliness_keyexpr().c_str()),
-    NULL
-  );
+  std::string liveliness_keyexpr = sub_data->entity_->liveliness_keyexpr();
+  z_view_keyexpr_t liveliness_ke;
+  z_view_keyexpr_from_str(&liveliness_ke, liveliness_keyexpr.c_str());
+
   auto free_token = rcpputils::make_scope_exit(
-    [data = sub_data]() {
-      if (data != nullptr) {
-        z_drop(z_move(data->token_));
+    [sub_data]() {
+      if (sub_data != nullptr) {
+        z_drop(z_move(sub_data->token_ ));
       }
     });
-  if (!z_check(sub_data->token_)) {
+  if (zc_liveliness_declare_token(
+      &sub_data->token_, session, z_loan(liveliness_ke), NULL) != Z_OK)
+  {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to create liveliness token for the subscription.");
@@ -373,13 +344,6 @@ liveliness::TopicInfo SubscriptionData::topic_info() const
 }
 
 ///=============================================================================
-bool SubscriptionData::liveliness_is_valid() const
-{
-  std::lock_guard<std::mutex> lock(mutex_);
-  return zc_liveliness_token_check(&token_);
-}
-
-///=============================================================================
 std::shared_ptr<EventsManager> SubscriptionData::events_mgr() const
 {
   std::lock_guard<std::mutex> lock(mutex_);
@@ -409,21 +373,19 @@ rmw_ret_t SubscriptionData::shutdown()
   }
 
   // Unregister this node from the ROS graph.
-  if (zc_liveliness_token_check(&token_)) {
-    zc_liveliness_undeclare_token(z_move(token_));
-  }
+  zc_liveliness_undeclare_token(z_move(token_));
 
   z_owned_subscriber_t * sub = std::get_if<z_owned_subscriber_t>(&sub_);
-  if (sub != nullptr && z_subscriber_check(sub)) {
-    if (z_undeclare_subscriber(sub)) {
+  if (sub != nullptr) {
+    if (z_undeclare_subscriber(z_move(*sub)) != Z_OK) {
       RMW_SET_ERROR_MSG("failed to undeclare sub.");
       ret = RMW_RET_ERROR;
     }
   } else {
     ze_owned_querying_subscriber_t * querying_sub =
       std::get_if<ze_owned_querying_subscriber_t>(&sub_);
-    if (querying_sub != nullptr && ze_querying_subscriber_check(querying_sub)) {
-      if (ze_undeclare_querying_subscriber(querying_sub)) {
+    if (querying_sub != nullptr) {
+      if (ze_undeclare_querying_subscriber(z_move(*querying_sub)) != Z_OK) {
         RMW_SET_ERROR_MSG("failed to undeclare querying sub.");
         ret = RMW_RET_ERROR;
       }
@@ -480,10 +442,13 @@ rmw_ret_t SubscriptionData::take_one_message(
   std::unique_ptr<Message> msg_data = std::move(message_queue_.front());
   message_queue_.pop_front();
 
+  const uint8_t * payload = z_slice_data(z_loan(msg_data->payload));
+  const size_t payload_len = z_slice_len(z_loan(msg_data->payload));
+
   // Object that manages the raw buffer
   eprosima::fastcdr::FastBuffer fastbuffer(
-    reinterpret_cast<char *>(const_cast<uint8_t *>(msg_data->payload.payload.start)),
-    msg_data->payload.payload.len);
+    reinterpret_cast<char *>(const_cast<uint8_t *>(payload)),
+    payload_len);
 
   // Object that serializes the data
   rmw_zenoh_cpp::Cdr deser(fastbuffer);
@@ -497,13 +462,13 @@ rmw_ret_t SubscriptionData::take_one_message(
   }
 
   if (message_info != nullptr) {
-    message_info->source_timestamp = msg_data->source_timestamp;
+    message_info->source_timestamp = msg_data->attachment.source_timestamp;
     message_info->received_timestamp = msg_data->recv_timestamp;
-    message_info->publication_sequence_number = msg_data->sequence_number;
+    message_info->publication_sequence_number = msg_data->attachment.sequence_number;
     // TODO(clalancette): fill in reception_sequence_number
     message_info->reception_sequence_number = 0;
     message_info->publisher_gid.implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
-    memcpy(message_info->publisher_gid.data, msg_data->publisher_gid, RMW_GID_STORAGE_SIZE);
+    memcpy(message_info->publisher_gid.data, msg_data->attachment.source_gid, RMW_GID_STORAGE_SIZE);
     message_info->from_intra_process = false;
   }
 
@@ -528,28 +493,29 @@ rmw_ret_t SubscriptionData::take_serialized_message(
   std::unique_ptr<Message> msg_data = std::move(message_queue_.front());
   message_queue_.pop_front();
 
-  if (serialized_message->buffer_capacity < msg_data->payload.payload.len) {
+  const uint8_t * payload = z_slice_data(z_loan(msg_data->payload));
+  const size_t payload_len = z_slice_len(z_loan(msg_data->payload));
+
+  if (serialized_message->buffer_capacity < payload_len) {
     rmw_ret_t ret =
-      rmw_serialized_message_resize(serialized_message, msg_data->payload.payload.len);
+      rmw_serialized_message_resize(serialized_message, payload_len);
     if (ret != RMW_RET_OK) {
       return ret;  // Error message already set
     }
   }
-  serialized_message->buffer_length = msg_data->payload.payload.len;
-  memcpy(
-    serialized_message->buffer, msg_data->payload.payload.start,
-    msg_data->payload.payload.len);
+  serialized_message->buffer_length = payload_len;
+  memcpy(serialized_message->buffer, payload, payload_len);
 
   *taken = true;
 
   if (message_info != nullptr) {
-    message_info->source_timestamp = msg_data->source_timestamp;
+    message_info->source_timestamp = msg_data->attachment.source_timestamp;
     message_info->received_timestamp = msg_data->recv_timestamp;
-    message_info->publication_sequence_number = msg_data->sequence_number;
+    message_info->publication_sequence_number = msg_data->attachment.sequence_number;
     // TODO(clalancette): fill in reception_sequence_number
     message_info->reception_sequence_number = 0;
     message_info->publisher_gid.implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
-    memcpy(message_info->publisher_gid.data, msg_data->publisher_gid, RMW_GID_STORAGE_SIZE);
+    memcpy(message_info->publisher_gid.data, msg_data->attachment.source_gid, RMW_GID_STORAGE_SIZE);
     message_info->from_intra_process = false;
   }
 
@@ -587,10 +553,10 @@ void SubscriptionData::add_new_message(
   }
 
   // Check for messages lost if the new sequence number is not monotonically increasing.
-  const size_t gid_hash = hash_gid(msg->publisher_gid);
+  const size_t gid_hash = hash_gid(msg->attachment.source_gid);
   auto last_known_pub_it = last_known_published_msg_.find(gid_hash);
   if (last_known_pub_it != last_known_published_msg_.end()) {
-    const int64_t seq_increment = std::abs(msg->sequence_number - last_known_pub_it->second);
+    const int64_t seq_increment = std::abs(msg->attachment.sequence_number - last_known_pub_it->second);
     if (seq_increment > 1) {
       const size_t num_msg_lost = seq_increment - 1;
       total_messages_lost_ += num_msg_lost;
@@ -603,7 +569,7 @@ void SubscriptionData::add_new_message(
     }
   }
   // Always update the last known sequence number for the publisher.
-  last_known_published_msg_[gid_hash] = msg->sequence_number;
+  last_known_published_msg_[gid_hash] = msg->attachment.sequence_number;
 
   message_queue_.emplace_back(std::move(msg));
 

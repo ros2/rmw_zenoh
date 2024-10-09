@@ -16,140 +16,18 @@
 #include <cstring>
 #include <memory>
 #include <mutex>
-#include <sstream>
-#include <string>
 #include <utility>
 
 #include "liveliness_utils.hpp"
 #include "logging_macros.hpp"
+#include "rmw_data_types.hpp"
 
 #include "rmw/impl/cpp/macros.hpp"
 
-#include "attachment_helpers.hpp"
-#include "rmw_data_types.hpp"
 
 ///=============================================================================
 namespace rmw_zenoh_cpp
 {
-///=============================================================================
-saved_msg_data::saved_msg_data(
-  z_owned_slice_t p,
-  uint64_t recv_ts,
-  attachement_data_t && attachment_)
-: payload(p), recv_timestamp(recv_ts), attachment(std::move(attachment_))
-{
-}
-
-///=============================================================================
-saved_msg_data::~saved_msg_data()
-{
-  z_drop(z_move(payload));
-}
-
-///=============================================================================
-bool rmw_subscription_data_t::queue_has_data_and_attach_condition_if_not(
-  rmw_wait_set_data_t * wait_set_data)
-{
-  std::lock_guard<std::mutex> lock(condition_mutex_);
-  if (!message_queue_.empty()) {
-    return true;
-  }
-
-  wait_set_data_ = wait_set_data;
-
-  return false;
-}
-
-///=============================================================================
-void rmw_subscription_data_t::notify()
-{
-  std::lock_guard<std::mutex> lock(condition_mutex_);
-  if (wait_set_data_ != nullptr) {
-    std::lock_guard<std::mutex> wait_set_lock(wait_set_data_->condition_mutex);
-    wait_set_data_->triggered = true;
-    wait_set_data_->condition_variable.notify_one();
-  }
-}
-
-///=============================================================================
-bool rmw_subscription_data_t::detach_condition_and_queue_is_empty()
-{
-  std::lock_guard<std::mutex> lock(condition_mutex_);
-  wait_set_data_ = nullptr;
-
-  return message_queue_.empty();
-}
-
-///=============================================================================
-std::unique_ptr<saved_msg_data> rmw_subscription_data_t::pop_next_message()
-{
-  std::lock_guard<std::mutex> lock(message_queue_mutex_);
-
-  if (message_queue_.empty()) {
-    // This tells rcl that the check for a new message was done, but no messages have come in yet.
-    return nullptr;
-  }
-
-  std::unique_ptr<rmw_zenoh_cpp::saved_msg_data> msg_data = std::move(message_queue_.front());
-  message_queue_.pop_front();
-
-  return msg_data;
-}
-
-///=============================================================================
-void rmw_subscription_data_t::add_new_message(
-  std::unique_ptr<saved_msg_data> msg, const std::string & topic_name)
-{
-  std::lock_guard<std::mutex> lock(message_queue_mutex_);
-
-  if (adapted_qos_profile.history != RMW_QOS_POLICY_HISTORY_KEEP_ALL &&
-    message_queue_.size() >= adapted_qos_profile.depth)
-  {
-    // Log warning if message is discarded due to hitting the queue depth
-    RMW_ZENOH_LOG_DEBUG_NAMED(
-      "rmw_zenoh_cpp",
-      "Message queue depth of %ld reached, discarding oldest message "
-      "for subscription for %s",
-      adapted_qos_profile.depth,
-      topic_name.c_str());
-
-    // If the adapted_qos_profile.depth is 0, the std::move command below will result
-    // in UB and the z_drop will segfault. We explicitly set the depth to a minimum of 1
-    // in rmw_create_subscription() but to be safe, we only attempt to discard from the
-    // queue if it is non-empty.
-    if (!message_queue_.empty()) {
-      std::unique_ptr<saved_msg_data> old = std::move(message_queue_.front());
-      message_queue_.pop_front();
-    }
-  }
-
-  // Check for messages lost if the new sequence number is not monotonically increasing.
-  const size_t gid_hash = hash_gid(msg->attachment.source_gid);
-  auto last_known_pub_it = last_known_published_msg_.find(gid_hash);
-  if (last_known_pub_it != last_known_published_msg_.end()) {
-    const int64_t seq_increment = std::abs(msg->attachment.sequence_number -
-        last_known_pub_it->second);
-    if (seq_increment > 1) {
-      const size_t num_msg_lost = seq_increment - 1;
-      total_messages_lost_ += num_msg_lost;
-      auto event_status = std::make_unique<rmw_zenoh_event_status_t>();
-      event_status->total_count_change = num_msg_lost;
-      event_status->total_count = total_messages_lost_;
-      events_mgr.add_new_event(
-        ZENOH_EVENT_MESSAGE_LOST,
-        std::move(event_status));
-    }
-  }
-  // Always update the last known sequence number for the publisher
-  last_known_published_msg_[gid_hash] = msg->attachment.sequence_number;
-
-  message_queue_.emplace_back(std::move(msg));
-
-  // Since we added new data, trigger user callback and guard condition if they are available
-  data_callback_mgr.trigger_callback();
-  notify();
-}
-
 ///=============================================================================
 bool rmw_service_data_t::queue_has_data_and_attach_condition_if_not(
   rmw_wait_set_data_t * wait_set_data)
