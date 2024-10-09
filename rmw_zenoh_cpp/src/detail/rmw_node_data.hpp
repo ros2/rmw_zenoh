@@ -60,7 +60,7 @@ public:
     const rosidl_message_type_support_t * type_support,
     const rmw_qos_profile_t * qos_profile);
 
-  /// Retrieve the PublisherData for a given rmw_publisher_t if present.
+  // Retrieve the PublisherData for a given rmw_publisher_t if present.
   PublisherDataPtr get_pub_data(const rmw_publisher_t * const publisher);
 
   // Delete the PublisherData for a given rmw_publisher_t if present.
@@ -76,7 +76,7 @@ public:
     const rosidl_message_type_support_t * type_support,
     const rmw_qos_profile_t * qos_profile);
 
-  /// Retrieve the SubscriptionData for a given rmw_subscription_t if present.
+  // Retrieve the SubscriptionData for a given rmw_subscription_t if present.
   SubscriptionDataPtr get_sub_data(const rmw_subscription_t * const subscription);
 
   // Delete the SubscriptionData for a given rmw_subscription_t if present.
@@ -91,7 +91,7 @@ public:
     const rosidl_service_type_support_t * type_support,
     const rmw_qos_profile_t * qos_profile);
 
-  /// Retrieve the ServiceData for a given rmw_subscription_t if present.
+  // Retrieve the ServiceData for a given rmw_subscription_t if present.
   ServiceDataPtr get_service_data(const rmw_service_t * const service);
 
   // Delete the ServiceData for a given rmw_subscription_t if present.

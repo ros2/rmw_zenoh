@@ -16,9 +16,6 @@
 #include <cstring>
 #include <memory>
 #include <mutex>
-#include <optional>
-#include <sstream>
-#include <string>
 #include <utility>
 
 #include "liveliness_utils.hpp"
