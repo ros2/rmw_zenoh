@@ -246,6 +246,13 @@ bool ServiceData::liveliness_is_valid() const
 void ServiceData::add_new_query(std::unique_ptr<ZenohQuery> query)
 {
   std::lock_guard<std::mutex> lock(mutex_);
+  if (is_shutdown_) {
+    RMW_ZENOH_LOG_DEBUG_NAMED(
+      "rmw_zenoh_cpp",
+      "Request from client will be ignored since the service is shutdown."
+    );
+    return;
+  }
   const rmw_qos_profile_t adapted_qos_profile =
     entity_->topic_info().value().qos_;
   if (adapted_qos_profile.history != RMW_QOS_POLICY_HISTORY_KEEP_ALL &&
@@ -363,6 +370,13 @@ rmw_ret_t ServiceData::send_response(
   void * ros_response)
 {
   std::lock_guard<std::mutex> lock(mutex_);
+  if (is_shutdown_) {
+    RMW_ZENOH_LOG_DEBUG_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to send response as the service is shutdown."
+    );
+    return RMW_RET_OK;
+  }
   // Create the queryable payload
   const size_t hash = hash_gid(request_id->writer_guid);
   std::unordered_map<size_t, SequenceToQuery>::iterator it = sequence_to_query_map_.find(hash);
