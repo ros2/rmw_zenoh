@@ -20,6 +20,7 @@
 #include <string>
 #include <utility>
 
+#include "liveliness_utils.hpp"
 #include "logging_macros.hpp"
 
 #include "rmw/impl/cpp/macros.hpp"
@@ -28,26 +29,6 @@
 #include "rmw_data_types.hpp"
 
 ///=============================================================================
-namespace
-{
-size_t hash_gid(const uint8_t * gid)
-{
-  std::stringstream hash_str;
-  hash_str << std::hex;
-  size_t i = 0;
-  for (; i < (RMW_GID_STORAGE_SIZE - 1); i++) {
-    hash_str << static_cast<int>(gid[i]);
-  }
-  return std::hash<std::string>{}(hash_str.str());
-}
-
-///=============================================================================
-size_t hash_gid(const rmw_request_id_t & request_id)
-{
-  return hash_gid(request_id.writer_guid);
-}
-}  // namespace
-
 namespace rmw_zenoh_cpp
 {
 ///=============================================================================
@@ -246,7 +227,7 @@ void rmw_service_data_t::add_new_query(std::unique_ptr<ZenohQuery> query)
 bool rmw_service_data_t::add_to_query_map(
   const rmw_request_id_t & request_id, std::unique_ptr<ZenohQuery> query)
 {
-  size_t hash = hash_gid(request_id);
+  const size_t hash = rmw_zenoh_cpp::hash_gid(request_id.writer_guid);
 
   std::lock_guard<std::mutex> lock(sequence_to_query_map_mutex_);
 
@@ -275,7 +256,7 @@ bool rmw_service_data_t::add_to_query_map(
 std::unique_ptr<ZenohQuery> rmw_service_data_t::take_from_query_map(
   const rmw_request_id_t & request_id)
 {
-  size_t hash = hash_gid(request_id);
+  const size_t hash = rmw_zenoh_cpp::hash_gid(request_id.writer_guid);
 
   std::lock_guard<std::mutex> lock(sequence_to_query_map_mutex_);
 
@@ -409,39 +390,6 @@ bool rmw_client_data_t::is_shutdown() const
 {
   std::lock_guard<std::mutex> lock(in_flight_mutex_);
   return is_shutdown_;
-}
-
-//==============================================================================
-void sub_data_handler(
-  z_loaned_sample_t * sample,
-  void * data)
-{
-  z_view_string_t keystr;
-  z_keyexpr_as_view_string(z_sample_keyexpr(sample), &keystr);
-
-  auto sub_data = static_cast<rmw_subscription_data_t *>(data);
-  if (sub_data == nullptr) {
-    RMW_ZENOH_LOG_ERROR_NAMED(
-      "rmw_zenoh_cpp",
-      "Unable to obtain rmw_subscription_data_t from data for "
-      "subscription for %s",
-      z_string_data(z_loan(keystr))
-    );
-    return;
-  }
-
-  attachement_data_t attachment(z_sample_attachment(sample));
-  const z_loaned_bytes_t * payload = z_sample_payload(sample);
-
-  z_owned_slice_t slice;
-  z_bytes_to_slice(payload, &slice);
-
-  sub_data->add_new_message(
-    std::make_unique<saved_msg_data>(
-      slice,
-      z_timestamp_ntp64_time(z_sample_timestamp(sample)),
-      std::move(attachment)),
-    z_string_data(z_loan(keystr)));
 }
 
 ///=============================================================================

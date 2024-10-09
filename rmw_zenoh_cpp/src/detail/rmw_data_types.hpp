@@ -25,7 +25,6 @@
 #include <string>
 #include <unordered_map>
 #include <utility>
-#include <variant>
 #include <vector>
 
 #include "rcutils/allocator.h"
@@ -46,70 +45,7 @@
 namespace rmw_zenoh_cpp
 {
 ///=============================================================================
-// z_owned_closure_sample_t
-void sub_data_handler(z_loaned_sample_t * sample, void * sub_data);
-
-struct saved_msg_data
-{
-  explicit saved_msg_data(z_owned_slice_t p, uint64_t recv_ts, attachement_data_t && attachment);
-
-  ~saved_msg_data();
-
-  z_owned_slice_t payload;
-  uint64_t recv_timestamp;
-  attachement_data_t attachment;
-};
-
-///=============================================================================
-class rmw_subscription_data_t final
-{
-public:
-  // The Entity generated for the subscription.
-  std::shared_ptr<liveliness::Entity> entity;
-
-  // An owned subscriber or querying_subscriber depending on the QoS settings.
-  std::variant<z_owned_subscriber_t, ze_owned_querying_subscriber_t> sub;
-
-  // Store the actual QoS profile used to configure this subscription.
-  rmw_qos_profile_t adapted_qos_profile;
-
-  // Liveliness token for the subscription.
-  zc_owned_liveliness_token_t token;
-
-  const void * type_support_impl;
-  const char * typesupport_identifier;
-  const rosidl_type_hash_t * type_hash;
-  MessageTypeSupport * type_support;
-  rmw_context_t * context;
-
-  bool queue_has_data_and_attach_condition_if_not(rmw_wait_set_data_t * wait_set_data);
-
-  bool detach_condition_and_queue_is_empty();
-
-  std::unique_ptr<saved_msg_data> pop_next_message();
-
-  void add_new_message(std::unique_ptr<saved_msg_data> msg, const std::string & topic_name);
-
-  DataCallbackManager data_callback_mgr;
-  EventsManager events_mgr;
-
-private:
-  std::deque<std::unique_ptr<saved_msg_data>> message_queue_;
-  mutable std::mutex message_queue_mutex_;
-
-  // Map GID of a publisher to the sequence number of the message it published.
-  std::unordered_map<size_t, int64_t> last_known_published_msg_;
-  size_t total_messages_lost_{0};
-
-  void notify();
-
-  rmw_wait_set_data_t * wait_set_data_{nullptr};
-  std::mutex condition_mutex_;
-};
-
-
-///=============================================================================
-void service_data_handler(z_loaned_query_t * query, void * service_data);
+void service_data_handler(const z_query_t * query, void * service_data);
 
 ///=============================================================================
 void client_data_handler(z_loaned_reply_t * reply, void * client_data);

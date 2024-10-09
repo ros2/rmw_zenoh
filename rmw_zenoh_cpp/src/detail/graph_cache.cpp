@@ -854,24 +854,23 @@ rmw_ret_t GraphCache::get_topic_names_and_types(
 
 ///=============================================================================
 rmw_ret_t GraphCache::publisher_count_matched_subscriptions(
-  PublisherDataConstPtr pub_data,
+  const liveliness::TopicInfo & pub_topic_info,
   size_t * subscription_count)
 {
   // TODO(Yadunund): Replace this logic by returning a number that is tracked once
   // we support matched qos events.
   *subscription_count = 0;
-  auto topic_info = pub_data->topic_info();
-  GraphNode::TopicMap::const_iterator topic_it = graph_topics_.find(topic_info.name_);
+  GraphNode::TopicMap::const_iterator topic_it = graph_topics_.find(pub_topic_info.name_);
   if (topic_it != graph_topics_.end()) {
     GraphNode::TopicTypeMap::const_iterator topic_data_it = topic_it->second.find(
-      topic_info.type_);
+      pub_topic_info.type_);
     if (topic_data_it != topic_it->second.end()) {
       for (const auto & [_, topic_data]  : topic_data_it->second) {
         // If a subscription exists with compatible QoS, update the subscription count.
         if (!topic_data->subs_.empty()) {
           rmw_qos_compatibility_type_t is_compatible;
           rmw_ret_t ret = rmw_qos_profile_check_compatible(
-            pub_data->adapted_qos_profile(),
+            pub_topic_info.qos_,
             topic_data->info_.qos_,
             &is_compatible,
             nullptr,
@@ -889,25 +888,23 @@ rmw_ret_t GraphCache::publisher_count_matched_subscriptions(
 
 ///=============================================================================
 rmw_ret_t GraphCache::subscription_count_matched_publishers(
-  const rmw_subscription_t * subscription,
+  const liveliness::TopicInfo & sub_topic_info,
   size_t * publisher_count)
 {
   // TODO(Yadunund): Replace this logic by returning a number that is tracked once
   // we support matched qos events.
   *publisher_count = 0;
-  GraphNode::TopicMap::const_iterator topic_it = graph_topics_.find(subscription->topic_name);
+  GraphNode::TopicMap::const_iterator topic_it = graph_topics_.find(sub_topic_info.name_);
   if (topic_it != graph_topics_.end()) {
-    rmw_subscription_data_t * sub_data =
-      static_cast<rmw_subscription_data_t *>(subscription->data);
     GraphNode::TopicTypeMap::const_iterator topic_data_it = topic_it->second.find(
-      sub_data->type_support->get_name());
+      sub_topic_info.type_);
     if (topic_data_it != topic_it->second.end()) {
       for (const auto & [_, topic_data]  : topic_data_it->second) {
         // If a subscription exists with compatible QoS, update the subscription count.
         if (!topic_data->pubs_.empty()) {
           rmw_qos_compatibility_type_t is_compatible;
           rmw_ret_t ret = rmw_qos_profile_check_compatible(
-            sub_data->adapted_qos_profile,
+            sub_topic_info.qos_,
             topic_data->info_.qos_,
             &is_compatible,
             nullptr,
@@ -1346,29 +1343,29 @@ std::unique_ptr<rmw_zenoh_event_status_t> GraphCache::take_event_status(
 
 ///=============================================================================
 void GraphCache::set_querying_subscriber_callback(
-  const rmw_subscription_data_t * sub_data,
+  const std::string & sub_keyexpr,
+  const std::size_t sub_guid,
   QueryingSubscriberCallback cb)
 {
-  const std::string keyexpr = sub_data->entity->topic_info().value().topic_keyexpr_;
-  auto cb_it = querying_subs_cbs_.find(keyexpr);
+  auto cb_it = querying_subs_cbs_.find(sub_keyexpr);
   if (cb_it == querying_subs_cbs_.end()) {
-    querying_subs_cbs_[keyexpr] = std::move(
-      std::unordered_map<const rmw_subscription_data_t *,
-      QueryingSubscriberCallback>{});
-    cb_it = querying_subs_cbs_.find(keyexpr);
+    querying_subs_cbs_[sub_keyexpr] = std::move(
+      std::unordered_map<std::size_t, QueryingSubscriberCallback>{});
+    cb_it = querying_subs_cbs_.find(sub_keyexpr);
   }
-  cb_it->second.insert(std::make_pair(sub_data, std::move(cb)));
+  cb_it->second.insert(std::make_pair(sub_guid, std::move(cb)));
 }
 
 ///=============================================================================
 void GraphCache::remove_querying_subscriber_callback(
-  const rmw_subscription_data_t * sub_data)
+  const std::string & sub_keyexpr,
+  const std::size_t sub_guid)
 {
-  auto cb_map_it = querying_subs_cbs_.find(sub_data->entity->topic_info()->topic_keyexpr_);
+  auto cb_map_it = querying_subs_cbs_.find(sub_keyexpr);
   if (cb_map_it == querying_subs_cbs_.end()) {
     return;
   }
-  cb_map_it->second.erase(sub_data);
+  cb_map_it->second.erase(sub_guid);
 }
 
 }  // namespace rmw_zenoh_cpp

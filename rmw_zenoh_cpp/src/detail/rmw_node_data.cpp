@@ -185,6 +185,74 @@ void NodeData::delete_pub_data(const rmw_publisher_t * const publisher)
 }
 
 ///=============================================================================
+bool NodeData::create_sub_data(
+  const rmw_subscription_t * const subscription,
+  z_session_t session,
+  std::shared_ptr<GraphCache> graph_cache,
+  std::size_t id,
+  const std::string & topic_name,
+  const rosidl_message_type_support_t * type_support,
+  const rmw_qos_profile_t * qos_profile)
+{
+  std::lock_guard<std::mutex> lock_guard(mutex_);
+  if (is_shutdown_) {
+    RMW_ZENOH_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to create SubscriptionData as the NodeData has been shutdown.");
+    return false;
+  }
+
+  if (subs_.count(subscription) > 0) {
+    RMW_ZENOH_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "SubscriptionData already exists.");
+    return false;
+  }
+
+  auto sub_data = SubscriptionData::make(
+    std::move(session),
+    std::move(graph_cache),
+    node_,
+    entity_->node_info(),
+    id_,
+    std::move(id),
+    std::move(topic_name),
+    type_support,
+    qos_profile);
+  if (sub_data == nullptr) {
+    RMW_ZENOH_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to make SubscriptionData.");
+    return false;
+  }
+
+  auto insertion = subs_.insert(std::make_pair(subscription, std::move(sub_data)));
+  if (!insertion.second) {
+    return false;
+  }
+  return true;
+}
+
+///=============================================================================
+SubscriptionDataPtr NodeData::get_sub_data(const rmw_subscription_t * const subscription)
+{
+  std::lock_guard<std::mutex> lock_guard(mutex_);
+  auto it = subs_.find(subscription);
+  if (it == subs_.end()) {
+    return nullptr;
+  }
+
+  return it->second;
+}
+
+///=============================================================================
+void NodeData::delete_sub_data(const rmw_subscription_t * const subscription)
+{
+  std::lock_guard<std::mutex> lock_guard(mutex_);
+  subs_.erase(subscription);
+}
+
+///=============================================================================
 rmw_ret_t NodeData::shutdown()
 {
   std::lock_guard<std::mutex> lock(mutex_);
@@ -206,12 +274,24 @@ rmw_ret_t NodeData::shutdown()
       );
     }
   }
+  for (auto sub_it = subs_.begin(); sub_it != subs_.end(); ++sub_it) {
+    ret = sub_it->second->shutdown();
+    if (ret != RMW_RET_OK) {
+      RMW_ZENOH_LOG_ERROR_NAMED(
+        "rmw_zenoh_cpp",
+        "Unable to shutdown subscription %s within id %zu. rmw_ret_t code: %zu.",
+        sub_it->second->topic_info().name_.c_str(),
+        id_,
+        ret
+      );
+    }
+  }
 
   // Unregister this node from the ROS graph.
   zc_liveliness_undeclare_token(z_move(token_));
 
   is_shutdown_ = true;
-  return RMW_RET_OK;
+  return ret;
 }
 
 ///=============================================================================

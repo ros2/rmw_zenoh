@@ -22,7 +22,7 @@
 #include "detail/rmw_context_impl_s.hpp"
 #include "detail/rmw_data_types.hpp"
 #include "detail/rmw_publisher_data.hpp"
-
+#include "detail/rmw_subscription_data.hpp"
 
 extern "C"
 {
@@ -68,12 +68,14 @@ rmw_publisher_event_init(
   rmw_event->event_type = event_type;
 
   // Register the event with graph cache.
+  std::weak_ptr<rmw_zenoh_cpp::PublisherData> data_wp = pub_data;
   context_impl->graph_cache()->set_qos_event_callback(
     pub_data->guid(),
     zenoh_event_type,
-    [pub_data,
+    [data_wp,
     zenoh_event_type](std::unique_ptr<rmw_zenoh_cpp::rmw_zenoh_event_status_t> zenoh_event)
     {
+      auto pub_data = data_wp.lock();
       if (pub_data == nullptr) {
         return;
       }
@@ -98,14 +100,9 @@ rmw_subscription_event_init(
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription->implementation_identifier, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription->data, RMW_RET_INVALID_ARGUMENT);
-  rmw_zenoh_cpp::rmw_subscription_data_t * sub_data =
-    static_cast<rmw_zenoh_cpp::rmw_subscription_data_t *>(subscription->data);
+  rmw_zenoh_cpp::SubscriptionData * sub_data =
+    static_cast<rmw_zenoh_cpp::SubscriptionData *>(subscription->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
-  RMW_CHECK_ARGUMENT_FOR_NULL(sub_data->context, RMW_RET_INVALID_ARGUMENT);
-  rmw_context_impl_t * context_impl = static_cast<rmw_context_impl_t *>(sub_data->context->impl);
-  RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
-  RMW_CHECK_ARGUMENT_FOR_NULL(sub_data->entity, RMW_RET_INVALID_ARGUMENT);
-
   if (subscription->implementation_identifier != rmw_zenoh_cpp::rmw_zenoh_identifier) {
     RMW_SET_ERROR_MSG(
       "Subscription implementation identifier not from this implementation");
@@ -121,7 +118,7 @@ rmw_subscription_event_init(
   }
 
   rmw_event->implementation_identifier = subscription->implementation_identifier;
-  rmw_event->data = &sub_data->events_mgr;
+  rmw_event->data = sub_data->events_mgr().get();
   rmw_event->event_type = event_type;
 
   // Register the event with graph cache if the event is not ZENOH_EVENT_MESSAGE_LOST
@@ -130,8 +127,9 @@ rmw_subscription_event_init(
     return RMW_RET_OK;
   }
 
-  context_impl->graph_cache()->set_qos_event_callback(
-    sub_data->entity->guid(),
+  // std::weak_ptr<rmw_zenoh_cpp::SubscriptionData> data_wp = sub_data;
+  sub_data->graph_cache()->set_qos_event_callback(
+    sub_data->guid(),
     zenoh_event_type,
     [sub_data,
     zenoh_event_type](std::unique_ptr<rmw_zenoh_cpp::rmw_zenoh_event_status_t> zenoh_event)
@@ -139,7 +137,7 @@ rmw_subscription_event_init(
       if (sub_data == nullptr) {
         return;
       }
-      sub_data->events_mgr.add_new_event(
+      sub_data->events_mgr()->add_new_event(
         zenoh_event_type,
         std::move(zenoh_event));
     }
