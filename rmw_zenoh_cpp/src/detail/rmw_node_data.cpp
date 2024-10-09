@@ -313,10 +313,10 @@ ServiceDataPtr NodeData::get_service_data(const rmw_service_t * const service)
 }
 
 ///=============================================================================
-void NodeData::delete_service_data(const rmw_service_t * const subscription)
+void NodeData::delete_service_data(const rmw_service_t * const service)
 {
   std::lock_guard<std::mutex> lock_guard(mutex_);
-  services_.erase(subscription);
+  services_.erase(service);
 }
 
 ///=============================================================================
