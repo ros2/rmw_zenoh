@@ -27,6 +27,7 @@
 #include "liveliness_utils.hpp"
 #include "rmw_publisher_data.hpp"
 #include "rmw_subscription_data.hpp"
+#include "rmw_service_data.hpp"
 
 #include "rmw/rmw.h"
 
@@ -67,7 +68,7 @@ public:
 
   // Create a new SubscriptionData for a publisher in this node.
   bool create_sub_data(
-    const rmw_subscription_t * const publisher,
+    const rmw_subscription_t * const subscription,
     z_session_t session,
     std::shared_ptr<GraphCache> graph_cache,
     std::size_t id,
@@ -76,10 +77,25 @@ public:
     const rmw_qos_profile_t * qos_profile);
 
   /// Retrieve the SubscriptionData for a given rmw_subscription_t if present.
-  SubscriptionDataPtr get_sub_data(const rmw_subscription_t * const publisher);
+  SubscriptionDataPtr get_sub_data(const rmw_subscription_t * const subscription);
 
   // Delete the SubscriptionData for a given rmw_subscription_t if present.
-  void delete_sub_data(const rmw_subscription_t * const publisher);
+  void delete_sub_data(const rmw_subscription_t * const subscription);
+
+  // Create a new ServiceData for a publisher in this node.
+  bool create_service_data(
+    const rmw_service_t * const service,
+    z_session_t session,
+    std::size_t id,
+    const std::string & service_name,
+    const rosidl_service_type_support_t * type_support,
+    const rmw_qos_profile_t * qos_profile);
+
+  /// Retrieve the ServiceData for a given rmw_subscription_t if present.
+  ServiceDataPtr get_service_data(const rmw_service_t * const service);
+
+  // Delete the ServiceData for a given rmw_subscription_t if present.
+  void delete_service_data(const rmw_service_t * const subscription);
 
   // Shutdown this NodeData.
   rmw_ret_t shutdown();
@@ -114,6 +130,8 @@ private:
   std::unordered_map<const rmw_publisher_t *, PublisherDataPtr> pubs_;
   // Map of subscriptions.
   std::unordered_map<const rmw_subscription_t *, SubscriptionDataPtr> subs_;
+  // Map of services.
+  std::unordered_map<const rmw_service_t *, ServiceDataPtr> services_;
 };
 }  // namespace rmw_zenoh_cpp
 

@@ -141,8 +141,7 @@ std::shared_ptr<SubscriptionData> SubscriptionData::make(
   auto callbacks = static_cast<const message_type_support_callbacks_t *>(type_support->data);
   auto message_type_support = std::make_unique<MessageTypeSupport>(callbacks);
 
-  // Convert the type hash to a string so that it can be included in
-  // the keyexpr.
+  // Convert the type hash to a string so that it can be included in the keyexpr.
   char * type_hash_c_str = nullptr;
   rcutils_ret_t stringify_ret = rosidl_stringify_type_hash(
     type_hash,
@@ -408,7 +407,7 @@ rmw_ret_t SubscriptionData::shutdown()
     return ret;
   }
 
-  // Unregister this node from the ROS graph.
+  // Unregister this subscription from the ROS graph.
   if (zc_liveliness_token_check(&token_)) {
     zc_liveliness_undeclare_token(z_move(token_));
   }
@@ -621,7 +620,7 @@ void SubscriptionData::set_on_new_message_callback(
   const void * user_data)
 {
   std::lock_guard<std::mutex> lock(mutex_);
-  data_callback_mgr_.set_callback(user_data, callback);
+  data_callback_mgr_.set_callback(user_data, std::move(callback));
 }
 
 //==============================================================================

@@ -223,13 +223,6 @@ PublisherData::PublisherData(
 }
 
 ///=============================================================================
-rmw_qos_profile_t PublisherData::adapted_qos_profile() const
-{
-  std::lock_guard<std::mutex> lock(mutex_);
-  return entity_->topic_info()->qos_;
-}
-
-///=============================================================================
 rmw_ret_t PublisherData::publish(
   const void * ros_message,
   std::optional<zc_owned_shm_manager_t> & shm_manager)
@@ -465,7 +458,7 @@ rmw_ret_t PublisherData::shutdown()
     return RMW_RET_OK;
   }
 
-  // Unregister this node from the ROS graph.
+  // Unregister this publisher from the ROS graph.
   zc_liveliness_undeclare_token(z_move(token_));
   if (pub_cache_.has_value()) {
     z_drop(z_move(pub_cache_.value()));

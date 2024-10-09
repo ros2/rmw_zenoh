@@ -21,11 +21,8 @@
 #include <deque>
 #include <memory>
 #include <mutex>
-#include <optional>
 #include <string>
-#include <unordered_map>
 #include <utility>
-#include <vector>
 
 #include "rcutils/allocator.h"
 
@@ -34,105 +31,17 @@
 #include "rosidl_runtime_c/type_hash.h"
 
 #include "event.hpp"
-#include "graph_cache.hpp"
 #include "message_type_support.hpp"
 #include "rmw_wait_set_data.hpp"
 #include "service_type_support.hpp"
+#include "zenoh_utils.hpp"
 
 /// Structs for various type erased data fields.
-
 namespace rmw_zenoh_cpp
 {
 ///=============================================================================
-void service_data_handler(const z_query_t * query, void * service_data);
-
-///=============================================================================
 void client_data_handler(z_owned_reply_t * reply, void * client_data);
 void client_data_drop(void * data);
-
-///=============================================================================
-class ZenohQuery final
-{
-public:
-  ZenohQuery(const z_query_t * query);
-
-  ~ZenohQuery();
-
-  const z_query_t get_query() const;
-
-private:
-  z_owned_query_t query_;
-};
-
-///=============================================================================
-class rmw_service_data_t final
-{
-public:
-  // The Entity generated for the service.
-  std::shared_ptr<liveliness::Entity> entity;
-
-  z_owned_keyexpr_t keyexpr;
-  z_owned_queryable_t qable;
-
-  // Store the actual QoS profile used to configure this service.
-  // The QoS is reused for getting requests and sending responses.
-  rmw_qos_profile_t adapted_qos_profile;
-
-  // Liveliness token for the service.
-  zc_owned_liveliness_token_t token;
-
-  const void * request_type_support_impl;
-  const void * response_type_support_impl;
-  const char * typesupport_identifier;
-  const rosidl_type_hash_t * type_hash;
-  RequestTypeSupport * request_type_support;
-  ResponseTypeSupport * response_type_support;
-
-  rmw_context_t * context;
-
-  bool queue_has_data_and_attach_condition_if_not(rmw_wait_set_data_t * wait_set_data);
-
-  bool detach_condition_and_queue_is_empty();
-
-  std::unique_ptr<ZenohQuery> pop_next_query();
-
-  void add_new_query(std::unique_ptr<ZenohQuery> query);
-
-  bool add_to_query_map(const rmw_request_id_t & request_id, std::unique_ptr<ZenohQuery> query);
-
-  std::unique_ptr<ZenohQuery> take_from_query_map(const rmw_request_id_t & request_id);
-
-  DataCallbackManager data_callback_mgr;
-
-private:
-  void notify();
-
-  // Deque to store the queries in the order they arrive.
-  std::deque<std::unique_ptr<ZenohQuery>> query_queue_;
-  mutable std::mutex query_queue_mutex_;
-
-  // Map to store the sequence_number (as given by the client) -> ZenohQuery
-  using SequenceToQuery = std::unordered_map<int64_t, std::unique_ptr<ZenohQuery>>;
-  std::unordered_map<size_t, SequenceToQuery> sequence_to_query_map_;
-  std::mutex sequence_to_query_map_mutex_;
-
-  rmw_wait_set_data_t * wait_set_data_{nullptr};
-  std::mutex condition_mutex_;
-};
-
-///=============================================================================
-class ZenohReply final
-{
-public:
-  ZenohReply(const z_owned_reply_t * reply);
-
-  ~ZenohReply();
-
-  std::optional<z_sample_t> get_sample() const;
-
-private:
-  z_owned_reply_t reply_;
-};
 
 ///=============================================================================
 class rmw_client_data_t final

@@ -254,6 +254,72 @@ void NodeData::delete_sub_data(const rmw_subscription_t * const subscription)
 }
 
 ///=============================================================================
+bool NodeData::create_service_data(
+  const rmw_service_t * const service,
+  z_session_t session,
+  std::size_t id,
+  const std::string & service_name,
+  const rosidl_service_type_support_t * type_supports,
+  const rmw_qos_profile_t * qos_profile)
+{
+  std::lock_guard<std::mutex> lock_guard(mutex_);
+  if (is_shutdown_) {
+    RMW_ZENOH_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to create ServiceData as the NodeData has been shutdown.");
+    return false;
+  }
+
+  if (services_.count(service) > 0) {
+    RMW_ZENOH_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "ServiceData already exists.");
+    return false;
+  }
+
+  auto service_data = ServiceData::make(
+    std::move(session),
+    node_,
+    entity_->node_info(),
+    id_,
+    std::move(id),
+    std::move(service_name),
+    type_supports,
+    qos_profile);
+  if (service_data == nullptr) {
+    RMW_ZENOH_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to make ServiceData.");
+    return false;
+  }
+
+  auto insertion = services_.insert(std::make_pair(service, std::move(service_data)));
+  if (!insertion.second) {
+    return false;
+  }
+  return true;
+}
+
+///=============================================================================
+ServiceDataPtr NodeData::get_service_data(const rmw_service_t * const service)
+{
+  std::lock_guard<std::mutex> lock_guard(mutex_);
+  auto it = services_.find(service);
+  if (it == services_.end()) {
+    return nullptr;
+  }
+
+  return it->second;
+}
+
+///=============================================================================
+void NodeData::delete_service_data(const rmw_service_t * const subscription)
+{
+  std::lock_guard<std::mutex> lock_guard(mutex_);
+  services_.erase(subscription);
+}
+
+///=============================================================================
 rmw_ret_t NodeData::shutdown()
 {
   std::lock_guard<std::mutex> lock(mutex_);
@@ -282,6 +348,18 @@ rmw_ret_t NodeData::shutdown()
         "rmw_zenoh_cpp",
         "Unable to shutdown subscription %s within id %zu. rmw_ret_t code: %zu.",
         sub_it->second->topic_info().name_.c_str(),
+        id_,
+        ret
+      );
+    }
+  }
+  for (auto srv_it = services_.begin(); srv_it != services_.end(); ++srv_it) {
+    ret = srv_it->second->shutdown();
+    if (ret != RMW_RET_OK) {
+      RMW_ZENOH_LOG_ERROR_NAMED(
+        "rmw_zenoh_cpp",
+        "Unable to shutdown service %s within id %zu. rmw_ret_t code: %zu.",
+        srv_it->second->topic_info().name_.c_str(),
         id_,
         ret
       );

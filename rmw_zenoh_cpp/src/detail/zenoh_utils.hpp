@@ -18,6 +18,7 @@
 #include <zenoh.h>
 
 #include <functional>
+#include <optional>
 
 #include "rmw/types.h"
 
@@ -31,6 +32,35 @@ using GIDCopier = std::function<void (z_owned_bytes_map_t *, const char *)>;
 z_owned_bytes_map_t
 create_map_and_set_sequence_num(int64_t sequence_number, GIDCopier gid_copier);
 
+///=============================================================================
+// A class to store the replies to service requests.
+class ZenohReply final
+{
+public:
+  ZenohReply(const z_owned_reply_t * reply);
+
+  ~ZenohReply();
+
+  std::optional<z_sample_t> get_sample() const;
+
+private:
+  z_owned_reply_t reply_;
+};
+
+// A class to store the queries made by clients.
+///=============================================================================
+class ZenohQuery final
+{
+public:
+  ZenohQuery(const z_query_t * query);
+
+  ~ZenohQuery();
+
+  const z_query_t get_query() const;
+
+private:
+  z_owned_query_t query_;
+};
 }  // namespace rmw_zenoh_cpp
 
 #endif  // DETAIL__ZENOH_UTILS_HPP_

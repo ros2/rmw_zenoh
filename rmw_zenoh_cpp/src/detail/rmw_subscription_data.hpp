@@ -153,7 +153,7 @@ private:
   size_t total_messages_lost_;
   // Wait set data.
   rmw_wait_set_data_t * wait_set_data_;
-  // std::mutex condition_mutex_;
+  // Callback managers.
   DataCallbackManager data_callback_mgr_;
   std::shared_ptr<EventsManager> events_mgr_;
   // Shutdown flag.

@@ -42,6 +42,7 @@ add_library(rmw_zenoh_cpp SHARED
   src/detail/rmw_data_types.cpp
   src/detail/rmw_publisher_data.cpp
   src/detail/rmw_node_data.cpp
+  src/detail/rmw_service_data.cpp
   src/detail/rmw_subscription_data.cpp
   src/detail/service_type_support.cpp
   src/detail/type_support.cpp
