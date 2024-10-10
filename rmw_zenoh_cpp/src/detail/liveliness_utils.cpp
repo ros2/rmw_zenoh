@@ -441,7 +441,7 @@ Entity::Entity(
     // Append the delimiter unless it is the last component.
     this->liveliness_keyexpr_ += KEYEXPR_DELIMITER;
   }
-  this->guid_ = std::hash<std::string>{}(this->liveliness_keyexpr_);
+  this->keyexpr_hash_ = std::hash<std::string>{}(this->liveliness_keyexpr_);
 }
 
 ///=============================================================================
@@ -585,9 +585,9 @@ std::string Entity::id() const
 }
 
 ///=============================================================================
-std::size_t Entity::guid() const
+std::size_t Entity::keyexpr_hash() const
 {
-  return this->guid_;
+  return this->keyexpr_hash_;
 }
 
 ///=============================================================================
@@ -632,9 +632,7 @@ std::string Entity::liveliness_keyexpr() const
 ///=============================================================================
 bool Entity::operator==(const Entity & other) const
 {
-  // TODO(Yadunund): If we decide to directly store the guid as a
-  // rmw_gid_t type, we should rely on rmw_compare_gids_equal() instead.
-  return other.guid() == guid_;
+  return other.keyexpr_hash() == keyexpr_hash_;
 }
 
 ///=============================================================================

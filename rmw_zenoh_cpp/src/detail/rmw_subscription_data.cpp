@@ -249,7 +249,7 @@ std::shared_ptr<SubscriptionData> SubscriptionData::make(
     std::weak_ptr<SubscriptionData> data_wp = sub_data;
     graph_cache->set_querying_subscriber_callback(
       sub_data->entity_->topic_info().value().topic_keyexpr_,
-      sub_data->entity_->guid(),
+      sub_data->entity_->keyexpr_hash(),
       [data_wp](const std::string & queryable_prefix) -> void
       {
         auto sub_data = data_wp.lock();
@@ -359,10 +359,10 @@ SubscriptionData::SubscriptionData(
 }
 
 ///=============================================================================
-std::size_t SubscriptionData::guid() const
+std::size_t SubscriptionData::keyexpr_hash() const
 {
   std::lock_guard<std::mutex> lock(mutex_);
-  return entity_->guid();
+  return entity_->keyexpr_hash();
 }
 
 ///=============================================================================

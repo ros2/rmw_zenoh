@@ -80,8 +80,8 @@ public:
     const void * ros_message,
     std::optional<zc_owned_shm_manager_t> & shm_manager);
 
-  // Get a copy of the GUID of this SubscriptionData's liveliness::Entity.
-  std::size_t guid() const;
+  // Get a copy of the keyexpr_hash of this SubscriptionData's liveliness::Entity.
+  std::size_t keyexpr_hash() const;
 
   // Get a copy of the TopicInfo of this SubscriptionData.
   liveliness::TopicInfo topic_info() const;
