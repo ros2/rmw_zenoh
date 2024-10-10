@@ -264,7 +264,7 @@
   /// Unstable: this configuration part works as advertised, but may change in a future release
   adminspace: {
     // Enables the admin space
-    enabled: false,
+    enabled: true,
     // read and/or write permissions on the admin space
     permissions: {
       read: true,
