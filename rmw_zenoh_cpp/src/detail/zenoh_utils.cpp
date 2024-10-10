@@ -62,4 +62,44 @@ create_map_and_set_sequence_num(
 
   return map;
 }
+
+///=============================================================================
+ZenohQuery::ZenohQuery(const z_query_t * query)
+{
+  query_ = z_query_clone(query);
+}
+
+///=============================================================================
+ZenohQuery::~ZenohQuery()
+{
+  z_drop(z_move(query_));
+}
+
+///=============================================================================
+const z_query_t ZenohQuery::get_query() const
+{
+  return z_query_loan(&query_);
+}
+
+///=============================================================================
+ZenohReply::ZenohReply(const z_owned_reply_t * reply)
+{
+  reply_ = *reply;
+}
+
+///=============================================================================
+ZenohReply::~ZenohReply()
+{
+  z_reply_drop(z_move(reply_));
+}
+
+///=============================================================================
+std::optional<z_sample_t> ZenohReply::get_sample() const
+{
+  if (z_reply_is_ok(&reply_)) {
+    return z_reply_ok(&reply_);
+  }
+
+  return std::nullopt;
+}
 }  // namespace rmw_zenoh_cpp

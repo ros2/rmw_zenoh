@@ -51,9 +51,6 @@ public:
     const rosidl_message_type_support_t * type_support,
     const rmw_qos_profile_t * qos_profile);
 
-  // Get a copy of the actual qos_profile used by this publisher.
-  rmw_qos_profile_t adapted_qos_profile() const;
-
   // Publish a ROS message.
   rmw_ret_t publish(
     const void * ros_message,

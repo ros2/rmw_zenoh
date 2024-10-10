@@ -27,6 +27,7 @@
 #include "liveliness_utils.hpp"
 #include "rmw_publisher_data.hpp"
 #include "rmw_subscription_data.hpp"
+#include "rmw_service_data.hpp"
 
 #include "rmw/rmw.h"
 
@@ -50,7 +51,7 @@ public:
   // Get the id of this node.
   std::size_t id() const;
 
-  // Create a new PublisherData for a publisher in this node.
+  // Create a new PublisherData for a given rmw_publisher_t.
   bool create_pub_data(
     const rmw_publisher_t * const publisher,
     z_session_t session,
@@ -59,15 +60,15 @@ public:
     const rosidl_message_type_support_t * type_support,
     const rmw_qos_profile_t * qos_profile);
 
-  /// Retrieve the PublisherData for a given rmw_publisher_t if present.
+  // Retrieve the PublisherData for a given rmw_publisher_t if present.
   PublisherDataPtr get_pub_data(const rmw_publisher_t * const publisher);
 
   // Delete the PublisherData for a given rmw_publisher_t if present.
   void delete_pub_data(const rmw_publisher_t * const publisher);
 
-  // Create a new SubscriptionData for a publisher in this node.
+  // Create a new SubscriptionData for a given rmw_subscription_t.
   bool create_sub_data(
-    const rmw_subscription_t * const publisher,
+    const rmw_subscription_t * const subscription,
     z_session_t session,
     std::shared_ptr<GraphCache> graph_cache,
     std::size_t id,
@@ -75,11 +76,26 @@ public:
     const rosidl_message_type_support_t * type_support,
     const rmw_qos_profile_t * qos_profile);
 
-  /// Retrieve the SubscriptionData for a given rmw_subscription_t if present.
-  SubscriptionDataPtr get_sub_data(const rmw_subscription_t * const publisher);
+  // Retrieve the SubscriptionData for a given rmw_subscription_t if present.
+  SubscriptionDataPtr get_sub_data(const rmw_subscription_t * const subscription);
 
   // Delete the SubscriptionData for a given rmw_subscription_t if present.
-  void delete_sub_data(const rmw_subscription_t * const publisher);
+  void delete_sub_data(const rmw_subscription_t * const subscription);
+
+  // Create a new ServiceData for a given rmw_service_t.
+  bool create_service_data(
+    const rmw_service_t * const service,
+    z_session_t session,
+    std::size_t id,
+    const std::string & service_name,
+    const rosidl_service_type_support_t * type_support,
+    const rmw_qos_profile_t * qos_profile);
+
+  // Retrieve the ServiceData for a given rmw_service_t if present.
+  ServiceDataPtr get_service_data(const rmw_service_t * const service);
+
+  // Delete the ServiceData for a given rmw_service_t if present.
+  void delete_service_data(const rmw_service_t * const service);
 
   // Shutdown this NodeData.
   rmw_ret_t shutdown();
@@ -114,6 +130,8 @@ private:
   std::unordered_map<const rmw_publisher_t *, PublisherDataPtr> pubs_;
   // Map of subscriptions.
   std::unordered_map<const rmw_subscription_t *, SubscriptionDataPtr> subs_;
+  // Map of services.
+  std::unordered_map<const rmw_service_t *, ServiceDataPtr> services_;
 };
 }  // namespace rmw_zenoh_cpp
 
