@@ -26,11 +26,7 @@
 
 #include "graph_cache.hpp"
 #include "guard_condition.hpp"
-#include "liveliness_utils.hpp"
 #include "rmw_node_data.hpp"
-
-#include "rcutils/types.h"
-#include "rmw/rmw.h"
 
 ///=============================================================================
 class rmw_context_impl_s final
@@ -52,13 +48,13 @@ public:
   // Loan the Zenoh session.
   // TODO(Yadunund): Remove this API once rmw_context_impl_s is updated to
   // create other Zenoh objects.
-  z_session_t session() const;
+  const z_loaned_session_t * session() const;
 
-  // Get a reference to the shm_manager.
+  // Get a reference to the shm_provider.
   // Note: This is not thread-safe.
   // TODO(Yadunund): Remove this API and instead include a publish() API
-  // that handles the shm_manager once the context manages publishers.
-  std::optional<zc_owned_shm_manager_t> & shm_manager();
+  // that handles the shm_provider once the context manages publishers.
+  std::optional<z_owned_shm_provider_t> & shm_provider();
 
   // Get the graph guard condition.
   rmw_guard_condition_t * graph_guard_condition();
@@ -93,6 +89,9 @@ public:
   /// Delete the NodeData for a given rmw_node_t if present.
   void delete_node_data(const rmw_node_t * const node);
 
+  // Destructor.
+  ~rmw_context_impl_s();
+
 private:
   // Bundle all class members into a data struct which can be passed as a
   // weak ptr to various threads for thread-safe access without capturing
@@ -104,7 +103,7 @@ private:
       std::size_t domain_id,
       const std::string & enclave,
       z_owned_session_t session,
-      std::optional<zc_owned_shm_manager_t> shm_manager,
+      std::optional<z_owned_shm_provider_t> shm_provider,
       const std::string & liveliness_str,
       std::shared_ptr<rmw_zenoh_cpp::GraphCache> graph_cache);
 
@@ -129,7 +128,7 @@ private:
     z_owned_session_t session_;
     // An optional SHM manager that is initialized of SHM is enabled in the
     // zenoh session config.
-    std::optional<zc_owned_shm_manager_t> shm_manager_;
+    std::optional<z_owned_shm_provider_t> shm_provider_;
     // Liveliness keyexpr string to subscribe to for ROS graph changes.
     std::string liveliness_str_;
     // Graph cache.
@@ -153,7 +152,7 @@ private:
 
   std::shared_ptr<Data> data_{nullptr};
 
-  static void graph_sub_data_handler(const z_sample_t * sample, void * data);
+  static void graph_sub_data_handler(z_loaned_sample_t * sample, void * data);
 };
 
 

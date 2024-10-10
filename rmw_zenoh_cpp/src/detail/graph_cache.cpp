@@ -17,7 +17,6 @@
 #include <memory>
 #include <mutex>
 #include <optional>
-#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -602,8 +601,10 @@ void GraphCache::parse_del(
       return entity->zid() == node_it.second->zid_ && entity->nid() == node_it.second->nid_;
     });
   if (node_it == range.second) {
-    // Node does not exist.
-    RMW_ZENOH_LOG_WARN_NAMED(
+    // Node does not exist or its liveliness token has been unregistered before one of its
+    // pubs/subs/service liveliness token. This could happen since Zenoh doesn't guarantee
+    // any order for unregistration events if the remote Node closed abruptly or was disconnected.
+    RMW_ZENOH_LOG_DEBUG_NAMED(
       "rmw_zenoh_cpp",
       "Received liveliness token to remove unknown node /%s from the graph. Ignoring...",
       entity->node_name().c_str()
@@ -613,16 +614,17 @@ void GraphCache::parse_del(
 
   if (entity->type() == EntityType::Node) {
     // Node
-    // The liveliness tokens to remove pub/subs should be received before the one to remove a node
-    // given the reliability QoS for liveliness subs. However, if we find any pubs/subs present in
-    // the node below, we should update the count in graph_topics_.
+    // In case the remote Node closed abruptly or was disconnected, Zenoh could deliver the
+    // liveliness tokens unregistration events in any order.
+    // If the event for Node unregistration comes before the unregistration of its
+    // pubs/subs/services, we should update the count in graph_topics_ and graph_services_.
     const GraphNodePtr graph_node = node_it->second;
     if (!graph_node->pubs_.empty() ||
       !graph_node->subs_.empty() ||
       !graph_node->clients_.empty() ||
       !graph_node->services_.empty())
     {
-      RMW_ZENOH_LOG_WARN_NAMED(
+      RMW_ZENOH_LOG_DEBUG_NAMED(
         "rmw_zenoh_cpp",
         "Received liveliness token to remove node /%s from the graph before all pub/subs/"
         "clients/services for this node have been removed. Removing all entities first...",

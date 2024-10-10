@@ -30,7 +30,7 @@ namespace rmw_zenoh_cpp
 std::shared_ptr<NodeData> NodeData::make(
   const rmw_node_t * const node,
   std::size_t id,
-  z_session_t session,
+  const z_loaned_session_t * session,
   std::size_t domain_id,
   const std::string & namespace_,
   const std::string & node_name,
@@ -57,16 +57,15 @@ std::shared_ptr<NodeData> NodeData::make(
   }
 
   // Create the liveliness token.
-  zc_owned_liveliness_token_t token = zc_liveliness_declare_token(
-    session,
-    z_keyexpr(entity->liveliness_keyexpr().c_str()),
-    NULL
-  );
+  std::string liveliness_keyexpr = entity->liveliness_keyexpr();
+  z_view_keyexpr_t liveliness_ke;
+  z_view_keyexpr_from_str(&liveliness_ke, liveliness_keyexpr.c_str());
+  zc_owned_liveliness_token_t token;
   auto free_token = rcpputils::make_scope_exit(
     [&token]() {
       z_drop(z_move(token));
     });
-  if (!z_check(token)) {
+  if (zc_liveliness_declare_token(&token, session, z_loan(liveliness_ke), NULL) != Z_OK) {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to create liveliness token for the node.");
@@ -122,7 +121,7 @@ std::size_t NodeData::id() const
 ///=============================================================================
 bool NodeData::create_pub_data(
   const rmw_publisher_t * const publisher,
-  z_session_t session,
+  const z_loaned_session_t * session,
   std::size_t id,
   const std::string & topic_name,
   const rosidl_message_type_support_t * type_support,
@@ -188,7 +187,7 @@ void NodeData::delete_pub_data(const rmw_publisher_t * const publisher)
 ///=============================================================================
 bool NodeData::create_sub_data(
   const rmw_subscription_t * const subscription,
-  z_session_t session,
+  const z_loaned_session_t * session,
   std::shared_ptr<GraphCache> graph_cache,
   std::size_t id,
   const std::string & topic_name,

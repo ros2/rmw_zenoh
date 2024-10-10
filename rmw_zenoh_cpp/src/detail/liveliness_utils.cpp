@@ -14,6 +14,8 @@
 
 #include "liveliness_utils.hpp"
 
+#include <zenoh.h>
+
 #include <functional>
 #include <limits>
 #include <optional>
@@ -21,15 +23,12 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
-#include <type_traits>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
 #include "logging_macros.hpp"
 #include "qos.hpp"
-
-#include "rcpputils/scope_exit.hpp"
 
 #include "rmw/error_handling.h"
 
@@ -373,14 +372,11 @@ std::optional<rmw_qos_profile_t> keyexpr_to_qos(const std::string & keyexpr)
 ///=============================================================================
 std::string zid_to_str(const z_id_t & id)
 {
-  std::stringstream ss;
-  ss << std::hex;
-  for (std::size_t i = 0; i < sizeof(id.id); i++) {
-    // By Zenoh convention a z_id_t is a little endian u128.
-    const std::size_t le_idx = sizeof(id.id) - 1 - i;
-    ss << static_cast<int>(id.id[le_idx]);
-  }
-  return ss.str();
+  z_owned_string_t z_str;
+  z_id_to_string(&id, &z_str);
+  std::string str(z_string_data(z_loan(z_str)), z_string_len(z_loan(z_str)));
+  z_drop(z_move(z_str));
+  return str;
 }
 
 ///=============================================================================

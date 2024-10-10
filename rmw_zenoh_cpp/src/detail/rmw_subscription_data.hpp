@@ -32,6 +32,7 @@
 #include "graph_cache.hpp"
 #include "liveliness_utils.hpp"
 #include "message_type_support.hpp"
+#include "attachment_helpers.hpp"
 #include "type_support_common.hpp"
 
 #include "rcutils/allocator.h"
@@ -48,24 +49,20 @@ public:
   struct Message
   {
     explicit Message(
-      zc_owned_payload_t p,
+      z_owned_slice_t p,
       uint64_t recv_ts,
-      const uint8_t pub_gid[RMW_GID_STORAGE_SIZE],
-      int64_t seqnum,
-      int64_t source_ts);
+      attachement_data_t && attachment);
 
     ~Message();
 
-    zc_owned_payload_t payload;
+    z_owned_slice_t payload;
     uint64_t recv_timestamp;
-    uint8_t publisher_gid[RMW_GID_STORAGE_SIZE];
-    int64_t sequence_number;
-    int64_t source_timestamp;
+    attachement_data_t attachment;
   };
 
   // Make a shared_ptr of SubscriptionData.
   static std::shared_ptr<SubscriptionData> make(
-    z_session_t session,
+    const z_loaned_session_t * session,
     std::shared_ptr<GraphCache> graph_cache,
     const rmw_node_t * const node,
     liveliness::NodeInfo node_info,
@@ -78,16 +75,13 @@ public:
   // Publish a ROS message.
   rmw_ret_t publish(
     const void * ros_message,
-    std::optional<zc_owned_shm_manager_t> & shm_manager);
+    std::optional<z_owned_shm_provider_t> & shm_provider);
 
   // Get a copy of the GUID of this SubscriptionData's liveliness::Entity.
   std::size_t guid() const;
 
   // Get a copy of the TopicInfo of this SubscriptionData.
   liveliness::TopicInfo topic_info() const;
-
-  // Returns true if liveliness token is still valid.
-  bool liveliness_is_valid() const;
 
   // Get the events manager of this SubscriptionData.
   std::shared_ptr<EventsManager> events_mgr() const;

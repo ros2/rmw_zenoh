@@ -16,7 +16,9 @@
 
 #include <cstdlib>
 #include <cstring>
-#include <string>
+#include <stdexcept>
+#include <string_view>
+#include <utility>
 
 #include "rmw/types.h"
 
@@ -24,75 +26,81 @@
 
 namespace rmw_zenoh_cpp
 {
-//==============================================================================
-bool get_gid_from_attachment(
-  const z_attachment_t * const attachment, uint8_t gid[RMW_GID_STORAGE_SIZE])
+
+attachement_data_t::attachement_data_t(
+  const int64_t _sequence_number,
+  const int64_t _source_timestamp,
+  const uint8_t _source_gid[RMW_GID_STORAGE_SIZE])
 {
-  if (!z_check(*attachment)) {
-    return false;
-  }
-
-  z_bytes_t index = z_attachment_get(*attachment, z_bytes_new("source_gid"));
-  if (!z_check(index)) {
-    return false;
-  }
-
-  if (index.len != RMW_GID_STORAGE_SIZE) {
-    return false;
-  }
-
-  memcpy(gid, index.start, index.len);
-
-  return true;
+  sequence_number = _sequence_number;
+  source_timestamp = _source_timestamp;
+  memcpy(source_gid, _source_gid, RMW_GID_STORAGE_SIZE);
 }
 
-//==============================================================================
-int64_t get_int64_from_attachment(
-  const z_attachment_t * const attachment, const std::string & name)
+attachement_data_t::attachement_data_t(attachement_data_t && data)
 {
-  if (!z_check(*attachment)) {
-    // A valid request must have had an attachment
-    return -1;
+  sequence_number = std::move(data.sequence_number);
+  source_timestamp = std::move(data.source_timestamp);
+  memcpy(source_gid, data.source_gid, RMW_GID_STORAGE_SIZE);
+}
+
+void attachement_data_t::serialize_to_zbytes(z_owned_bytes_t * attachment)
+{
+  ze_owned_serializer_t serializer;
+  ze_serializer_empty(&serializer);
+  ze_serializer_serialize_str(z_loan_mut(serializer), "sequence_number");
+  ze_serializer_serialize_int64(z_loan_mut(serializer), this->sequence_number);
+  ze_serializer_serialize_str(z_loan_mut(serializer), "source_timestamp");
+  ze_serializer_serialize_int64(z_loan_mut(serializer), this->source_timestamp);
+  ze_serializer_serialize_str(z_loan_mut(serializer), "source_gid");
+  ze_serializer_serialize_buf(z_loan_mut(serializer), this->source_gid, RMW_GID_STORAGE_SIZE);
+  ze_serializer_finish(z_move(serializer), attachment);
+}
+
+attachement_data_t::attachement_data_t(const z_loaned_bytes_t * attachment)
+{
+  ze_deserializer_t deserializer = ze_deserializer_from_bytes(attachment);
+  z_owned_string_t key;
+
+  ze_deserializer_deserialize_string(&deserializer, &key);
+
+  // Deserialize the sequence_number
+  if (std::string_view(z_string_data(z_loan(key)),
+      z_string_len(z_loan(key))) != "sequence_number")
+  {
+    throw std::runtime_error("sequence_number is not found in the attachment.");
+  }
+  z_drop(z_move(key));
+  if (ze_deserializer_deserialize_int64(&deserializer, &this->sequence_number)) {
+    throw std::runtime_error("Failed to deserialize the sequence_number.");
   }
 
-  z_bytes_t index = z_attachment_get(*attachment, z_bytes_new(name.c_str()));
-  if (!z_check(index)) {
-    return -1;
+  // Deserialize the source_timestamp
+  ze_deserializer_deserialize_string(&deserializer, &key);
+  if (std::string_view(z_string_data(z_loan(key)),
+      z_string_len(z_loan(key))) != "source_timestamp")
+  {
+    throw std::runtime_error("source_timestamp is not found in the attachment");
+  }
+  z_drop(z_move(key));
+  if (ze_deserializer_deserialize_int64(&deserializer, &this->source_timestamp)) {
+    throw std::runtime_error("Failed to deserialize the source_timestamp.");
   }
 
-  if (index.len < 1) {
-    return -1;
+  // Deserialize the source_gid
+  ze_deserializer_deserialize_string(&deserializer, &key);
+  if (std::string_view(z_string_data(z_loan(key)), z_string_len(z_loan(key))) != "source_gid") {
+    throw std::runtime_error("Invalid attachment: the key source_gid is not found");
   }
-
-  if (index.len > 19) {
-    // The number was larger than we expected
-    return -1;
+  z_drop(z_move(key));
+  z_owned_slice_t slice;
+  if (ze_deserializer_deserialize_slice(&deserializer, &slice)) {
+    throw std::runtime_error("Failed to deserialize the source_gid.");
   }
-
-  // The largest possible int64_t number is INT64_MAX, i.e. 9223372036854775807.
-  // That is 19 characters long, plus one for the trailing \0, means we need 20 bytes.
-  char int64_str[20];
-
-  memcpy(int64_str, index.start, index.len);
-  int64_str[index.len] = '\0';
-
-  errno = 0;
-  char * endptr;
-  int64_t num = strtol(int64_str, &endptr, 10);
-  if (num == 0) {
-    // This is an error regardless; the client should never send this
-    return -1;
-  } else if (endptr == int64_str) {
-    // No values were converted, this is an error
-    return -1;
-  } else if (*endptr != '\0') {
-    // There was junk after the number
-    return -1;
-  } else if (errno != 0) {
-    // Some other error occurred, which may include overflow or underflow
-    return -1;
+  if (z_slice_len(z_loan(slice)) != RMW_GID_STORAGE_SIZE) {
+    throw std::runtime_error("The length of source_gid mismatched.");
   }
-
-  return num;
+  memcpy(this->source_gid, z_slice_data(z_loan(slice)), z_slice_len(z_loan(slice)));
+  z_drop(z_move(slice));
 }
 }  // namespace rmw_zenoh_cpp

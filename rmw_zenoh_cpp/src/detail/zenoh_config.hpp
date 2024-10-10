@@ -16,10 +16,7 @@
 #define DETAIL__ZENOH_CONFIG_HPP_
 
 #include <zenoh.h>
-
 #include <optional>
-#include <unordered_map>
-#include <utility>
 
 #include "rmw/ret_types.h"
 

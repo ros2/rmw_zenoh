@@ -16,14 +16,12 @@
 
 #include <fastcdr/FastBuffer.h>
 
-#include <cinttypes>
 #include <memory>
 #include <mutex>
 #include <string>
 #include <utility>
 
 #include "cdr.hpp"
-#include "rmw_context_impl_s.hpp"
 #include "message_type_support.hpp"
 #include "logging_macros.hpp"
 #include "qos.hpp"
@@ -33,13 +31,15 @@
 
 #include "rmw/error_handling.h"
 #include "rmw/get_topic_endpoint_info.h"
-#include "rmw/impl/cpp/macros.hpp"
 
 namespace rmw_zenoh_cpp
 {
+// TODO(yuyuan): SHM, make this configurable
+#define SHM_BUF_OK_SIZE 2621440
+
 ///=============================================================================
 std::shared_ptr<PublisherData> PublisherData::make(
-  z_session_t session,
+  const z_loaned_session_t * session,
   const rmw_node_t * const node,
   liveliness::NodeInfo node_info,
   std::size_t node_id,
@@ -98,21 +98,25 @@ std::shared_ptr<PublisherData> PublisherData::make(
       topic_name.c_str());
     return nullptr;
   }
-  z_owned_keyexpr_t keyexpr = z_keyexpr_new(
-    entity->topic_info()->topic_keyexpr_.c_str());
-  auto always_free_ros_keyexpr = rcpputils::make_scope_exit(
-    [&keyexpr]() {
-      z_keyexpr_drop(z_move(keyexpr));
-    });
-  if (!z_keyexpr_check(&keyexpr)) {
+
+  std::string topic_keyexpr = entity->topic_info()->topic_keyexpr_;
+  z_view_keyexpr_t pub_ke;
+  if (z_view_keyexpr_from_str(&pub_ke, topic_keyexpr.c_str()) != Z_OK) {
     RMW_SET_ERROR_MSG("unable to create zenoh keyexpr.");
     return nullptr;
   }
 
   // Create a Publication Cache if durability is transient_local.
   std::optional<ze_owned_publication_cache_t> pub_cache = std::nullopt;
+  auto undeclare_z_publisher_cache = rcpputils::make_scope_exit(
+    [&pub_cache]() {
+      if (pub_cache.has_value()) {
+        z_drop(z_move(pub_cache.value()));
+      }
+    });
   if (adapted_qos_profile.durability == RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL) {
-    ze_publication_cache_options_t pub_cache_opts = ze_publication_cache_options_default();
+    ze_publication_cache_options_t pub_cache_opts;
+    ze_publication_cache_options_default(&pub_cache_opts);
     pub_cache_opts.history = adapted_qos_profile.depth;
     pub_cache_opts.queryable_complete = true;
     // Set the queryable_prefix to the session id so that querying subscribers can specify this
@@ -121,62 +125,58 @@ std::shared_ptr<PublisherData> PublisherData::make(
     // When such a prefix is added to the PublicationCache, it listens to queries with this extra
     // prefix (allowing to be queried in a unique way), but still replies with the original
     // publications' key expressions.
-    z_owned_keyexpr_t queryable_prefix = z_keyexpr_new(entity->zid().c_str());
-    auto always_free_queryable_prefix = rcpputils::make_scope_exit(
-      [&queryable_prefix]() {
-        z_keyexpr_drop(z_move(queryable_prefix));
-      });
-    pub_cache_opts.queryable_prefix = z_loan(queryable_prefix);
-    pub_cache = ze_declare_publication_cache(
-      session,
-      z_loan(keyexpr),
-      &pub_cache_opts
-    );
-    if (!pub_cache.has_value() || !z_check(pub_cache.value())) {
+    std::string queryable_prefix = entity->zid();
+    z_view_keyexpr_t prefix_ke;
+    z_view_keyexpr_from_str(&prefix_ke, queryable_prefix.c_str());
+    pub_cache_opts.queryable_prefix = z_loan(prefix_ke);
+
+    ze_owned_publication_cache_t pub_cache_;
+    if (ze_declare_publication_cache(
+        &pub_cache_, session, z_loan(pub_ke), &pub_cache_opts))
+    {
       RMW_SET_ERROR_MSG("unable to create zenoh publisher cache");
       return nullptr;
     }
+    pub_cache = pub_cache_;
   }
-  auto undeclare_z_publisher_cache = rcpputils::make_scope_exit(
-    [&pub_cache]() {
-      if (pub_cache.has_value()) {
-        z_drop(z_move(pub_cache.value()));
-      }
-    });
 
   // Set congestion_control to BLOCK if appropriate.
-  z_publisher_options_t opts = z_publisher_options_default();
+  z_publisher_options_t opts;
+  z_publisher_options_default(&opts);
   opts.congestion_control = Z_CONGESTION_CONTROL_DROP;
-  if (adapted_qos_profile.history == RMW_QOS_POLICY_HISTORY_KEEP_ALL &&
-    adapted_qos_profile.reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE)
-  {
-    opts.congestion_control = Z_CONGESTION_CONTROL_BLOCK;
+
+  if (adapted_qos_profile.reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE) {
+    opts.reliability = Z_RELIABILITY_RELIABLE;
+
+    if (adapted_qos_profile.history == RMW_QOS_POLICY_HISTORY_KEEP_ALL) {
+      opts.congestion_control = Z_CONGESTION_CONTROL_BLOCK;
+    }
   }
+  z_owned_publisher_t pub;
   // TODO(clalancette): What happens if the key name is a valid but empty string?
-  z_owned_publisher_t pub = z_declare_publisher(
-    session,
-    z_loan(keyexpr),
-    &opts
-  );
-  if (!z_check(pub)) {
-    RMW_SET_ERROR_MSG("Unable to create Zenoh publisher.");
-    return nullptr;
-  }
   auto undeclare_z_publisher = rcpputils::make_scope_exit(
     [&pub]() {
       z_undeclare_publisher(z_move(pub));
     });
+  if (z_declare_publisher(
+      &pub, session, z_loan(pub_ke), &opts) != Z_OK)
+  {
+    RMW_SET_ERROR_MSG("Unable to create Zenoh publisher.");
+    return nullptr;
+  }
 
-  zc_owned_liveliness_token_t token = zc_liveliness_declare_token(
-    session,
-    z_keyexpr(entity->liveliness_keyexpr().c_str()),
-    NULL
-  );
+  std::string liveliness_keyexpr = entity->liveliness_keyexpr();
+  z_view_keyexpr_t liveliness_ke;
+  z_view_keyexpr_from_str(&liveliness_ke, liveliness_keyexpr.c_str());
+  zc_owned_liveliness_token_t token;
   auto free_token = rcpputils::make_scope_exit(
     [&token]() {
       z_drop(z_move(token));
     });
-  if (!z_check(token)) {
+  if (zc_liveliness_declare_token(
+      &token, session, z_loan(liveliness_ke),
+      NULL) != Z_OK)
+  {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to create liveliness token for the publisher.");
@@ -232,7 +232,7 @@ rmw_qos_profile_t PublisherData::adapted_qos_profile() const
 ///=============================================================================
 rmw_ret_t PublisherData::publish(
   const void * ros_message,
-  std::optional<zc_owned_shm_manager_t> & shm_manager)
+  std::optional<z_owned_shm_provider_t> & shm_provider)
 {
   std::lock_guard<std::mutex> lock(mutex_);
   if (is_shutdown_) {
@@ -247,13 +247,13 @@ rmw_ret_t PublisherData::publish(
 
   // To store serialized message byte array.
   char * msg_bytes = nullptr;
-  std::optional<zc_owned_shmbuf_t> shmbuf = std::nullopt;
+  std::optional<z_owned_shm_mut_t> shmbuf = std::nullopt;
   auto always_free_shmbuf = rcpputils::make_scope_exit(
     [&shmbuf]() {
       if (shmbuf.has_value()) {
-        zc_shmbuf_drop(&shmbuf.value());
+        z_drop(z_move(shmbuf.value()));
       }
-    });
+  });
 
   rcutils_allocator_t * allocator = &rmw_node_->context->options.allocator;
 
@@ -265,22 +265,23 @@ rmw_ret_t PublisherData::publish(
     });
 
   // Get memory from SHM buffer if available.
-  if (shm_manager.has_value() &&
-    zc_shm_manager_check(&shm_manager.value()))
-  {
-    shmbuf = zc_shm_alloc(
-      &shm_manager.value(),
-      max_data_length);
-    if (!z_check(shmbuf.value())) {
-      zc_shm_gc(&shm_manager.value());
-      shmbuf = zc_shm_alloc(&shm_manager.value(), max_data_length);
-      if (!z_check(shmbuf.value())) {
-        // TODO(Yadunund): Should we revert to regular allocation and not return an error?
-        RMW_SET_ERROR_MSG("Failed to allocate a SHM buffer, even after GCing.");
-        return RMW_RET_ERROR;
-      }
+  if (shm_provider.has_value()) {
+    RMW_ZENOH_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "SHM is enabled.");
+
+    auto provider = shm_provider.value();
+    z_buf_layout_alloc_result_t alloc;
+    // TODO(yuyuan): SHM, configure this
+    z_alloc_alignment_t alignment = {5};
+    z_shm_provider_alloc_gc_defrag_blocking(&alloc, z_loan(provider), SHM_BUF_OK_SIZE, alignment);
+
+    if (alloc.status == ZC_BUF_LAYOUT_ALLOC_STATUS_OK) {
+      shmbuf = std::make_optional(alloc.buf);
+      msg_bytes = reinterpret_cast<char *>(z_shm_mut_data_mut(z_loan_mut(alloc.buf)));
+    } else {
+      // TODO(Yadunund): Should we revert to regular allocation and not return an error?
+      RMW_SET_ERROR_MSG("Failed to allocate a SHM buffer, even after GCing.");
+      return RMW_RET_ERROR;
     }
-    msg_bytes = reinterpret_cast<char *>(zc_shmbuf_ptr(&shmbuf.value()));
   } else {
     // Get memory from the allocator.
     msg_bytes = static_cast<char *>(allocator->allocate(max_data_length, allocator->state));
@@ -304,48 +305,31 @@ rmw_ret_t PublisherData::publish(
 
   const size_t data_length = ser.get_serialized_data_length();
 
-  z_owned_bytes_map_t map =
-    create_map_and_set_sequence_num(
-    sequence_number_++,
-    [this](z_owned_bytes_map_t * map, const char * key)
-    {
-      // Mutex already locked.
-      z_bytes_t gid_bytes;
-      gid_bytes.len = RMW_GID_STORAGE_SIZE;
-      gid_bytes.start = gid_;
-      z_bytes_map_insert_by_copy(map, z_bytes_new(key), gid_bytes);
-    });
-  if (!z_check(map)) {
-    // create_map_and_set_sequence_num already set the error
-    return RMW_RET_ERROR;
-  }
-  auto always_free_attachment_map = rcpputils::make_scope_exit(
-    [&map]() {
-      z_bytes_map_drop(z_move(map));
-    });
-
-  int ret;
   // The encoding is simply forwarded and is useful when key expressions in the
   // session use different encoding formats. In our case, all key expressions
   // will be encoded with CDR so it does not really matter.
-  z_publisher_put_options_t options = z_publisher_put_options_default();
-  options.attachment = z_bytes_map_as_attachment(&map);
+  z_publisher_put_options_t options;
+  z_publisher_put_options_default(&options);
+  z_owned_bytes_t attachment;
+  create_map_and_set_sequence_num(&attachment, sequence_number_++, gid_);
+  options.attachment = z_move(attachment);
 
+  z_owned_bytes_t payload;
   if (shmbuf.has_value()) {
-    zc_shmbuf_set_length(&shmbuf.value(), data_length);
-    zc_owned_payload_t payload = zc_shmbuf_into_payload(z_move(shmbuf.value()));
-    ret = zc_publisher_put_owned(z_loan(pub_), z_move(payload), &options);
+    z_bytes_from_shm_mut(&payload, z_move(shmbuf.value()));
   } else {
-    // Returns 0 if success.
-    ret = z_publisher_put(
-      z_loan(pub_),
-      reinterpret_cast<const uint8_t *>(msg_bytes),
-      data_length,
-      &options);
+    z_bytes_copy_from_buf(&payload, reinterpret_cast<const uint8_t *>(msg_bytes), data_length);
   }
-  if (ret) {
-    RMW_SET_ERROR_MSG("unable to publish message");
-    return RMW_RET_ERROR;
+
+  z_result_t res = z_publisher_put(z_loan(pub_), z_move(payload), &options);
+  if (res != Z_OK) {
+    if (res == Z_ESESSION_CLOSED) {
+      RMW_ZENOH_LOG_WARN_NAMED("rmw_zenoh_cpp",
+          "unable to publish message since the zenoh session is closed");
+    } else {
+      RMW_SET_ERROR_MSG("unable to publish message");
+      return RMW_RET_ERROR;
+    }
   }
 
   return RMW_RET_OK;
@@ -354,7 +338,7 @@ rmw_ret_t PublisherData::publish(
 ///=============================================================================
 rmw_ret_t PublisherData::publish_serialized_message(
   const rmw_serialized_message_t * serialized_message,
-  std::optional<zc_owned_shm_manager_t> & /*shm_manager*/)
+  std::optional<z_owned_shm_provider_t> & /*shm_provider*/)
 {
   eprosima::fastcdr::FastBuffer buffer(
     reinterpret_cast<char *>(serialized_message->buffer), serialized_message->buffer_length);
@@ -366,44 +350,30 @@ rmw_ret_t PublisherData::publish_serialized_message(
 
   std::lock_guard<std::mutex> lock(mutex_);
 
-  z_owned_bytes_map_t map = rmw_zenoh_cpp::create_map_and_set_sequence_num(
-    sequence_number_++,
-    [this](z_owned_bytes_map_t * map, const char * key)
-    {
-      // Mutex already locked.
-      z_bytes_t gid_bytes;
-      gid_bytes.len = RMW_GID_STORAGE_SIZE;
-      gid_bytes.start = gid_;
-      z_bytes_map_insert_by_copy(map, z_bytes_new(key), gid_bytes);
-    });
-
-  if (!z_check(map)) {
-    // create_map_and_set_sequence_num already set the error
-    return RMW_RET_ERROR;
-  }
-  auto free_attachment_map = rcpputils::make_scope_exit(
-    [&map]() {
-      z_bytes_map_drop(z_move(map));
-    });
-
   const size_t data_length = ser.get_serialized_data_length();
 
   // The encoding is simply forwarded and is useful when key expressions in the
   // session use different encoding formats. In our case, all key expressions
   // will be encoded with CDR so it does not really matter.
-  z_publisher_put_options_t options = z_publisher_put_options_default();
-  options.attachment = z_bytes_map_as_attachment(&map);
+  z_publisher_put_options_t options;
+  z_publisher_put_options_default(&options);
+  z_owned_bytes_t attachment;
+  create_map_and_set_sequence_num(&attachment, sequence_number_++, gid_);
 
-  // Returns 0 if success.
-  int8_t ret = z_publisher_put(
-    z_loan(pub_),
-    serialized_message->buffer,
-    data_length,
-    &options);
+  options.attachment = z_move(attachment);
 
-  if (ret) {
-    RMW_SET_ERROR_MSG("unable to publish message");
-    return RMW_RET_ERROR;
+  z_owned_bytes_t payload;
+  z_bytes_copy_from_buf(&payload, serialized_message->buffer, data_length);
+
+  z_result_t res = z_publisher_put(z_loan(pub_), z_move(payload), &options);
+  if (res != Z_OK) {
+    if (res == Z_ESESSION_CLOSED) {
+      RMW_ZENOH_LOG_WARN_NAMED("rmw_zenoh_cpp",
+          "unable to publish message since the zenoh session is closed");
+    } else {
+      RMW_SET_ERROR_MSG("unable to publish message");
+      return RMW_RET_ERROR;
+    }
   }
 
   return RMW_RET_OK;
@@ -428,13 +398,6 @@ void PublisherData::copy_gid(rmw_gid_t * gid) const
 {
   std::lock_guard<std::mutex> lock(mutex_);
   memcpy(gid->data, gid_, RMW_GID_STORAGE_SIZE);
-}
-
-///=============================================================================
-bool PublisherData::liveliness_is_valid() const
-{
-  std::lock_guard<std::mutex> lock(mutex_);
-  return zc_liveliness_token_check(&token_);
 }
 
 ///=============================================================================

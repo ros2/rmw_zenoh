@@ -29,10 +29,10 @@
   },
   /// Configure the scouting mechanisms and their behaviours
   scouting: {
-    /// In client mode, the period dedicated to scouting for a router before failing
+    /// In client mode, the period in milliseconds dedicated to scouting for a router before failing.
     timeout: 3000,
-    /// In peer mode, the period dedicated to scouting remote peers before attempting other operations
-    delay: 1,
+    /// In peer mode, the maximum period in milliseconds dedicated to scouting remote peers before attempting other operations.
+    delay: 500,
     /// The multicast scouting configuration.
     multicast: {
       /// Whether multicast scouting is enabled or not
@@ -44,7 +44,7 @@
       /// Which type of Zenoh instances to automatically establish sessions with upon discovery on UDP multicast.
       /// Accepts a single value or different values for router, peer and client.
       /// Each value is bit-or-like combinations of "peer", "router" and "client".
-      autoconnect: { router: "", peer: "router|peer" },
+      autoconnect: { router: [], peer: ["router", "peer"] },
       /// Whether or not to listen for scout messages on UDP multicast and reply to them.
       listen: true,
     },
@@ -61,7 +61,7 @@
       /// Which type of Zenoh instances to automatically establish sessions with upon discovery on gossip.
       /// Accepts a single value or different values for router, peer and client.
       /// Each value is bit-or-like combinations of "peer", "router" and "client".
-      autoconnect: { router: "", peer: "router|peer" },
+      autoconnect: { router: [], peer: ["router", "peer"] },
     },
   },
 
@@ -183,9 +183,16 @@
             data_low: 4,
             background: 4,
           },
-          /// The initial exponential backoff time in nanoseconds to allow the batching to eventually progress.
-          /// Higher values lead to a more aggressive batching but it will introduce additional latency.
-          backoff: 100,
+          /// Perform batching of messages if they are smaller of the batch_size
+          batching: {
+            /// Perform adaptive batching of messages if they are smaller of the batch_size.
+            /// When the network is detected to not be fast enough to transmit every message individually, many small messages may be
+            /// batched together and sent all at once on the wire reducing the overall network overhead. This is typically of a high-throughput
+            /// scenario mainly composed of small messages. In other words, batching is activated by the network back-pressure.
+            enabled: true,
+            /// The maximum time limit (in ms) a message should be retained for batching when back-pressure happens.
+            time_limit: 1,
+          }
         },
         // Number of threads dedicated to transmission
         // By default, the number of threads is calculated as follows: 1 + ((#cores - 1) / 4)
@@ -211,20 +218,21 @@
         /// or the client's keys and certificates, depending on the node's mode. If not specified
         /// on router mode then the default WebPKI certificates are used instead.
         root_ca_certificate: null,
-        /// Path to the TLS server private key
-        server_private_key: null,
-        /// Path to the TLS server public certificate
-        server_certificate: null,
-        /// Client authentication, if true enables mTLS (mutual authentication)
-        client_auth: false,
-        /// Path to the TLS client private key
-        client_private_key: null,
-        /// Path to the TLS client public certificate
-        client_certificate: null,
-        // Whether or not to use server name verification, if set to false zenoh will disregard the common names of the certificates when verifying servers.
+        /// Path to the TLS listening side private key
+        listen_private_key: null,
+        /// Path to the TLS listening side public certificate
+        listen_certificate: null,
+        ///  Enables mTLS (mutual authentication), client authentication
+        enable_mtls: false,
+        /// Path to the TLS connecting side private key
+        connect_private_key: null,
+        /// Path to the TLS connecting side certificate
+        connect_certificate: null,
+        // Whether or not to verify the matching between hostname/dns and certificate when connecting,
+        // if set to false zenoh will disregard the common names of the certificates when verifying servers.
         // This could be dangerous because your CA can have signed a server cert for foo.com, that's later being used to host a server at baz.com. If you wan't your
         // ca to verify that the server at baz.com is actually baz.com, let this be true (default).
-        server_name_verification: null,
+        verify_name_on_connect: true,
       },
     },
     /// Shared memory configuration
@@ -255,6 +263,8 @@
   /// Configure the Admin Space
   /// Unstable: this configuration part works as advertised, but may change in a future release
   adminspace: {
+    // Enables the admin space
+    enabled: true,
     // read and/or write permissions on the admin space
     permissions: {
       read: true,

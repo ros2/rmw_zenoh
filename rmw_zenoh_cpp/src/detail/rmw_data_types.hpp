@@ -17,25 +17,15 @@
 
 #include <zenoh.h>
 
-#include <condition_variable>
 #include <deque>
 #include <memory>
 #include <mutex>
-#include <optional>
-#include <string>
 #include <unordered_map>
-#include <utility>
-#include <vector>
-
-#include "rcutils/allocator.h"
-
-#include "rmw/rmw.h"
 
 #include "rosidl_runtime_c/type_hash.h"
 
 #include "event.hpp"
 #include "graph_cache.hpp"
-#include "message_type_support.hpp"
 #include "rmw_wait_set_data.hpp"
 #include "service_type_support.hpp"
 
@@ -44,21 +34,21 @@
 namespace rmw_zenoh_cpp
 {
 ///=============================================================================
-void service_data_handler(const z_query_t * query, void * service_data);
+void service_data_handler(z_loaned_query_t * query, void * service_data);
 
 ///=============================================================================
-void client_data_handler(z_owned_reply_t * reply, void * client_data);
+void client_data_handler(z_loaned_reply_t * reply, void * client_data);
 void client_data_drop(void * data);
 
 ///=============================================================================
 class ZenohQuery final
 {
 public:
-  ZenohQuery(const z_query_t * query);
+  ZenohQuery(z_owned_query_t query);
 
   ~ZenohQuery();
 
-  const z_query_t get_query() const;
+  const z_loaned_query_t * get_query() const;
 
 private:
   z_owned_query_t query_;
@@ -124,11 +114,11 @@ private:
 class ZenohReply final
 {
 public:
-  ZenohReply(const z_owned_reply_t * reply);
+  ZenohReply(z_owned_reply_t reply);
 
   ~ZenohReply();
 
-  std::optional<z_sample_t> get_sample() const;
+  const z_loaned_reply_t * get_reply() const;
 
 private:
   z_owned_reply_t reply_;
@@ -193,6 +183,7 @@ private:
   rmw_wait_set_data_t * wait_set_data_{nullptr};
   std::mutex condition_mutex_;
 
+  // TODO(yuyuan): replace with zenoh-c ring buffer handler
   std::deque<std::unique_ptr<rmw_zenoh_cpp::ZenohReply>> reply_queue_;
   mutable std::mutex reply_queue_mutex_;
 

@@ -23,17 +23,14 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
-#include <vector>
 
 #include "event.hpp"
 #include "liveliness_utils.hpp"
 #include "ordered_map.hpp"
 
 #include "rcutils/allocator.h"
-#include "rcutils/types.h"
 
-#include "rmw/rmw.h"
-#include "rmw/get_topic_endpoint_info.h"
+#include "rmw/topic_endpoint_info_array.h"
 #include "rmw/names_and_types.h"
 
 

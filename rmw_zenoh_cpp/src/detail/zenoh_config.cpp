@@ -18,6 +18,8 @@
 
 #include <limits>
 #include <string>
+#include <unordered_map>
+#include <utility>
 
 #include "logging_macros.hpp"
 
@@ -55,18 +57,13 @@ rmw_ret_t _get_z_config(
       "rmw_zenoh_cpp", "Envar %s cannot be read.", envar_name);
     return RMW_RET_ERROR;
   }
-  // If the environment variable contains a path to a file, try to read the configuration from it.
-  if (envar_uri[0] != '\0') {
-    // If the environment variable is set, try to read the configuration from the file.
-    *config = zc_config_from_file(envar_uri);
-    configured_uri = envar_uri;
-  } else {
-    // If the environment variable is not set use internal configuration
-    *config = zc_config_from_file(default_uri);
-    configured_uri = default_uri;
-  }
-  // Verify that the configuration is valid.
-  if (!z_config_check(config)) {
+
+  // If the environment variable is set, try to read the configuration from the file,
+  // if the environment variable is not set use internal configuration
+  configured_uri = envar_uri[0] != '\0' ? envar_uri : default_uri;
+
+  // Try to read the configuration
+  if (zc_config_from_file(config, configured_uri) != Z_OK) {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Invalid configuration file %s", configured_uri);

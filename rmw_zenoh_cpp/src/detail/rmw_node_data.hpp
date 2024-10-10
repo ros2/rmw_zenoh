@@ -28,8 +28,6 @@
 #include "rmw_publisher_data.hpp"
 #include "rmw_subscription_data.hpp"
 
-#include "rmw/rmw.h"
-
 namespace rmw_zenoh_cpp
 {
 ///=============================================================================
@@ -41,7 +39,7 @@ public:
   static std::shared_ptr<NodeData> make(
     const rmw_node_t * const node,
     std::size_t id,
-    z_session_t session,
+    const z_loaned_session_t * session,
     std::size_t domain_id,
     const std::string & namespace_,
     const std::string & node_name,
@@ -53,7 +51,7 @@ public:
   // Create a new PublisherData for a publisher in this node.
   bool create_pub_data(
     const rmw_publisher_t * const publisher,
-    z_session_t session,
+    const z_loaned_session_t * session,
     std::size_t id,
     const std::string & topic_name,
     const rosidl_message_type_support_t * type_support,
@@ -68,7 +66,7 @@ public:
   // Create a new SubscriptionData for a publisher in this node.
   bool create_sub_data(
     const rmw_subscription_t * const publisher,
-    z_session_t session,
+    const z_loaned_session_t * session,
     std::shared_ptr<GraphCache> graph_cache,
     std::size_t id,
     const std::string & topic_name,

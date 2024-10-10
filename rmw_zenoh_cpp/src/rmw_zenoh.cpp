@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include <fastcdr/FastBuffer.h>
-
+#include <rmw/get_topic_endpoint_info.h>
 #include <zenoh.h>
 
 #include <chrono>
@@ -21,15 +21,14 @@
 #include <cstring>
 #include <memory>
 #include <mutex>
-#include <new>
 #include <optional>
 #include <string>
 #include <utility>
 
 #include "detail/attachment_helpers.hpp"
 #include "detail/cdr.hpp"
-#include "detail/guard_condition.hpp"
 #include "detail/graph_cache.hpp"
+#include "detail/guard_condition.hpp"
 #include "detail/identifier.hpp"
 #include "detail/liveliness_utils.hpp"
 #include "detail/logging_macros.hpp"
@@ -42,12 +41,7 @@
 #include "detail/zenoh_utils.hpp"
 
 #include "rcpputils/scope_exit.hpp"
-
-#include "rcutils/env.h"
 #include "rcutils/strdup.h"
-#include "rcutils/types.h"
-
-#include "rmw/allocators.h"
 #include "rmw/dynamic_message_type_support.h"
 #include "rmw/error_handling.h"
 #include "rmw/features.h"
@@ -116,6 +110,9 @@ const rosidl_service_type_support_t * find_service_type_support(
 
 extern "C"
 {
+// TODO(yuyuan): SHM, make this configurable
+#define SHM_BUF_OK_SIZE 2621440
+
 //==============================================================================
 /// Get the name of the rmw implementation being used
 const char *
@@ -394,10 +391,6 @@ rmw_create_publisher(
     context_impl,
     "unable to get rmw_context_impl_s",
     return nullptr);
-  if (!context_impl->session_is_valid()) {
-    RMW_SET_ERROR_MSG("zenoh session is invalid");
-    return nullptr;
-  }
 
   rcutils_allocator_t * allocator = &node->context->options.allocator;
   if (!rcutils_allocator_is_valid(allocator)) {
@@ -459,7 +452,8 @@ rmw_create_publisher(
 }
 
 //==============================================================================
-/// Finalize a given publisher handle, reclaim the resources, and deallocate the publisher handle.
+/// Finalize a given publisher handle, reclaim the resources, and deallocate the
+/// publisher handle.
 rmw_ret_t
 rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
 {
@@ -606,7 +600,7 @@ rmw_publish(
 
   return pub_data->publish(
     ros_message,
-    context_impl->shm_manager());
+    context_impl->shm_provider());
 }
 
 //==============================================================================
@@ -713,7 +707,7 @@ rmw_publish_serialized_message(
 
   return publisher_data->publish_serialized_message(
     serialized_message,
-    context_impl->shm_manager());
+    context_impl->shm_provider());
 }
 
 //==============================================================================
@@ -751,10 +745,6 @@ rmw_publisher_assert_liveliness(const rmw_publisher_t * publisher)
   RMW_CHECK_ARGUMENT_FOR_NULL(node_data, RMW_RET_INVALID_ARGUMENT);
   auto pub_data = node_data->get_pub_data(publisher);
   RMW_CHECK_ARGUMENT_FOR_NULL(pub_data, RMW_RET_INVALID_ARGUMENT);
-
-  if (!pub_data->liveliness_is_valid()) {
-    return RMW_RET_ERROR;
-  }
 
   return RMW_RET_OK;
 }
@@ -927,10 +917,6 @@ rmw_create_subscription(
     context_impl,
     "unable to get rmw_context_impl_s",
     return nullptr);
-  if (!context_impl->session_is_valid()) {
-    RMW_SET_ERROR_MSG("zenoh session is invalid");
-    return nullptr;
-  }
 
   rcutils_allocator_t * allocator = &node->context->options.allocator;
   if (!rcutils_allocator_is_valid(allocator)) {
@@ -1400,10 +1386,6 @@ rmw_create_client(
     context_impl,
     "unable to get rmw_context_impl_s",
     return nullptr);
-  if (!context_impl->session_is_valid()) {
-    RMW_SET_ERROR_MSG("zenoh session is invalid");
-    return nullptr;
-  }
 
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
@@ -1577,7 +1559,7 @@ rmw_create_client(
       allocator->deallocate(type_hash_c_str, allocator->state);
     });
 
-  z_session_t session = context_impl->session();
+  const z_loaned_session_t * session = context_impl->session();
   auto node_data = context_impl->get_node_data(node);
   RMW_CHECK_FOR_NULL_WITH_MSG(
     node_data,
@@ -1606,28 +1588,30 @@ rmw_create_client(
     return nullptr;
   }
 
-  client_data->keyexpr = z_keyexpr_new(client_data->entity->topic_info()->topic_keyexpr_.c_str());
   auto free_ros_keyexpr = rcpputils::make_scope_exit(
     [client_data]() {
       z_keyexpr_drop(z_move(client_data->keyexpr));
     });
-  if (!z_keyexpr_check(&client_data->keyexpr)) {
+  if (z_keyexpr_from_str(
+      &client_data->keyexpr, client_data->entity->topic_info()->topic_keyexpr_.c_str()) != Z_OK)
+  {
     RMW_SET_ERROR_MSG("unable to create zenoh keyexpr.");
     return nullptr;
   }
 
-  client_data->token = zc_liveliness_declare_token(
-    session,
-    z_keyexpr(client_data->entity->liveliness_keyexpr().c_str()),
-    NULL
-  );
+  std::string liveliness_keyexpr = client_data->entity->liveliness_keyexpr();
+  z_view_keyexpr_t liveliness_ke;
+  z_view_keyexpr_from_str(&liveliness_ke, liveliness_keyexpr.c_str());
   auto free_token = rcpputils::make_scope_exit(
     [client_data]() {
       if (client_data != nullptr) {
         z_drop(z_move(client_data->token));
       }
     });
-  if (!z_check(client_data->token)) {
+  if (zc_liveliness_declare_token(
+      &client_data->token, session, z_loan(liveliness_ke),
+      NULL) != Z_OK)
+  {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to create liveliness token for the client.");
@@ -1776,31 +1760,22 @@ rmw_send_request(
   *sequence_id = client_data->get_next_sequence_number();
 
   // Send request
-  z_get_options_t opts = z_get_options_default();
+  z_get_options_t opts;
+  z_get_options_default(&opts);
 
-  z_owned_bytes_map_t map = rmw_zenoh_cpp::create_map_and_set_sequence_num(
-    *sequence_id,
-    [client_data](z_owned_bytes_map_t * map, const char * key)
-    {
-      z_bytes_t gid_bytes;
-      gid_bytes.len = RMW_GID_STORAGE_SIZE;
-      gid_bytes.start = client_data->client_gid;
-      z_bytes_map_insert_by_copy(map, z_bytes_new(key), gid_bytes);
-    });
-  if (!z_check(map)) {
-    // create_map_and_set_sequence_num already set the error
-    return RMW_RET_ERROR;
-  }
-  auto free_attachment_map = rcpputils::make_scope_exit(
-    [&map]() {
-      z_bytes_map_drop(z_move(map));
+  z_owned_bytes_t attachment;
+  rmw_zenoh_cpp::create_map_and_set_sequence_num(&attachment, *sequence_id,
+      client_data->client_gid);
+  auto free_attachment = rcpputils::make_scope_exit(
+    [&attachment]() {
+      z_drop(z_move(attachment));
     });
 
-  // See the comment about the "num_in_flight" class variable in the rmw_client_data_t class for
-  // why we need to do this.
+  // See the comment about the "num_in_flight" class variable in the
+  // rmw_client_data_t class for why we need to do this.
   client_data->increment_in_flight_callbacks();
 
-  opts.attachment = z_bytes_map_as_attachment(&map);
+  opts.attachment = z_move(attachment);
 
   opts.target = Z_QUERY_TARGET_ALL_COMPLETE;
   // The default timeout for a z_get query is 10 seconds and if a response is not received within
@@ -1812,13 +1787,18 @@ rmw_send_request(
   // which optimizes bandwidth. The default is "None", which imples replies may come in any order
   // and any number.
   opts.consolidation = z_query_consolidation_latest();
-  opts.value.payload = z_bytes_t{data_length, reinterpret_cast<const uint8_t *>(request_bytes)};
-  z_owned_closure_reply_t zn_closure_reply =
-    z_closure(rmw_zenoh_cpp::client_data_handler, rmw_zenoh_cpp::client_data_drop, client_data);
+
+  z_owned_bytes_t payload;
+  z_bytes_copy_from_buf(
+    &payload, reinterpret_cast<const uint8_t *>(request_bytes), data_length);
+  opts.payload = z_move(payload);
+
+  z_owned_closure_reply_t callback;
+  z_closure(&callback, rmw_zenoh_cpp::client_data_handler, NULL, client_data);
   z_get(
     context_impl->session(),
     z_loan(client_data->keyexpr), "",
-    z_move(zn_closure_reply),
+    z_move(callback),
     &opts);
 
   return RMW_RET_OK;
@@ -1858,16 +1838,19 @@ rmw_take_response(
     return RMW_RET_OK;
   }
 
-  std::optional<z_sample_t> sample = latest_reply->get_sample();
-  if (!sample) {
+  const z_loaned_sample_t * sample = z_reply_ok(latest_reply->get_reply());
+  if (sample == NULL) {
     RMW_SET_ERROR_MSG("invalid reply sample");
     return RMW_RET_ERROR;
   }
 
+  z_owned_slice_t payload;
+  z_bytes_to_slice(z_sample_payload(sample), &payload);
+
   // Object that manages the raw buffer
   eprosima::fastcdr::FastBuffer fastbuffer(
-    reinterpret_cast<char *>(const_cast<uint8_t *>(sample->payload.start)),
-    sample->payload.len);
+    reinterpret_cast<char *>(const_cast<uint8_t *>(z_slice_data(z_loan(payload)))),
+    z_slice_len(z_loan(payload)));
 
   // Object that serializes the data
   rmw_zenoh_cpp::Cdr deser(fastbuffer);
@@ -1882,25 +1865,17 @@ rmw_take_response(
 
   // Fill in the request_header
 
-  request_header->request_id.sequence_number =
-    rmw_zenoh_cpp::get_int64_from_attachment(&sample->attachment, "sequence_number");
+  rmw_zenoh_cpp::attachement_data_t attachment(z_sample_attachment(sample));
+
+  request_header->request_id.sequence_number = attachment.sequence_number;
   if (request_header->request_id.sequence_number < 0) {
     RMW_SET_ERROR_MSG("Failed to get sequence_number from client call attachment");
     return RMW_RET_ERROR;
   }
 
-  request_header->source_timestamp =
-    rmw_zenoh_cpp::get_int64_from_attachment(&sample->attachment, "source_timestamp");
+  request_header->source_timestamp = attachment.source_timestamp;
   if (request_header->source_timestamp < 0) {
     RMW_SET_ERROR_MSG("Failed to get source_timestamp from client call attachment");
-    return RMW_RET_ERROR;
-  }
-
-  if (!rmw_zenoh_cpp::get_gid_from_attachment(
-      &sample->attachment,
-      request_header->request_id.writer_guid))
-  {
-    RMW_SET_ERROR_MSG("Could not get client gid from attachment");
     return RMW_RET_ERROR;
   }
 
@@ -1908,6 +1883,7 @@ rmw_take_response(
   auto now_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now);
   request_header->received_timestamp = now_ns.count();
 
+  z_drop(z_move(payload));
   *taken = true;
 
   return RMW_RET_OK;
@@ -1997,10 +1973,6 @@ rmw_create_service(
     context_impl,
     "unable to get rmw_context_impl_s",
     return nullptr);
-  if (!context_impl->session_is_valid()) {
-    RMW_SET_ERROR_MSG("zenoh session is invalid");
-    return nullptr;
-  }
 
   // SERVICE DATA ==============================================================
   rcutils_allocator_t * allocator = &node->context->options.allocator;
@@ -2156,7 +2128,7 @@ rmw_create_service(
       allocator->deallocate(type_hash_c_str, allocator->state);
     });
 
-  z_session_t session = context_impl->session();
+  const z_loaned_session_t * session = context_impl->session();
   auto node_data = context_impl->get_node_data(node);
   RMW_CHECK_FOR_NULL_WITH_MSG(
     node_data,
@@ -2184,31 +2156,23 @@ rmw_create_service(
       rmw_service->service_name);
     return nullptr;
   }
-  service_data->keyexpr = z_keyexpr_new(service_data->entity->topic_info()->topic_keyexpr_.c_str());
-  auto free_ros_keyexpr = rcpputils::make_scope_exit(
-    [service_data]() {
-      if (service_data) {
-        z_drop(z_move(service_data->keyexpr));
-      }
-    });
-  if (!z_check(z_loan(service_data->keyexpr))) {
+  if (z_keyexpr_from_str(
+      &service_data->keyexpr, service_data->entity->topic_info()->topic_keyexpr_.c_str()) != Z_OK)
+  {
     RMW_SET_ERROR_MSG("unable to create zenoh keyexpr.");
     return nullptr;
   }
 
-  z_owned_closure_query_t callback = z_closure(
-    rmw_zenoh_cpp::service_data_handler, nullptr,
-    service_data);
+  z_owned_closure_query_t callback;
+  z_closure(&callback, rmw_zenoh_cpp::service_data_handler, nullptr, service_data);
   // Configure the queryable to process complete queries.
-  z_queryable_options_t qable_options = z_queryable_options_default();
+  z_queryable_options_t qable_options;
+  z_queryable_options_default(&qable_options);
   qable_options.complete = true;
-  service_data->qable = z_declare_queryable(
-    session,
-    z_loan(service_data->keyexpr),
-    z_move(callback),
-    &qable_options);
-
-  if (!z_check(service_data->qable)) {
+  if (z_declare_queryable(
+      &service_data->qable, session, z_loan(service_data->keyexpr),
+      z_move(callback), &qable_options) != Z_OK)
+  {
     RMW_SET_ERROR_MSG("unable to create zenoh queryable");
     return nullptr;
   }
@@ -2217,18 +2181,19 @@ rmw_create_service(
       z_undeclare_queryable(z_move(service_data->qable));
     });
 
-  service_data->token = zc_liveliness_declare_token(
-    session,
-    z_keyexpr(service_data->entity->liveliness_keyexpr().c_str()),
-    NULL
-  );
+  std::string liveliness_keyexpr = service_data->entity->liveliness_keyexpr();
+  z_view_keyexpr_t liveliness_ke;
+  z_view_keyexpr_from_str(&liveliness_ke, liveliness_keyexpr.c_str());
   auto free_token = rcpputils::make_scope_exit(
     [service_data]() {
       if (service_data != nullptr) {
         z_drop(z_move(service_data->token));
       }
     });
-  if (!z_check(service_data->token)) {
+  if (zc_liveliness_declare_token(
+      &service_data->token, session, z_loan(liveliness_ke),
+      NULL) != Z_OK)
+  {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to create liveliness token for the service.");
@@ -2245,7 +2210,6 @@ rmw_create_service(
   destruct_response_type_support.cancel();
   free_request_type_support.cancel();
   free_response_type_support.cancel();
-  free_ros_keyexpr.cancel();
   undeclare_z_queryable.cancel();
   free_token.cancel();
 
@@ -2340,15 +2304,16 @@ rmw_take_request(
     return RMW_RET_OK;
   }
 
-  const z_query_t loaned_query = query->get_query();
+  const z_loaned_query_t * loaned_query = query->get_query();
 
   // DESERIALIZE MESSAGE ========================================================
-  z_value_t payload_value = z_query_value(&loaned_query);
+  z_owned_slice_t payload;
+  z_bytes_to_slice(z_query_payload(loaned_query), &payload);
 
   // Object that manages the raw buffer
   eprosima::fastcdr::FastBuffer fastbuffer(
-    reinterpret_cast<char *>(const_cast<uint8_t *>(payload_value.payload.start)),
-    payload_value.payload.len);
+    reinterpret_cast<char *>(const_cast<uint8_t *>(z_slice_data(z_loan(payload)))),
+    z_slice_len(z_loan(payload)));
 
   // Object that serializes the data
   rmw_zenoh_cpp::Cdr deser(fastbuffer);
@@ -2363,29 +2328,17 @@ rmw_take_request(
 
   // Fill in the request header.
 
-  // Get the sequence_number out of the attachment
-  z_attachment_t attachment = z_query_attachment(&loaned_query);
+  rmw_zenoh_cpp::attachement_data_t attachment(z_query_attachment(loaned_query));
 
-  request_header->request_id.sequence_number =
-    rmw_zenoh_cpp::get_int64_from_attachment(&attachment, "sequence_number");
+  request_header->request_id.sequence_number = attachment.sequence_number;
   if (request_header->request_id.sequence_number < 0) {
     RMW_SET_ERROR_MSG("Failed to get sequence_number from client call attachment");
     return RMW_RET_ERROR;
   }
 
-  request_header->source_timestamp = rmw_zenoh_cpp::get_int64_from_attachment(
-    &attachment,
-    "source_timestamp");
+  request_header->source_timestamp = attachment.source_timestamp;
   if (request_header->source_timestamp < 0) {
     RMW_SET_ERROR_MSG("Failed to get source_timestamp from client call attachment");
-    return RMW_RET_ERROR;
-  }
-
-  if (!rmw_zenoh_cpp::get_gid_from_attachment(
-      &attachment,
-      request_header->request_id.writer_guid))
-  {
-    RMW_SET_ERROR_MSG("Could not get client GID from attachment");
     return RMW_RET_ERROR;
   }
 
@@ -2399,6 +2352,7 @@ rmw_take_request(
     return RMW_RET_ERROR;
   }
 
+  z_drop(z_move(payload));
   *taken = true;
 
   return RMW_RET_OK;
@@ -2474,32 +2428,21 @@ rmw_send_response(
 
   size_t data_length = ser.get_serialized_data_length();
 
-  const z_query_t loaned_query = query->get_query();
-  z_query_reply_options_t options = z_query_reply_options_default();
+  const z_loaned_query_t * loaned_query = query->get_query();
+  z_query_reply_options_t options;
+  z_query_reply_options_default(&options);
 
-  z_owned_bytes_map_t map = rmw_zenoh_cpp::create_map_and_set_sequence_num(
-    request_header->sequence_number,
-    [request_header](z_owned_bytes_map_t * map, const char * key)
-    {
-      z_bytes_t gid_bytes;
-      gid_bytes.len = RMW_GID_STORAGE_SIZE;
-      gid_bytes.start = request_header->writer_guid;
-      z_bytes_map_insert_by_copy(map, z_bytes_new(key), gid_bytes);
-    });
-  if (!z_check(map)) {
-    // create_map_and_set_sequence_num already set the error
-    return RMW_RET_ERROR;
-  }
-  auto free_attachment_map = rcpputils::make_scope_exit(
-    [&map]() {
-      z_bytes_map_drop(z_move(map));
-    });
+  z_owned_bytes_t attachment;
+  rmw_zenoh_cpp::create_map_and_set_sequence_num(&attachment, request_header->sequence_number,
+      request_header->writer_guid);
+  options.attachment = z_move(attachment);
 
-  options.attachment = z_bytes_map_as_attachment(&map);
-
+  z_owned_bytes_t payload;
+  z_bytes_copy_from_buf(
+    &payload, reinterpret_cast<const uint8_t *>(response_bytes), data_length);
   z_query_reply(
-    &loaned_query, z_loan(service_data->keyexpr), reinterpret_cast<const uint8_t *>(
-      response_bytes), data_length, &options);
+    loaned_query, z_loan(service_data->keyexpr), z_move(payload), &options);
+
 
   return RMW_RET_OK;
 }
