@@ -403,10 +403,10 @@ rmw_ret_t PublisherData::publish_serialized_message(
 }
 
 ///=============================================================================
-std::size_t PublisherData::guid() const
+std::size_t PublisherData::keyexpr_hash() const
 {
   std::lock_guard<std::mutex> lock(mutex_);
-  return entity_->guid();
+  return entity_->keyexpr_hash();
 }
 
 ///=============================================================================

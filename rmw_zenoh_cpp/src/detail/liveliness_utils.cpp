@@ -452,7 +452,7 @@ Entity::Entity(
   memcpy(this->gid_ + sizeof(keyexpr_gid.low64), &keyexpr_gid.high64, sizeof(keyexpr_gid.high64));
 
   // We also hash the liveliness keyexpression into a size_t that we use to index into our maps
-  this->guid_ = std::hash<std::string>{}(this->liveliness_keyexpr_);
+  this->keyexpr_hash_ = std::hash<std::string>{}(this->liveliness_keyexpr_);
 }
 
 ///=============================================================================
@@ -596,9 +596,9 @@ std::string Entity::id() const
 }
 
 ///=============================================================================
-std::size_t Entity::guid() const
+std::size_t Entity::keyexpr_hash() const
 {
-  return this->guid_;
+  return this->keyexpr_hash_;
 }
 
 ///=============================================================================
@@ -643,9 +643,7 @@ std::string Entity::liveliness_keyexpr() const
 ///=============================================================================
 bool Entity::operator==(const Entity & other) const
 {
-  // TODO(Yadunund): If we decide to directly store the guid as a
-  // rmw_gid_t type, we should rely on rmw_compare_gids_equal() instead.
-  return other.guid() == guid_;
+  return other.keyexpr_hash() == keyexpr_hash_;
 }
 
 ///=============================================================================

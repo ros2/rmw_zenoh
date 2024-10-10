@@ -61,8 +61,8 @@ public:
     const rmw_serialized_message_t * serialized_message,
     std::optional<zc_owned_shm_manager_t> & shm_manager);
 
-  // Get a copy of the GUID of this PublisherData's liveliness::Entity.
-  std::size_t guid() const;
+  // Get a copy of the keyexpr_hash of this PublisherData's liveliness::Entity.
+  std::size_t keyexpr_hash() const;
 
   // Get a copy of the TopicInfo of this PublisherData.
   liveliness::TopicInfo topic_info() const;

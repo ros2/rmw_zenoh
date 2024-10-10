@@ -145,13 +145,11 @@ public:
   std::string nid() const;
 
   // Get the id of the entity local to a zenoh session.
-  // Use guid() to retrieve a globally unique id.
+  // Use keyexpr_hash() to retrieve a globally unique id.
   std::string id() const;
 
   // Interim method to get a globally unique id for this entity which is the hash of the keyexpr.
-  // TODO(Yadunund): Should this return a rmw_gid_t?
-  // This is named guid and not gid to remain distinct as it is not of type rmw_gid_t.
-  std::size_t guid() const;
+  std::size_t keyexpr_hash() const;
 
   /// Get the entity type.
   EntityType type() const;
@@ -171,7 +169,7 @@ public:
   /// Get the liveliness keyexpr for this entity.
   std::string liveliness_keyexpr() const;
 
-  // Two entities are equal if their guids are equal.
+  // Two entities are equal if their keyexpr_hash are equal.
   bool operator==(const Entity & other) const;
 
 private:
@@ -186,7 +184,7 @@ private:
   std::string zid_;
   std::string nid_;
   std::string id_;
-  std::size_t guid_;
+  std::size_t keyexpr_hash_;
   EntityType type_;
   NodeInfo node_info_;
   std::optional<TopicInfo> topic_info_;
@@ -256,7 +254,7 @@ struct hash<rmw_zenoh_cpp::liveliness::Entity>
 {
   auto operator()(const rmw_zenoh_cpp::liveliness::Entity & entity) const -> size_t
   {
-    return entity.guid();
+    return entity.keyexpr_hash();
   }
 };
 
@@ -265,7 +263,7 @@ struct hash<rmw_zenoh_cpp::liveliness::ConstEntityPtr>
 {
   auto operator()(const rmw_zenoh_cpp::liveliness::ConstEntityPtr & entity) const -> size_t
   {
-    return entity->guid();
+    return entity->keyexpr_hash();
   }
 };
 
@@ -276,7 +274,7 @@ struct equal_to<rmw_zenoh_cpp::liveliness::ConstEntityPtr>
     const rmw_zenoh_cpp::liveliness::ConstEntityPtr & lhs,
     const rmw_zenoh_cpp::liveliness::ConstEntityPtr & rhs) const -> bool
   {
-    return lhs->guid() == rhs->guid();
+    return lhs->keyexpr_hash() == rhs->keyexpr_hash();
   }
 };
 }  // namespace std

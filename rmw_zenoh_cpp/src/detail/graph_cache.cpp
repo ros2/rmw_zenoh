@@ -319,7 +319,7 @@ void GraphCache::take_entities_with_events(const EntityEventMap & entities_with_
   for (const auto & [local_entity, event_set] : entities_with_events) {
     // Trigger callback set for this entity for the event type.
     GraphEventCallbackMap::const_iterator event_callbacks_it =
-      event_callbacks_.find(local_entity->guid());
+      event_callbacks_.find(local_entity->keyexpr_hash());
     if (event_callbacks_it != event_callbacks_.end()) {
       for (const rmw_zenoh_event_type_t & event_type : event_set) {
         GraphEventCallbacks::const_iterator callback_it =
@@ -1240,7 +1240,7 @@ rmw_ret_t GraphCache::service_server_is_available(
 
 ///=============================================================================
 void GraphCache::set_qos_event_callback(
-  std::size_t entity_guid,
+  std::size_t entity_keyexpr_hash,
   const rmw_zenoh_event_type_t & event_type,
   GraphCacheEventCallback callback)
 {
@@ -1253,20 +1253,20 @@ void GraphCache::set_qos_event_callback(
     return;
   }
 
-  const GraphEventCallbackMap::iterator event_cb_it = event_callbacks_.find(entity_guid);
+  const GraphEventCallbackMap::iterator event_cb_it = event_callbacks_.find(entity_keyexpr_hash);
   if (event_cb_it == event_callbacks_.end()) {
     // First time a callback is being set for this entity.
-    event_callbacks_[entity_guid] = {std::make_pair(event_type, std::move(callback))};
+    event_callbacks_[entity_keyexpr_hash] = {std::make_pair(event_type, std::move(callback))};
     return;
   }
   event_cb_it->second[event_type] = std::move(callback);
 }
 
 ///=============================================================================
-void GraphCache::remove_qos_event_callbacks(std::size_t entity_guid)
+void GraphCache::remove_qos_event_callbacks(std::size_t entity_keyexpr_hash)
 {
   std::lock_guard<std::mutex> lock(graph_mutex_);
-  event_callbacks_.erase(entity_guid);
+  event_callbacks_.erase(entity_keyexpr_hash);
 }
 
 ///=============================================================================
@@ -1342,28 +1342,34 @@ std::unique_ptr<rmw_zenoh_event_status_t> GraphCache::take_event_status(
 ///=============================================================================
 void GraphCache::set_querying_subscriber_callback(
   const std::string & sub_keyexpr,
-  const std::size_t sub_guid,
+  const std::size_t sub_keyxpr_hash,
   QueryingSubscriberCallback cb)
 {
-  auto cb_it = querying_subs_cbs_.find(sub_keyexpr);
+  std::unordered_map<
+    std::string,
+    std::unordered_map<std::size_t, QueryingSubscriberCallback>
+  >::iterator cb_it = querying_subs_cbs_.find(sub_keyexpr);
   if (cb_it == querying_subs_cbs_.end()) {
     querying_subs_cbs_[sub_keyexpr] = std::move(
       std::unordered_map<std::size_t, QueryingSubscriberCallback>{});
     cb_it = querying_subs_cbs_.find(sub_keyexpr);
   }
-  cb_it->second.insert(std::make_pair(sub_guid, std::move(cb)));
+  cb_it->second.insert(std::make_pair(sub_keyxpr_hash, std::move(cb)));
 }
 
 ///=============================================================================
 void GraphCache::remove_querying_subscriber_callback(
   const std::string & sub_keyexpr,
-  const std::size_t sub_guid)
+  const std::size_t sub_keyexpr_hash)
 {
-  auto cb_map_it = querying_subs_cbs_.find(sub_keyexpr);
+  std::unordered_map<
+    std::string,
+    std::unordered_map<std::size_t, QueryingSubscriberCallback>
+  >::iterator cb_map_it = querying_subs_cbs_.find(sub_keyexpr);
   if (cb_map_it == querying_subs_cbs_.end()) {
     return;
   }
-  cb_map_it->second.erase(sub_guid);
+  cb_map_it->second.erase(sub_keyexpr_hash);
 }
 
 }  // namespace rmw_zenoh_cpp
