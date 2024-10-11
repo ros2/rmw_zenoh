@@ -65,7 +65,8 @@ attachement_data_t::attachement_data_t(const z_loaned_bytes_t * attachment)
   ze_deserializer_deserialize_string(&deserializer, &key);
 
   // Deserialize the sequence_number
-  if (std::string_view(z_string_data(z_loan(key)),
+  if (std::string_view(
+      z_string_data(z_loan(key)),
       z_string_len(z_loan(key))) != "sequence_number")
   {
     throw std::runtime_error("sequence_number is not found in the attachment.");
@@ -77,7 +78,8 @@ attachement_data_t::attachement_data_t(const z_loaned_bytes_t * attachment)
 
   // Deserialize the source_timestamp
   ze_deserializer_deserialize_string(&deserializer, &key);
-  if (std::string_view(z_string_data(z_loan(key)),
+  if (std::string_view(
+      z_string_data(z_loan(key)),
       z_string_len(z_loan(key))) != "source_timestamp")
   {
     throw std::runtime_error("source_timestamp is not found in the attachment");

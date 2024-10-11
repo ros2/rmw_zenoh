@@ -65,7 +65,7 @@ std::shared_ptr<NodeData> NodeData::make(
     [&token]() {
       z_drop(z_move(token));
     });
-  if (zc_liveliness_declare_token(&token, session, z_loan(liveliness_ke), NULL) != Z_OK) {
+  if (zc_liveliness_declare_token(session, &token, z_loan(liveliness_ke), NULL) != Z_OK) {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to create liveliness token for the node.");

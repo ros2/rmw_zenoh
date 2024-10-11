@@ -132,8 +132,8 @@ rmw_ret_t rmw_context_impl_s::Data::subscribe_to_ros_graph()
       z_undeclare_subscriber(z_move(this->graph_subscriber_));
     });
   if (zc_liveliness_declare_subscriber(
-      &graph_subscriber_,
-      z_loan(session_), z_loan(keyexpr),
+      z_loan(session_),
+      &graph_subscriber_, z_loan(keyexpr),
       z_move(callback), &sub_options) != Z_OK)
   {
     RMW_SET_ERROR_MSG("unable to create zenoh subscription");
@@ -333,7 +333,8 @@ rmw_context_impl_s::rmw_context_impl_s(
 }
 
 ///=============================================================================
-rmw_context_impl_s::~rmw_context_impl_s() {
+rmw_context_impl_s::~rmw_context_impl_s()
+{
   // std::lock_guard<std::recursive_mutex> lock(data_->mutex_);
   // z_drop(z_move(data_->session_));
 }

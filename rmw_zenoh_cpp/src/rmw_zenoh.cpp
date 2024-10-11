@@ -1609,7 +1609,7 @@ rmw_create_client(
       }
     });
   if (zc_liveliness_declare_token(
-      &client_data->token, session, z_loan(liveliness_ke),
+      session, &client_data->token, z_loan(liveliness_ke),
       NULL) != Z_OK)
   {
     RMW_ZENOH_LOG_ERROR_NAMED(
@@ -1764,8 +1764,9 @@ rmw_send_request(
   z_get_options_default(&opts);
 
   z_owned_bytes_t attachment;
-  rmw_zenoh_cpp::create_map_and_set_sequence_num(&attachment, *sequence_id,
-      client_data->client_gid);
+  rmw_zenoh_cpp::create_map_and_set_sequence_num(
+    &attachment, *sequence_id,
+    client_data->client_gid);
   auto free_attachment = rcpputils::make_scope_exit(
     [&attachment]() {
       z_drop(z_move(attachment));
@@ -2170,7 +2171,7 @@ rmw_create_service(
   z_queryable_options_default(&qable_options);
   qable_options.complete = true;
   if (z_declare_queryable(
-      &service_data->qable, session, z_loan(service_data->keyexpr),
+      session, &service_data->qable, z_loan(service_data->keyexpr),
       z_move(callback), &qable_options) != Z_OK)
   {
     RMW_SET_ERROR_MSG("unable to create zenoh queryable");
@@ -2191,7 +2192,7 @@ rmw_create_service(
       }
     });
   if (zc_liveliness_declare_token(
-      &service_data->token, session, z_loan(liveliness_ke),
+      session, &service_data->token, z_loan(liveliness_ke),
       NULL) != Z_OK)
   {
     RMW_ZENOH_LOG_ERROR_NAMED(
@@ -2433,8 +2434,9 @@ rmw_send_response(
   z_query_reply_options_default(&options);
 
   z_owned_bytes_t attachment;
-  rmw_zenoh_cpp::create_map_and_set_sequence_num(&attachment, request_header->sequence_number,
-      request_header->writer_guid);
+  rmw_zenoh_cpp::create_map_and_set_sequence_num(
+    &attachment, request_header->sequence_number,
+    request_header->writer_guid);
   options.attachment = z_move(attachment);
 
   z_owned_bytes_t payload;

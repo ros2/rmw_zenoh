@@ -203,7 +203,7 @@ std::shared_ptr<SubscriptionData> SubscriptionData::make(
     // Make the initial query to hit all the PublicationCaches, using a query_selector with
     // '*' in place of the queryable_prefix of each PublicationCache
     const std::string selector = "*/" +
-    sub_data->entity_->topic_info()->topic_keyexpr_;
+      sub_data->entity_->topic_info()->topic_keyexpr_;
     z_view_keyexpr_t selector_ke;
     z_view_keyexpr_from_str(&selector_ke, selector.c_str());
     sub_options.query_selector = z_loan(selector_ke);
@@ -220,7 +220,7 @@ std::shared_ptr<SubscriptionData> SubscriptionData::make(
     sub_options.query_consolidation = z_query_consolidation_none();
     ze_owned_querying_subscriber_t sub;
     if (ze_declare_querying_subscriber(
-        &sub, session, z_loan(sub_ke), z_move(callback), &sub_options))
+        session, &sub, z_loan(sub_ke), z_move(callback), &sub_options))
     {
       RMW_SET_ERROR_MSG("unable to create zenoh subscription");
       return nullptr;
@@ -274,7 +274,7 @@ std::shared_ptr<SubscriptionData> SubscriptionData::make(
 
     z_owned_subscriber_t sub;
     if (z_declare_subscriber(
-        &sub, session, z_loan(sub_ke), z_move(callback),
+        session, &sub, z_loan(sub_ke), z_move(callback),
         &sub_options) != Z_OK)
     {
       RMW_SET_ERROR_MSG("unable to create zenoh subscription");
@@ -291,11 +291,11 @@ std::shared_ptr<SubscriptionData> SubscriptionData::make(
   auto free_token = rcpputils::make_scope_exit(
     [sub_data]() {
       if (sub_data != nullptr) {
-        z_drop(z_move(sub_data->token_ ));
+        z_drop(z_move(sub_data->token_));
       }
     });
   if (zc_liveliness_declare_token(
-      &sub_data->token_, session, z_loan(liveliness_ke), NULL) != Z_OK)
+      session, &sub_data->token_, z_loan(liveliness_ke), NULL) != Z_OK)
   {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
@@ -556,7 +556,9 @@ void SubscriptionData::add_new_message(
   const size_t gid_hash = hash_gid(msg->attachment.source_gid);
   auto last_known_pub_it = last_known_published_msg_.find(gid_hash);
   if (last_known_pub_it != last_known_published_msg_.end()) {
-    const int64_t seq_increment = std::abs(msg->attachment.sequence_number - last_known_pub_it->second);
+    const int64_t seq_increment = std::abs(
+      msg->attachment.sequence_number -
+      last_known_pub_it->second);
     if (seq_increment > 1) {
       const size_t num_msg_lost = seq_increment - 1;
       total_messages_lost_ += num_msg_lost;

@@ -132,7 +132,7 @@ std::shared_ptr<PublisherData> PublisherData::make(
 
     ze_owned_publication_cache_t pub_cache_;
     if (ze_declare_publication_cache(
-        &pub_cache_, session, z_loan(pub_ke), &pub_cache_opts))
+        session, &pub_cache_, z_loan(pub_ke), &pub_cache_opts))
     {
       RMW_SET_ERROR_MSG("unable to create zenoh publisher cache");
       return nullptr;
@@ -159,7 +159,7 @@ std::shared_ptr<PublisherData> PublisherData::make(
       z_undeclare_publisher(z_move(pub));
     });
   if (z_declare_publisher(
-      &pub, session, z_loan(pub_ke), &opts) != Z_OK)
+      session, &pub, z_loan(pub_ke), &opts) != Z_OK)
   {
     RMW_SET_ERROR_MSG("Unable to create Zenoh publisher.");
     return nullptr;
@@ -174,7 +174,7 @@ std::shared_ptr<PublisherData> PublisherData::make(
       z_drop(z_move(token));
     });
   if (zc_liveliness_declare_token(
-      &token, session, z_loan(liveliness_ke),
+      session, &token, z_loan(liveliness_ke),
       NULL) != Z_OK)
   {
     RMW_ZENOH_LOG_ERROR_NAMED(
@@ -253,7 +253,7 @@ rmw_ret_t PublisherData::publish(
       if (shmbuf.has_value()) {
         z_drop(z_move(shmbuf.value()));
       }
-  });
+    });
 
   rcutils_allocator_t * allocator = &rmw_node_->context->options.allocator;
 
@@ -324,8 +324,9 @@ rmw_ret_t PublisherData::publish(
   z_result_t res = z_publisher_put(z_loan(pub_), z_move(payload), &options);
   if (res != Z_OK) {
     if (res == Z_ESESSION_CLOSED) {
-      RMW_ZENOH_LOG_WARN_NAMED("rmw_zenoh_cpp",
-          "unable to publish message since the zenoh session is closed");
+      RMW_ZENOH_LOG_WARN_NAMED(
+        "rmw_zenoh_cpp",
+        "unable to publish message since the zenoh session is closed");
     } else {
       RMW_SET_ERROR_MSG("unable to publish message");
       return RMW_RET_ERROR;
@@ -368,8 +369,9 @@ rmw_ret_t PublisherData::publish_serialized_message(
   z_result_t res = z_publisher_put(z_loan(pub_), z_move(payload), &options);
   if (res != Z_OK) {
     if (res == Z_ESESSION_CLOSED) {
-      RMW_ZENOH_LOG_WARN_NAMED("rmw_zenoh_cpp",
-          "unable to publish message since the zenoh session is closed");
+      RMW_ZENOH_LOG_WARN_NAMED(
+        "rmw_zenoh_cpp",
+        "unable to publish message since the zenoh session is closed");
     } else {
       RMW_SET_ERROR_MSG("unable to publish message");
       return RMW_RET_ERROR;
