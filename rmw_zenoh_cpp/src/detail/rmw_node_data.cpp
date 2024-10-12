@@ -383,7 +383,17 @@ ClientDataPtr NodeData::get_client_data(const rmw_client_t * const client)
 void NodeData::delete_client_data(const rmw_client_t * const client)
 {
   std::lock_guard<std::mutex> lock_guard(mutex_);
-  clients_.erase(client);
+  auto client_it = clients_.find(client);
+  if (client_it == clients_.end()) {
+    return;
+  }
+  // We shutdown the client first and only if that is successful, we deallocate
+  // the ClientData. This is to keep the ClientData alive in cases where
+  // rmw_destroy_client is invoked while there are still queries in flight.
+  client_it->second->shutdown();
+  if (!client_it->second->query_in_flight()) {
+    clients_.erase(client);
+  }
 }
 
 ///=============================================================================

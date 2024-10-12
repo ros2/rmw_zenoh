@@ -90,10 +90,15 @@ public:
   bool detach_condition_and_queue_is_empty();
 
   // See the comment for "num_in_flight" below on the use of this method.
-  bool decrement_queries_in_flight_and_is_shutdown(bool & queries_in_flight);
+  void decrement_queries_in_flight();
 
   // Shutdown this ClientData.
   rmw_ret_t shutdown();
+
+  // TODO(Yadunund): Remove this API once we are able to capture weak_ptr<ClientData>
+  // in the client closures to avoid the issue with queries in flight as described
+  // below.
+  bool query_in_flight();
 
   // Check if this ClientData is shutdown.
   bool is_shutdown() const;

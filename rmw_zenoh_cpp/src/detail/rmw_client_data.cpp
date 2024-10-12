@@ -39,6 +39,11 @@
 
 namespace rmw_zenoh_cpp
 {
+// A static mutex whose lifetime will extend beyond that of the internal mutex_.
+// This is needed as the decrement_queries_in_flight callback that me be executed
+// after ClientData is deallocated will try to lock an invalid mutex and thus lead
+// to UB. This only happens in rclcpp_action/test_client.
+static std::mutex num_in_flight_mutex;
 ///=============================================================================
 void client_data_handler(z_owned_reply_t * reply, void * data)
 {
@@ -53,6 +58,12 @@ void client_data_handler(z_owned_reply_t * reply, void * data)
 
   // See the comment about the "num_in_flight" class variable in the ClientData class for
   // why we need to do this.
+  // Note: This called could lead to UB since the ClientData * could have been deallocated
+  // if the query reply is received after NodeData was destructed. ie even though we do not
+  // erase the ClientData from NodeData's clients_ map when rmw_destroy_client is called,
+  // the clients_ maps would get erased when the NodeData's destructor is invoked.
+  // This is an edge case that should be resolved once we switch to zenoh-cpp and capture
+  // weaK_ptr<ClientData> in this callback instead.
   if (client_data->is_shutdown()) {
     return;
   }
@@ -95,17 +106,13 @@ void client_data_drop(void * data)
 
   // See the comment about the "num_in_flight" class variable in the ClientData class for
   // why we need to do this.
-  bool queries_in_flight = false;
-  bool is_shutdown = client_data->decrement_queries_in_flight_and_is_shutdown(queries_in_flight);
-
-  if (is_shutdown) {
-    if (!queries_in_flight) {
-      // TODO(Yadunund): Do we still need this?
-      // RMW_TRY_DESTRUCTOR(~ClientData(), ClientData, );
-      // context->options.allocator.deallocate(
-      //   client_data, context->options.allocator.state);
-    }
-  }
+  // Note: This called could lead to UB since the ClientData * could have been deallocated
+  // if the query reply is received after NodeData was destructed. ie even though we do not
+  // erase the ClientData from NodeData's clients_ map when rmw_destroy_client is called,
+  // the clients_ maps would get erased when the NodeData's destructor is invoked.
+  // This is an edge case that should be resolved once we switch to zenoh-cpp and capture
+  // weaK_ptr<ClientData> in this callback instead.
+  client_data->decrement_queries_in_flight();
 }
 
 ///=============================================================================
@@ -444,7 +451,10 @@ rmw_ret_t ClientData::send_request(
 
   // See the comment about the "num_in_flight" class variable in the ClientData class for
   // why we need to do this.
-  num_in_flight_++;
+  {
+    std::lock_guard<std::mutex> lock(num_in_flight_mutex);
+    num_in_flight_++;
+  }
   opts.attachment = z_bytes_map_as_attachment(&map);
   opts.target = Z_QUERY_TARGET_ALL_COMPLETE;
   // The default timeout for a z_get query is 10 seconds and if a response is not received within
@@ -517,11 +527,10 @@ bool ClientData::detach_condition_and_queue_is_empty()
 //==============================================================================
 // See the comment about the "num_in_flight" class variable in the rmw_client_data_t structure
 // for the use of this method.
-bool ClientData::decrement_queries_in_flight_and_is_shutdown(bool & queries_in_flight)
+void ClientData::decrement_queries_in_flight()
 {
-  std::lock_guard<std::mutex> lock(mutex_);
-  queries_in_flight = --num_in_flight_ > 0;
-  return is_shutdown_;
+  std::lock_guard<std::mutex> lock(num_in_flight_mutex);
+  --num_in_flight_;
 }
 
 ///=============================================================================
@@ -531,15 +540,6 @@ rmw_ret_t ClientData::shutdown()
   std::lock_guard<std::mutex> lock(mutex_);
   if (is_shutdown_) {
     return ret;
-  }
-
-  if (num_in_flight_ > 0) {
-    // TODO(Yadunund): Check if we need to do something.
-    RMW_ZENOH_LOG_WARN_NAMED(
-      "rmw_zenoh_cpp",
-      "Client %s is shutting down while there are still queries in flight.",
-      entity_->topic_info().value().name_.c_str()
-    );
   }
 
   // Unregister this node from the ROS graph.
@@ -552,6 +552,13 @@ rmw_ret_t ClientData::shutdown()
 
   is_shutdown_ = true;
   return RMW_RET_OK;
+}
+
+///=============================================================================
+bool ClientData::query_in_flight()
+{
+  std::lock_guard<std::mutex> lock(mutex_);
+  return num_in_flight_ > 0;
 }
 
 ///=============================================================================
