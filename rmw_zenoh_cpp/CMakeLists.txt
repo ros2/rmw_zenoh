@@ -103,6 +103,9 @@ if(BUILD_TESTING)
   ament_lint_cmake()
   ament_uncrustify(EXCLUDE ${_linter_excludes})
   ament_xmllint()
+
+  install(FILES test/rmw_zenoh_integration.test.py
+    DESTINATION test)
 endif()
 
 install(
