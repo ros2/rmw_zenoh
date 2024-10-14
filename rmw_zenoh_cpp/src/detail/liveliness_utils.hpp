@@ -172,6 +172,8 @@ public:
   // Two entities are equal if their keyexpr_hash are equal.
   bool operator==(const Entity & other) const;
 
+  void copy_gid(uint8_t out_gid[RMW_GID_STORAGE_SIZE]) const;
+
 private:
   Entity(
     std::string zid,
@@ -189,7 +191,6 @@ private:
   NodeInfo node_info_;
   std::optional<TopicInfo> topic_info_;
   std::string liveliness_keyexpr_;
-
   uint8_t gid_[RMW_GID_STORAGE_SIZE];
 };
 
@@ -235,10 +236,6 @@ std::optional<rmw_qos_profile_t> keyexpr_to_qos(const std::string & keyexpr);
 /// Convert a Zenoh id to a string.
 std::string zid_to_str(const z_id_t & id);
 }  // namespace liveliness
-
-///=============================================================================
-/// Helper function to generate a random GID.
-void generate_random_gid(uint8_t gid[RMW_GID_STORAGE_SIZE]);
 
 ///=============================================================================
 /// Generate a hash for a given GID.

@@ -218,7 +218,6 @@ PublisherData::PublisherData(
   sequence_number_(1),
   is_shutdown_(false)
 {
-  generate_random_gid(gid_);
   events_mgr_ = std::make_shared<EventsManager>();
 }
 
@@ -302,10 +301,12 @@ rmw_ret_t PublisherData::publish(
     sequence_number_++,
     [this](z_owned_bytes_map_t * map, const char * key)
     {
+      uint8_t local_gid[RMW_GID_STORAGE_SIZE];
+      entity_->copy_gid(local_gid);
       // Mutex already locked.
       z_bytes_t gid_bytes;
       gid_bytes.len = RMW_GID_STORAGE_SIZE;
-      gid_bytes.start = gid_;
+      gid_bytes.start = local_gid;
       z_bytes_map_insert_by_copy(map, z_bytes_new(key), gid_bytes);
     });
   if (!z_check(map)) {
@@ -363,10 +364,13 @@ rmw_ret_t PublisherData::publish_serialized_message(
     sequence_number_++,
     [this](z_owned_bytes_map_t * map, const char * key)
     {
+      uint8_t local_gid[RMW_GID_STORAGE_SIZE];
+      entity_->copy_gid(local_gid);
+
       // Mutex already locked.
       z_bytes_t gid_bytes;
       gid_bytes.len = RMW_GID_STORAGE_SIZE;
-      gid_bytes.start = gid_;
+      gid_bytes.start = local_gid;
       z_bytes_map_insert_by_copy(map, z_bytes_new(key), gid_bytes);
     });
 
@@ -420,7 +424,7 @@ liveliness::TopicInfo PublisherData::topic_info() const
 void PublisherData::copy_gid(rmw_gid_t * gid) const
 {
   std::lock_guard<std::mutex> lock(mutex_);
-  memcpy(gid->data, gid_, RMW_GID_STORAGE_SIZE);
+  entity_->copy_gid(gid->data);
 }
 
 ///=============================================================================

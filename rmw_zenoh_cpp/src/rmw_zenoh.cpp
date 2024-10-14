@@ -1454,8 +1454,6 @@ rmw_create_client(
         rmw_zenoh_cpp::rmw_client_data_t);
     });
 
-  rmw_zenoh_cpp::generate_random_gid(client_data->client_gid);
-
   // Adapt any 'best available' QoS options
   client_data->adapted_qos_profile = *qos_profile;
   rmw_ret_t ret = rmw_zenoh_cpp::QoS::get().best_available_qos(
@@ -1605,6 +1603,8 @@ rmw_create_client(
       rmw_client->service_name);
     return nullptr;
   }
+
+  client_data->entity->copy_gid(client_data->client_gid);
 
   client_data->keyexpr = z_keyexpr_new(client_data->entity->topic_info()->topic_keyexpr_.c_str());
   auto free_ros_keyexpr = rcpputils::make_scope_exit(

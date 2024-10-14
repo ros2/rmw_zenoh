@@ -641,6 +641,12 @@ std::string Entity::liveliness_keyexpr() const
 }
 
 ///=============================================================================
+void Entity::copy_gid(uint8_t out_gid[RMW_GID_STORAGE_SIZE]) const
+{
+  memcpy(out_gid, gid_, RMW_GID_STORAGE_SIZE);
+}
+
+///=============================================================================
 bool Entity::operator==(const Entity & other) const
 {
   return other.keyexpr_hash() == keyexpr_hash_;
@@ -674,20 +680,6 @@ std::string demangle_name(const std::string & input)
   return output;
 }
 }  // namespace liveliness
-
-///=============================================================================
-void
-generate_random_gid(uint8_t gid[RMW_GID_STORAGE_SIZE])
-{
-  std::random_device dev;
-  std::mt19937 rng(dev());
-  std::uniform_int_distribution<std::mt19937::result_type> dist(
-    std::numeric_limits<unsigned char>::min(), std::numeric_limits<unsigned char>::max());
-
-  for (size_t i = 0; i < RMW_GID_STORAGE_SIZE; ++i) {
-    gid[i] = dist(rng);
-  }
-}
 
 ///=============================================================================
 size_t hash_gid(const uint8_t gid[RMW_GID_STORAGE_SIZE])
