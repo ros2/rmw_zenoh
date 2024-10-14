@@ -145,6 +145,7 @@ bool NodeData::create_pub_data(
 
   auto pub_data = PublisherData::make(
     std::move(session),
+    publisher,
     node_,
     entity_->node_info(),
     id_,

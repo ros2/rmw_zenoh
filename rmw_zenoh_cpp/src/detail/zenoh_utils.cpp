@@ -27,7 +27,8 @@ namespace rmw_zenoh_cpp
 z_owned_bytes_map_t
 create_map_and_set_sequence_num(
   int64_t sequence_number,
-  GIDCopier gid_copier)
+  GIDCopier gid_copier,
+  int64_t * source_timestamp)
 {
   z_owned_bytes_map_t map = z_bytes_map_new();
   if (!z_check(map)) {
@@ -50,9 +51,12 @@ create_map_and_set_sequence_num(
 
   auto now = std::chrono::system_clock::now().time_since_epoch();
   auto now_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now);
+  if (nullptr != source_timestamp) {
+    *source_timestamp = now_ns.count();
+  }
   char source_ts_str[20];
   if (rcutils_snprintf(source_ts_str, sizeof(source_ts_str), "%" PRId64, now_ns.count()) < 0) {
-    RMW_SET_ERROR_MSG("failed to print sequence_number into buffer");
+    RMW_SET_ERROR_MSG("failed to print source_timestamp into buffer");
     return z_bytes_map_null();
   }
   z_bytes_map_insert_by_copy(&map, z_bytes_new("source_timestamp"), z_bytes_new(source_ts_str));

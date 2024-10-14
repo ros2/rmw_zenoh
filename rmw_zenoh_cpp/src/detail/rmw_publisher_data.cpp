@@ -35,11 +35,14 @@
 #include "rmw/get_topic_endpoint_info.h"
 #include "rmw/impl/cpp/macros.hpp"
 
+#include "tracetools/tracetools.h"
+
 namespace rmw_zenoh_cpp
 {
 ///=============================================================================
 std::shared_ptr<PublisherData> PublisherData::make(
   z_session_t session,
+  const rmw_publisher_t * const rmw_publisher,
   const rmw_node_t * const node,
   liveliness::NodeInfo node_info,
   std::size_t node_id,
@@ -189,6 +192,7 @@ std::shared_ptr<PublisherData> PublisherData::make(
 
   return std::shared_ptr<PublisherData>(
     new PublisherData{
+      rmw_publisher,
       node,
       std::move(entity),
       std::move(pub),
@@ -201,6 +205,7 @@ std::shared_ptr<PublisherData> PublisherData::make(
 
 ///=============================================================================
 PublisherData::PublisherData(
+  const rmw_publisher_t * const rmw_publisher,
   const rmw_node_t * rmw_node,
   std::shared_ptr<liveliness::Entity> entity,
   z_owned_publisher_t pub,
@@ -208,7 +213,8 @@ PublisherData::PublisherData(
   zc_owned_liveliness_token_t token,
   const void * type_support_impl,
   std::unique_ptr<MessageTypeSupport> type_support)
-: rmw_node_(rmw_node),
+: rmw_publisher_(rmw_publisher),
+  rmw_node_(rmw_node),
   entity_(std::move(entity)),
   pub_(std::move(pub)),
   pub_cache_(std::move(pub_cache)),
@@ -297,6 +303,7 @@ rmw_ret_t PublisherData::publish(
 
   const size_t data_length = ser.get_serialized_data_length();
 
+  int64_t source_timestamp = 0;
   z_owned_bytes_map_t map =
     create_map_and_set_sequence_num(
     sequence_number_++,
@@ -307,7 +314,8 @@ rmw_ret_t PublisherData::publish(
       gid_bytes.len = RMW_GID_STORAGE_SIZE;
       gid_bytes.start = gid_;
       z_bytes_map_insert_by_copy(map, z_bytes_new(key), gid_bytes);
-    });
+    },
+    &source_timestamp);
   if (!z_check(map)) {
     // create_map_and_set_sequence_num already set the error
     return RMW_RET_ERROR;
@@ -324,6 +332,8 @@ rmw_ret_t PublisherData::publish(
   z_publisher_put_options_t options = z_publisher_put_options_default();
   options.attachment = z_bytes_map_as_attachment(&map);
 
+  TRACETOOLS_TRACEPOINT(
+    rmw_publish, static_cast<const void *>(rmw_publisher_), ros_message, source_timestamp);
   if (shmbuf.has_value()) {
     zc_shmbuf_set_length(&shmbuf.value(), data_length);
     zc_owned_payload_t payload = zc_shmbuf_into_payload(z_move(shmbuf.value()));
@@ -359,6 +369,7 @@ rmw_ret_t PublisherData::publish_serialized_message(
 
   std::lock_guard<std::mutex> lock(mutex_);
 
+  int64_t source_timestamp = 0;
   z_owned_bytes_map_t map = rmw_zenoh_cpp::create_map_and_set_sequence_num(
     sequence_number_++,
     [this](z_owned_bytes_map_t * map, const char * key)
@@ -368,7 +379,8 @@ rmw_ret_t PublisherData::publish_serialized_message(
       gid_bytes.len = RMW_GID_STORAGE_SIZE;
       gid_bytes.start = gid_;
       z_bytes_map_insert_by_copy(map, z_bytes_new(key), gid_bytes);
-    });
+    },
+    &source_timestamp);
 
   if (!z_check(map)) {
     // create_map_and_set_sequence_num already set the error
@@ -387,6 +399,8 @@ rmw_ret_t PublisherData::publish_serialized_message(
   z_publisher_put_options_t options = z_publisher_put_options_default();
   options.attachment = z_bytes_map_as_attachment(&map);
 
+  TRACETOOLS_TRACEPOINT(
+    rmw_publish, static_cast<const void *>(rmw_publisher_), serialized_message, source_timestamp);
   // Returns 0 if success.
   int8_t ret = z_publisher_put(
     z_loan(pub_),

@@ -43,6 +43,7 @@ public:
   // Make a shared_ptr of PublisherData.
   static std::shared_ptr<PublisherData> make(
     z_session_t session,
+    const rmw_publisher_t * const rmw_publisher,
     const rmw_node_t * const node,
     liveliness::NodeInfo node_info,
     std::size_t node_id,
@@ -88,6 +89,7 @@ public:
 private:
   // Constructor.
   PublisherData(
+    const rmw_publisher_t * const rmw_publisher,
     const rmw_node_t * rmw_node,
     std::shared_ptr<liveliness::Entity> entity,
     z_owned_publisher_t pub,
@@ -98,6 +100,8 @@ private:
 
   // Internal mutex.
   mutable std::mutex mutex_;
+  // The rmw publisher
+  const rmw_publisher_t * rmw_publisher_;
   // The parent node.
   const rmw_node_t * rmw_node_;
   // The Entity generated for the publisher.

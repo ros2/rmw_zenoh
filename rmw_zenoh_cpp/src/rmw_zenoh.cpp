@@ -57,6 +57,8 @@
 #include "rmw/validate_namespace.h"
 #include "rmw/validate_node_name.h"
 
+#include "tracetools/tracetools.h"
+
 namespace
 {
 //==============================================================================
@@ -455,6 +457,13 @@ rmw_create_publisher(
   free_topic_name.cancel();
   free_rmw_publisher.cancel();
 
+  if (TRACETOOLS_TRACEPOINT_ENABLED(rmw_publisher_init)) {
+    rmw_gid_t gid{};
+    if (RMW_RET_OK == rmw_get_gid_for_publisher(rmw_publisher, &gid)) {
+      TRACETOOLS_DO_TRACEPOINT(
+        rmw_publisher_init, static_cast<const void *>(rmw_publisher), gid.data);
+    }
+  }
   return rmw_publisher;
 }
 
@@ -991,6 +1000,11 @@ rmw_create_subscription(
   free_topic_name.cancel();
   free_rmw_subscription.cancel();
 
+  // rmw does not require GIDs for subscriptions, and GIDs in rmw_zenoh are not based on any ID of
+  // the underlying zenoh objects, so there is no need to collect a GID here
+  rmw_gid_t gid{};
+  TRACETOOLS_TRACEPOINT(
+    rmw_subscription_init, static_cast<const void *>(rmw_subscription), gid.data);
   return rmw_subscription;
 }
 
@@ -1143,7 +1157,18 @@ rmw_take(
     static_cast<rmw_zenoh_cpp::SubscriptionData *>(subscription->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
 
-  return sub_data->take_one_message(ros_message, nullptr, taken);
+  if (!TRACETOOLS_TRACEPOINT_ENABLED(rmw_take)) {
+    return sub_data->take_one_message(ros_message, nullptr, taken);
+  }
+  rmw_message_info_t message_info{};
+  rmw_ret_t ret = sub_data->take_one_message(ros_message, &message_info, taken);
+  TRACETOOLS_DO_TRACEPOINT(
+    rmw_take,
+    static_cast<const void *>(subscription),
+    static_cast<const void *>(ros_message),
+    message_info.source_timestamp,
+    *taken);
+  return ret;
 }
 
 //==============================================================================
@@ -1172,7 +1197,14 @@ rmw_take_with_info(
     static_cast<rmw_zenoh_cpp::SubscriptionData *>(subscription->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
 
-  return sub_data->take_one_message(ros_message, message_info, taken);
+  rmw_ret_t ret = sub_data->take_one_message(ros_message, message_info, taken);
+  TRACETOOLS_TRACEPOINT(
+    rmw_take,
+    static_cast<const void *>(subscription),
+    static_cast<const void *>(ros_message),
+    message_info->source_timestamp,
+    *taken);
+  return ret;
 }
 
 //==============================================================================
@@ -1278,11 +1310,18 @@ __rmw_take_serialized(
     static_cast<rmw_zenoh_cpp::SubscriptionData *>(subscription->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
 
-  return sub_data->take_serialized_message(
+  rmw_ret_t ret = sub_data->take_serialized_message(
     serialized_message,
     taken,
     message_info
   );
+  TRACETOOLS_TRACEPOINT(
+    rmw_take,
+    static_cast<const void *>(subscription),
+    static_cast<const void *>(serialized_message),
+    message_info->source_timestamp,
+    *taken);
+  return ret;
 }
 }  // namespace
 
