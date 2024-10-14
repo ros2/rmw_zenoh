@@ -680,16 +680,4 @@ std::string demangle_name(const std::string & input)
   return output;
 }
 }  // namespace liveliness
-
-///=============================================================================
-size_t hash_gid(const uint8_t gid[RMW_GID_STORAGE_SIZE])
-{
-  std::stringstream hash_str;
-  hash_str << std::hex;
-  size_t i = 0;
-  for (; i < (RMW_GID_STORAGE_SIZE - 1); i++) {
-    hash_str << static_cast<int>(gid[i]);
-  }
-  return std::hash<std::string>{}(hash_str.str());
-}
 }  // namespace rmw_zenoh_cpp
