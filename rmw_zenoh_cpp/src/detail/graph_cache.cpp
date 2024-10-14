@@ -603,7 +603,7 @@ void GraphCache::parse_del(
     });
   if (node_it == range.second) {
     // Node does not exist.
-    RMW_ZENOH_LOG_WARN_NAMED(
+    RMW_ZENOH_LOG_DEBUG_NAMED(
       "rmw_zenoh_cpp",
       "Received liveliness token to remove unknown node /%s from the graph. Ignoring...",
       entity->node_name().c_str()
@@ -622,7 +622,7 @@ void GraphCache::parse_del(
       !graph_node->clients_.empty() ||
       !graph_node->services_.empty())
     {
-      RMW_ZENOH_LOG_WARN_NAMED(
+      RMW_ZENOH_LOG_DEBUG_NAMED(
         "rmw_zenoh_cpp",
         "Received liveliness token to remove node /%s from the graph before all pub/subs/"
         "clients/services for this node have been removed. Removing all entities first...",
