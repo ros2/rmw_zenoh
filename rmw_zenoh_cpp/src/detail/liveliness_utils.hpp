@@ -191,6 +191,8 @@ private:
   NodeInfo node_info_;
   std::optional<TopicInfo> topic_info_;
   std::string liveliness_keyexpr_;
+
+  uint8_t gid_[RMW_GID_STORAGE_SIZE];
 };
 
 ///=============================================================================
