@@ -73,9 +73,6 @@
 /*!< 0b0010011111010100111010110010111100010110010101100110011111000101 */
 #define XXH_PRIME64_5  0x27D4EB2F165667C5ULL
 
-#define XXH3_INIT_ACC {XXH_PRIME32_3, XXH_PRIME64_1, XXH_PRIME64_2, XXH_PRIME64_3, \
-    XXH_PRIME64_4, XXH_PRIME32_2, XXH_PRIME64_5, XXH_PRIME32_1}
-
 #define XXH3_MIDSIZE_MAX 240
 #define XXH3_MIDSIZE_STARTOFFSET 3
 #define XXH3_MIDSIZE_LASTOFFSET  17
@@ -259,7 +256,10 @@ static uint64_t XXH3_mergeAccs(const uint64_t * acc, const uint8_t * secret, uin
 
 static simplified_XXH128_hash_t XXH3_hashLong_128b_default(const void * input, size_t len)
 {
-  uint64_t acc[XXH_ACC_NB] = XXH3_INIT_ACC;
+  uint64_t acc[XXH_ACC_NB] = {
+    XXH_PRIME32_3, XXH_PRIME64_1, XXH_PRIME64_2, XXH_PRIME64_3,
+    XXH_PRIME64_4, XXH_PRIME32_2, XXH_PRIME64_5, XXH_PRIME32_1
+  };
 
   XXH3_hashLong_internal_loop(acc, static_cast<const uint8_t *>(input), len);
 
