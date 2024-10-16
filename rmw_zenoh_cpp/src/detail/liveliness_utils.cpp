@@ -451,8 +451,8 @@ Entity::Entity(
   memcpy(this->gid_, &keyexpr_gid.low64, sizeof(keyexpr_gid.low64));
   memcpy(this->gid_ + sizeof(keyexpr_gid.low64), &keyexpr_gid.high64, sizeof(keyexpr_gid.high64));
 
-  // We also hash the liveliness keyexpression into a size_t that we use to index into our maps
-  this->keyexpr_hash_ = std::hash<std::string>{}(this->liveliness_keyexpr_);
+  // We also hash the liveliness keyexpression into a size_t that we use to index into our maps.
+  this->keyexpr_hash_ = hash_gid(this->gid_);
 }
 
 ///=============================================================================
