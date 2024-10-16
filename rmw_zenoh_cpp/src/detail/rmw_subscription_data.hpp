@@ -42,7 +42,7 @@
 namespace rmw_zenoh_cpp
 {
 ///=============================================================================
-class SubscriptionData final
+class SubscriptionData final : public std::enable_shared_from_this<SubscriptionData>
 {
 public:
   struct Message
@@ -131,6 +131,10 @@ private:
     std::shared_ptr<liveliness::Entity> entity,
     const void * type_support_impl,
     std::unique_ptr<MessageTypeSupport> type_support);
+
+  bool init();
+
+  bool initted_{false};
 
   // Internal mutex.
   mutable std::mutex mutex_;
