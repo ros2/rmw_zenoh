@@ -42,7 +42,7 @@
 namespace rmw_zenoh_cpp
 {
 ///=============================================================================
-class SubscriptionData final
+class SubscriptionData final : public std::enable_shared_from_this<SubscriptionData>
 {
 public:
   struct Message
@@ -132,6 +132,8 @@ private:
     const void * type_support_impl,
     std::unique_ptr<MessageTypeSupport> type_support);
 
+  bool init();
+
   // Internal mutex.
   mutable std::mutex mutex_;
   // The parent node.
@@ -158,6 +160,8 @@ private:
   std::shared_ptr<EventsManager> events_mgr_;
   // Shutdown flag.
   bool is_shutdown_;
+  // Whether the object has ever successfully been initialized.
+  bool initialized_;
 };
 using SubscriptionDataPtr = std::shared_ptr<SubscriptionData>;
 using SubscriptionDataConstPtr = std::shared_ptr<const SubscriptionData>;
