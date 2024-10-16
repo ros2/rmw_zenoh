@@ -1604,8 +1604,6 @@ rmw_create_client(
     return nullptr;
   }
 
-  client_data->entity->copy_gid(client_data->client_gid);
-
   client_data->keyexpr = z_keyexpr_new(client_data->entity->topic_info()->topic_keyexpr_.c_str());
   auto free_ros_keyexpr = rcpputils::make_scope_exit(
     [client_data]() {
@@ -1782,9 +1780,11 @@ rmw_send_request(
     *sequence_id,
     [client_data](z_owned_bytes_map_t * map, const char * key)
     {
+      uint8_t local_gid[RMW_GID_STORAGE_SIZE];
+      client_data->entity->copy_gid(local_gid);
       z_bytes_t gid_bytes;
       gid_bytes.len = RMW_GID_STORAGE_SIZE;
-      gid_bytes.start = client_data->client_gid;
+      gid_bytes.start = local_gid;
       z_bytes_map_insert_by_copy(map, z_bytes_new(key), gid_bytes);
     });
   if (!z_check(map)) {
@@ -2820,7 +2820,7 @@ rmw_get_gid_for_client(const rmw_client_t * client, rmw_gid_t * gid)
     static_cast<rmw_zenoh_cpp::rmw_client_data_t *>(client->data);
 
   gid->implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
-  memcpy(gid->data, client_data->client_gid, RMW_GID_STORAGE_SIZE);
+  client_data->entity->copy_gid(gid->data);
 
   return RMW_RET_OK;
 }
