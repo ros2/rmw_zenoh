@@ -344,12 +344,12 @@ rmw_ret_t ServiceData::take_request(
   request_header->received_timestamp = now_ns.count();
 
   // Add this query to the map, so that rmw_send_response can quickly look it up later.
-  std::unordered_map<size_t, SequenceToQuery>::iterator it =
-    sequence_to_query_map_.find(entity_->keyexpr_hash());
+  const size_t hash = rmw_zenoh_cpp::hash_gid(request_header->request_id.writer_guid);
+  std::unordered_map<size_t, SequenceToQuery>::iterator it = sequence_to_query_map_.find(hash);
   if (it == sequence_to_query_map_.end()) {
     SequenceToQuery stq;
-    sequence_to_query_map_.insert(std::make_pair(entity_->keyexpr_hash(), std::move(stq)));
-    it = sequence_to_query_map_.find(entity_->keyexpr_hash());
+    sequence_to_query_map_.insert(std::make_pair(hash, std::move(stq)));
+    it = sequence_to_query_map_.find(hash);
   } else {
     // Client already in the map
     if (it->second.find(request_header->request_id.sequence_number) != it->second.end()) {
@@ -378,8 +378,8 @@ rmw_ret_t ServiceData::send_response(
     return RMW_RET_OK;
   }
   // Create the queryable payload
-  std::unordered_map<size_t, SequenceToQuery>::iterator it =
-    sequence_to_query_map_.find(entity_->keyexpr_hash());
+  const size_t hash = hash_gid(request_id->writer_guid);
+  std::unordered_map<size_t, SequenceToQuery>::iterator it = sequence_to_query_map_.find(hash);
   if (it == sequence_to_query_map_.end()) {
     // If there is no data associated with this request, the higher layers of
     // ROS 2 seem to expect that we just silently return with no work.
@@ -393,8 +393,8 @@ rmw_ret_t ServiceData::send_response(
   }
   std::unique_ptr<ZenohQuery> query = std::move(query_it->second);
   it->second.erase(query_it);
-  if (sequence_to_query_map_[entity_->keyexpr_hash()].size() == 0) {
-    sequence_to_query_map_.erase(entity_->keyexpr_hash());
+  if (sequence_to_query_map_[hash].size() == 0) {
+    sequence_to_query_map_.erase(hash);
   }
 
   rcutils_allocator_t * allocator = &(rmw_node_->context->options.allocator);

@@ -236,6 +236,10 @@ std::optional<rmw_qos_profile_t> keyexpr_to_qos(const std::string & keyexpr);
 /// Convert a Zenoh id to a string.
 std::string zid_to_str(const z_id_t & id);
 }  // namespace liveliness
+
+///=============================================================================
+/// Generate a hash for a given GID.
+size_t hash_gid(const uint8_t gid[RMW_GID_STORAGE_SIZE]);
 }  // namespace rmw_zenoh_cpp
 
 ///=============================================================================

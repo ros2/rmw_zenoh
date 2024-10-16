@@ -586,7 +586,8 @@ void SubscriptionData::add_new_message(
   }
 
   // Check for messages lost if the new sequence number is not monotonically increasing.
-  auto last_known_pub_it = last_known_published_msg_.find(entity_->keyexpr_hash());
+  const size_t gid_hash = hash_gid(msg->publisher_gid);
+  auto last_known_pub_it = last_known_published_msg_.find(gid_hash);
   if (last_known_pub_it != last_known_published_msg_.end()) {
     const int64_t seq_increment = std::abs(msg->sequence_number - last_known_pub_it->second);
     if (seq_increment > 1) {
@@ -601,7 +602,7 @@ void SubscriptionData::add_new_message(
     }
   }
   // Always update the last known sequence number for the publisher.
-  last_known_published_msg_[entity_->keyexpr_hash()] = msg->sequence_number;
+  last_known_published_msg_[gid_hash] = msg->sequence_number;
 
   message_queue_.emplace_back(std::move(msg));
 
