@@ -61,14 +61,14 @@ public:
     const rmw_serialized_message_t * serialized_message,
     std::optional<zc_owned_shm_manager_t> & shm_manager);
 
-  // Get a copy of the GUID of this PublisherData's liveliness::Entity.
-  std::size_t guid() const;
+  // Get a copy of the keyexpr_hash of this PublisherData's liveliness::Entity.
+  std::size_t keyexpr_hash() const;
 
   // Get a copy of the TopicInfo of this PublisherData.
   liveliness::TopicInfo topic_info() const;
 
   // Copy the GID of this PublisherData into an rmw_gid_t.
-  void copy_gid(rmw_gid_t * gid) const;
+  void copy_gid(uint8_t out_gid[RMW_GID_STORAGE_SIZE]) const;
 
   // Returns true if liveliness token is still valid.
   bool liveliness_is_valid() const;
@@ -102,8 +102,6 @@ private:
   const rmw_node_t * rmw_node_;
   // The Entity generated for the publisher.
   std::shared_ptr<liveliness::Entity> entity_;
-  // The GID for this publisher.
-  uint8_t gid_[RMW_GID_STORAGE_SIZE];
   // An owned publisher.
   z_owned_publisher_t pub_;
   // Optional publication cache when durability is transient_local.

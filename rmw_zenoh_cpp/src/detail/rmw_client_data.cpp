@@ -260,7 +260,7 @@ ClientData::ClientData(
   num_in_flight_(0),
   is_shutdown_(false)
 {
-  generate_random_gid(gid_);
+  // Do nothing.
 }
 
 ///=============================================================================
@@ -278,10 +278,10 @@ bool ClientData::liveliness_is_valid() const
 }
 
 ///=============================================================================
-void ClientData::copy_gid(rmw_gid_t * gid) const
+void ClientData::copy_gid(uint8_t out_gid[RMW_GID_STORAGE_SIZE]) const
 {
   std::lock_guard<std::mutex> lock(mutex_);
-  memcpy(gid->data, gid_, RMW_GID_STORAGE_SIZE);
+  entity_->copy_gid(out_gid);
 }
 
 ///=============================================================================
@@ -435,9 +435,11 @@ rmw_ret_t ClientData::send_request(
     *sequence_id,
     [this](z_owned_bytes_map_t * map, const char * key)
     {
+      uint8_t local_gid[RMW_GID_STORAGE_SIZE];
+      entity_->copy_gid(local_gid);
       z_bytes_t gid_bytes;
       gid_bytes.len = RMW_GID_STORAGE_SIZE;
-      gid_bytes.start = gid_;
+      gid_bytes.start = local_gid;
       z_bytes_map_insert_by_copy(map, z_bytes_new(key), gid_bytes);
     });
   if (!z_check(map)) {

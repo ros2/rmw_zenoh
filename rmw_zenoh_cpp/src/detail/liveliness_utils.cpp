@@ -28,6 +28,7 @@
 
 #include "logging_macros.hpp"
 #include "qos.hpp"
+#include "simplified_xxhash3.hpp"
 
 #include "rcpputils/scope_exit.hpp"
 
@@ -441,7 +442,17 @@ Entity::Entity(
     // Append the delimiter unless it is the last component.
     this->liveliness_keyexpr_ += KEYEXPR_DELIMITER;
   }
-  this->guid_ = std::hash<std::string>{}(this->liveliness_keyexpr_);
+
+  // Here we hash the complete std::string that comprises the liveliness keyexpression
+  // into a GID that is associated with every entity in the system.  This is the GID that will be
+  // returned to the RMW layer as necessary.
+  simplified_XXH128_hash_t keyexpr_gid =
+    simplified_XXH3_128bits(this->liveliness_keyexpr_.c_str(), this->liveliness_keyexpr_.length());
+  memcpy(this->gid_, &keyexpr_gid.low64, sizeof(keyexpr_gid.low64));
+  memcpy(this->gid_ + sizeof(keyexpr_gid.low64), &keyexpr_gid.high64, sizeof(keyexpr_gid.high64));
+
+  // We also hash the liveliness keyexpression into a size_t that we use to index into our maps.
+  this->keyexpr_hash_ = hash_gid(this->gid_);
 }
 
 ///=============================================================================
@@ -585,9 +596,9 @@ std::string Entity::id() const
 }
 
 ///=============================================================================
-std::size_t Entity::guid() const
+std::size_t Entity::keyexpr_hash() const
 {
-  return this->guid_;
+  return this->keyexpr_hash_;
 }
 
 ///=============================================================================
@@ -630,11 +641,15 @@ std::string Entity::liveliness_keyexpr() const
 }
 
 ///=============================================================================
+void Entity::copy_gid(uint8_t out_gid[RMW_GID_STORAGE_SIZE]) const
+{
+  memcpy(out_gid, gid_, RMW_GID_STORAGE_SIZE);
+}
+
+///=============================================================================
 bool Entity::operator==(const Entity & other) const
 {
-  // TODO(Yadunund): If we decide to directly store the guid as a
-  // rmw_gid_t type, we should rely on rmw_compare_gids_equal() instead.
-  return other.guid() == guid_;
+  return other.keyexpr_hash() == keyexpr_hash_;
 }
 
 ///=============================================================================
@@ -665,20 +680,6 @@ std::string demangle_name(const std::string & input)
   return output;
 }
 }  // namespace liveliness
-
-///=============================================================================
-void
-generate_random_gid(uint8_t gid[RMW_GID_STORAGE_SIZE])
-{
-  std::random_device dev;
-  std::mt19937 rng(dev());
-  std::uniform_int_distribution<std::mt19937::result_type> dist(
-    std::numeric_limits<unsigned char>::min(), std::numeric_limits<unsigned char>::max());
-
-  for (size_t i = 0; i < RMW_GID_STORAGE_SIZE; ++i) {
-    gid[i] = dist(rng);
-  }
-}
 
 ///=============================================================================
 size_t hash_gid(const uint8_t gid[RMW_GID_STORAGE_SIZE])
