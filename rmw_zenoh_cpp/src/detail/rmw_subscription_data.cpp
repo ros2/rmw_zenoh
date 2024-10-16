@@ -212,7 +212,8 @@ SubscriptionData::SubscriptionData(
   last_known_published_msg_({}),
   total_messages_lost_(0),
   wait_set_data_(nullptr),
-  is_shutdown_(false)
+  is_shutdown_(false),
+  initialized_(false)
 {
   events_mgr_ = std::make_shared<EventsManager>();
 }
@@ -365,7 +366,7 @@ bool SubscriptionData::init()
   undeclare_z_sub.cancel();
   free_token.cancel();
 
-  initted_ = true;
+  initialized_ = true;
 
   return true;
 }
@@ -416,7 +417,7 @@ rmw_ret_t SubscriptionData::shutdown()
 {
   rmw_ret_t ret = RMW_RET_OK;
   std::lock_guard<std::mutex> lock(mutex_);
-  if (is_shutdown_ || !initted_) {
+  if (is_shutdown_ || !initialized_) {
     return ret;
   }
 
@@ -451,7 +452,7 @@ rmw_ret_t SubscriptionData::shutdown()
   }
 
   is_shutdown_ = true;
-  initted_ = false;
+  initialized_ = false;
   return ret;
 }
 

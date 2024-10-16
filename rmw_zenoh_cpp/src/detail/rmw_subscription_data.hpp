@@ -134,8 +134,6 @@ private:
 
   bool init();
 
-  bool initted_{false};
-
   // Internal mutex.
   mutable std::mutex mutex_;
   // The parent node.
@@ -162,6 +160,8 @@ private:
   std::shared_ptr<EventsManager> events_mgr_;
   // Shutdown flag.
   bool is_shutdown_;
+  // Whether the object has ever successfully been initialized.
+  bool initialized_;
 };
 using SubscriptionDataPtr = std::shared_ptr<SubscriptionData>;
 using SubscriptionDataConstPtr = std::shared_ptr<const SubscriptionData>;
