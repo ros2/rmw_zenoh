@@ -68,8 +68,6 @@ public:
 
   rmw_context_t * context;
 
-  uint8_t client_gid[RMW_GID_STORAGE_SIZE];
-
   size_t get_next_sequence_number();
 
   void add_new_reply(std::unique_ptr<rmw_zenoh_cpp::ZenohReply> reply);

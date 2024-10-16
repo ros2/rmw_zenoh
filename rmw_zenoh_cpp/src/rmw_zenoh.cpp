@@ -488,7 +488,7 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
     return RMW_RET_INVALID_ARGUMENT;
   }
   // Remove any event callbacks registered to this publisher.
-  context_impl->graph_cache()->remove_qos_event_callbacks(pub_data->guid());
+  context_impl->graph_cache()->remove_qos_event_callbacks(pub_data->keyexpr_hash());
   // Remove the PublisherData from NodeData.
   node_data->delete_pub_data(publisher);
 
@@ -1028,13 +1028,13 @@ rmw_destroy_subscription(rmw_node_t * node, rmw_subscription_t * subscription)
   rcutils_allocator_t * allocator = &node->context->options.allocator;
 
   // Remove the registered callback from the GraphCache if any.
-  const std::size_t guid = sub_data->guid();
+  const std::size_t keyexpr_hash = sub_data->keyexpr_hash();
   context_impl->graph_cache()->remove_querying_subscriber_callback(
     sub_data->topic_info().topic_keyexpr_,
-    guid
+    keyexpr_hash
   );
   // Remove any event callbacks registered to this subscription.
-  context_impl->graph_cache()->remove_qos_event_callbacks(guid);
+  context_impl->graph_cache()->remove_qos_event_callbacks(keyexpr_hash);
   // Finally remove the SubscriptionData from NodeData.
   node_data->delete_sub_data(subscription);
 
@@ -1454,8 +1454,6 @@ rmw_create_client(
         rmw_zenoh_cpp::rmw_client_data_t);
     });
 
-  rmw_zenoh_cpp::generate_random_gid(client_data->client_gid);
-
   // Adapt any 'best available' QoS options
   client_data->adapted_qos_profile = *qos_profile;
   rmw_ret_t ret = rmw_zenoh_cpp::QoS::get().best_available_qos(
@@ -1782,9 +1780,11 @@ rmw_send_request(
     *sequence_id,
     [client_data](z_owned_bytes_map_t * map, const char * key)
     {
+      uint8_t local_gid[RMW_GID_STORAGE_SIZE];
+      client_data->entity->copy_gid(local_gid);
       z_bytes_t gid_bytes;
       gid_bytes.len = RMW_GID_STORAGE_SIZE;
-      gid_bytes.start = client_data->client_gid;
+      gid_bytes.start = local_gid;
       z_bytes_map_insert_by_copy(map, z_bytes_new(key), gid_bytes);
     });
   if (!z_check(map)) {
@@ -2820,7 +2820,7 @@ rmw_get_gid_for_client(const rmw_client_t * client, rmw_gid_t * gid)
     static_cast<rmw_zenoh_cpp::rmw_client_data_t *>(client->data);
 
   gid->implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
-  memcpy(gid->data, client_data->client_gid, RMW_GID_STORAGE_SIZE);
+  client_data->entity->copy_gid(gid->data);
 
   return RMW_RET_OK;
 }

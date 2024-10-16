@@ -8,6 +8,7 @@
 
   <license>Apache License 2.0</license>
   <license>MIT</license>  <!-- for ordered_{map,hash}.hpp -->
+  <license>BSD</license>  <!-- for simplified_xxhash3.{cpp,hpp} -->
 
   <author email="clalancette@gmail.com">Chris Lalancette</author>
   <author>Franco Cipollone</author>
