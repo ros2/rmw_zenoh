@@ -150,8 +150,8 @@ std::shared_ptr<ClientData> ClientData::make(
   // Note: Service request/response types will contain a suffix Request_ or Response_.
   // We remove the suffix when appending the type to the liveliness tokens for
   // better reusability within GraphCache.
-  std::string service_type = response_type_support->get_name();
-  size_t suffix_substring_position = service_type.find("Response_");
+  std::string service_type = request_type_support->get_name();
+  size_t suffix_substring_position = service_type.find("Request_");
   if (std::string::npos != suffix_substring_position) {
     service_type = service_type.substr(0, suffix_substring_position);
   } else {
