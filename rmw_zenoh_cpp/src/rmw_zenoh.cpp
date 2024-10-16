@@ -1411,7 +1411,7 @@ rmw_create_client(
     return nullptr;
   }
 
-  // Get the RMW the type support.
+  // Get the service type support.
   const rosidl_service_type_support_t * type_support = find_service_type_support(type_supports);
   if (type_support == nullptr) {
     // error was already set by find_service_type_support
@@ -1465,7 +1465,7 @@ rmw_create_client(
   rmw_client->service_name = rcutils_strdup(service_name, *allocator);
   RMW_CHECK_FOR_NULL_WITH_MSG(
     rmw_client->service_name,
-    "failed to allocate service name",
+    "failed to allocate service client name",
     return nullptr);
   auto free_service_name = rcpputils::make_scope_exit(
     [rmw_client, allocator]() {

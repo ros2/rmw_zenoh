@@ -26,10 +26,11 @@
 
 #include "attachment_helpers.hpp"
 #include "cdr.hpp"
-#include "rmw_context_impl_s.hpp"
-#include "message_type_support.hpp"
+#include "liveliness_utils.hpp"
 #include "logging_macros.hpp"
+#include "message_type_support.hpp"
 #include "qos.hpp"
+#include "rmw_context_impl_s.hpp"
 
 #include "rcpputils/scope_exit.hpp"
 
