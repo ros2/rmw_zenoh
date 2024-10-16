@@ -36,7 +36,6 @@
 #include "detail/message_type_support.hpp"
 #include "detail/qos.hpp"
 #include "detail/rmw_context_impl_s.hpp"
-#include "detail/rmw_data_types.hpp"
 #include "detail/serialization_format.hpp"
 #include "detail/type_support_common.hpp"
 #include "detail/zenoh_utils.hpp"
@@ -1363,21 +1362,28 @@ rmw_create_client(
   const rmw_qos_profile_t * qos_profile)
 {
   RMW_CHECK_ARGUMENT_FOR_NULL(node, nullptr);
-
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node,
     node->implementation_identifier,
     rmw_zenoh_cpp::rmw_zenoh_identifier,
     return nullptr);
-
+  RMW_CHECK_ARGUMENT_FOR_NULL(type_supports, nullptr);
   RMW_CHECK_ARGUMENT_FOR_NULL(service_name, nullptr);
   if (strlen(service_name) == 0) {
     RMW_SET_ERROR_MSG("service name is empty string");
     return nullptr;
   }
   RMW_CHECK_ARGUMENT_FOR_NULL(qos_profile, nullptr);
-  RMW_CHECK_ARGUMENT_FOR_NULL(type_supports, nullptr);
-
+  // Validate service name
+  int validation_result;
+  if (rmw_validate_full_topic_name(service_name, &validation_result, nullptr) != RMW_RET_OK) {
+    RMW_SET_ERROR_MSG("rmw_validate_full_topic_name failed");
+    return nullptr;
+  }
+  if (validation_result != RMW_TOPIC_VALID && !qos_profile->avoid_ros_namespace_conventions) {
+    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("service name is malformed: %s", service_name);
+    return nullptr;
+  }
   RMW_CHECK_FOR_NULL_WITH_MSG(
     node->context,
     "expected initialized context",
@@ -1397,23 +1403,22 @@ rmw_create_client(
     return nullptr;
   }
 
+  // Get the service type support.
+  const rosidl_service_type_support_t * type_support = find_service_type_support(type_supports);
+  if (type_support == nullptr) {
+    // error was already set by find_service_type_support
+    return nullptr;
+  }
+
   rcutils_allocator_t * allocator = &node->context->options.allocator;
-
-  // Validate service name
-  int validation_result;
-
-  if (rmw_validate_full_topic_name(service_name, &validation_result, nullptr) != RMW_RET_OK) {
-    RMW_SET_ERROR_MSG("rmw_validate_full_topic_name failed");
+  if (!rcutils_allocator_is_valid(allocator)) {
+    RMW_SET_ERROR_MSG("allocator is invalid.");
     return nullptr;
   }
 
-  if (validation_result != RMW_TOPIC_VALID && !qos_profile->avoid_ros_namespace_conventions) {
-    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("service name is malformed: %s", service_name);
-    return nullptr;
-  }
-
-  // client data
-  rmw_client_t * rmw_client = static_cast<rmw_client_t *>(allocator->zero_allocate(
+  // Create the rmw_client.
+  rmw_client_t * rmw_client =
+    static_cast<rmw_client_t *>(allocator->zero_allocate(
       1,
       sizeof(rmw_client_t),
       allocator->state));
@@ -1421,221 +1426,46 @@ rmw_create_client(
     rmw_client,
     "failed to allocate memory for the client",
     return nullptr);
-
   auto free_rmw_client = rcpputils::make_scope_exit(
     [rmw_client, allocator]() {
       allocator->deallocate(rmw_client, allocator->state);
     });
 
-  auto client_data = static_cast<rmw_zenoh_cpp::rmw_client_data_t *>(
-    allocator->allocate(sizeof(rmw_zenoh_cpp::rmw_client_data_t), allocator->state));
+  auto node_data = context_impl->get_node_data(node);
   RMW_CHECK_FOR_NULL_WITH_MSG(
-    client_data,
-    "failed to allocate memory for client data",
+    node_data,
+    "NodeData not found.",
     return nullptr);
-  auto free_client_data = rcpputils::make_scope_exit(
-    [client_data, allocator]() {
-      allocator->deallocate(client_data, allocator->state);
-    });
 
-  RMW_TRY_PLACEMENT_NEW(client_data, client_data, return nullptr, rmw_zenoh_cpp::rmw_client_data_t);
-  auto destruct_client_data = rcpputils::make_scope_exit(
-    [client_data]() {
-      RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(
-        client_data->~rmw_client_data_t(),
-        rmw_zenoh_cpp::rmw_client_data_t);
-    });
-
-  // Adapt any 'best available' QoS options
-  client_data->adapted_qos_profile = *qos_profile;
-  rmw_ret_t ret = rmw_zenoh_cpp::QoS::get().best_available_qos(
-    nullptr, nullptr, &client_data->adapted_qos_profile, nullptr);
-  if (RMW_RET_OK != ret) {
-    RMW_SET_ERROR_MSG("Failed to obtain adapted_qos_profile.");
+  if (!node_data->create_client_data(
+      rmw_client,
+      context_impl->session(),
+      context_impl->get_next_entity_id(),
+      service_name,
+      type_support,
+      qos_profile))
+  {
+    // Error already handled.
     return nullptr;
   }
 
-  // Obtain the type support
-  const rosidl_service_type_support_t * type_support = find_service_type_support(type_supports);
-  if (type_support == nullptr) {
-    // error was already set by find_service_type_support
-    return nullptr;
-  }
-
-  auto service_members = static_cast<const service_type_support_callbacks_t *>(type_support->data);
-  auto request_members = static_cast<const message_type_support_callbacks_t *>(
-    service_members->request_members_->data);
-  auto response_members = static_cast<const message_type_support_callbacks_t *>(
-    service_members->response_members_->data);
-
-  client_data->context = node->context;
-  client_data->typesupport_identifier = type_support->typesupport_identifier;
-  client_data->type_hash = type_support->get_type_hash_func(type_support);
-  client_data->request_type_support_impl = request_members;
-  client_data->response_type_support_impl = response_members;
-
-  // Request type support
-  client_data->request_type_support = static_cast<rmw_zenoh_cpp::RequestTypeSupport *>(
-    allocator->allocate(sizeof(rmw_zenoh_cpp::RequestTypeSupport), allocator->state));
-
-  RMW_CHECK_FOR_NULL_WITH_MSG(
-    client_data->request_type_support,
-    "Failed to allocate rmw_zenoh_cpp::RequestTypeSupport",
-    return nullptr);
-  auto free_request_type_support = rcpputils::make_scope_exit(
-    [client_data, allocator]() {
-      allocator->deallocate(client_data->request_type_support, allocator->state);
-    });
-
-  RMW_TRY_PLACEMENT_NEW(
-    client_data->request_type_support,
-    client_data->request_type_support,
-    return nullptr,
-    rmw_zenoh_cpp::RequestTypeSupport, service_members);
-  auto destruct_request_type_support = rcpputils::make_scope_exit(
-    [client_data]() {
-      RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(
-        client_data->request_type_support->~RequestTypeSupport(),
-        rmw_zenoh_cpp::RequestTypeSupport);
-    });
-
-  // Response type support
-  client_data->response_type_support = static_cast<rmw_zenoh_cpp::ResponseTypeSupport *>(
-    allocator->allocate(sizeof(rmw_zenoh_cpp::ResponseTypeSupport), allocator->state));
-
-  RMW_CHECK_FOR_NULL_WITH_MSG(
-    client_data->response_type_support,
-    "Failed to allocate rmw_zenoh_cpp::ResponseTypeSupport",
-    return nullptr);
-  auto free_response_type_support = rcpputils::make_scope_exit(
-    [client_data, allocator]() {
-      allocator->deallocate(client_data->response_type_support, allocator->state);
-    });
-
-  RMW_TRY_PLACEMENT_NEW(
-    client_data->response_type_support,
-    client_data->response_type_support,
-    return nullptr,
-    rmw_zenoh_cpp::ResponseTypeSupport, service_members);
-  auto destruct_response_type_support = rcpputils::make_scope_exit(
-    [client_data]() {
-      RMW_TRY_DESTRUCTOR_FROM_WITHIN_FAILURE(
-        client_data->response_type_support->~ResponseTypeSupport(),
-        rmw_zenoh_cpp::ResponseTypeSupport);
-    });
-
-  // Populate the rmw_client.
+  // TODO(Yadunund): We cannot store the rmw_node_t * here since this type erased
+  // Client handle will be returned in the rmw_clients_t in rmw_wait
+  // from which we cannot obtain ClientData.
+  rmw_client->data = static_cast<void *>(node_data->get_client_data(rmw_client).get());
   rmw_client->implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
   rmw_client->service_name = rcutils_strdup(service_name, *allocator);
   RMW_CHECK_FOR_NULL_WITH_MSG(
     rmw_client->service_name,
-    "failed to allocate client name",
+    "failed to allocate service client name",
     return nullptr);
   auto free_service_name = rcpputils::make_scope_exit(
     [rmw_client, allocator]() {
       allocator->deallocate(const_cast<char *>(rmw_client->service_name), allocator->state);
     });
 
-  // Note: Service request/response types will contain a suffix Request_ or Response_.
-  // We remove the suffix when appending the type to the liveliness tokens for
-  // better reusability within GraphCache.
-  std::string service_type = client_data->request_type_support->get_name();
-  size_t suffix_substring_position = service_type.find("Request_");
-  if (std::string::npos != suffix_substring_position) {
-    service_type = service_type.substr(0, suffix_substring_position);
-  } else {
-    RMW_ZENOH_LOG_ERROR_NAMED(
-      "rmw_zenoh_cpp",
-      "Unexpected type %s for client %s. Report this bug",
-      service_type.c_str(), rmw_client->service_name);
-    return nullptr;
-  }
-
-  // Convert the type hash to a string so that it can be included in
-  // the keyexpr.
-  char * type_hash_c_str = nullptr;
-  rcutils_ret_t stringify_ret = rosidl_stringify_type_hash(
-    client_data->type_hash,
-    *allocator,
-    &type_hash_c_str);
-  if (RCUTILS_RET_BAD_ALLOC == stringify_ret) {
-    RMW_SET_ERROR_MSG("Failed to allocate type_hash_c_str.");
-    return nullptr;
-  }
-  auto free_type_hash_c_str = rcpputils::make_scope_exit(
-    [&allocator, &type_hash_c_str]() {
-      allocator->deallocate(type_hash_c_str, allocator->state);
-    });
-
-  z_session_t session = context_impl->session();
-  auto node_data = context_impl->get_node_data(node);
-  RMW_CHECK_FOR_NULL_WITH_MSG(
-    node_data,
-    "NodeData not found.",
-    return nullptr);
-  client_data->entity = rmw_zenoh_cpp::liveliness::Entity::make(
-    z_info_zid(session),
-    std::to_string(node_data->id()),
-    std::to_string(
-      context_impl->get_next_entity_id()),
-    rmw_zenoh_cpp::liveliness::EntityType::Client,
-    rmw_zenoh_cpp::liveliness::NodeInfo{
-      node->context->actual_domain_id, node->namespace_, node->name, context_impl->enclave()},
-    rmw_zenoh_cpp::liveliness::TopicInfo{
-      node->context->actual_domain_id,
-      rmw_client->service_name,
-      std::move(service_type),
-      type_hash_c_str,
-      client_data->adapted_qos_profile}
-  );
-  if (client_data->entity == nullptr) {
-    RMW_ZENOH_LOG_ERROR_NAMED(
-      "rmw_zenoh_cpp",
-      "Unable to generate keyexpr for liveliness token for the client %s.",
-      rmw_client->service_name);
-    return nullptr;
-  }
-
-  client_data->keyexpr = z_keyexpr_new(client_data->entity->topic_info()->topic_keyexpr_.c_str());
-  auto free_ros_keyexpr = rcpputils::make_scope_exit(
-    [client_data]() {
-      z_keyexpr_drop(z_move(client_data->keyexpr));
-    });
-  if (!z_keyexpr_check(&client_data->keyexpr)) {
-    RMW_SET_ERROR_MSG("unable to create zenoh keyexpr.");
-    return nullptr;
-  }
-
-  client_data->token = zc_liveliness_declare_token(
-    session,
-    z_keyexpr(client_data->entity->liveliness_keyexpr().c_str()),
-    NULL
-  );
-  auto free_token = rcpputils::make_scope_exit(
-    [client_data]() {
-      if (client_data != nullptr) {
-        z_drop(z_move(client_data->token));
-      }
-    });
-  if (!z_check(client_data->token)) {
-    RMW_ZENOH_LOG_ERROR_NAMED(
-      "rmw_zenoh_cpp",
-      "Unable to create liveliness token for the client.");
-    return nullptr;
-  }
-
-  rmw_client->data = client_data;
-
-  free_token.cancel();
   free_rmw_client.cancel();
-  free_client_data.cancel();
-  destruct_request_type_support.cancel();
-  free_request_type_support.cancel();
-  destruct_response_type_support.cancel();
-  free_response_type_support.cancel();
-  destruct_client_data.cancel();
   free_service_name.cancel();
-  free_ros_keyexpr.cancel();
 
   return rmw_client;
 }
@@ -1645,10 +1475,12 @@ rmw_create_client(
 rmw_ret_t
 rmw_destroy_client(rmw_node_t * node, rmw_client_t * client)
 {
-  // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->context, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
+  rmw_context_impl_s * context_impl = static_cast<rmw_context_impl_s *>(node->context->impl);
+  RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(client, RMW_RET_INVALID_ARGUMENT);
-  RMW_CHECK_ARGUMENT_FOR_NULL(client->data, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node,
     node->implementation_identifier,
@@ -1659,36 +1491,15 @@ rmw_destroy_client(rmw_node_t * node, rmw_client_t * client)
     client->implementation_identifier,
     rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
-
-  rcutils_allocator_t * allocator = &node->context->options.allocator;
-
-  rmw_zenoh_cpp::rmw_client_data_t * client_data =
-    static_cast<rmw_zenoh_cpp::rmw_client_data_t *>(client->data);
-  RMW_CHECK_FOR_NULL_WITH_MSG(
-    client_data,
-    "client implementation pointer is null.",
-    return RMW_RET_INVALID_ARGUMENT);
-
-  // CLEANUP ===================================================================
-  z_drop(z_move(client_data->keyexpr));
-  zc_liveliness_undeclare_token(z_move(client_data->token));
-
-  RMW_TRY_DESTRUCTOR(
-    client_data->request_type_support->~RequestTypeSupport(), rmw_zenoh_cpp::RequestTypeSupport, );
-  allocator->deallocate(client_data->request_type_support, allocator->state);
-
-  RMW_TRY_DESTRUCTOR(
-    client_data->response_type_support->~ResponseTypeSupport(), rmw_zenoh_cpp::ResponseTypeSupport,
-  );
-  allocator->deallocate(client_data->response_type_support, allocator->state);
-
-  // See the comment about the "num_in_flight" class variable in the rmw_client_data_t class for
-  // why we need to do this.
-  if (!client_data->shutdown_and_query_in_flight()) {
-    RMW_TRY_DESTRUCTOR(client_data->~rmw_client_data_t(), rmw_client_data_t, );
-    allocator->deallocate(client->data, allocator->state);
+  auto node_data = context_impl->get_node_data(node);
+  if (node_data == nullptr) {
+    return RMW_RET_INVALID_ARGUMENT;
   }
 
+  // Remove the ClientData from NodeData.
+  node_data->delete_client_data(client);
+
+  rcutils_allocator_t * allocator = &node->context->options.allocator;
   allocator->deallocate(const_cast<char *>(client->service_name), allocator->state);
   allocator->deallocate(client, allocator->state);
 
@@ -1705,115 +1516,23 @@ rmw_send_request(
 {
   RMW_CHECK_ARGUMENT_FOR_NULL(client, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(client->data, RMW_RET_INVALID_ARGUMENT);
-  RMW_CHECK_ARGUMENT_FOR_NULL(ros_request, RMW_RET_INVALID_ARGUMENT);
-  RMW_CHECK_ARGUMENT_FOR_NULL(sequence_id, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    client->service_name, "client has no service name", RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     client,
     client->implementation_identifier,
     rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
-
-  rmw_zenoh_cpp::rmw_client_data_t * client_data =
-    static_cast<rmw_zenoh_cpp::rmw_client_data_t *>(client->data);
+  rmw_zenoh_cpp::ClientData * client_data =
+    static_cast<rmw_zenoh_cpp::ClientData *>(client->data);
   RMW_CHECK_FOR_NULL_WITH_MSG(
     client_data,
     "Unable to retrieve client_data from client.",
     RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(ros_request, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(sequence_id, RMW_RET_INVALID_ARGUMENT);
 
-  if (client_data->is_shutdown()) {
-    return RMW_RET_ERROR;
-  }
-
-  rmw_context_impl_s * context_impl = static_cast<rmw_context_impl_s *>(
-    client_data->context->impl);
-
-  // Serialize data
-
-  rcutils_allocator_t * allocator = &(client_data->context->options.allocator);
-
-  size_t max_data_length = (
-    client_data->request_type_support->get_estimated_serialized_size(
-      ros_request, client_data->request_type_support_impl));
-
-  // Init serialized message byte array
-  char * request_bytes = static_cast<char *>(allocator->allocate(
-      max_data_length,
-      allocator->state));
-  if (!request_bytes) {
-    RMW_SET_ERROR_MSG("failed allocate request message bytes");
-    return RMW_RET_ERROR;
-  }
-  auto free_request_bytes = rcpputils::make_scope_exit(
-    [request_bytes, allocator]() {
-      allocator->deallocate(request_bytes, allocator->state);
-    });
-
-  // Object that manages the raw buffer
-  eprosima::fastcdr::FastBuffer fastbuffer(request_bytes, max_data_length);
-
-  // Object that serializes the data
-  rmw_zenoh_cpp::Cdr ser(fastbuffer);
-  if (!client_data->request_type_support->serialize_ros_message(
-      ros_request,
-      ser.get_cdr(),
-      client_data->request_type_support_impl))
-  {
-    return RMW_RET_ERROR;
-  }
-
-  size_t data_length = ser.get_serialized_data_length();
-
-  *sequence_id = client_data->get_next_sequence_number();
-
-  // Send request
-  z_get_options_t opts = z_get_options_default();
-
-  z_owned_bytes_map_t map = rmw_zenoh_cpp::create_map_and_set_sequence_num(
-    *sequence_id,
-    [client_data](z_owned_bytes_map_t * map, const char * key)
-    {
-      uint8_t local_gid[RMW_GID_STORAGE_SIZE];
-      client_data->entity->copy_gid(local_gid);
-      z_bytes_t gid_bytes;
-      gid_bytes.len = RMW_GID_STORAGE_SIZE;
-      gid_bytes.start = local_gid;
-      z_bytes_map_insert_by_copy(map, z_bytes_new(key), gid_bytes);
-    });
-  if (!z_check(map)) {
-    // create_map_and_set_sequence_num already set the error
-    return RMW_RET_ERROR;
-  }
-  auto free_attachment_map = rcpputils::make_scope_exit(
-    [&map]() {
-      z_bytes_map_drop(z_move(map));
-    });
-
-  // See the comment about the "num_in_flight" class variable in the rmw_client_data_t class for
-  // why we need to do this.
-  client_data->increment_in_flight_callbacks();
-
-  opts.attachment = z_bytes_map_as_attachment(&map);
-
-  opts.target = Z_QUERY_TARGET_ALL_COMPLETE;
-  // The default timeout for a z_get query is 10 seconds and if a response is not received within
-  // this window, the queryable will return an invalid reply. However, it is common for actions,
-  // which are implemented using services, to take an extended duration to complete. Hence, we set
-  // the timeout_ms to the largest supported value to account for most realistic scenarios.
-  opts.timeout_ms = std::numeric_limits<uint64_t>::max();
-  // Latest consolidation guarantees unicity of replies for the same key expression,
-  // which optimizes bandwidth. The default is "None", which imples replies may come in any order
-  // and any number.
-  opts.consolidation = z_query_consolidation_latest();
-  opts.value.payload = z_bytes_t{data_length, reinterpret_cast<const uint8_t *>(request_bytes)};
-  z_owned_closure_reply_t zn_closure_reply =
-    z_closure(rmw_zenoh_cpp::client_data_handler, rmw_zenoh_cpp::client_data_drop, client_data);
-  z_get(
-    context_impl->session(),
-    z_loan(client_data->keyexpr), "",
-    z_move(zn_closure_reply),
-    &opts);
-
-  return RMW_RET_OK;
+  return client_data->send_request(ros_request, sequence_id);
 }
 
 //==============================================================================
@@ -1825,12 +1544,10 @@ rmw_take_response(
   void * ros_response,
   bool * taken)
 {
+  RMW_CHECK_ARGUMENT_FOR_NULL(taken, RMW_RET_INVALID_ARGUMENT);
   *taken = false;
-
   RMW_CHECK_ARGUMENT_FOR_NULL(client, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(client->data, RMW_RET_INVALID_ARGUMENT);
-  RMW_CHECK_ARGUMENT_FOR_NULL(ros_response, RMW_RET_INVALID_ARGUMENT);
-  RMW_CHECK_ARGUMENT_FOR_NULL(taken, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     client,
     client->implementation_identifier,
@@ -1838,71 +1555,13 @@ rmw_take_response(
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_FOR_NULL_WITH_MSG(
     client->service_name, "client has no service name", RMW_RET_INVALID_ARGUMENT);
-
-  rmw_zenoh_cpp::rmw_client_data_t * client_data =
-    static_cast<rmw_zenoh_cpp::rmw_client_data_t *>(client->data);
+  rmw_zenoh_cpp::ClientData * client_data =
+    static_cast<rmw_zenoh_cpp::ClientData *>(client->data);
   RMW_CHECK_FOR_NULL_WITH_MSG(
     client->data, "Unable to retrieve client_data from client.", RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(ros_response, RMW_RET_INVALID_ARGUMENT);
 
-  std::unique_ptr<rmw_zenoh_cpp::ZenohReply> latest_reply = client_data->pop_next_reply();
-  if (latest_reply == nullptr) {
-    // This tells rcl that the check for a new message was done, but no messages have come in yet.
-    return RMW_RET_OK;
-  }
-
-  std::optional<z_sample_t> sample = latest_reply->get_sample();
-  if (!sample) {
-    RMW_SET_ERROR_MSG("invalid reply sample");
-    return RMW_RET_ERROR;
-  }
-
-  // Object that manages the raw buffer
-  eprosima::fastcdr::FastBuffer fastbuffer(
-    reinterpret_cast<char *>(const_cast<uint8_t *>(sample->payload.start)),
-    sample->payload.len);
-
-  // Object that serializes the data
-  rmw_zenoh_cpp::Cdr deser(fastbuffer);
-  if (!client_data->response_type_support->deserialize_ros_message(
-      deser.get_cdr(),
-      ros_response,
-      client_data->response_type_support_impl))
-  {
-    RMW_SET_ERROR_MSG("could not deserialize ROS response");
-    return RMW_RET_ERROR;
-  }
-
-  // Fill in the request_header
-
-  request_header->request_id.sequence_number =
-    rmw_zenoh_cpp::get_int64_from_attachment(&sample->attachment, "sequence_number");
-  if (request_header->request_id.sequence_number < 0) {
-    RMW_SET_ERROR_MSG("Failed to get sequence_number from client call attachment");
-    return RMW_RET_ERROR;
-  }
-
-  request_header->source_timestamp =
-    rmw_zenoh_cpp::get_int64_from_attachment(&sample->attachment, "source_timestamp");
-  if (request_header->source_timestamp < 0) {
-    RMW_SET_ERROR_MSG("Failed to get source_timestamp from client call attachment");
-    return RMW_RET_ERROR;
-  }
-
-  if (!rmw_zenoh_cpp::get_gid_from_attachment(
-      &sample->attachment,
-      request_header->request_id.writer_guid))
-  {
-    RMW_SET_ERROR_MSG("Could not get client gid from attachment");
-    return RMW_RET_ERROR;
-  }
-
-  auto now = std::chrono::system_clock::now().time_since_epoch();
-  auto now_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now);
-  request_header->received_timestamp = now_ns.count();
-
-  *taken = true;
-
-  return RMW_RET_OK;
+  return client_data->take_response(request_header, ros_response, taken);
 }
 
 //==============================================================================
@@ -1919,12 +1578,11 @@ rmw_client_request_publisher_get_actual_qos(
     rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_ARGUMENT_FOR_NULL(qos, RMW_RET_INVALID_ARGUMENT);
-
-  rmw_zenoh_cpp::rmw_client_data_t * client_data =
-    static_cast<rmw_zenoh_cpp::rmw_client_data_t *>(client->data);
+  rmw_zenoh_cpp::ClientData * client_data =
+    static_cast<rmw_zenoh_cpp::ClientData *>(client->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(client_data, RMW_RET_INVALID_ARGUMENT);
 
-  *qos = client_data->adapted_qos_profile;
+  *qos = client_data->topic_info().qos_;
   return RMW_RET_OK;
 }
 
@@ -1948,7 +1606,6 @@ rmw_create_service(
   const char * service_name,
   const rmw_qos_profile_t * qos_profile)
 {
-  // ASSERTIONS ================================================================
   RMW_CHECK_ARGUMENT_FOR_NULL(node, nullptr);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     node,
@@ -2001,7 +1658,6 @@ rmw_create_service(
     return nullptr;
   }
 
-  // SERVICE DATA ==============================================================
   rcutils_allocator_t * allocator = &node->context->options.allocator;
   if (!rcutils_allocator_is_valid(allocator)) {
     RMW_SET_ERROR_MSG("allocator is invalid.");
@@ -2042,7 +1698,7 @@ rmw_create_service(
   }
 
   // TODO(Yadunund): We cannot store the rmw_node_t * here since this type erased
-  // Service handle will be returned in the rmw_service_t in rmw_wait
+  // Service handle will be returned in the rmw_services_t in rmw_wait
   // from which we cannot obtain ServiceData.
   rmw_service->data = static_cast<void *>(node_data->get_service_data(rmw_service).get());
   rmw_service->implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
@@ -2433,8 +2089,8 @@ check_and_attach_condition(
 
   if (clients) {
     for (size_t i = 0; i < clients->client_count; ++i) {
-      rmw_zenoh_cpp::rmw_client_data_t * client_data =
-        static_cast<rmw_zenoh_cpp::rmw_client_data_t *>(clients->clients[i]);
+      rmw_zenoh_cpp::ClientData * client_data =
+        static_cast<rmw_zenoh_cpp::ClientData *>(clients->clients[i]);
       if (client_data == nullptr) {
         continue;
       }
@@ -2594,8 +2250,8 @@ rmw_wait(
 
   if (clients) {
     for (size_t i = 0; i < clients->client_count; ++i) {
-      rmw_zenoh_cpp::rmw_client_data_t * client_data =
-        static_cast<rmw_zenoh_cpp::rmw_client_data_t *>(clients->clients[i]);
+      rmw_zenoh_cpp::ClientData * client_data =
+        static_cast<rmw_zenoh_cpp::ClientData *>(clients->clients[i]);
       if (client_data == nullptr) {
         continue;
       }
@@ -2795,7 +2451,7 @@ rmw_get_gid_for_publisher(const rmw_publisher_t * publisher, rmw_gid_t * gid)
   RMW_CHECK_ARGUMENT_FOR_NULL(pub_data, RMW_RET_INVALID_ARGUMENT);
 
   gid->implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
-  pub_data->copy_gid(gid);
+  pub_data->copy_gid(gid->data);
 
   return RMW_RET_OK;
 }
@@ -2807,12 +2463,12 @@ rmw_get_gid_for_client(const rmw_client_t * client, rmw_gid_t * gid)
 {
   RMW_CHECK_ARGUMENT_FOR_NULL(client, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(gid, RMW_RET_INVALID_ARGUMENT);
-
-  rmw_zenoh_cpp::rmw_client_data_t * client_data =
-    static_cast<rmw_zenoh_cpp::rmw_client_data_t *>(client->data);
+  rmw_zenoh_cpp::ClientData * client_data =
+    static_cast<rmw_zenoh_cpp::ClientData *>(client->data);
+  RMW_CHECK_ARGUMENT_FOR_NULL(client_data, RMW_RET_INVALID_ARGUMENT);
 
   gid->implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
-  client_data->entity->copy_gid(gid->data);
+  client_data->copy_gid(gid->data);
 
   return RMW_RET_OK;
 }
@@ -2858,29 +2514,16 @@ rmw_service_server_is_available(
   RMW_CHECK_ARGUMENT_FOR_NULL(client, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(client->data, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(is_available, RMW_RET_INVALID_ARGUMENT);
-
-  rmw_zenoh_cpp::rmw_client_data_t * client_data =
-    static_cast<rmw_zenoh_cpp::rmw_client_data_t *>(client->data);
+  rmw_zenoh_cpp::ClientData * client_data =
+    static_cast<rmw_zenoh_cpp::ClientData *>(client->data);
   if (client_data == nullptr) {
     RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
       "Unable to retreive client_data from client for service %s", client->service_name);
     return RMW_RET_INVALID_ARGUMENT;
   }
 
-  std::string service_type = client_data->request_type_support->get_name();
-  size_t suffix_substring_position = service_type.find("Request_");
-  if (std::string::npos != suffix_substring_position) {
-    service_type = service_type.substr(0, suffix_substring_position);
-  } else {
-    RMW_ZENOH_LOG_ERROR_NAMED(
-      "rmw_zenoh_cpp",
-      "Unexpected type %s for client %s. Report this bug",
-      service_type.c_str(), client->service_name);
-    return RMW_RET_INVALID_ARGUMENT;
-  }
-
   return node->context->impl->graph_cache()->service_server_is_available(
-    client->service_name, service_type.c_str(), is_available);
+    client_data->topic_info(), is_available);
 }
 
 //==============================================================================
@@ -2953,11 +2596,11 @@ rmw_client_set_on_new_response_callback(
   const void * user_data)
 {
   RMW_CHECK_ARGUMENT_FOR_NULL(client, RMW_RET_INVALID_ARGUMENT);
-  rmw_zenoh_cpp::rmw_client_data_t * client_data =
-    static_cast<rmw_zenoh_cpp::rmw_client_data_t *>(client->data);
+  rmw_zenoh_cpp::ClientData * client_data =
+    static_cast<rmw_zenoh_cpp::ClientData *>(client->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(client_data, RMW_RET_INVALID_ARGUMENT);
-  client_data->data_callback_mgr.set_callback(
-    user_data, std::move(callback));
+  client_data->set_on_new_response_callback(
+    std::move(callback), user_data);
   return RMW_RET_OK;
 }
 }  // extern "C"

@@ -421,10 +421,10 @@ liveliness::TopicInfo PublisherData::topic_info() const
 }
 
 ///=============================================================================
-void PublisherData::copy_gid(rmw_gid_t * gid) const
+void PublisherData::copy_gid(uint8_t out_gid[RMW_GID_STORAGE_SIZE]) const
 {
   std::lock_guard<std::mutex> lock(mutex_);
-  entity_->copy_gid(gid->data);
+  entity_->copy_gid(out_gid);
 }
 
 ///=============================================================================

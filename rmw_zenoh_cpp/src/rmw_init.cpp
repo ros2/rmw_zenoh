@@ -22,7 +22,6 @@
 #include "detail/identifier.hpp"
 #include "detail/liveliness_utils.hpp"
 #include "detail/rmw_context_impl_s.hpp"
-#include "detail/rmw_data_types.hpp"
 #include "detail/zenoh_config.hpp"
 
 #include "rcutils/env.h"

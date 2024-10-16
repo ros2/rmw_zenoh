@@ -172,8 +172,7 @@ public:
     rmw_topic_endpoint_info_array_t * endpoints_info) const;
 
   rmw_ret_t service_server_is_available(
-    const char * service_name,
-    const char * service_type,
+    const liveliness::TopicInfo & client_topic_info,
     bool * is_available) const;
 
   /// Set a qos event callback for an entity from the current session.
