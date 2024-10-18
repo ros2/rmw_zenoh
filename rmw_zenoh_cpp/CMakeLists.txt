@@ -38,8 +38,8 @@ add_library(rmw_zenoh_cpp SHARED
   src/detail/logging.cpp
   src/detail/message_type_support.cpp
   src/detail/qos.cpp
+  src/detail/rmw_client_data.cpp
   src/detail/rmw_context_impl_s.cpp
-  src/detail/rmw_data_types.cpp
   src/detail/rmw_publisher_data.cpp
   src/detail/rmw_node_data.cpp
   src/detail/rmw_service_data.cpp

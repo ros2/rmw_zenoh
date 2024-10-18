@@ -36,7 +36,6 @@
 
 #include "graph_cache.hpp"
 #include "logging_macros.hpp"
-#include "rmw_data_types.hpp"
 
 namespace rmw_zenoh_cpp
 {
@@ -1182,15 +1181,15 @@ rmw_ret_t GraphCache::get_entities_info_by_topic(
 
 ///=============================================================================
 rmw_ret_t GraphCache::service_server_is_available(
-  const char * service_name,
-  const char * service_type,
+  const liveliness::TopicInfo & client_topic_info,
   bool * is_available) const
 {
   *is_available = false;
   std::lock_guard<std::mutex> lock(graph_mutex_);
-  GraphNode::TopicMap::const_iterator service_it = graph_services_.find(service_name);
+  GraphNode::TopicMap::const_iterator service_it = graph_services_.find(client_topic_info.name_);
   if (service_it != graph_services_.end()) {
-    GraphNode::TopicTypeMap::const_iterator type_it = service_it->second.find(service_type);
+    GraphNode::TopicTypeMap::const_iterator type_it =
+      service_it->second.find(client_topic_info.type_);
     if (type_it != service_it->second.end()) {
       for (const auto & [_, topic_data] : type_it->second) {
         if (topic_data->subs_.size() > 0) {

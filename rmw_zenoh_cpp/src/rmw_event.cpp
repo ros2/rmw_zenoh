@@ -21,7 +21,6 @@
 #include "detail/graph_cache.hpp"
 #include "detail/identifier.hpp"
 #include "detail/rmw_context_impl_s.hpp"
-#include "detail/rmw_data_types.hpp"
 #include "detail/rmw_publisher_data.hpp"
 #include "detail/rmw_subscription_data.hpp"
 

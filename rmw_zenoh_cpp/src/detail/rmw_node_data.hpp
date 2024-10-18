@@ -25,6 +25,7 @@
 
 #include "graph_cache.hpp"
 #include "liveliness_utils.hpp"
+#include "rmw_client_data.hpp"
 #include "rmw_publisher_data.hpp"
 #include "rmw_subscription_data.hpp"
 #include "rmw_service_data.hpp"
@@ -97,6 +98,21 @@ public:
   // Delete the ServiceData for a given rmw_service_t if present.
   void delete_service_data(const rmw_service_t * const service);
 
+  // Create a new ClientData for a given rmw_client_t.
+  bool create_client_data(
+    const rmw_client_t * const client,
+    z_session_t session,
+    std::size_t id,
+    const std::string & service_name,
+    const rosidl_service_type_support_t * type_support,
+    const rmw_qos_profile_t * qos_profile);
+
+  // Retrieve the ClientData for a given rmw_client_t if present.
+  ClientDataPtr get_client_data(const rmw_client_t * const client);
+
+  // Delete the ClientData for a given rmw_client_t if present.
+  void delete_client_data(const rmw_client_t * const client);
+
   // Shutdown this NodeData.
   rmw_ret_t shutdown();
 
@@ -132,6 +148,8 @@ private:
   std::unordered_map<const rmw_subscription_t *, SubscriptionDataPtr> subs_;
   // Map of services.
   std::unordered_map<const rmw_service_t *, ServiceDataPtr> services_;
+  // Map of clients.
+  std::unordered_map<const rmw_client_t *, ClientDataPtr> clients_;
 };
 }  // namespace rmw_zenoh_cpp
 
