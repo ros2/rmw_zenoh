@@ -98,7 +98,7 @@ public:
   // TODO(Yadunund): Remove this API once we are able to capture weak_ptr<ClientData>
   // in the client closures to avoid the issue with queries in flight as described
   // below.
-  bool query_in_flight();
+  bool query_in_flight() const;
 
   // Check if this ClientData is shutdown.
   bool is_shutdown() const;
@@ -139,25 +139,6 @@ private:
   DataCallbackManager data_callback_mgr_;
   // Sequence number for queries.
   size_t sequence_number_;
-  // rmw_zenoh uses Zenoh queries to implement clients. It turns out that in Zenoh, there is no
-  // way to cancel a query once it is in-flight via the z_get() zenoh-c API. Thus, if an
-  // rmw_zenoh_cpp user does rmw_create_client(), rmw_send_request(), rmw_destroy_client(), but the
-  // query comes in after the rmw_destroy_client(), rmw_zenoh_cpp could access already-freed memory.
-  // The next 2 variables are used to avoid that situation. Any time a query is initiated via
-  // rmw_send_request(), num_in_flight_ is incremented.  When the Zenoh calls the callback for the
-  // query reply, num_in_flight_ is decremented.
-  // When shutdown() is called, is_shutdown_ is set to true.
-  // If num_in_flight_ is 0, the data associated with this structure is freed.
-  // If num_in_flight_ is *not* 0, then the data associated with this structure is maintained.
-  // In the situation where is_shutdown_ is true, and num_in_flight_ drops to 0 in the query
-  // callback, the query callback will free up the structure.
-  //
-  // There is one case which is not handled by this, which has to do with timeouts.  The query
-  // timeout is currently set to essentially infinite.  Thus, if a query is in-flight but never
-  // returns, the memory in this structure will never be freed.  There isn't much we can do about
-  // that at this time, but we may want to consider changing the timeout so that the memory can
-  // eventually be freed up.
-  size_t num_in_flight_;
   // Shutdown flag.
   bool is_shutdown_;
 };
