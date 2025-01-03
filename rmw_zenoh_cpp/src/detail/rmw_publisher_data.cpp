@@ -257,22 +257,20 @@ rmw_ret_t PublisherData::publish(
       // Print a warning and revert to regular allocation
       RMW_ZENOH_LOG_DEBUG_NAMED(
         "rmw_zenoh_cpp", "Failed to allocate a SHM buffer, fallback to non-SHM");
-
-      // TODO(yellowhatter): split the whole publish method onto shm and non-shm versions
-      // Get memory from the allocator.
-      msg_bytes = static_cast<uint8_t *>(allocator->allocate(max_data_length, allocator->state));
     }
-  } else {
+  }
+
+  if (!shm_buf.has_value()) {
     // Try to get memory from the serialization buffer pool.
     pool_buf = std::make_optional(context_impl->serialization_buffer_pool.allocate(max_data_length));
-    if (pool_buf->data == nullptr) {
+    if (pool_buf.value().data == nullptr) {
       void * data = allocator->allocate(max_data_length, allocator->state);
+      RMW_CHECK_FOR_NULL_WITH_MSG(
+        data, "failed to allocate serialization buffer", return RMW_RET_BAD_ALLOC);
       msg_bytes = static_cast<uint8_t *>(data);
     } else {
       msg_bytes = pool_buf->data;
     }
-
-    msg_bytes = static_cast<uint8_t *>(allocator->allocate(max_data_length, allocator->state));
   }
 
   RMW_CHECK_FOR_NULL_WITH_MSG(
