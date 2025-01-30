@@ -596,7 +596,8 @@ TBD
 ### `RMW_ZENOH_BUFFER_POOL_MAX_SIZE_BYTES`
 
 The RMW recycles serialization buffers on transmission using a buffer pool with bounded memory
-usage. These buffers are returned to the pool — without being deallocated — once they cross the
+usage.
+These buffers are returned to the pool - without being deallocated - once they cross the
 network boundary in host-to-host communication, or after transmission in inter-process
 communication, or upon being consumed by subscriptions in intra-process communication, etc. 
 
