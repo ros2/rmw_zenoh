@@ -606,5 +606,4 @@ When the total size of the allocated buffers within the pool exceeds
 allocator and moved to Zenoh; no recycling is performed in this case to prevent the buffer pool from
 growing uncontrollably. 
 
-The default value of `RMW_ZENOH_BUFFER_POOL_MAX_SIZE_BYTES` is roughly proportionate to the cache
-size of a typical modern CPU.
+The default value of `RMW_ZENOH_BUFFER_POOL_MAX_SIZE_BYTES` is 16MB; this value was chosen since it is roughly the size of the cache in a modern CPU.
