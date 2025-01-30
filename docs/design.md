@@ -603,7 +603,7 @@ communication, or upon being consumed by subscriptions in intra-process communic
 
 When the total size of the allocated buffers within the pool exceeds
 `RMW_ZENOH_BUFFER_POOL_MAX_SIZE_BYTES`, serialization buffers are allocated using the system
-allocator and moved to Zenoh; no recyling is performed in this case to prevent the buffer pool from
+allocator and moved to Zenoh; no recycling is performed in this case to prevent the buffer pool from
 growing uncontrollably. 
 
 The default value of `RMW_ZENOH_BUFFER_POOL_MAX_SIZE_BYTES` is roughly proportionate to the cache
