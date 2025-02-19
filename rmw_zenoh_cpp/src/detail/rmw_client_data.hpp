@@ -118,6 +118,7 @@ private:
   mutable std::recursive_mutex mutex_;
   // The parent node.
   const rmw_node_t * rmw_node_;
+  // The rmw client.
   const rmw_client_t * rmw_client_;
   // The Entity generated for the service.
   std::shared_ptr<liveliness::Entity> entity_;
