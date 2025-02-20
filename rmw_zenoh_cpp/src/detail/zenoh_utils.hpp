@@ -135,9 +135,9 @@ private:
   size_t size_;
   // NOTE(fuzzypixelz): Pooled buffers are recycled with the expectation that they would reside in
   // cache, thus this this value should be comparable to the size of a modern CPU cache. The default
-  // value (16 MiB) is relatively conservative as CPU cache sizes range from a few MiB to a few
+  // value (8 MiB) is relatively conservative as CPU cache sizes range from a few MiB to a few
   // hundred MiB.
-  const size_t DEFAULT_MAX_SIZE = 16 * 1024 * 1024;
+  const size_t DEFAULT_MAX_SIZE = 8 * 1024 * 1024;
 };
 }  // namespace rmw_zenoh_cpp
 
