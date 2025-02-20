@@ -308,6 +308,12 @@ public:
     return graph_cache_;
   }
 
+  std::shared_ptr<rmw_zenoh_cpp::BufferPool> serialization_buffer_pool()
+  {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    return serialization_buffer_pool_;
+  }
+
   bool create_node_data(
     const rmw_node_t * const node,
     const std::string & ns,
@@ -413,6 +419,8 @@ private:
   std::shared_ptr<rmw_zenoh_cpp::ShmContext> shm_;
   // Graph cache.
   std::shared_ptr<rmw_zenoh_cpp::GraphCache> graph_cache_;
+  // Pool of serialization buffers.
+  std::shared_ptr<rmw_zenoh_cpp::BufferPool> serialization_buffer_pool_;
   // ROS graph liveliness subscriber.
   // The graph_subscriber *must* exist in order for anything in this Data class,
   // and hence rmw_zenoh_cpp, to work.
@@ -506,6 +514,12 @@ bool rmw_context_impl_s::session_is_valid() const
 std::shared_ptr<rmw_zenoh_cpp::GraphCache> rmw_context_impl_s::graph_cache()
 {
   return data_->graph_cache();
+}
+
+///=============================================================================
+std::shared_ptr<rmw_zenoh_cpp::BufferPool> rmw_context_impl_s::serialization_buffer_pool()
+{
+  return data_->serialization_buffer_pool();
 }
 
 ///=============================================================================

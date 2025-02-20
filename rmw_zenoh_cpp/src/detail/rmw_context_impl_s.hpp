@@ -72,6 +72,9 @@ public:
   /// Return a shared_ptr to the GraphCache stored in this context.
   std::shared_ptr<rmw_zenoh_cpp::GraphCache> graph_cache();
 
+  /// Return a shared_ptr to the Serialization buffer pool stored in this context.
+  std::shared_ptr<rmw_zenoh_cpp::BufferPool> serialization_buffer_pool();
+
   /// Create a NodeData and store it within this context. The NodeData can be
   /// retrieved using get_node().
   /// Returns false if parameters are invalid.
@@ -89,9 +92,6 @@ public:
 
   // Forward declaration
   class Data;
-
-  // Pool of serialization buffers.
-  rmw_zenoh_cpp::BufferPool serialization_buffer_pool;
 
 private:
   std::shared_ptr<Data> data_{nullptr};
