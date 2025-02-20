@@ -24,7 +24,7 @@
 
 #include "graph_cache.hpp"
 #include "rmw_node_data.hpp"
-#include "buffer_pool.hpp"
+#include "zenoh_utils.hpp"
 
 #include "rmw/ret_types.h"
 #include "rmw/types.h"
