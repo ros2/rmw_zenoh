@@ -32,7 +32,7 @@ BufferPool::BufferPool()
   const char * env_value;
   const char * error_str = rcutils_get_env("RMW_ZENOH_BUFFER_POOL_MAX_SIZE_BYTES", &env_value);
   if (error_str != nullptr) {
-    RMW_ZENOH_LOG_ERROR_NAMED(
+    RMW_ZENOH_LOG_WARN_NAMED(
       "rmw_zenoh_cpp",
       "Unable to read maximum buffer pool size, falling back to default.");
     max_size_ = DEFAULT_MAX_SIZE;
