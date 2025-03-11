@@ -31,27 +31,54 @@ Considering the previously mentioned reasons, we consider this library to be rob
 
 ### Version Scheme [1.i]
 
-TODO(zettascale): Explain version scheme
+All Zenoh projects (including `zenoh-cpp, zenoh-c` and `zenoh`) adhere to [semver 2.0.0](https://semver.org/spec/v2.0.0.html):
+The version numbers are organised as `MAJOR.MINOR.PATCH where all three components are non-negative decimal numbers. Version number policy llows the following rules:
+
+- MAJOR version is incremented when an incompatible API or protocol change is made;
+- MINOR version when functionality is added in a backwards compatible. MINOR is source compatible. The project strives to also maintain nary compatibility and protocol interoperability. Any breaking change on those aspects will be documented in the Zenoh [CHANGELOG](https://thub.com/eclipse-zenoh/zenoh/releases).;
+- PATCH version when backwards compatible bug fixes are made. PATCH is binary compatible and has interoperable protocol.
+
+See also the [Releases section](https://www.eclipse.org/projects/handbook/#release) of the Eclipse project handbook which discusses Major, Minor, and Service release criteria (where Service corresponds to PATCH in the above description).
 
 ### Version Stability [1.ii]
 
-TODO(zettascale): Explain version Stability
+All Zenoh projects are stable since `1.0.0`. The latest releases and all history of changes can be found here:
+
+- [zenoh-cpp](https://github.com/eclipse-zenoh/zenoh-cpp/releases)
+- [zenoh-c](https://github.com/eclipse-zenoh/zenoh-c/releases)
+- [zenoh](https://github.com/eclipse-zenoh/zenoh/releases)
 
 ### Public API Declaration [1.iii]
 
-As a C library, elements available in [zenoh.h](https://github.com/eclipse-zenoh/zenoh-c/blob/main/include/zenoh.h) are considered to be the library's public API.
+As a C++ library, elements available in [zenoh.hxx](https://github.com/eclipse-zenoh/zenoh-cpp/blob/main/include/zenoh.hxx) are considered to be the library's public API of `zenoh-cpp`.
 
 ### API Stability Policy [1.iv]
 
-TODO(zettascale): Explain API Stability
+The Public API of `zenoh-cpp` include some unstable elements which are all enclosed in conditional groups with `defined_FEATURE_UNSTABLE_API)` as condition.
+
+For the Public API not declared as unstable:
+
+- `zenoh-cpp` provides stability for PATCH and MINOR releases.
+- `zenoh-cpp` strives to provide stability for MAJOR releases.
+- `zenoh-cpp` does not guarantee stability for MAJOR releases.
+
+For the Public API declared as unstable:
+
+- `zenoh-cpp` won't change in PATCH releases.
+- `zenoh-cpp` may change for MINOR and MAJOR releases.
+
 
 ### ABI Stability Policy [1.v]
 
-TODO(zettascale): Explain ABI Stability
+`zenoh-cpp` only consists in header files which are compiled within the `rmw_zenoh_cpp` library. Those files are headers are calling C functions from `zenoh-c` which is built as a shared library, with `zenoh` Rust code statically linked in this library. Hence, the ABI Stability concerns are for `zenoh-c`.
+
+`zenoh-c` provides ABI stability for PATCH releases and strives to provide ABI stability for MINOR releases, for all the Public API (stable or unstable). `zenoh-c` does not guarantee ABI stability for MINOR or MAJOR releases.
 
 ### ABI and ABI Stability Within a Released ROS Distribution [1.vi]
 
-TODO(zettascale): Explain ABI and ABI Stability  Within a Released ROS Distribution
+ROS 2 users do not interact directly with `zenoh-cpp`, `zenoh-c` or `zenoh` Rust. The mapping of the RMW interface to the `zenoh-cpp` APIs provided by the `rmw_zenoh_cpp` package hides any API or ABI changes from ROS 2 users.
+
+Based on the ABI Stability Policy, `zenoh-c` PATCH releases can be accepted as updates within a Released ROS Distribution. MINOR releases can likely be accepted as updates after assessing the binary compatibility. `zenoh-c` MINOR and MAJOR releases can, at least in principle, be accepted as updates within a Released ROS Distribution if the update is accompanied by an update of the `rmw_zenoh_cpp` package.
 
 ## Change Control Process [2]
 
