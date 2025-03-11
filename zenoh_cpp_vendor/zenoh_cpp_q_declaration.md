@@ -1,22 +1,27 @@
-# External Dependency Quality declaration zenoh-c
+# External Dependency Quality declaration for zenoh-cpp
 
-This document is a declaration of software quality for the `zenoh-c` external dependency, based on the guidelines in [REP-2004](https://github.com/ros-infrastructure/rep/blob/rep-2004/rep-2004.rst).
+This document is a declaration of software quality for the `zenoh-cpp` external dependency, based on the guidelines in [REP-2004](https://github.com/ros-infrastructure/rep/blob/rep-2004/rep-2004.rst).
 
-The [zenoh-c](https://github.com/eclipse-zenoh/zenoh-c) external dependency is a C binding based on the main [Zenoh implementation written in Rust](https://github.com/eclipse-zenoh/zenoh).
+The [zenoh-cpp](https://github.com/eclipse-zenoh/zenoh-cpp) external dependency is a C++ binding based on the [zenoh-c](https://github.com/eclipse-zenoh/zenoh-c) C binding, itself based on the main [Zenoh implementation written in Rust](https://github.com/eclipse-zenoh/zenoh).
 It is maintained by [Eclipse Zenoh GitHub](https://github.com/eclipse-zenoh) organization together with other repositories.
 First, a summary discussing how this library is qualified is presented, and then it will be listed how this library matches the standards defined for ROS packages.
 
 ## Summary
 
-The `zenoh-c` meets the basic requirements for a software platform in terms of testing its basic functionality, providing a [valid license](https://github.com/eclipse-zenoh/zenoh-c/blob/main/LICENSE) for the code used and a public GitHub repository with the changes made to the code over time.
+[Zenoh](https://zenoh.io/) is an open source communication protocol and middleware designed to facilitate efficient data distribution across heterogeneous systems. It provides location-transparent abstractions for high performance pub/sub and distributed queries.  
+In 2023, an investigation and survey were carried out within the ROS community to identify [an into alternative middleware solutions](https://discourse.ros.org/t/investigation-into-alternative-middleware-solutions/32642) for ROS 2. The [final report](https://discourse.ros.org/uploads/short-url/o9ihvSjCwB8LkzRklpKdeesRTDi.pdf) concluded that Zenoh best meets the requirements, and will be chosen as an alternative middleware. Zenoh was also the most-recommended alternative by users [in the survey](https://docs.google.com/forms/d/1GWb7RrSPkvdgl49LMrsTyoAy3i29LO6AuFSIUzsuwrs/viewanalytics).
 
-TODO(zettascale): Include paragraph How are we going to asure API/ABI policy ?
+The [core of Zenoh](https://github.com/eclipse-zenoh/zenoh) is developped in Rust, ensuring performances, reliability and safety with regard to memory usage: .  
+[`zenoh-c`](https://github.com/eclipse-zenoh/zenoh-c) provides a C binding based on the Rust core of Zenoh. [`zenoh-cpp`](https://github.com/eclipse-zenoh/zenoh-cpp) provides a C++ binding based on `zenoh-c`. Both are designed as minimal wrappers around the Zenoh API and types, with most of the code and quality assurance efforts concentrated in Zenoh Rust.
 
-There is no explicit support for any OS platform, however their [GitHub repository](https://github.com/eclipse-zenoh/zenoh-c) installation appears to be targeting Linux.
-The first version of this library was developed in 2020, and it is used widely.
+All are supported for the majority of the OS platforms, as shown in the 1.2.1 release assets for [zenoh](https://github.com/eclipse-zenoh/zenoh/releases/tag/1.2.1) and [zenoh-c](https://github.com/eclipse-zenoh/zenoh-c/releases/tag/1.2.1) (`zenoh-cpp` consists only in header files):
 
-TODO(zettascale): Some generic statidistics about how many people use this package and if there is any other open source
-project that use this and Why we use this library here
+- Linux with glibc for x86_64, aarch64, armv7 and armv6
+- Linux with musl for x86_64 and aarch64
+- Windows with MSVC or MinGW for x86_64
+- MacOS for x86_64 and aarch64
+
+All meets the basic requirements for a software platform in terms of testing its basic functionality, providing a valid license for the code used and a public GitHub repository with the changes made to the code over time.
 
 Considering the previously mentioned reasons, we consider this library to be robust and reliable and at Quality Level 1.
 
