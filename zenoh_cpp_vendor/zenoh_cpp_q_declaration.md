@@ -211,15 +211,15 @@ ZettaScale Technology is running nightly performance tests as part of quality te
 
 ### Direct Runtime ROS Dependencies [5.i]
 
-The `zenoh-c` library does not add additional dependencies, it only requires C++ standard libraries to be built and used.
+As external dependencies, there are no ROS dependencies in `zenoh-cpp`, `zenoh-c` and `zenoh`.
 
 ### Optional Direct Runtime ROS Dependencies [5.ii]
 
-Does not apply for external dependencies.
+As external dependencies, there are no ROS dependencies in `zenoh-cpp`, `zenoh-c` and `zenoh`.
 
 ### Direct Runtime non-ROS Dependency [5.iii]
 
-The `zenoh-c` library require RUST and cargo to be able to compile it.
+`zenoh-cpp`, `zenoh-c` and `zenoh` don't require any dependency at runtime.
 
 ## Platform Support [6]
 
