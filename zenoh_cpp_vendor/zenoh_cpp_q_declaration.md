@@ -135,23 +135,41 @@ All pull requests must resolve related documentation changes before merging.
 
 ### Feature Documentation [3.i]
 
-Provided [doxygen documentation](https://zenoh-c.readthedocs.io/en) for the whole project.
+Provided for the whole project on [zenoh.io](https://zenoh.io)
 
 ### Public API Documentation [3.ii]
 
-Yes, doxygen documentation is available for library [here](https://zenoh-c.readthedocs.io/en).
+Provided documentations for each binding:
+
+- [zenoh-cpp documentation](https://zenoh-cpp.readthedocs.io/en)
+- [zenoh-c documentation](https://zenoh-c.readthedocs.io/en)
+- [zenoh documentation](https://docs.rs/zenoh/latest/zenoh/)
 
 ### License [3.iii]
 
-Apache 2.0 license declared for the repository, it can be found [here](https://github.com/eclipse-zenoh/zenoh-c/blob/main/LICENSE).
+All Zenoh APIs are made available under the terms of the Eclipse Public License 2.0, or the Apache License, Version 2.0.
+Each repository include a `NOTICE.md` with links to more information about these licenses, and a `LICENSE` file with the full terms.
+
+- `zenoh-cpp`: [NOTICE.md](https://github.com/eclipse-zenoh/zenoh-cpp/blob/main/NOTICE.md#declared-project-licenses)
+  and [LICENSE](https://github.com/eclipse-zenoh/zenoh-cpp/blob/main/LICENSE).
+- `zenoh-c`: [NOTICE.md](https://github.com/eclipse-zenoh/zenoh-c/blob/main/NOTICE.md#declared-project-licenses)
+  and [LICENSE](https://github.com/eclipse-zenoh/zenoh-c/blob/main/LICENSE).
+- `zenoh`: [NOTICE.md](https://github.com/eclipse-zenoh/zenoh/blob/main/NOTICE.md#declared-project-licenses)
+  and [LICENSE](https://github.com/eclipse-zenoh/zenoh/blob/main/LICENSE).
 
 ### Copyright Statements [3.iv]
 
-Is not available.
+Each Zenoh repository includes in its `NOTICE.md` file a policy regarding content copyright:
+
+- `zenoh-cpp`: [NOTICE.md](https://github.com/eclipse-zenoh/zenoh-cpp/blob/main/NOTICE.md#copyright)
+- `zenoh-c`: [NOTICE.md](https://github.com/eclipse-zenoh/zenoh-c/blob/main/NOTICE.md#copyright)
+- `zenoh`: [NOTICE.md](https://github.com/eclipse-zenoh/zenoh/blob/main/NOTICE.md#copyright)
+
+In those repositories, each of the source files containing code include a copyright statement with the license information in the file's header.
 
 ### Quality Declaration [3.v]
 
-This document represents the Quality Declaration document for the `zenoh-c` ROS dependency.
+This document represents the Quality Declaration document for the `zenoh-cpp` ROS dependency and the depending Zenoh projects: `zenoh-c` and `zenoh`.
 
 ## Testing [4]
 
