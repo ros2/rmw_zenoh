@@ -175,23 +175,37 @@ This document represents the Quality Declaration document for the `zenoh-cpp` RO
 
 ### Feature Testing [4.i]
 
-Tests provided to cover the expected usage of the library, for the version of the library used can be found [here](https://github.com/eclipse-zenoh/zenoh-c?tab=readme-ov-file).
+All Zenoh projects provide tests to cover the expected usage of the libraries:
+
+- [`zenoh-cpp`](https://github.com/eclipse-zenoh/zenoh-cpp/tree/main/tests)
+- [`zenoh-c`](https://github.com/eclipse-zenoh/zenoh-c/tree/main/tests)
+- `zenoh`: following Rust practices, the tests are located in the source code, in functions marked with the `#[test]` attribute, or in a `tests` subdirectory.
+
+In addition of this, the Eclipse Zenoh project conducts integration tests based on the examples of API usages provided for each binding:
+
+- [zenoh-cpp examples](https://github.com/eclipse-zenoh/zenoh-cpp/tree/main/examples)
+- [zenoh-c examples](https://github.com/eclipse-zenoh/zenoh-c/tree/main/examples)
+- [zenoh examples](https://github.com/eclipse-zenoh/zenoh/tree/main/examples)
 
 ### Public API Testing [4.ii]
 
-Not clear without coverage results to check if all the API is covered.
+The aforementioned tests are testing the Public APIs, especially those based on Zenoh examples.
 
 ### Coverage [4.iii]
 
-Code coverage and internal policies are not public, if any.
+Zenoh publishes [test coverage](https://app.codecov.io/gh/eclipse-zenoh/zenoh) using [Codecov](https://codecov.io) for the Rust core of Zenoh.
+New changes are required to include tests coverage. Line coverage is approximately 71% (as of 2025-03-11).
 
 ### Performance [4.iv]
 
-Performance tests are defined in the vendored package.
+While there are no public automated tests or results, there is evidence in PRs that performance does get taken into account (see, e.g., https://github.com/eclipse-zenoh/zenoh/pull/1627).
+
+ZettaScale Technology is running nightly performance tests as part of quality testing on internal servers.
 
 ### Linters and Static Analysis [4.v]
 
-Not available publicly, if any.
+`zenoh` in Rust runs [rust-clippy](https://github.com/rust-lang/rust-clippy) for linting and static analysis in its CI.
+`zenoh-c` and `zenoh-cpp` run [ClangFormat](https://clang.llvm.org/docs/ClangFormat.html) for linting in their CI.
 
 ## Dependencies [5]
 
