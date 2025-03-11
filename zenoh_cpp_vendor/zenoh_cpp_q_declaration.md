@@ -3,7 +3,7 @@
 This document is a declaration of software quality for the `zenoh-cpp` external dependency, based on the guidelines in [REP-2004](https://github.com/ros-infrastructure/rep/blob/rep-2004/rep-2004.rst).
 
 The [zenoh-cpp](https://github.com/eclipse-zenoh/zenoh-cpp) external dependency is a C++ binding based on the [zenoh-c](https://github.com/eclipse-zenoh/zenoh-c) C binding, itself based on the main [Zenoh implementation written in Rust](https://github.com/eclipse-zenoh/zenoh).
-It is maintained by [Eclipse Zenoh GitHub](https://github.com/eclipse-zenoh) organization together with other repositories.
+It is maintained by [Eclipse Zenoh GitHub organization](https://github.com/eclipse-zenoh) together with other repositories.
 First, a summary discussing how this library is qualified is presented, and then it will be listed how this library matches the standards defined for ROS packages.
 
 ## Summary
@@ -67,7 +67,6 @@ For the Public API declared as unstable:
 - `zenoh-cpp` won't change in PATCH releases.
 - `zenoh-cpp` may change for MINOR and MAJOR releases.
 
-
 ### ABI Stability Policy [1.v]
 
 `zenoh-cpp` only consists in header files which are compiled within the `rmw_zenoh_cpp` library. Those files are headers are calling C functions from `zenoh-c` which is built as a shared library, with `zenoh` Rust code statically linked in this library. Hence, the ABI Stability concerns are for `zenoh-c`.
@@ -82,21 +81,45 @@ Based on the ABI Stability Policy, `zenoh-c` PATCH releases can be accepted as u
 
 ## Change Control Process [2]
 
+All Zenoh projects follow the recommended guidelines of the [Eclipse Development Process](https://www.eclipse.org/projects/dev_process/).
+
+The Eclipse Foundation manages write access to project repositories, allowing only designated [Committers](https://www.eclipse.org/projects/dev_process/#4_1_Committers),
+who have been voted for in elections overseen by the Eclipse Foundation, to commit changes.
+
+API and ABI stability is part of the review process. The Eclipse Zenoh project runs CI and tests.
+The Eclipse Zenoh project runs ROS CI for changes that are likely to affect ROS.
+
 ### Change Requests [2.i]
 
-Checking through the commits history, it can be seen is not the case.
+All changes occur through pull requests made in their respective repositories:
+
+- [zenoh-cpp pull requests](https://github.com/eclipse-zenoh/zenoh-cpp/pulls)
+- [zenoh-c pull requests](https://github.com/eclipse-zenoh/zenoh-c/pulls)
+- [zenoh pull requests](https://github.com/eclipse-zenoh/zenoh/pulls)
 
 ### Contributor Origin [2.ii]
 
-Does not have it (or it does not seem like it’s the case).
+All Zenoh projects use DCO as its confirmation of contributor origin policy.
+More information can be found in [Eclipse Foundation's DCO policy](https://www.eclipse.org/legal/DCO.php).
+Eclipse projects furthermore require that an [Eclipse Contributor Agreement](https://www.eclipse.org/legal/ECA.php) is on file with the Eclipse Foundation.
 
 ### Peer Review Policy [2.iii]
 
-Seems to be followed for pull requests on the GitHub repository, but as not all code changes occur through change requests, this can not be confirmed for these changes.
+All pull requests must pass peer-review except when no-one is able to provide a review for a PR introduced by a Committer.
+The exception exists solely as an escape hatch if no review can be obtained within a reasonable time frame while there is an urgent need for the change introduced by the PR.
+Check [Eclipse Developer Process](https://www.eclipse.org/projects/dev_process/) for additional information.
 
 ### Continuous Integration [2.iv]
 
-`zenoh-c` is compiled in the ROS 2 buildfarm for all [tier 1 platforms](https://www.ros.org/reps/rep-2000.html#support-tiers).
+Pull requests are required to pass all tests in the CI system prior to merging, unless Committers consider there is sufficient evidence
+that a failure is the result of a mishap unrelated to the change.  
+All CI results are public and cover x64 platforms running Linux, macOS and Windows:
+
+- [zenoh-cpp CI results](https://github.com/eclipse-zenoh/zenoh-cpp/actions)
+- [zenoh-c CI results](https://github.com/eclipse-zenoh/zenoh-c/actions)
+- [zenoh CI results](https://github.com/eclipse-zenoh/zenoh/actions)
+
+Moreover, `zenoh-c` is compiled in the ROS 2 buildfarm for all [tier 1 platforms](https://www.ros.org/reps/rep-2000.html#support-tiers).
 
 Currently nightly results can be seen here:
 * [linux-aarch64_release](https://ci.ros2.org/view/nightly/job/nightly_linux-aarch64_release/lastBuild/testReport/zenoh_cpp_vendor/)
@@ -106,7 +129,7 @@ Currently nightly results can be seen here:
 
 ### Documentation Policy [2.v]
 
-Not available.
+All pull requests must resolve related documentation changes before merging.
 
 ## Documentation [3]
 
