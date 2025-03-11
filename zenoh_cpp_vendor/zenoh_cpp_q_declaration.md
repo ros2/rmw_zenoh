@@ -236,5 +236,4 @@ Currently nightly results can be seen here:
 
 ### Vulnerability Disclosure Policy [7.i]
 
-TODO(zettascale): Vulnerability Disclosure Policy
-The `zenoh-c` library does not have a Vulnerability Disclosure Policy. But for ROS 2's purposes, see the policy defined in the Quality Declaration of the `zenoh_cpp_vendor` package.
+All Zenoh projects conform to the Vulnerability Disclosure Policy in REP-2006. The Eclipse Project Handbook states the project's [vulnerability disclosure policy](https://www.eclipse.org/projects/handbook/#vulnerability-disclosure) in detail.
