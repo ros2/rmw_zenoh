@@ -537,6 +537,7 @@ void SubscriptionData::add_new_message(
   // Since we added new data, trigger user callback and guard condition if they are available
   data_callback_mgr_.trigger_callback();
   if (wait_set_data_ != nullptr) {
+    std::lock_guard<std::mutex> wait_set_lock(wait_set_data_->condition_mutex);
     wait_set_data_->triggered = true;
     wait_set_data_->condition_variable.notify_one();
   }
