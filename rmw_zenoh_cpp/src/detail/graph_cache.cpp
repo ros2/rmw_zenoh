@@ -778,7 +778,6 @@ rmw_ret_t fill_names_and_types(
   // Fill topic names and types.
   std::size_t index = 0;
   for (const std::pair<std::string, GraphNode::TopicTypeMap> item : ordered_entity_map) {
-
     names_and_types->names.data[index] = rcutils_strdup(item.first.c_str(), *allocator);
     if (!names_and_types->names.data[index]) {
       return RMW_RET_BAD_ALLOC;
