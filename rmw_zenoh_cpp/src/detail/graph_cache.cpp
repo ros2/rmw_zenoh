@@ -768,9 +768,17 @@ rmw_ret_t fill_names_and_types(
         RMW_SAFE_FWRITE_TO_STDERR("failed to cleanup names and types during error handling");
       }
     });
+
+  // sort entity_map alphabetically, entity_map is sorted by insertion
+  std::map<std::string, GraphNode::TopicTypeMap> ordered_entity_map;
+  for (const std::pair<std::string, GraphNode::TopicTypeMap> & item : entity_map) {
+    ordered_entity_map[item.first] = item.second;
+  }
+
   // Fill topic names and types.
   std::size_t index = 0;
-  for (const std::pair<std::string, GraphNode::TopicTypeMap> & item : entity_map) {
+  for (const std::pair<std::string, GraphNode::TopicTypeMap> item : ordered_entity_map) {
+
     names_and_types->names.data[index] = rcutils_strdup(item.first.c_str(), *allocator);
     if (!names_and_types->names.data[index]) {
       return RMW_RET_BAD_ALLOC;
