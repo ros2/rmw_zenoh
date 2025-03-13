@@ -395,7 +395,7 @@ rmw_ret_t ClientData::send_request(
   zenoh::ZResult result;
   std::string parameters;
   // We explicitly release the mutex here to avoid an ABBA deadlock as
-  // documented in https://github.com/ros2/rmw_zenoh/issues/484
+  // documented in https://github.com/ros2/rmw_zenoh/issues/484.
   mutex_.unlock();
   context_impl->session()->get(
     keyexpr_.value(),
