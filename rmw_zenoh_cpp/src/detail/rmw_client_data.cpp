@@ -394,6 +394,7 @@ rmw_ret_t ClientData::send_request(
   std::weak_ptr<rmw_zenoh_cpp::ClientData> client_data = shared_from_this();
   zenoh::ZResult result;
   std::string parameters;
+  mutex_.unlock();
   context_impl->session()->get(
     keyexpr_.value(),
     parameters,
