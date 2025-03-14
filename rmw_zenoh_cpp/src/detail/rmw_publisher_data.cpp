@@ -120,14 +120,12 @@ std::shared_ptr<PublisherData> PublisherData::make(
   zenoh::KeyExpr pub_ke(entity->topic_info()->topic_keyexpr_);
   // Set congestion_control to BLOCK if appropriate.
   auto pub_opts = zenoh::Session::PublisherOptions::create_default();
-  pub_opts.congestion_control = Z_CONGESTION_CONTROL_DROP;
   if (adapted_qos_profile.reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE) {
     pub_opts.reliability = Z_RELIABILITY_RELIABLE;
-    if (adapted_qos_profile.history == RMW_QOS_POLICY_HISTORY_KEEP_ALL) {
-      pub_opts.congestion_control = Z_CONGESTION_CONTROL_BLOCK;
-    }
+    pub_opts.congestion_control = Z_CONGESTION_CONTROL_BLOCK;
   } else {
     pub_opts.reliability = Z_RELIABILITY_BEST_EFFORT;
+    pub_opts.congestion_control = Z_CONGESTION_CONTROL_DROP;
   }
   adv_pub_opts.publisher_options = pub_opts;
 
