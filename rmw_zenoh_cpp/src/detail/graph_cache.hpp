@@ -85,7 +85,7 @@ struct GraphNode
   // Map topic name to TopicTypeMap
   // This uses a map that remembers insertion order because some parts of the client libraries
   // expect that these are returned in the order that they were created.
-  using TopicMap = tsl::ordered_map<std::string, TopicTypeMap>;
+  using TopicMap = std::map<std::string, TopicTypeMap>;
 
   // Entries for pub/sub.
   TopicMap pubs_ = {};
