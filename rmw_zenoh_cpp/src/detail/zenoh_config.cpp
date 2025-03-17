@@ -89,7 +89,6 @@ std::optional<zenoh::Config> _get_z_config(
       std::stringstream pair_stream(pair);
       std::string key, val;
       if (std::getline(pair_stream, key, '=') && std::getline(pair_stream, val)) {
-        std::cout << "[DBG] " << key << " = " << val << std::endl;
         config.insert_json5(key, val, &result);
         if (result != Z_OK) {
           RMW_ZENOH_LOG_ERROR_NAMED(
