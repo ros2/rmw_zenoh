@@ -44,8 +44,8 @@ static const std::unordered_map<ConfigurableEntity,
 
 static const char * router_check_attempts_envar = "ZENOH_ROUTER_CHECK_ATTEMPTS";
 /// Allow users to override the configuration using key-value pairs.
-/// The supporting syntax is "key1=value2;key2=value2;...".
-/// For example, ZENOH_CONFIG_OVERRIDE='listen/endpoints=["tcp/127.0.0.1:7448"];scouting/multicast/enabled=true'
+/// The supporting syntax is "key1=value2;key2=value2;...". For instance,
+/// ZENOH_CONFIG_OVERRIDE='listen/endpoints=["tcp/127.0.0.1:7448"];scouting/multicast/enabled=true'
 static const char * zenoh_config_override = "ZENOH_CONFIG_OVERRIDE";
 
 std::optional<zenoh::Config> _get_z_config(
