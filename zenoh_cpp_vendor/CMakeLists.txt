@@ -19,7 +19,7 @@ set(ZENOHC_CARGO_FLAGS "--no-default-features$<SEMICOLON>--features=shared-memor
 
 # Set VCS_VERSION to include latest changes from zenoh/zenoh-c/zenoh-cpp to benefit from:
 # - Reword SHM warning log about "setting scheduling priority":
-#   - https://github.com/eclipse-zenoh/zenoh/pull/1778  
+#   - https://github.com/eclipse-zenoh/zenoh/pull/1778
 # - Performances improvements at launch time:
 #   - https://github.com/eclipse-zenoh/zenoh/pull/1786
 #   - https://github.com/eclipse-zenoh/zenoh/pull/1789
@@ -33,9 +33,13 @@ set(ZENOHC_CARGO_FLAGS "--no-default-features$<SEMICOLON>--features=shared-memor
 #   - https://github.com/eclipse-zenoh/zenoh/pull/1806
 # - Reduce the number of threads in case of scouting
 #  - https://github.com/eclipse-zenoh/zenoh-c/pull/937
+# - Namespace prefix support
+#   - https://github.com/eclipse-zenoh/zenoh/pull/1792
+# - Fix debug mode crash
+#  - https://github.com/eclipse-zenoh/zenoh-cpp/pull/432
 ament_vendor(zenoh_c_vendor
   VCS_URL https://github.com/eclipse-zenoh/zenoh-c.git
-  VCS_VERSION 3540a3ce8126e071236352446bc1564787d3fb04
+  VCS_VERSION e6a1971139f405f7887bf5bb54f0efe402123032
   CMAKE_ARGS
     "-DZENOHC_CARGO_FLAGS=${ZENOHC_CARGO_FLAGS}"
     "-DZENOHC_BUILD_WITH_UNSTABLE_API=TRUE"
@@ -46,7 +50,7 @@ ament_export_dependencies(zenohc)
 
 ament_vendor(zenoh_cpp_vendor
   VCS_URL https://github.com/eclipse-zenoh/zenoh-cpp
-  VCS_VERSION 2a127bb0f537e0028359caf1084c879330341592
+  VCS_VERSION 8ad67f6c7a9031acd437c8739bbc8ddab0ca8173
   CMAKE_ARGS
     -DZENOHCXX_ZENOHC=OFF
 )
