@@ -922,7 +922,8 @@ rmw_create_subscription(
       context_impl->get_next_entity_id(),
       topic_name,
       type_support,
-      qos_profile))
+      qos_profile,
+      *subscription_options))
   {
     // Error already handled.
     return nullptr;

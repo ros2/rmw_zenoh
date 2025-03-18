@@ -54,9 +54,6 @@ std::chrono::nanoseconds::rep ZenohQuery::get_received_timestamp() const
 }
 
 ///=============================================================================
-ZenohQuery::~ZenohQuery() {}
-
-///=============================================================================
 const zenoh::Query & ZenohQuery::get_query() const {return query_;}
 
 ///=============================================================================
@@ -67,9 +64,6 @@ ZenohReply::ZenohReply(
   reply_ = reply.clone();
   received_timestamp_ = received_timestamp;
 }
-
-///=============================================================================
-ZenohReply::~ZenohReply() {}
 
 ///=============================================================================
 const zenoh::Reply & ZenohReply::get_sample() const
