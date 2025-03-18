@@ -17,6 +17,7 @@
 #include <rcutils/env.h>
 
 #include <limits>
+#include <sstream>
 #include <string>
 
 #include <zenoh.hxx>
