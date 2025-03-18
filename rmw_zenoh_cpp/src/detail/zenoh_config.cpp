@@ -17,6 +17,7 @@
 #include <rcutils/env.h>
 
 #include <limits>
+#include <sstream>
 #include <string>
 
 #include <zenoh.hxx>
@@ -43,6 +44,10 @@ static const std::unordered_map<ConfigurableEntity,
 };
 
 static const char * router_check_attempts_envar = "ZENOH_ROUTER_CHECK_ATTEMPTS";
+/// Allow users to override the configuration using key-value pairs.
+/// The supporting syntax is "key1=value2;key2=value2;...". For instance,
+/// ZENOH_CONFIG_OVERRIDE='listen/endpoints=["tcp/127.0.0.1:7448"];scouting/multicast/enabled=true'
+static const char * zenoh_config_override = "ZENOH_CONFIG_OVERRIDE";
 
 std::optional<zenoh::Config> _get_z_config(
   const char * envar_name,
@@ -69,6 +74,32 @@ std::optional<zenoh::Config> _get_z_config(
       "Invalid configuration file %s", configured_uri);
     return std::nullopt;
   }
+
+  // Override the zenoh config by key/value pairs.
+  const char * key_val_pairs_str;
+  if (NULL != rcutils_get_env(zenoh_config_override, &key_val_pairs_str)) {
+    // NULL is returned if everything is ok.
+    RMW_ZENOH_LOG_ERROR_NAMED(
+    "rmw_zenoh_cpp", "Envar %s cannot be read. Ignoring override...", zenoh_config_override);
+    return config;
+  }
+  if (key_val_pairs_str[0] != '\0') {
+    std::stringstream ss(key_val_pairs_str);
+    std::string pair;
+    while (std::getline(ss, pair, ';')) {
+      std::stringstream pair_stream(pair);
+      std::string key, val;
+      if (std::getline(pair_stream, key, '=') && std::getline(pair_stream, val)) {
+        config.insert_json5(key, val, &result);
+        if (result != Z_OK) {
+          RMW_ZENOH_LOG_WARN_NAMED(
+            "rmw_zenoh_cpp",
+            "Ignore the invalid configuration key-value pair: (%s, %s)", key.c_str(), val.c_str());
+        }
+      }
+    }
+  }
+
   RMW_ZENOH_LOG_DEBUG_NAMED(
     "rmw_zenoh_cpp",
     "configured using configuration file %s", configured_uri);
