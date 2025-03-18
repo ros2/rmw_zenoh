@@ -122,7 +122,7 @@ export ZENOH_ROUTER_CONFIG_URI=$HOME/MY_ZENOH_ROUTER_CONFIG.json5
 ```
 
 `rmw_zenoh` allows you to override configuration fields using the `ZENOH_CONFIG_OVERRIDE` environment variable .
-These overrides apply to ROS2 nodes and the Zenoh router **after** the `ZENOH_SESSION_CONFIG_URI` or `ZENOH_ROUTER_CONFIG_URI` (if specified)
+These overrides apply to ROS 2 nodes and the Zenoh router **after** the `ZENOH_SESSION_CONFIG_URI` or `ZENOH_ROUTER_CONFIG_URI` (if specified)
 has been processed.
 
 You can specify multiple key-value pairs using the following syntax:
