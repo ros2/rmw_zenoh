@@ -248,8 +248,8 @@ rmw_ret_t PublisherData::publish(
     reinterpret_cast<const uint8_t *>(msg_bytes) + data_length);
   zenoh::Bytes payload(std::move(raw_data));
 
-  TRACETOOLS_TRACEPOINT(
-    rmw_publish, static_cast<const void *>(rmw_publisher_), ros_message, source_timestamp);
+  TRACEPOINT(
+    rmw_publish, ros_message);
   pub_.put(std::move(payload), std::move(options), &result);
   if (result != Z_OK) {
     if (result == Z_ESESSION_CLOSED) {
@@ -295,8 +295,6 @@ rmw_ret_t PublisherData::publish_serialized_message(
     serialized_message->buffer + data_length);
   zenoh::Bytes payload(std::move(raw_data));
 
-  TRACETOOLS_TRACEPOINT(
-    rmw_publish, static_cast<const void *>(rmw_publisher_), serialized_message, source_timestamp);
   pub_.put(std::move(payload), std::move(options), &result);
   if (result != Z_OK) {
     if (result == Z_ESESSION_CLOSED) {

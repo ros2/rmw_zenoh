@@ -350,7 +350,7 @@ rmw_ret_t ClientData::send_request(
 
   // Send request
   zenoh::Session::GetOptions opts = zenoh::Session::GetOptions::create_default();
-  std::array<uint8_t, 16> local_gid = entity_->copy_gid();
+  int64_t source_timestamp = rmw_zenoh_cpp::get_system_time_in_ns();
   opts.attachment = rmw_zenoh_cpp::AttachmentData(
     *sequence_id, source_timestamp, entity_->copy_gid()).serialize_to_zbytes();
   opts.target = Z_QUERY_TARGET_ALL_COMPLETE;

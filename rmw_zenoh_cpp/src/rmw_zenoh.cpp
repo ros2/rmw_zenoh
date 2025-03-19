@@ -455,14 +455,12 @@ rmw_create_publisher(
   free_topic_name.cancel();
   free_rmw_publisher.cancel();
 
-  if (TRACETOOLS_TRACEPOINT_ENABLED(rmw_publisher_init)) {
-    rmw_gid_t gid{};
-    // Trigger tracepoint even if we cannot get the GID
-    rmw_ret_t gid_ret = rmw_get_gid_for_publisher(rmw_publisher, &gid);
-    static_cast<void>(gid_ret);
-    TRACETOOLS_DO_TRACEPOINT(
-      rmw_publisher_init, static_cast<const void *>(rmw_publisher), gid.data);
-  }
+  rmw_gid_t gid{};
+  // Trigger tracepoint even if we cannot get the GID
+  rmw_ret_t gid_ret = rmw_get_gid_for_publisher(rmw_publisher, &gid);
+  static_cast<void>(gid_ret);
+  TRACEPOINT(
+    rmw_publisher_init, static_cast<const void *>(rmw_publisher), gid.data);
   return rmw_publisher;
 }
 
@@ -964,7 +962,7 @@ rmw_create_subscription(
   // the underlying zenoh objects, so there is no need to collect a GID here
   rmw_gid_t gid{};
   static_cast<void>(gid);
-  TRACETOOLS_TRACEPOINT(
+  TRACEPOINT(
     rmw_subscription_init, static_cast<const void *>(rmw_subscription), gid.data);
   return rmw_subscription;
 }
@@ -1110,12 +1108,9 @@ rmw_take(
     static_cast<rmw_zenoh_cpp::SubscriptionData *>(subscription->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
 
-  if (!TRACETOOLS_TRACEPOINT_ENABLED(rmw_take)) {
-    return sub_data->take_one_message(ros_message, nullptr, taken);
-  }
   rmw_message_info_t message_info{};
   rmw_ret_t ret = sub_data->take_one_message(ros_message, &message_info, taken);
-  TRACETOOLS_DO_TRACEPOINT(
+  TRACEPOINT(
     rmw_take,
     static_cast<const void *>(subscription),
     static_cast<const void *>(ros_message),
@@ -1151,7 +1146,7 @@ rmw_take_with_info(
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
 
   rmw_ret_t ret = sub_data->take_one_message(ros_message, message_info, taken);
-  TRACETOOLS_TRACEPOINT(
+  TRACEPOINT(
     rmw_take,
     static_cast<const void *>(subscription),
     static_cast<const void *>(ros_message),
@@ -1268,7 +1263,7 @@ __rmw_take_serialized(
     taken,
     message_info
   );
-  TRACETOOLS_TRACEPOINT(
+  TRACEPOINT(
     rmw_take,
     static_cast<const void *>(subscription),
     static_cast<const void *>(serialized_message),
