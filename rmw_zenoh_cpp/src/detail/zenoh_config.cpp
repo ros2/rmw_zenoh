@@ -80,7 +80,7 @@ std::optional<zenoh::Config> _get_z_config(
   if (NULL != rcutils_get_env(zenoh_config_override, &key_val_pairs_str)) {
     // NULL is returned if everything is ok.
     RMW_ZENOH_LOG_ERROR_NAMED(
-    "rmw_zenoh_cpp", "Envar %s cannot be read. Ignoring override...", zenoh_config_override);
+      "rmw_zenoh_cpp", "Envar %s cannot be read. Ignoring override...", zenoh_config_override);
     return config;
   }
   if (key_val_pairs_str[0] != '\0') {
