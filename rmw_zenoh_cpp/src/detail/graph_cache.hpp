@@ -27,7 +27,6 @@
 
 #include "event.hpp"
 #include "liveliness_utils.hpp"
-#include "ordered_map.hpp"
 
 #include "rcutils/allocator.h"
 #include "rcutils/types.h"
@@ -83,8 +82,8 @@ struct GraphNode
   // Map topic type to QoSMap
   using TopicTypeMap = std::unordered_map<std::string, TopicQoSMap>;
   // Map topic name to TopicTypeMap
-  // This uses a map that remembers insertion order because some parts of the client libraries
-  // expect that these are returned in the order that they were created.
+  // This uses a map that sort element by name because some parts of the client libraries
+  // expect that these are returned in alphabetical order.
   using TopicMap = std::map<std::string, TopicTypeMap>;
 
   // Entries for pub/sub.

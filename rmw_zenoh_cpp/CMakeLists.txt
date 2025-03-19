@@ -94,8 +94,6 @@ if(BUILD_TESTING)
   find_package(ament_cmake_uncrustify REQUIRED)
   find_package(ament_cmake_xmllint REQUIRED)
 
-  set(_linter_excludes src/detail/ordered_hash.hpp src/detail/ordered_map.hpp)
-
   ament_copyright(EXCLUDE src/detail/simplified_xxhash3.cpp src/detail/simplified_xxhash3.hpp)
   ament_cpplint(EXCLUDE ${_linter_excludes})
   ament_lint_cmake()
