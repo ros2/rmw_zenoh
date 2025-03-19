@@ -37,6 +37,8 @@
 #include "rmw/get_topic_endpoint_info.h"
 #include "rmw/impl/cpp/macros.hpp"
 
+#include "tracetools/tracetools.h"
+
 namespace rmw_zenoh_cpp
 {
 // TODO(yuyuan): SHM, make this configurable
@@ -45,6 +47,7 @@ namespace rmw_zenoh_cpp
 ///=============================================================================
 std::shared_ptr<PublisherData> PublisherData::make(
   std::shared_ptr<zenoh::Session> session,
+  const rmw_publisher_t * const rmw_publisher,
   const rmw_node_t * const node,
   liveliness::NodeInfo node_info,
   std::size_t node_id,
@@ -138,6 +141,7 @@ std::shared_ptr<PublisherData> PublisherData::make(
 
   return std::shared_ptr<PublisherData>(
     new PublisherData{
+      rmw_publisher,
       node,
       std::move(entity),
       std::move(session),
@@ -150,6 +154,7 @@ std::shared_ptr<PublisherData> PublisherData::make(
 
 ///=============================================================================
 PublisherData::PublisherData(
+  const rmw_publisher_t * const rmw_publisher,
   const rmw_node_t * rmw_node,
   std::shared_ptr<liveliness::Entity> entity,
   std::shared_ptr<zenoh::Session> sess,
@@ -157,7 +162,8 @@ PublisherData::PublisherData(
   zenoh::LivelinessToken token,
   const void * type_support_impl,
   std::unique_ptr<MessageTypeSupport> type_support)
-: rmw_node_(rmw_node),
+: rmw_publisher_(rmw_publisher),
+  rmw_node_(rmw_node),
   entity_(std::move(entity)),
   sess_(std::move(sess)),
   pub_(std::move(pub)),
@@ -234,6 +240,8 @@ rmw_ret_t PublisherData::publish(
     reinterpret_cast<const uint8_t *>(msg_bytes) + data_length);
   zenoh::Bytes payload(std::move(raw_data));
 
+  TRACEPOINT(
+    rmw_publish, ros_message);
   pub_.put(std::move(payload), std::move(opts), &result);
   if (result != Z_OK) {
     if (result == Z_ESESSION_CLOSED) {
