@@ -350,8 +350,9 @@ rmw_ret_t ClientData::send_request(
 
   // Send request
   zenoh::Session::GetOptions opts = zenoh::Session::GetOptions::create_default();
-  std::array<uint8_t, 16> local_gid = entity_->copy_gid();
-  opts.attachment = rmw_zenoh_cpp::create_map_and_set_sequence_num(*sequence_id, local_gid);
+  int64_t source_timestamp = rmw_zenoh_cpp::get_system_time_in_ns();
+  opts.attachment = rmw_zenoh_cpp::AttachmentData(
+    *sequence_id, source_timestamp, entity_->copy_gid()).serialize_to_zbytes();
   opts.target = Z_QUERY_TARGET_ALL_COMPLETE;
   // The default timeout for a z_get query is 10 seconds and if a response is not received within
   // this window, the queryable will return an invalid reply. However, it is common for actions,

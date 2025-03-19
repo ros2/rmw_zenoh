@@ -141,6 +141,7 @@ bool NodeData::create_pub_data(
 
   auto pub_data = PublisherData::make(
     session,
+    publisher,
     node_,
     entity_->node_info(),
     id_,
@@ -278,6 +279,7 @@ bool NodeData::create_service_data(
   auto service_data = ServiceData::make(
     session,
     node_,
+    service,
     entity_->node_info(),
     id_,
     std::move(id),
