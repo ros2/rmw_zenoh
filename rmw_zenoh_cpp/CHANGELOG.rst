@@ -2,8 +2,8 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.2.3 (2025-03-20)
+------------------
 * Switch to std::map for TopicTypeMap (`#565 <https://github.com/ros2/rmw_zenoh/issues/565>`_)
 * Support zenoh config override (`#559 <https://github.com/ros2/rmw_zenoh/issues/559>`_)
 * Align the config with the latest Zenoh. (`#557 <https://github.com/ros2/rmw_zenoh/issues/557>`_)

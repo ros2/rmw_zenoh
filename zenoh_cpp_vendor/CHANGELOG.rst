@@ -2,8 +2,8 @@
 Changelog for package zenoh_cpp_vendor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.2.3 (2025-03-20)
+------------------
 * Fix liveliness crash in debugg mode (`#549 <https://github.com/ros2/rmw_zenoh/issues/549>`_)
 * Bump zenoh-cpp to 2a127bb, zenoh-c to 3540a3c, and zenoh to f735bf5 (`#503 <https://github.com/ros2/rmw_zenoh/issues/503>`_) (`#511 <https://github.com/ros2/rmw_zenoh/issues/511>`_)
 * Enable Zenoh UDP transport (`#486 <https://github.com/ros2/rmw_zenoh/issues/486>`_) (`#488 <https://github.com/ros2/rmw_zenoh/issues/488>`_)
