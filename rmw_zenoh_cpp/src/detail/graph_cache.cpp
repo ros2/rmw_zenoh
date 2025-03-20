@@ -157,11 +157,11 @@ void GraphCache::update_topic_map_for_put(
     return;
   }
   // The topic exists in the topic_map so we check if the type also exists.
-  GraphNode::TopicTypeMap::iterator topic_type_map_it = topic_map_it.value().find(
+  GraphNode::TopicTypeMap::iterator topic_type_map_it = topic_map_it->second.find(
     graph_topic_data->info_.type_);
   if (topic_type_map_it == topic_map_it->second.end()) {
     // First time this topic type is added.
-    topic_map_it.value().insert(
+    topic_map_it->second.insert(
       std::make_pair(
         graph_topic_data->info_.type_,
         std::move(topic_qos_map)));
@@ -445,7 +445,7 @@ void GraphCache::update_topic_map_for_del(
   }
 
   GraphNode::TopicTypeMap::iterator cache_topic_type_it =
-    cache_topic_it.value().find(topic_info.type_);
+    cache_topic_it->second.find(topic_info.type_);
   if (cache_topic_type_it == cache_topic_it->second.end()) {
     // If an entity is short-lived, it is possible to receive the liveliness token
     // for its deletion before the one for its creation given that Zenoh does not
@@ -490,7 +490,7 @@ void GraphCache::update_topic_map_for_del(
   }
   // If the type does not have any qos entries, erase it from the type map.
   if (cache_topic_type_it->second.empty()) {
-    cache_topic_it.value().erase(cache_topic_type_it);
+    cache_topic_it->second.erase(cache_topic_type_it);
   }
   // If the topic does not have any TopicData entries, erase the topic from the map.
   if (cache_topic_it->second.empty()) {
@@ -770,7 +770,7 @@ rmw_ret_t fill_names_and_types(
     });
   // Fill topic names and types.
   std::size_t index = 0;
-  for (const std::pair<std::string, GraphNode::TopicTypeMap> & item : entity_map) {
+  for (const std::pair<const std::string, GraphNode::TopicTypeMap> & item : entity_map) {
     names_and_types->names.data[index] = rcutils_strdup(item.first.c_str(), *allocator);
     if (!names_and_types->names.data[index]) {
       return RMW_RET_BAD_ALLOC;
