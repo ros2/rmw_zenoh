@@ -12,7 +12,8 @@ For information about the Design please visit [design](docs/design.md) page.
 ## Requirements
 - [ROS 2](https://docs.ros.org)
 
-> Note: See available distro branches, eg. `jazzy`, for supported ROS 2 distributions.
+> [!NOTE]
+> See available distro branches, eg. `jazzy`, for supported ROS 2 distributions.
 
 ## Installation
 `rmw_zenoh` can either be installed via binaries (recommended for stable development) or built from source (recommended if latest features are needed). See instructions below.
@@ -29,7 +30,8 @@ sudo apt update && sudo apt install ros-<DISTRO>-rmw-zenoh-cpp # replace <DISTRO
 
 ### Source Installation
 
->Note: By default, we vendor and compile `zenoh-cpp` with a subset of `zenoh` features.
+> [!NOTE]
+> By default, we vendor and compile `zenoh-cpp` with a subset of `zenoh` features.
 The `ZENOHC_CARGO_FLAGS` CMake argument may be overwritten with other features included if required.
 See [zenoh_cpp_vendor/CMakeLists.txt](./zenoh_cpp_vendor/CMakeLists.txt) for more details.
 
@@ -60,13 +62,15 @@ not work properly since they would query ROS graph information from the ROS 2 da
 may have been started with different a RMW.
 
 ### Start the Zenoh router
-> Note: Manually launching Zenoh router won't be necessary in the future.
+> [!NOTE]
+> Manually launching Zenoh router won't be necessary in the future.
 ```bash
 # terminal 1
 ros2 run rmw_zenoh_cpp rmw_zenohd
 ```
 
-> Note: Without the Zenoh router, nodes will not be able to discover each other since multicast discovery is disabled by default in the node's session config. Instead, nodes will receive discovery information about other peers via the Zenoh router's gossip functionality. See more information on the session configs [below](#configuration).
+> [!NOTE]
+> Without the Zenoh router, nodes will not be able to discover each other since multicast discovery is disabled by default in the node's session config. Instead, nodes will receive discovery information about other peers via the Zenoh router's gossip functionality. See more information on the session configs [below](#configuration).
 
 ### Run the `talker`
 ```bash
@@ -119,6 +123,28 @@ For a complete list of configurable parameters, see [zenoh/DEFAULT_CONFIG.json5]
 For example, to set the path to a custom `Zenoh router` configuration file,
 ```bash
 export ZENOH_ROUTER_CONFIG_URI=$HOME/MY_ZENOH_ROUTER_CONFIG.json5
+```
+
+`rmw_zenoh` allows you to override configuration fields using the `ZENOH_CONFIG_OVERRIDE` environment variable .
+These overrides apply to ROS 2 nodes and the Zenoh router **after** the `ZENOH_SESSION_CONFIG_URI` or `ZENOH_ROUTER_CONFIG_URI` (if specified)
+has been processed.
+
+You can specify multiple key-value pairs using the following syntax:
+```bash
+export ZENOH_CONFIG_OVERRIDE="key/path/to/field1=value1;key/path/to/field2=value2"
+```
+
+#### Examples
+
+- Specify custom endpoints for listening and connecting:
+```bash
+export ZENOH_CONFIG_OVERRIDE='listen/endpoints=["tcp/127.0.0.1:7448"];connect/endpoints=["tcp/192.168.0.1:7449", "tcp/192.168.0.2:7449"]'
+```
+This configuration sets the node to listen on
+
+- Enable multicast scouting (disabled by default) that allows ROS2 nodes to discover each other without requiring a Zenoh router:
+```bash
+export ZENOH_CONFIG_OVERRIDE='scouting/multicast/enabled=true'
 ```
 
 ### Connecting multiple hosts
