@@ -94,15 +94,8 @@ if(BUILD_TESTING)
   find_package(ament_cmake_uncrustify REQUIRED)
   find_package(ament_cmake_xmllint REQUIRED)
 
-<<<<<<< HEAD
-  set(_linter_excludes src/detail/ordered_hash.hpp src/detail/ordered_map.hpp)
-
-  ament_copyright(EXCLUDE src/detail/simplified_xxhash3.cpp src/detail/simplified_xxhash3.hpp ${_linter_excludes})
-  ament_cpplint(EXCLUDE ${_linter_excludes})
-=======
   ament_copyright(EXCLUDE src/detail/simplified_xxhash3.cpp src/detail/simplified_xxhash3.hpp)
   ament_cpplint()
->>>>>>> db25318 (Switch to std::map for TopicTypeMap (#546))
   ament_lint_cmake()
   ament_uncrustify()
   ament_xmllint()
