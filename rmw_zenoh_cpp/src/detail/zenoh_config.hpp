@@ -63,15 +63,6 @@ std::optional<zenoh::Config> get_z_config(const ConfigurableEntity & entity);
 std::optional<uint64_t> zenoh_router_check_attempts();
 
 ///=============================================================================
-/// Get the enabled state of shared memory subsystem
-/// based on the environment variable ZENOH_SHM_ENABLED.
-/// @details The behavior is as follows:
-///   - If not set or not "false", the default value of "true" is returned.
-///   - Else "false" is returned.
-/// @return The amount of shared memory to be pre-allocated for Zenoh SHM operation
-bool zenoh_shm_enabled();
-
-///=============================================================================
 /// Get the amount of shared memory to be pre-allocated for Zenoh SHM operation
 /// based on the environment variable ZENOH_SHM_ALLOC_SIZE.
 /// @details The behavior is as follows:

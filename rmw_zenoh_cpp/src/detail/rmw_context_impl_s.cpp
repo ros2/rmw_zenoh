@@ -70,16 +70,19 @@ public:
 
     zenoh::ZResult result;
 
-#ifndef _MSC_VER
     // Check if shm is enabled.
-    std::string shm_enabled = config.value().get(Z_CONFIG_SHARED_MEMORY_KEY, &result);
-    if (result != Z_OK) {
-      RMW_ZENOH_LOG_ERROR_NAMED(
-        "rmw_zenoh_cpp",
-        "Not able to get %s from the config file",
-        Z_CONFIG_SHARED_MEMORY_KEY);
+    bool shm_enabled = false;
+    {
+      std::string shm_enabled_val = config.value().get(Z_CONFIG_SHARED_MEMORY_KEY, &result);
+      if (result == Z_OK) {
+        shm_enabled = shm_enabled_val == "true" ? true : false;
+      } else {
+        RMW_ZENOH_LOG_ERROR_NAMED(
+          "rmw_zenoh_cpp",
+          "Not able to get %s from the config file",
+          Z_CONFIG_SHARED_MEMORY_KEY);
+      }
     }
-#endif
 
     // Initialize the zenoh session.
     session_ = std::make_shared<zenoh::Session>(
@@ -176,7 +179,7 @@ public:
     }
 
     // Initialize the shm subsystem if shared_memory is enabled in the config
-    if (rmw_zenoh_cpp::zenoh_shm_enabled()) {
+    if (shm_enabled) {
       RMW_ZENOH_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "SHM is enabled");
 
       shm_ = std::make_optional(
