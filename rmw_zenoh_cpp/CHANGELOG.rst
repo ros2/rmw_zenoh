@@ -2,6 +2,28 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.5.0 (2025-03-20)
+------------------
+* Switch to std::map for TopicTypeMap (`#546 <https://github.com/ros2/rmw_zenoh/issues/546>`_)
+* Support zenoh config override (`#551 <https://github.com/ros2/rmw_zenoh/issues/551>`_)
+* Align the config with the latest Zenoh. (`#556 <https://github.com/ros2/rmw_zenoh/issues/556>`_)
+* Added documentation note in the code (`#540 <https://github.com/ros2/rmw_zenoh/issues/540>`_)
+* fix: unlock the mutex before making get (`#537 <https://github.com/ros2/rmw_zenoh/issues/537>`_)
+* Take wait_set_lock before condition_variable notification for subscriptions (`#528 <https://github.com/ros2/rmw_zenoh/issues/528>`_)
+* Switch default durability to volatile (`#521 <https://github.com/ros2/rmw_zenoh/issues/521>`_)
+* Added rmw_event_type_is_supported (`#502 <https://github.com/ros2/rmw_zenoh/issues/502>`_)
+* Fixed windows warning (`#500 <https://github.com/ros2/rmw_zenoh/issues/500>`_)
+* Config: tune some values for ROS use case, especially with large number of Nodes (>200) (`#509 <https://github.com/ros2/rmw_zenoh/issues/509>`_)
+* Honor ignore_local_publications in subscription options (`#508 <https://github.com/ros2/rmw_zenoh/issues/508>`_)
+* Bump zenoh-cpp to 2a127bb, zenoh-c to 3540a3c, and zenoh to f735bf5 (`#503 <https://github.com/ros2/rmw_zenoh/issues/503>`_)
+* Fix calculation of current_count_change when event status is updated (`#504 <https://github.com/ros2/rmw_zenoh/issues/504>`_)
+* Fix checks for invalid arguments (`#497 <https://github.com/ros2/rmw_zenoh/issues/497>`_)
+* Fail creation of entities if qos contains unknown settings (`#494 <https://github.com/ros2/rmw_zenoh/issues/494>`_)
+* use rmw_enclave_options_xxx APIs instead. (`#491 <https://github.com/ros2/rmw_zenoh/issues/491>`_)
+* Enable Zenoh UDP transport (`#486 <https://github.com/ros2/rmw_zenoh/issues/486>`_)
+* fix: use the default destructor that automatically drops the zenoh reply/query and hence sends the final signal (`#473 <https://github.com/ros2/rmw_zenoh/issues/473>`_)
+* Contributors: Alejandro Hernández Cordero, ChenYing Kuo (CY), Hugal31, Luca Cominardi, Tomoya Fujita, Yuyuan Yuan, Yadunund
+
 0.4.0 (2025-02-19)
 ------------------
 * Introduce the advanced publisher and subscriber (`#368 <https://github.com/ros2/rmw_zenoh/issues/368>`_)
