@@ -2122,6 +2122,8 @@ check_and_attach_condition(
       }
     }
   }
+  // No guard conditions are available. Set the triggered flag of the wait_set to false.
+  wait_set_data->triggered = false;
 
   if (events) {
     for (size_t i = 0; i < events->event_count; ++i) {
@@ -2228,33 +2230,35 @@ rmw_wait(
   // signals to the upper layers that it isn't ready.  If something is ready, then we leave it as
   // a valid pointer.
 
-  bool skip_wait = check_and_attach_condition(
-    subscriptions, guard_conditions, services, clients, events, wait_set_data);
-  if (!skip_wait) {
+  {
     std::unique_lock<std::mutex> lock(wait_set_data->condition_mutex);
 
-    // According to the RMW documentation, if wait_timeout is NULL that means
-    // "wait forever", if it specified as 0 it means "never wait", and if it is anything else wait
-    // for that amount of time.
-    if (wait_timeout == nullptr) {
-      wait_set_data->condition_variable.wait(
-        lock, [wait_set_data]() {
-          return wait_set_data->triggered;
-        });
-    } else {
-      if (wait_timeout->sec != 0 || wait_timeout->nsec != 0) {
-        wait_set_data->condition_variable.wait_for(
-          lock,
-          std::chrono::nanoseconds(wait_timeout->nsec + RCUTILS_S_TO_NS(wait_timeout->sec)),
-          [wait_set_data]() {return wait_set_data->triggered;});
+    bool skip_wait = check_and_attach_condition(
+      subscriptions, guard_conditions, services, clients, events, wait_set_data);
+    if (!skip_wait) {
+      // According to the RMW documentation, if wait_timeout is NULL that means
+      // "wait forever", if it specified as 0 it means "never wait", and if it is anything else wait
+      // for that amount of time.
+      if (wait_timeout == nullptr) {
+        wait_set_data->condition_variable.wait(
+          lock, [wait_set_data]() {
+            return wait_set_data->triggered;
+          });
+      } else {
+        if (wait_timeout->sec != 0 || wait_timeout->nsec != 0) {
+          wait_set_data->condition_variable.wait_for(
+            lock,
+            std::chrono::nanoseconds(wait_timeout->nsec + RCUTILS_S_TO_NS(wait_timeout->sec)),
+            [wait_set_data]() {return wait_set_data->triggered;});
+        }
       }
-    }
 
-    // It is important to reset this here while still holding the lock, otherwise every subsequent
-    // call to rmw_wait() will be immediately ready.  We could handle this another way by making
-    // "triggered" a stack variable in this function and "attaching" it during
-    // "check_and_attach_condition", but that isn't clearly better so leaving this.
-    wait_set_data->triggered = false;
+      // It is important to reset this here while still holding the lock, otherwise every subsequent
+      // call to rmw_wait() will be immediately ready.  We could handle this another way by making
+      // "triggered" a stack variable in this function and "attaching" it during
+      // "check_and_attach_condition", but that isn't clearly better so leaving this.
+      wait_set_data->triggered = false;
+    }
   }
 
   bool wait_result = false;
