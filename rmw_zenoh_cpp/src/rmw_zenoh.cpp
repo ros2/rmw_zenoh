@@ -2122,8 +2122,6 @@ check_and_attach_condition(
       }
     }
   }
-  // No guard conditions are available. Set the triggered flag of the wait_set to false.
-  wait_set_data->triggered = false;
 
   if (events) {
     for (size_t i = 0; i < events->event_count; ++i) {
@@ -2185,6 +2183,9 @@ check_and_attach_condition(
       }
     }
   }
+  
+  // No conditions are available. Set the triggered flag of the wait_set to false.
+  wait_set_data->triggered = false;
 
   return false;
 }
