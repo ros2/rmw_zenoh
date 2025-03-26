@@ -2183,7 +2183,7 @@ check_and_attach_condition(
       }
     }
   }
-  
+
   // No conditions are available. Set the triggered flag of the wait_set to false.
   wait_set_data->triggered = false;
 
