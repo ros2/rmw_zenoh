@@ -21,6 +21,7 @@ find_package(rcutils REQUIRED)
 find_package(rosidl_typesupport_fastrtps_c REQUIRED)
 find_package(rosidl_typesupport_fastrtps_cpp REQUIRED)
 find_package(rmw REQUIRED)
+find_package(rmw_test_fixture REQUIRED)
 find_package(tracetools REQUIRED)
 find_package(zenoh_cpp_vendor REQUIRED)
 
@@ -81,6 +82,20 @@ target_compile_definitions(rmw_zenoh_cpp
     RMW_VERSION_PATCH=${rmw_VERSION_PATCH}
 )
 
+add_library(rmw_zenoh_cpp_test_fixture SHARED
+  src/detail/logging.cpp
+  src/detail/zenoh_config.cpp
+  src/rmw_test_fixture.cpp
+)
+
+target_link_libraries(rmw_zenoh_cpp_test_fixture
+  PRIVATE
+    ament_index_cpp::ament_index_cpp
+    rcpputils::rcpputils
+    rmw_test_fixture::rmw_test_fixture
+    zenohcxx::zenohc
+)
+
 ament_export_targets(export_rmw_zenoh_cpp)
 
 register_rmw_implementation(
@@ -102,7 +117,7 @@ if(BUILD_TESTING)
 endif()
 
 install(
-  TARGETS rmw_zenoh_cpp
+  TARGETS rmw_zenoh_cpp rmw_zenoh_cpp_test_fixture
   EXPORT export_rmw_zenoh_cpp
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
