@@ -221,6 +221,6 @@ Note that composable nodes should *never* call `rclcpp::shutdown()`, as the comp
 
 For more details, see https://github.com/ros2/rmw_zenoh/issues/170.
 
-### Distros earlier than Iron (e.g. Humble) are incompatible with Jazzy and later.
+### rmw_zenoh is incompatible between Humble and newer distributions. 
 
 Since Iron, ROS 2 uses type hashes which means that messaging between Humble and later versions of ROS 2 [is not possible](https://github.com/ros2/rmw_zenoh/issues/425). Node and topic discovery will work, but messages [will be silently dropped](https://github.com/ros2/rmw_zenoh/issues/569).
