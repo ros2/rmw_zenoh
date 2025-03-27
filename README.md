@@ -223,4 +223,6 @@ For more details, see https://github.com/ros2/rmw_zenoh/issues/170.
 
 ### rmw_zenoh is incompatible between Humble and newer distributions. 
 
-Since Iron, ROS 2 uses type hashes which means that messaging between Humble and later versions of ROS 2 [is not possible](https://github.com/ros2/rmw_zenoh/issues/425). Node and topic discovery will work, but messages [will be silently dropped](https://github.com/ros2/rmw_zenoh/issues/569).
+Since Iron, ROS 2 introduced type hashes for messages and `rmw_zenoh` includes these type hashes in the Zenoh keyexpressions it constructs for data exchange. While participants will be discoverable, communication between Humble and newer distributions will fail, resulting in messages being silently dropped.
+
+For more details, see https://github.com/ros2/rmw_zenoh/issues/569.
