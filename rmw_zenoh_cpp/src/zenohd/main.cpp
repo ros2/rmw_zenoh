@@ -83,7 +83,7 @@ int main(int argc, char ** argv)
     return 1;
   }
 
-  std::cout << "Started Zenoh router with id"
+  std::cout << "Started Zenoh router with id "
             << session.get_zid().to_string()
             << std::endl;
 
