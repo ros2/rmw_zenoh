@@ -2185,6 +2185,8 @@ check_and_attach_condition(
   }
 
   // No conditions are available. Set the triggered flag of the wait_set to false.
+  // Note that wait_set_data->condition_mutex has been locked before calling
+  // check_and_attach_condition. So it's safe to modify the wait_set_data triggered flag.
   wait_set_data->triggered = false;
 
   return false;
@@ -2232,6 +2234,8 @@ rmw_wait(
   // a valid pointer.
 
   {
+    // Take the lock before the check_and_attach_condition to ensure conditions and flags
+    // are not modified while being checked by concurrent calls.
     std::unique_lock<std::mutex> lock(wait_set_data->condition_mutex);
 
     bool skip_wait = check_and_attach_condition(
