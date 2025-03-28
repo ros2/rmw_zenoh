@@ -220,3 +220,9 @@ One way to ensure this is to call `rclcpp::shutdown()` when the program exits.
 Note that composable nodes should *never* call `rclcpp::shutdown()`, as the composable node container will automatically do this.
 
 For more details, see https://github.com/ros2/rmw_zenoh/issues/170.
+
+### rmw_zenoh is incompatible between Humble and newer distributions. 
+
+Since Iron, ROS 2 introduced type hashes for messages and `rmw_zenoh` includes these type hashes in the Zenoh keyexpressions it constructs for data exchange. While participants will be discoverable, communication between Humble and newer distributions will fail, resulting in messages being silently dropped.
+
+For more details, see https://github.com/ros2/rmw_zenoh/issues/569.
