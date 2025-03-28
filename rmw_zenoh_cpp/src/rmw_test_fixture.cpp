@@ -18,6 +18,7 @@
 #include <memory>
 #include <sstream>
 
+#include <nlohmann/json.hpp>
 #include <rcpputils/env.hpp>
 #include <zenoh.hxx>
 #include <zenoh/api/session.hxx>
@@ -26,19 +27,26 @@
 
 static std::unique_ptr<zenoh::Session> g_session = nullptr;
 
+static
+std::string
+get_endpoints(zenoh::Session & session)
+{
+  auto zid = session.get_zid();
+  auto keyexpr = zenoh::KeyExpr("@/" + zid.to_string() + "/router");
+  auto replies = session.get(keyexpr, "", zenoh::channels::FifoChannel(2));
+
+  auto reply = replies.recv();
+  const auto & sample = std::get<zenoh::Reply>(reply).get_ok();
+  auto parsed = nlohmann::json::parse(sample.get_payload().as_string());
+
+  return parsed["locators"].dump();
+}
+
 extern "C"
 {
 rmw_ret_t
 rmw_test_isolation_start()
 {
-  // TODO(cottsay): Utility function to allocate a port number using the same
-  //       mechanism as domain_coordinator does in Python.
-  unsigned int seed = time(NULL);
-  unsigned int port = 32768 + (rand_r(&seed) % 32768);
-  std::ostringstream ss;
-  ss << "[\"tcp/127.0.0.1:" << port << "\"]";
-  std::string router_endpoint_config = ss.str();
-
   zenoh::ZResult result;
 
   zenoh::try_init_log_from_env();
@@ -51,7 +59,7 @@ rmw_test_isolation_start()
     return RMW_RET_ERROR;
   }
 
-  config->insert_json5("listen/endpoints", router_endpoint_config, &result);
+  config->insert_json5("listen/endpoints", "[\"tcp/127.0.0.1:0\"]", &result);
   if (result != Z_OK) {
     std::cerr << "Error setting router endpoint" << std::endl;
     return RMW_RET_ERROR;
@@ -66,7 +74,9 @@ rmw_test_isolation_start()
     return RMW_RET_ERROR;
   }
 
-  std::string config_override = "connect/endpoints=" + router_endpoint_config;
+  std::string endpoints = get_endpoints(*g_session);
+
+  std::string config_override = "connect/endpoints=" + endpoints;
   if (!rcpputils::set_env_var(
       "ZENOH_CONFIG_OVERRIDE",
       config_override.c_str()))
