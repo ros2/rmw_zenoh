@@ -151,7 +151,7 @@ private:
   rmw_subscription_options_t sub_options_;
   std::deque<std::unique_ptr<Message>> message_queue_;
   // Map GID of a subscription to the sequence number of the message it published.
-  std::unordered_map<size_t, int64_t> last_known_published_msg_;
+  std::unordered_map<Gid, int64_t> last_known_published_msg_;
   // Wait set data.
   rmw_wait_set_data_t * wait_set_data_;
   // Callback managers.
