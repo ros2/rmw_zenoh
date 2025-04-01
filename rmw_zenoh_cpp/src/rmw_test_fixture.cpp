@@ -15,8 +15,11 @@
 #include <rmw_test_fixture/rmw_test_fixture.h>
 
 #include <cstdlib>
+#include <iostream>
 #include <memory>
 #include <sstream>
+#include <string>
+#include <utility>
 
 #include <nlohmann/json.hpp>
 #include <rcpputils/env.hpp>
@@ -28,22 +31,55 @@
 static std::unique_ptr<zenoh::Session> g_session = nullptr;
 
 static
-std::string
+std::optional<std::string>
 get_endpoints(zenoh::Session & session)
 {
-  auto zid = session.get_zid();
-  auto keyexpr = zenoh::KeyExpr("@/" + zid.to_string() + "/router");
-  auto replies = session.get(keyexpr, "", zenoh::channels::FifoChannel(2));
+  const zenoh::Id zid = session.get_zid();
+  const zenoh::KeyExpr keyexpr("@/" + zid.to_string() + "/router");
 
-  auto reply = replies.recv();
-  const auto & sample = std::get<zenoh::Reply>(reply).get_ok();
-  auto parsed = nlohmann::json::parse(sample.get_payload().as_string());
+  zenoh::ZResult result;
+  const zenoh::channels::FifoChannel::HandlerType<zenoh::Reply> replies = session.get(
+    keyexpr,
+    "",
+    zenoh::channels::FifoChannel(2),
+    zenoh::Session::GetOptions::create_default(),
+    &result);
+  if (Z_OK != result) {
+    std::cerr << "Error calling get over keyexpr "
+              << std::string(keyexpr.as_string_view()) << std::endl;
+    return std::nullopt;
+  }
+
+  const std::variant<zenoh::Reply, zenoh::channels::RecvError> reply = replies.recv();
+  const zenoh::Sample & sample = std::get<zenoh::Reply>(reply).get_ok();
+  nlohmann::json parsed;
+
+  try {
+    parsed = nlohmann::json::parse(sample.get_payload().as_string());
+  } catch (nlohmann::json::exception & e) {
+    std::cerr << "Failed to parse admin space response: " << e.what() << std::endl;
+    return std::nullopt;
+  }
 
   return parsed["locators"].dump();
 }
 
 extern "C"
 {
+/// Isolate Zenoh communication using an ad-hoc router
+/**
+ * This fixture creates a new Zenoh router on a random unused port number for
+ * use by the current process. The router does not connect to other routers,
+ * but does respect other Zenoh configurations provided by configuration files
+ * and environment variables.
+ *
+ * After calling this function, the ZENOH_CONFIG_OVERRIDE environment variable
+ * for this process will configure Zenoh to use the ad-hoc router using the
+ * `connect/endpoints` configuration key, which is populated from the
+ * `listen/endpoints` configuration of the router.
+ *
+ * Calling `rmw_test_isolation_stop()` will gracefully shut down the router.
+ */
 rmw_ret_t
 rmw_test_isolation_start()
 {
@@ -80,9 +116,13 @@ rmw_test_isolation_start()
     return RMW_RET_ERROR;
   }
 
-  std::string endpoints = get_endpoints(*g_session);
+  std::optional<std::string> endpoints = get_endpoints(*g_session);
+  if (!endpoints.has_value()) {
+    // Error already logged.
+    return RMW_RET_ERROR;
+  }
 
-  std::string config_override = "connect/endpoints=" + endpoints;
+  std::string config_override = "connect/endpoints=" + endpoints.value();
   if (!rcpputils::set_env_var(
       "ZENOH_CONFIG_OVERRIDE",
       config_override.c_str()))
