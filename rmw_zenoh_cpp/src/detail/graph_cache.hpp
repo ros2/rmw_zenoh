@@ -275,6 +275,13 @@ private:
   using GraphEventCallbackMap = std::unordered_map<std::size_t, GraphEventCallbacks>;
   // EventCallbackMap for each type of event we support in rmw_zenoh_cpp.
   GraphEventCallbackMap event_callbacks_;
+  // Map an entity's keyexpr_hash to another map of event_types which map to the change in
+  // number of events.
+  // This map is used to track changes of events which do not have callbacks registered yet.
+  // When a callback does get registered, we check for any change history and trigger the callback
+  // immediately after which we reset this map accordingly.
+  std::unordered_map<std::size_t,
+    std::unordered_map<rmw_zenoh_event_type_t, int32_t>> unregistered_event_changes_;
   std::mutex events_mutex_;
 
   // Mutex to lock before modifying the members above.

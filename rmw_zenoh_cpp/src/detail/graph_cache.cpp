@@ -1190,9 +1190,23 @@ void GraphCache::set_qos_event_callback(
   if (event_cb_it == event_callbacks_.end()) {
     // First time a callback is being set for this entity.
     event_callbacks_[entity_keyexpr_hash] = {std::make_pair(event_type, std::move(callback))};
-    return;
+  } else {
+    event_cb_it->second[event_type] = std::move(callback);
   }
-  event_cb_it->second[event_type] = std::move(callback);
+
+  // Check if there are any event changes for this event type before the callback was registered.
+  auto unregistered_event_changes_it = unregistered_event_changes_.find(entity_keyexpr_hash);
+  if (unregistered_event_changes_it != unregistered_event_changes_.end()) {
+    auto event_changes_it = unregistered_event_changes_it->second.find(event_type);
+    if (event_changes_it != unregistered_event_changes_it->second.end()) {
+      event_callbacks_[entity_keyexpr_hash][event_type](event_changes_it->second);
+      // Update bookkeeping for unregistered_event_changes_.
+      unregistered_event_changes_it->second.erase(event_changes_it);
+      if (unregistered_event_changes_it->second.empty()) {
+        unregistered_event_changes_.erase(unregistered_event_changes_it);
+      }
+    }
+  }
 }
 
 ///=============================================================================
@@ -1234,6 +1248,19 @@ void GraphCache::update_event_counters(
 
   std::lock_guard<std::mutex> lock(events_mutex_);
 
+  // Lambda to add changes to unregistered_event_changes_ if a callback for the
+  // event_type is not yet registered.
+  auto update_unregistered_event_changes =
+    [&]()
+    {
+      auto unregistered_event_changes_it = unregistered_event_changes_.find(entity->keyexpr_hash());
+      if (unregistered_event_changes_it == unregistered_event_changes_.end()) {
+        unregistered_event_changes_[entity->keyexpr_hash()] = {std::make_pair(event_id, change)};
+      } else {
+        unregistered_event_changes_it->second[event_id] = change;
+      }
+    };
+
   // Trigger callback set for this entity for the event type.
   GraphEventCallbackMap::const_iterator event_callbacks_it =
     event_callbacks_.find(entity->keyexpr_hash());
@@ -1241,8 +1268,17 @@ void GraphCache::update_event_counters(
     GraphEventCallbacks::const_iterator callback_it =
       event_callbacks_it->second.find(event_id);
     if (callback_it != event_callbacks_it->second.end()) {
+      // Trigger the registered callback.
       callback_it->second(change);
+    } else {
+      // A callback for a different event_type has been registered for this entity.
+      // We add the change for the unregistered event_type to unregistered_event_changes_.
+      update_unregistered_event_changes();
     }
+  } else {
+      // No callbacks for any event type have been registered for this entity.
+      // We add the change for the unregistered event_type to unregistered_event_changes_.
+    update_unregistered_event_changes();
   }
 }
 }  // namespace rmw_zenoh_cpp
