@@ -107,6 +107,12 @@ rmw_test_isolation_start()
     return RMW_RET_ERROR;
   }
 
+  config->insert_json5("scouting/multicast/enabled", "false", &result);
+  if (result != Z_OK) {
+    std::cerr << "Error setting router multicast disabled" << std::endl;
+    return RMW_RET_ERROR;
+  }
+
   g_session = std::make_unique<zenoh::Session>(
     std::move(config.value()),
     zenoh::Session::SessionOptions::create_default(),
