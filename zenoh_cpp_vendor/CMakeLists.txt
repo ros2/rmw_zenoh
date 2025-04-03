@@ -37,9 +37,18 @@ set(ZENOHC_CARGO_FLAGS "--no-default-features$<SEMICOLON>--features=shared-memor
 #   - https://github.com/eclipse-zenoh/zenoh/pull/1792
 # - Fix debug mode crash
 #  - https://github.com/eclipse-zenoh/zenoh-cpp/pull/432
+# - Avoid crashing when handling highly chunked keys
+#   - https://github.com/eclipse-zenoh/zenoh/pull/1826
+# - Add new non periodic last sample miss detection mechanism
+#   - https://github.com/eclipse-zenoh/zenoh/pull/1861
+# - Fix memory leak in shm segment cleanup
+#  - https://github.com/eclipse-zenoh/zenoh/pull/1867
+# - Resolve the shutdown issue
+#  - https://github.com/eclipse-zenoh/zenoh/pull/1632
+https://github.com/Yadunund/rmw_zenoh_shutdown_test.
 ament_vendor(zenoh_c_vendor
   VCS_URL https://github.com/eclipse-zenoh/zenoh-c.git
-  VCS_VERSION e6a1971139f405f7887bf5bb54f0efe402123032
+  VCS_VERSION 67e3d8a3b0437f1555641ff29b4e89d4f7bb9dbb
   CMAKE_ARGS
     "-DZENOHC_CARGO_FLAGS=${ZENOHC_CARGO_FLAGS}"
     "-DZENOHC_BUILD_WITH_UNSTABLE_API=TRUE"
@@ -50,7 +59,7 @@ ament_export_dependencies(zenohc)
 
 ament_vendor(zenoh_cpp_vendor
   VCS_URL https://github.com/eclipse-zenoh/zenoh-cpp
-  VCS_VERSION 8ad67f6c7a9031acd437c8739bbc8ddab0ca8173
+  VCS_VERSION 8bbb0167bf25a8d4d5e15676d5a91a65d1d7855f
   CMAKE_ARGS
     -DZENOHCXX_ZENOHC=OFF
 )

@@ -198,30 +198,7 @@ Error opening Session!\n[ros2run]: Process exited with failure 1
 To resolve this, either run the router on a system with IPv6 support, or update the `listen.endpoints` list in the Zenoh configuration and replace `"tcp/[::]:7447"` with `"tcp/0.0.0.0:7447"` (ie: make the router listen on IPv4 `ANY`).
 Note: the existing entry must be *replaced*, it's not sufficient to just *add* the IPv4 entry (as that would make the router attempt to listen on both IPv4 and IPv6 `ANY` and still not work).
 
-### Crash when program terminates
-
-When a program terminates, global and static objects are destructed in the reverse order of their
-construction.
-The `Thread Local Storage` is one such entity which the `tokio` runtime in Zenoh uses.
-If the Zenoh session is closed after this entity is cleared, it causes a panic like seen below.
-
-```
-thread '<unnamed>' panicked at /rustc/aedd173a2c086e558c2b66d3743b344f977621a7/library/std/src/thread/local.rs:262:26:
-cannot access a Thread Local Storage value during or after destruction: AccessError
-```
-
-This can happen with `rmw_zenoh` if the ROS 2 `Context` is not shutdown explicitly before the
-program terminates.
-In this scenario, the `Context` will be shutdown inside the `Context`'s destructor which then closes the Zenoh session.
-Since the ordering of global/static objects is not defined, this often leads to the above panic.
-
-The recommendation is to ensure the `Context` is shutdown before a program terminates.
-One way to ensure this is to call `rclcpp::shutdown()` when the program exits.
-Note that composable nodes should *never* call `rclcpp::shutdown()`, as the composable node container will automatically do this.
-
-For more details, see https://github.com/ros2/rmw_zenoh/issues/170.
-
-### rmw_zenoh is incompatible between Humble and newer distributions. 
+### rmw_zenoh is incompatible between Humble and newer distributions.
 
 Since Iron, ROS 2 introduced type hashes for messages and `rmw_zenoh` includes these type hashes in the Zenoh keyexpressions it constructs for data exchange. While participants will be discoverable, communication between Humble and newer distributions will fail, resulting in messages being silently dropped.
 
