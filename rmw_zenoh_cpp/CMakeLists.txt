@@ -89,6 +89,10 @@ add_library(rmw_zenoh_cpp_test_fixture SHARED
   src/rmw_test_fixture.cpp
 )
 
+target_compile_definitions(rmw_zenoh_cpp_test_fixture PRIVATE
+  RMW_TEST_FIXTURE_BUILDING_DLL
+)
+
 target_link_libraries(rmw_zenoh_cpp_test_fixture
   PRIVATE
     ament_index_cpp::ament_index_cpp
