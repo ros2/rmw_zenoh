@@ -45,7 +45,6 @@ set(ZENOHC_CARGO_FLAGS "--no-default-features$<SEMICOLON>--features=shared-memor
 #  - https://github.com/eclipse-zenoh/zenoh/pull/1867
 # - Resolve the shutdown issue
 #  - https://github.com/eclipse-zenoh/zenoh/pull/1632
-https://github.com/Yadunund/rmw_zenoh_shutdown_test.
 ament_vendor(zenoh_c_vendor
   VCS_URL https://github.com/eclipse-zenoh/zenoh-c.git
   VCS_VERSION 67e3d8a3b0437f1555641ff29b4e89d4f7bb9dbb
