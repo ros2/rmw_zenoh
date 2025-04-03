@@ -40,6 +40,9 @@ public:
 
   const rmw_qos_profile_t & default_qos() const;
 
+  /// Returns true if the qos profile is supported by rmw_zenoh.
+  static bool is_supported(const rmw_qos_profile_t & qos_profile);
+
   rmw_ret_t best_available_qos(
     const rmw_node_t * node,
     const char * topic_name,

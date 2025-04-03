@@ -126,6 +126,8 @@ std::shared_ptr<PublisherData> PublisherData::make(
     if (adapted_qos_profile.history == RMW_QOS_POLICY_HISTORY_KEEP_ALL) {
       pub_opts.congestion_control = Z_CONGESTION_CONTROL_BLOCK;
     }
+  } else {
+    pub_opts.reliability = Z_RELIABILITY_BEST_EFFORT;
   }
   adv_pub_opts.publisher_options = pub_opts;
 

@@ -322,7 +322,7 @@ rmw_ret_t ClientData::send_request(
   const void * ros_request,
   int64_t * sequence_id)
 {
-  std::lock_guard<std::recursive_mutex> lock(mutex_);
+  std::unique_lock<std::recursive_mutex> lock(mutex_);
   if (is_shutdown_) {
     return RMW_RET_OK;
   }
@@ -394,6 +394,9 @@ rmw_ret_t ClientData::send_request(
   std::weak_ptr<rmw_zenoh_cpp::ClientData> client_data = shared_from_this();
   zenoh::ZResult result;
   std::string parameters;
+  // We explicitly release the mutex here to avoid an ABBA deadlock as
+  // documented in https://github.com/ros2/rmw_zenoh/issues/484.
+  lock.unlock();
   context_impl->session()->get(
     keyexpr_.value(),
     parameters,

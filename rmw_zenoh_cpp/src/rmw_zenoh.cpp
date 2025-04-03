@@ -779,6 +779,9 @@ rmw_publisher_wait_for_all_acked(
   const rmw_publisher_t * publisher,
   rmw_time_t wait_timeout)
 {
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    publisher, "publisher handle is null",
+    return RMW_RET_INVALID_ARGUMENT);
   static_cast<void>(publisher);
   static_cast<void>(wait_timeout);
 
@@ -982,7 +985,8 @@ rmw_create_subscription(
       context_impl->get_next_entity_id(),
       topic_name,
       type_support,
-      qos_profile))
+      qos_profile,
+      *subscription_options))
   {
     // Error already handled.
     return nullptr;
@@ -1301,13 +1305,13 @@ __rmw_take_serialized(
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription->topic_name, RMW_RET_ERROR);
   RMW_CHECK_ARGUMENT_FOR_NULL(subscription->data, RMW_RET_ERROR);
-  RMW_CHECK_ARGUMENT_FOR_NULL(serialized_message, RMW_RET_INVALID_ARGUMENT);
-  RMW_CHECK_ARGUMENT_FOR_NULL(taken, RMW_RET_INVALID_ARGUMENT);
-  RMW_CHECK_ARGUMENT_FOR_NULL(message_info, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
     subscription handle,
     subscription->implementation_identifier, rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
+  RMW_CHECK_ARGUMENT_FOR_NULL(serialized_message, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(taken, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(message_info, RMW_RET_INVALID_ARGUMENT);
   rmw_zenoh_cpp::SubscriptionData * sub_data =
     static_cast<rmw_zenoh_cpp::SubscriptionData *>(subscription->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
@@ -2180,6 +2184,11 @@ check_and_attach_condition(
     }
   }
 
+  // No conditions are available. Set the triggered flag of the wait_set to false.
+  // Note that wait_set_data->condition_mutex has been locked before calling
+  // check_and_attach_condition. So it's safe to modify the wait_set_data triggered flag.
+  wait_set_data->triggered = false;
+
   return false;
 }
 }  // namespace
@@ -2224,33 +2233,37 @@ rmw_wait(
   // signals to the upper layers that it isn't ready.  If something is ready, then we leave it as
   // a valid pointer.
 
-  bool skip_wait = check_and_attach_condition(
-    subscriptions, guard_conditions, services, clients, events, wait_set_data);
-  if (!skip_wait) {
+  {
+    // Take the lock before the check_and_attach_condition to ensure conditions and flags
+    // are not modified while being checked by concurrent calls.
     std::unique_lock<std::mutex> lock(wait_set_data->condition_mutex);
 
-    // According to the RMW documentation, if wait_timeout is NULL that means
-    // "wait forever", if it specified as 0 it means "never wait", and if it is anything else wait
-    // for that amount of time.
-    if (wait_timeout == nullptr) {
-      wait_set_data->condition_variable.wait(
-        lock, [wait_set_data]() {
-          return wait_set_data->triggered;
-        });
-    } else {
-      if (wait_timeout->sec != 0 || wait_timeout->nsec != 0) {
-        wait_set_data->condition_variable.wait_for(
-          lock,
-          std::chrono::nanoseconds(wait_timeout->nsec + RCUTILS_S_TO_NS(wait_timeout->sec)),
-          [wait_set_data]() {return wait_set_data->triggered;});
+    bool skip_wait = check_and_attach_condition(
+      subscriptions, guard_conditions, services, clients, events, wait_set_data);
+    if (!skip_wait) {
+      // According to the RMW documentation, if wait_timeout is NULL that means
+      // "wait forever", if it specified as 0 it means "never wait", and if it is anything else wait
+      // for that amount of time.
+      if (wait_timeout == nullptr) {
+        wait_set_data->condition_variable.wait(
+          lock, [wait_set_data]() {
+            return wait_set_data->triggered;
+          });
+      } else {
+        if (wait_timeout->sec != 0 || wait_timeout->nsec != 0) {
+          wait_set_data->condition_variable.wait_for(
+            lock,
+            std::chrono::nanoseconds(wait_timeout->nsec + RCUTILS_S_TO_NS(wait_timeout->sec)),
+            [wait_set_data]() {return wait_set_data->triggered;});
+        }
       }
-    }
 
-    // It is important to reset this here while still holding the lock, otherwise every subsequent
-    // call to rmw_wait() will be immediately ready.  We could handle this another way by making
-    // "triggered" a stack variable in this function and "attaching" it during
-    // "check_and_attach_condition", but that isn't clearly better so leaving this.
-    wait_set_data->triggered = false;
+      // It is important to reset this here while still holding the lock, otherwise every subsequent
+      // call to rmw_wait() will be immediately ready.  We could handle this another way by making
+      // "triggered" a stack variable in this function and "attaching" it during
+      // "check_and_attach_condition", but that isn't clearly better so leaving this.
+      wait_set_data->triggered = false;
+    }
   }
 
   bool wait_result = false;
@@ -2357,6 +2370,11 @@ rmw_get_node_names(
   rcutils_string_array_t * node_namespaces)
 {
   RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    node,
+    node->implementation_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(node_names, RMW_RET_INVALID_ARGUMENT);
@@ -2379,6 +2397,11 @@ rmw_get_node_names_with_enclaves(
   rcutils_string_array_t * enclaves)
 {
   RMW_CHECK_ARGUMENT_FOR_NULL(node, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    node,
+    node->implementation_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(node_names, RMW_RET_INVALID_ARGUMENT);
@@ -2518,6 +2541,11 @@ rmw_ret_t
 rmw_get_gid_for_publisher(const rmw_publisher_t * publisher, rmw_gid_t * gid)
 {
   RMW_CHECK_ARGUMENT_FOR_NULL(publisher, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    publisher,
+    publisher->implementation_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_ARGUMENT_FOR_NULL(gid, RMW_RET_INVALID_ARGUMENT);
   rmw_node_t * node =
     static_cast<rmw_node_t *>(publisher->data);
@@ -2542,6 +2570,11 @@ rmw_ret_t
 rmw_get_gid_for_client(const rmw_client_t * client, rmw_gid_t * gid)
 {
   RMW_CHECK_ARGUMENT_FOR_NULL(client, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    client,
+    client->implementation_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_ARGUMENT_FOR_NULL(gid, RMW_RET_INVALID_ARGUMENT);
   rmw_zenoh_cpp::ClientData * client_data =
     static_cast<rmw_zenoh_cpp::ClientData *>(client->data);
@@ -2592,6 +2625,11 @@ rmw_service_server_is_available(
     rmw_zenoh_cpp::rmw_zenoh_identifier,
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_ARGUMENT_FOR_NULL(client, RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    client,
+    client->implementation_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
+    return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_ARGUMENT_FOR_NULL(client->data, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(is_available, RMW_RET_INVALID_ARGUMENT);
   rmw_zenoh_cpp::ClientData * client_data =
