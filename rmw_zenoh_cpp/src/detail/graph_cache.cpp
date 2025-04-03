@@ -1273,8 +1273,8 @@ void GraphCache::update_event_counters(
       update_unregistered_event_changes();
     }
   } else {
-      // No callbacks for any event type have been registered for this entity.
-      // We add the change for the unregistered event_type to unregistered_event_changes_.
+    // No callbacks for any event type have been registered for this entity.
+    // We add the change for the unregistered event_type to unregistered_event_changes_.
     update_unregistered_event_changes();
   }
 }
