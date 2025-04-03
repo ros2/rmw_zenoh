@@ -1255,9 +1255,18 @@ void GraphCache::update_event_counters(
     {
       auto unregistered_event_changes_it = unregistered_event_changes_.find(entity->gid_hash());
       if (unregistered_event_changes_it == unregistered_event_changes_.end()) {
+        // First time this entity has changes for any events without a callback registered.
         unregistered_event_changes_[entity->gid_hash()] = {std::make_pair(event_id, change)};
       } else {
-        unregistered_event_changes_it->second[event_id] = change;
+        auto event_changes_it = unregistered_event_changes_it->second.find(event_id);
+        if (event_changes_it == unregistered_event_changes_it->second.end()) {
+          // First time this entity has changes for this specific event_id.
+          unregistered_event_changes_it->second[event_id] = change;
+        } else {
+          // There have been changes for this event_id in the past so we simply increment
+          // the changes.
+          unregistered_event_changes_it->second[event_id] += change;
+        }
       }
     };
 
