@@ -304,10 +304,10 @@ rmw_ret_t PublisherData::publish_serialized_message(
 }
 
 ///=============================================================================
-std::size_t PublisherData::keyexpr_hash() const
+std::size_t PublisherData::gid_hash() const
 {
   std::lock_guard<std::mutex> lock(mutex_);
-  return entity_->keyexpr_hash();
+  return entity_->gid_hash();
 }
 
 ///=============================================================================

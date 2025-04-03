@@ -74,8 +74,8 @@ public:
     const rmw_qos_profile_t * qos_profile,
     const rmw_subscription_options_t & sub_options);
 
-  // Get a copy of the keyexpr_hash of this SubscriptionData's liveliness::Entity.
-  std::size_t keyexpr_hash() const;
+  // Get a copy of the gid_hash of this SubscriptionData's liveliness::Entity.
+  std::size_t gid_hash() const;
 
   // Get a copy of the TopicInfo of this SubscriptionData.
   liveliness::TopicInfo topic_info() const;
