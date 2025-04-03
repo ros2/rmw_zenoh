@@ -256,10 +256,10 @@ bool SubscriptionData::init()
 }
 
 ///=============================================================================
-std::size_t SubscriptionData::keyexpr_hash() const
+std::size_t SubscriptionData::gid_hash() const
 {
   std::lock_guard<std::mutex> lock(mutex_);
-  return entity_->keyexpr_hash();
+  return entity_->gid_hash();
 }
 
 ///=============================================================================
@@ -309,7 +309,7 @@ rmw_ret_t SubscriptionData::shutdown()
   }
 
   // Remove any event callbacks registered to this subscription.
-  graph_cache_->remove_qos_event_callbacks(entity_->keyexpr_hash());
+  graph_cache_->remove_qos_event_callbacks(entity_->gid_hash());
 
   // Unregister this subscription from the ROS graph.
   zenoh::ZResult result;
