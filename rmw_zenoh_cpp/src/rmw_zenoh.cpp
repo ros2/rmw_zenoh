@@ -494,7 +494,7 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
     return RMW_RET_INVALID_ARGUMENT;
   }
   // Remove any event callbacks registered to this publisher.
-  context_impl->graph_cache()->remove_qos_event_callbacks(pub_data->keyexpr_hash());
+  context_impl->graph_cache()->remove_qos_event_callbacks(pub_data->gid_hash());
   // Remove the PublisherData from NodeData.
   node_data->delete_pub_data(publisher);
 
