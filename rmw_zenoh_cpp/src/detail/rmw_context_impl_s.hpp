@@ -41,7 +41,7 @@ public:
   rmw_context_impl_s(
     const std::size_t domain_id,
     const std::string & enclave,
-    const rmw_security_options_t * security_options);
+    const rmw_security_options_t & security_options);
 
   ~rmw_context_impl_s();
 

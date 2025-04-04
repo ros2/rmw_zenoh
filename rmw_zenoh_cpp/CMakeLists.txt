@@ -22,13 +22,12 @@ find_package(rcutils REQUIRED)
 find_package(rosidl_typesupport_fastrtps_c REQUIRED)
 find_package(rosidl_typesupport_fastrtps_cpp REQUIRED)
 find_package(rmw REQUIRED)
-find_package(rmw_dds_common REQUIRED)
+find_package(rmw_security_common REQUIRED)
 find_package(rmw_test_fixture REQUIRED)
 find_package(tracetools REQUIRED)
 find_package(zenoh_cpp_vendor REQUIRED)
 
 if(SECURITY)
-  find_package(OpenSSL REQUIRED)
   set(HAVE_SECURITY 1)
 endif()
 
@@ -76,7 +75,7 @@ target_link_libraries(rmw_zenoh_cpp
     rosidl_typesupport_fastrtps_c::rosidl_typesupport_fastrtps_c
     rosidl_typesupport_fastrtps_cpp::rosidl_typesupport_fastrtps_cpp
     rmw::rmw
-    rmw_dds_common::rmw_dds_common_library
+    rmw_security_common::rmw_security_common_library
     tracetools::tracetools
     zenohcxx::zenohc
 )

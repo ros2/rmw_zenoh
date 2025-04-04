@@ -111,7 +111,7 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
     rmw_context_impl_t,
     context->actual_domain_id,
     std::string(options->enclave),
-    &context->options.security_options
+    context->options.security_options
   );
 
   free_options.cancel();
