@@ -70,7 +70,6 @@ private:
   void fill_data(
     zenoh::Config & config,
     const std::string & node_name);
-  std::string to_key_exprs(std::set<std::string> key_exprs);
 
   std::string check_name(
     const std::string & name,
