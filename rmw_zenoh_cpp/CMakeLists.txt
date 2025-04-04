@@ -16,12 +16,14 @@ find_package(ament_cmake REQUIRED)
 
 find_package(ament_index_cpp REQUIRED)
 find_package(fastcdr CONFIG REQUIRED)
+find_package(nlohmann_json REQUIRED)
 find_package(rcpputils REQUIRED)
 find_package(rcutils REQUIRED)
 find_package(rosidl_typesupport_fastrtps_c REQUIRED)
 find_package(rosidl_typesupport_fastrtps_cpp REQUIRED)
 find_package(rmw REQUIRED)
 find_package(rmw_dds_common REQUIRED)
+find_package(rmw_test_fixture REQUIRED)
 find_package(tracetools REQUIRED)
 find_package(zenoh_cpp_vendor REQUIRED)
 
@@ -89,6 +91,25 @@ target_compile_definitions(rmw_zenoh_cpp
     HAVE_SECURITY=${HAVE_SECURITY}
 )
 
+add_library(rmw_zenoh_cpp_test_fixture SHARED
+  src/detail/logging.cpp
+  src/detail/zenoh_config.cpp
+  src/rmw_test_fixture.cpp
+)
+
+target_compile_definitions(rmw_zenoh_cpp_test_fixture PRIVATE
+  RMW_TEST_FIXTURE_BUILDING_DLL
+)
+
+target_link_libraries(rmw_zenoh_cpp_test_fixture
+  PRIVATE
+    ament_index_cpp::ament_index_cpp
+    nlohmann_json::nlohmann_json
+    rcpputils::rcpputils
+    rmw_test_fixture::rmw_test_fixture
+    zenohcxx::zenohc
+)
+
 ament_export_targets(export_rmw_zenoh_cpp)
 
 register_rmw_implementation(
@@ -102,17 +123,15 @@ if(BUILD_TESTING)
   find_package(ament_cmake_uncrustify REQUIRED)
   find_package(ament_cmake_xmllint REQUIRED)
 
-  set(_linter_excludes src/detail/ordered_hash.hpp src/detail/ordered_map.hpp)
-
   ament_copyright(EXCLUDE src/detail/simplified_xxhash3.cpp src/detail/simplified_xxhash3.hpp)
-  ament_cpplint(EXCLUDE ${_linter_excludes})
+  ament_cpplint()
   ament_lint_cmake()
-  ament_uncrustify(EXCLUDE ${_linter_excludes})
+  ament_uncrustify()
   ament_xmllint()
 endif()
 
 install(
-  TARGETS rmw_zenoh_cpp
+  TARGETS rmw_zenoh_cpp rmw_zenoh_cpp_test_fixture
   EXPORT export_rmw_zenoh_cpp
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib

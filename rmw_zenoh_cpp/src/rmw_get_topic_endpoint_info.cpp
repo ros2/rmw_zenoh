@@ -45,6 +45,12 @@ rmw_get_publishers_info_by_topic(
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
   rmw_context_impl_t * context_impl = static_cast<rmw_context_impl_t *>(node->context->impl);
   RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
+  RCUTILS_CHECK_ALLOCATOR_WITH_MSG(
+    allocator, "allocator argument is invalid", return RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(topic_name, RMW_RET_INVALID_ARGUMENT);
+  if (RMW_RET_OK != rmw_topic_endpoint_info_array_check_zero(publishers_info)) {
+    return RMW_RET_INVALID_ARGUMENT;
+  }
   return context_impl->graph_cache()->get_entities_info_by_topic(
     rmw_zenoh_cpp::liveliness::EntityType::Publisher,
     allocator,
@@ -73,6 +79,12 @@ rmw_get_subscriptions_info_by_topic(
   RMW_CHECK_ARGUMENT_FOR_NULL(node->context->impl, RMW_RET_INVALID_ARGUMENT);
   rmw_context_impl_t * context_impl = static_cast<rmw_context_impl_t *>(node->context->impl);
   RMW_CHECK_ARGUMENT_FOR_NULL(context_impl, RMW_RET_INVALID_ARGUMENT);
+  RCUTILS_CHECK_ALLOCATOR_WITH_MSG(
+    allocator, "allocator argument is invalid", return RMW_RET_INVALID_ARGUMENT);
+  RMW_CHECK_ARGUMENT_FOR_NULL(topic_name, RMW_RET_INVALID_ARGUMENT);
+  if (RMW_RET_OK != rmw_topic_endpoint_info_array_check_zero(subscriptions_info)) {
+    return RMW_RET_INVALID_ARGUMENT;
+  }
   return context_impl->graph_cache()->get_entities_info_by_topic(
     rmw_zenoh_cpp::liveliness::EntityType::Subscription,
     allocator,

@@ -26,7 +26,7 @@
 // a popular "magic number". See https://en.wikipedia.org/wiki/42_(number).
 #define RMW_ZENOH_DEFAULT_HISTORY_DEPTH 42;
 #define RMW_ZENOH_DEFAULT_RELIABILITY RMW_QOS_POLICY_RELIABILITY_RELIABLE;
-#define RMW_ZENOH_DEFAULT_DURABILITY RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL;
+#define RMW_ZENOH_DEFAULT_DURABILITY RMW_QOS_POLICY_DURABILITY_VOLATILE;
 #define RMW_ZENOH_DEFAULT_DEADLINE RMW_DURATION_INFINITE;
 #define RMW_ZENOH_DEFAULT_LIFESPAN RMW_DURATION_INFINITE;
 #define RMW_ZENOH_DEFAULT_LIVELINESS RMW_QOS_POLICY_LIVELINESS_AUTOMATIC;
@@ -61,6 +61,20 @@ const rmw_qos_profile_t & QoS::default_qos() const
 }
 
 ///=============================================================================
+bool QoS::is_supported(const rmw_qos_profile_t & qos_profile)
+{
+  if (qos_profile.history == RMW_QOS_POLICY_HISTORY_UNKNOWN ||
+    qos_profile.reliability == RMW_QOS_POLICY_RELIABILITY_UNKNOWN ||
+    qos_profile.durability == RMW_QOS_POLICY_DURABILITY_UNKNOWN ||
+    qos_profile.liveliness == RMW_QOS_POLICY_LIVELINESS_UNKNOWN)
+  {
+    return false;
+  }
+
+  return true;
+}
+
+///=============================================================================
 rmw_ret_t QoS::best_available_qos(
   const rmw_node_t * node,
   const char * topic_name,
@@ -77,6 +91,10 @@ rmw_ret_t QoS::best_available_qos(
   static_cast<void>(node);
   static_cast<void>(topic_name);
   static_cast<void>(get_endpoint_info_for_other);
+
+  if (!is_supported(*qos_profile)) {
+    return RMW_RET_UNSUPPORTED;
+  }
 
   switch (qos_profile->history) {
     case RMW_QOS_POLICY_HISTORY_SYSTEM_DEFAULT:

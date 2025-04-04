@@ -187,7 +187,7 @@ void EventsManager::update_event_status(
     status_to_update.total_count += std::max(0, current_count_change);
     status_to_update.total_count_change += std::max(0, current_count_change);
     status_to_update.current_count += current_count_change;
-    status_to_update.current_count_change = current_count_change;
+    status_to_update.current_count_change += current_count_change;
     status_to_update.changed = true;
   }
 
