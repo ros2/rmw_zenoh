@@ -23,7 +23,7 @@ All are supported for the majority of the OS platforms, as shown in the 1.2.1 re
 
 All meets the basic requirements for a software platform in terms of testing its basic functionality, providing a valid license for the code used and a public GitHub repository with the changes made to the code over time.
 
-Considering the previously mentioned reasons, we consider this library to be robust and reliable and at Quality Level 1.
+Considering the previously mentioned reasons, we consider this library to be robust and reliable and at Quality Level 2.
 
 # Comparison with ROS packages quality standards
 

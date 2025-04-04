@@ -158,4 +158,4 @@ The chart below compares the requirements in the REP-2004 with the current state
 |7| Security | --- |
 |7.i| Vulnerability Disclosure Policy | ✓ |
 
-Comparing this table with the [Quality Level Comparison Chart of REP2004](https://github.com/ros-infrastructure/rep/blob/master/rep-2004.rst#quality-level-comparison-chart) lead us to decide that this package qualifies as Quality Level 1.
+Comparing this table with the [Quality Level Comparison Chart of REP2004](https://github.com/ros-infrastructure/rep/blob/master/rep-2004.rst#quality-level-comparison-chart) lead us to decide that this package qualifies as Quality Level 2.
