@@ -100,17 +100,16 @@ rmw_init_options_copy(const rmw_init_options_t * src, rmw_init_options_t * dst)
       rmw_ret_t tmp_ret = rmw_discovery_options_fini(&tmp.discovery_options);
       static_cast<void>(tmp_ret);
     });
-  tmp.enclave = nullptr;
   if (nullptr != src->enclave) {
-    tmp.enclave = rcutils_strdup(src->enclave, allocator);
-    if (nullptr == tmp.enclave) {
-      return RMW_RET_BAD_ALLOC;
+    ret = rmw_enclave_options_copy(src->enclave, &allocator, &tmp.enclave);
+    if (RMW_RET_OK != ret) {
+      return ret;
     }
   }
   auto free_enclave = rcpputils::make_scope_exit(
     [&tmp, allocator]() {
       if (nullptr != tmp.enclave) {
-        allocator.deallocate(tmp.enclave, allocator.state);
+        rmw_enclave_options_fini(tmp.enclave, &allocator);
       }
     });
 
@@ -146,8 +145,14 @@ rmw_init_options_fini(rmw_init_options_t * init_options)
   rcutils_allocator_t * allocator = &init_options->allocator;
   RCUTILS_CHECK_ALLOCATOR(allocator, return RMW_RET_INVALID_ARGUMENT);
 
-  allocator->deallocate(init_options->enclave, allocator->state);
-  rmw_ret_t ret = rmw_security_options_fini(&init_options->security_options, allocator);
+  rmw_ret_t ret;
+  if (init_options->enclave != NULL) {
+    ret = rmw_enclave_options_fini(init_options->enclave, allocator);
+    if (ret != RMW_RET_OK) {
+      return ret;
+    }
+  }
+  ret = rmw_security_options_fini(&init_options->security_options, allocator);
   if (ret != RMW_RET_OK) {
     return ret;
   }

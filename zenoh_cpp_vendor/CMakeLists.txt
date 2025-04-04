@@ -15,16 +15,31 @@ find_package(ament_cmake_vendor_package REQUIRED)
 # Note: We separate the two args needed for cargo with "$<SEMICOLON>" and not ";" as the
 # latter is a list separater in cmake and hence the string will be split into two
 # when expanded.
-set(ZENOHC_CARGO_FLAGS "--no-default-features$<SEMICOLON>--features=shared-memory zenoh/transport_compression zenoh/transport_tcp zenoh/transport_tls")
+set(ZENOHC_CARGO_FLAGS "--no-default-features$<SEMICOLON>--features=shared-memory zenoh/transport_compression zenoh/transport_tcp zenoh/transport_udp zenoh/transport_tls")
 
-# Set VCS_VERSION to include latest changes from zenoh/zenoh-c/zenoh-cpp to benefit from :
-# - https://github.com/eclipse-zenoh/zenoh/pull/173 (Improve config to support priorities range in locators)
-# - https://github.com/eclipse-zenoh/zenoh/pull/1736, https://github.com/eclipse-zenoh/zenoh/pull/1735,
-#   https://github.com/eclipse-zenoh/zenoh/pull/1744, https://github.com/eclipse-zenoh/zenoh/pull/1749,
-#   https://github.com/eclipse-zenoh/zenoh/pull/1751 (Improve performance of a large number of peers)
+# Set VCS_VERSION to include latest changes from zenoh/zenoh-c/zenoh-cpp to benefit from:
+# - Reword SHM warning log about "setting scheduling priority":
+#   - https://github.com/eclipse-zenoh/zenoh/pull/1778
+# - Performances improvements at launch time:
+#   - https://github.com/eclipse-zenoh/zenoh/pull/1786
+#   - https://github.com/eclipse-zenoh/zenoh/pull/1789
+#   - https://github.com/eclipse-zenoh/zenoh/pull/1793
+# - Fixed open timeout
+#   - https://github.com/eclipse-zenoh/zenoh/pull/1796
+# - Improve ACL behaviour, notably for S-ROS
+#   - https://github.com/eclipse-zenoh/zenoh/pull/1781
+#   - https://github.com/eclipse-zenoh/zenoh/pull/1785
+#   - https://github.com/eclipse-zenoh/zenoh/pull/1795
+#   - https://github.com/eclipse-zenoh/zenoh/pull/1806
+# - Reduce the number of threads in case of scouting
+#  - https://github.com/eclipse-zenoh/zenoh-c/pull/937
+# - Namespace prefix support
+#   - https://github.com/eclipse-zenoh/zenoh/pull/1792
+# - Fix debug mode crash
+#  - https://github.com/eclipse-zenoh/zenoh-cpp/pull/432
 ament_vendor(zenoh_c_vendor
   VCS_URL https://github.com/eclipse-zenoh/zenoh-c.git
-  VCS_VERSION 5fce7fb1d397e016ad02a50bde4262007d755424
+  VCS_VERSION e6a1971139f405f7887bf5bb54f0efe402123032
   CMAKE_ARGS
     "-DZENOHC_CARGO_FLAGS=${ZENOHC_CARGO_FLAGS}"
     "-DZENOHC_BUILD_WITH_UNSTABLE_API=TRUE"
@@ -35,7 +50,7 @@ ament_export_dependencies(zenohc)
 
 ament_vendor(zenoh_cpp_vendor
   VCS_URL https://github.com/eclipse-zenoh/zenoh-cpp
-  VCS_VERSION bd4d741c6c4fa6509d8d745e22c3c50b4306bd65
+  VCS_VERSION 8ad67f6c7a9031acd437c8739bbc8ddab0ca8173
   CMAKE_ARGS
     -DZENOHCXX_ZENOHC=OFF
 )
