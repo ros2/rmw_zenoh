@@ -75,7 +75,8 @@ public:
     std::size_t id,
     const std::string & topic_name,
     const rosidl_message_type_support_t * type_support,
-    const rmw_qos_profile_t * qos_profile);
+    const rmw_qos_profile_t * qos_profile,
+    const rmw_subscription_options_t & sub_options);
 
   // Retrieve the SubscriptionData for a given rmw_subscription_t if present.
   SubscriptionDataPtr get_sub_data(const rmw_subscription_t * const subscription);

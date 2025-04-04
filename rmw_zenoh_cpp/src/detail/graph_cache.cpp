@@ -157,11 +157,11 @@ void GraphCache::update_topic_map_for_put(
     return;
   }
   // The topic exists in the topic_map so we check if the type also exists.
-  GraphNode::TopicTypeMap::iterator topic_type_map_it = topic_map_it.value().find(
+  GraphNode::TopicTypeMap::iterator topic_type_map_it = topic_map_it->second.find(
     graph_topic_data->info_.type_);
   if (topic_type_map_it == topic_map_it->second.end()) {
     // First time this topic type is added.
-    topic_map_it.value().insert(
+    topic_map_it->second.insert(
       std::make_pair(
         graph_topic_data->info_.type_,
         std::move(topic_qos_map)));
@@ -445,7 +445,7 @@ void GraphCache::update_topic_map_for_del(
   }
 
   GraphNode::TopicTypeMap::iterator cache_topic_type_it =
-    cache_topic_it.value().find(topic_info.type_);
+    cache_topic_it->second.find(topic_info.type_);
   if (cache_topic_type_it == cache_topic_it->second.end()) {
     // If an entity is short-lived, it is possible to receive the liveliness token
     // for its deletion before the one for its creation given that Zenoh does not
@@ -490,7 +490,7 @@ void GraphCache::update_topic_map_for_del(
   }
   // If the type does not have any qos entries, erase it from the type map.
   if (cache_topic_type_it->second.empty()) {
-    cache_topic_it.value().erase(cache_topic_type_it);
+    cache_topic_it->second.erase(cache_topic_type_it);
   }
   // If the topic does not have any TopicData entries, erase the topic from the map.
   if (cache_topic_it->second.empty()) {
@@ -770,7 +770,7 @@ rmw_ret_t fill_names_and_types(
     });
   // Fill topic names and types.
   std::size_t index = 0;
-  for (const std::pair<std::string, GraphNode::TopicTypeMap> & item : entity_map) {
+  for (const std::pair<const std::string, GraphNode::TopicTypeMap> & item : entity_map) {
     names_and_types->names.data[index] = rcutils_strdup(item.first.c_str(), *allocator);
     if (!names_and_types->names.data[index]) {
       return RMW_RET_BAD_ALLOC;
@@ -1173,7 +1173,7 @@ rmw_ret_t GraphCache::service_server_is_available(
 
 ///=============================================================================
 void GraphCache::set_qos_event_callback(
-  std::size_t entity_keyexpr_hash,
+  std::size_t entity_gid_hash,
   const rmw_zenoh_event_type_t & event_type,
   GraphCacheEventCallback callback)
 {
@@ -1186,20 +1186,34 @@ void GraphCache::set_qos_event_callback(
     return;
   }
 
-  const GraphEventCallbackMap::iterator event_cb_it = event_callbacks_.find(entity_keyexpr_hash);
+  const GraphEventCallbackMap::iterator event_cb_it = event_callbacks_.find(entity_gid_hash);
   if (event_cb_it == event_callbacks_.end()) {
     // First time a callback is being set for this entity.
-    event_callbacks_[entity_keyexpr_hash] = {std::make_pair(event_type, std::move(callback))};
-    return;
+    event_callbacks_[entity_gid_hash] = {std::make_pair(event_type, std::move(callback))};
+  } else {
+    event_cb_it->second[event_type] = std::move(callback);
   }
-  event_cb_it->second[event_type] = std::move(callback);
+
+  // Check if there are any event changes for this event type before the callback was registered.
+  auto unregistered_event_changes_it = unregistered_event_changes_.find(entity_gid_hash);
+  if (unregistered_event_changes_it != unregistered_event_changes_.end()) {
+    auto event_changes_it = unregistered_event_changes_it->second.find(event_type);
+    if (event_changes_it != unregistered_event_changes_it->second.end()) {
+      event_callbacks_[entity_gid_hash][event_type](event_changes_it->second);
+      // Update bookkeeping for unregistered_event_changes_.
+      unregistered_event_changes_it->second.erase(event_changes_it);
+      if (unregistered_event_changes_it->second.empty()) {
+        unregistered_event_changes_.erase(unregistered_event_changes_it);
+      }
+    }
+  }
 }
 
 ///=============================================================================
-void GraphCache::remove_qos_event_callbacks(std::size_t entity_keyexpr_hash)
+void GraphCache::remove_qos_event_callbacks(std::size_t entity_gid_hash)
 {
   std::lock_guard<std::mutex> lock(events_mutex_);
-  event_callbacks_.erase(entity_keyexpr_hash);
+  event_callbacks_.erase(entity_gid_hash);
 }
 
 ///=============================================================================
@@ -1234,15 +1248,46 @@ void GraphCache::update_event_counters(
 
   std::lock_guard<std::mutex> lock(events_mutex_);
 
+  // Lambda to add changes to unregistered_event_changes_ if a callback for the
+  // event_type is not yet registered.
+  auto update_unregistered_event_changes =
+    [&]()
+    {
+      auto unregistered_event_changes_it = unregistered_event_changes_.find(entity->gid_hash());
+      if (unregistered_event_changes_it == unregistered_event_changes_.end()) {
+        // First time this entity has changes for any events without a callback registered.
+        unregistered_event_changes_[entity->gid_hash()] = {std::make_pair(event_id, change)};
+      } else {
+        auto event_changes_it = unregistered_event_changes_it->second.find(event_id);
+        if (event_changes_it == unregistered_event_changes_it->second.end()) {
+          // First time this entity has changes for this specific event_id.
+          unregistered_event_changes_it->second[event_id] = change;
+        } else {
+          // There have been changes for this event_id in the past so we simply increment
+          // the changes.
+          unregistered_event_changes_it->second[event_id] += change;
+        }
+      }
+    };
+
   // Trigger callback set for this entity for the event type.
   GraphEventCallbackMap::const_iterator event_callbacks_it =
-    event_callbacks_.find(entity->keyexpr_hash());
+    event_callbacks_.find(entity->gid_hash());
   if (event_callbacks_it != event_callbacks_.end()) {
     GraphEventCallbacks::const_iterator callback_it =
       event_callbacks_it->second.find(event_id);
     if (callback_it != event_callbacks_it->second.end()) {
+      // Trigger the registered callback.
       callback_it->second(change);
+    } else {
+      // A callback for a different event_type has been registered for this entity.
+      // We add the change for the unregistered event_type to unregistered_event_changes_.
+      update_unregistered_event_changes();
     }
+  } else {
+      // No callbacks for any event type have been registered for this entity.
+      // We add the change for the unregistered event_type to unregistered_event_changes_.
+    update_unregistered_event_changes();
   }
 }
 }  // namespace rmw_zenoh_cpp

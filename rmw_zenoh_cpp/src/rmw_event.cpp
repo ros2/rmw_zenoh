@@ -70,7 +70,7 @@ rmw_publisher_event_init(
   // Register the event with graph cache.
   std::weak_ptr<rmw_zenoh_cpp::PublisherData> data_wp = pub_data;
   context_impl->graph_cache()->set_qos_event_callback(
-    pub_data->keyexpr_hash(),
+    pub_data->gid_hash(),
     zenoh_event_type,
     [data_wp,
     zenoh_event_type](int32_t change)
@@ -129,7 +129,7 @@ rmw_subscription_event_init(
 
   // std::weak_ptr<rmw_zenoh_cpp::SubscriptionData> data_wp = sub_data;
   sub_data->graph_cache()->set_qos_event_callback(
-    sub_data->keyexpr_hash(),
+    sub_data->gid_hash(),
     zenoh_event_type,
     [sub_data,
     zenoh_event_type](int32_t change)
@@ -173,6 +173,14 @@ rmw_event_set_callback(
   event_data->event_set_callback(zenoh_event_type, callback, user_data);
 
   return RMW_RET_OK;
+}
+
+///=============================================================================
+bool
+rmw_event_type_is_supported(rmw_event_type_t rmw_event_type)
+{
+  return rmw_zenoh_cpp::zenoh_event_from_rmw_event(rmw_event_type) !=
+         rmw_zenoh_cpp::ZENOH_EVENT_INVALID;
 }
 
 ///=============================================================================

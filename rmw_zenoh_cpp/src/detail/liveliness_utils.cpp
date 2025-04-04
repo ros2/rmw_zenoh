@@ -442,7 +442,7 @@ Entity::Entity(
         sizeof(keyexpr_gid.high64));
 
   // We also hash the liveliness keyexpression into a size_t that we use to index into our maps.
-  this->keyexpr_hash_ = hash_gid(this->gid_);
+  this->gid_hash_ = hash_gid(this->gid_);
 }
 
 ///=============================================================================
@@ -586,9 +586,9 @@ std::string Entity::id() const
 }
 
 ///=============================================================================
-std::size_t Entity::keyexpr_hash() const
+std::size_t Entity::gid_hash() const
 {
-  return this->keyexpr_hash_;
+  return this->gid_hash_;
 }
 
 ///=============================================================================
@@ -639,7 +639,7 @@ std::array<uint8_t, RMW_GID_STORAGE_SIZE> Entity::copy_gid() const
 ///=============================================================================
 bool Entity::operator==(const Entity & other) const
 {
-  return other.keyexpr_hash() == keyexpr_hash_;
+  return other.gid_hash() == gid_hash_;
 }
 
 ///=============================================================================
