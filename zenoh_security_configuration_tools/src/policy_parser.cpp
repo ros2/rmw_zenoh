@@ -49,6 +49,8 @@ static const char * service_str = "service";
 static const char * topics_str = "topics";
 static const char * topic_str = "topic";
 
+using json = nlohmann::json;
+
 namespace zenoh
 {
 PolicyParser::PolicyParser(
@@ -109,7 +111,7 @@ void PolicyParser::parse_services(
 
         if (permission_s == nullptr) {
           throw std::runtime_error("Not able to get permission from service " +
-            services_node->GetLineNum());
+            std::to_string(services_node->GetLineNum()));
         }
         std::string permission = permission_s;
 
@@ -154,17 +156,17 @@ void PolicyParser::clear()
   topics_pub_deny_.clear();
 }
 
-std::string PolicyParser::to_key_exprs(std::set<std::string> key_exprs)
+json to_key_exprs(
+  const std::set<std::string> & key_exprs,
+  uint16_t domain_id)
 {
-  std::string key_exprs_str = "[";
-  for(const auto & name : key_exprs) {
-    key_exprs_str += "\"" + std::to_string(domain_id_) + "/" + name + "/**\", ";
+  json key_exprs_ret = json::array();
+
+  for (const auto & name : key_exprs) {
+    key_exprs_ret.push_back(std::to_string(domain_id) + "/" + name + "/**");
   }
-  key_exprs_str += "]";
 
-  replace(key_exprs_str, ", ]", "]");
-
-  return key_exprs_str;
+  return key_exprs_ret;
 }
 
 void PolicyParser::fill_data(
@@ -180,7 +182,7 @@ void PolicyParser::fill_data(
       {"messages", json::array({"query"})},
       {"flows", json::array({"ingress"})},
       {"permission", "allow"},
-      {"key_exprs", to_json_key_exprs(services_reply_allow_)},
+      {"key_exprs", to_key_exprs(services_reply_allow_, domain_id_)},
     });
     rules.push_back(rule_allow_reply);
     policies_rules.push_back("incoming_queries");
@@ -190,7 +192,7 @@ void PolicyParser::fill_data(
       {"messages", json::array({"declare_queryable", "reply"})},
       {"flows", json::array({"egress"})},
       {"permission", "allow"},
-      {"key_exprs", to_json_key_exprs(services_reply_allow_)},
+      {"key_exprs", to_key_exprs(services_reply_allow_, domain_id_)},
     });
     rules.push_back(rule_outgoing_reply);
     policies_rules.push_back("outgoing_queryables_replies");
@@ -202,7 +204,7 @@ void PolicyParser::fill_data(
       {"messages", json::array({"query"})},
       {"flows", json::array({"egress"})},
       {"permission", "allow"},
-      {"key_exprs", to_json_key_exprs(services_request_allow_)},
+      {"key_exprs", to_key_exprs(services_request_allow_, domain_id_)},
     });
     rules.push_back(rule_allow_request_out);
     policies_rules.push_back("outgoing_queries");
@@ -212,7 +214,7 @@ void PolicyParser::fill_data(
       {"messages", json::array({"declare_queryable", "reply"})},
       {"flows", json::array({"ingress"})},
       {"permission", "allow"},
-      {"key_exprs", to_json_key_exprs(services_request_allow_)},
+      {"key_exprs", to_key_exprs(services_request_allow_, domain_id_)},
     });
     rules.push_back(rule_allow_request_in);
     policies_rules.push_back("incoming_queryables_replies");
@@ -224,7 +226,7 @@ void PolicyParser::fill_data(
       {"messages", json::array({"put"})},
       {"flows", json::array({"egress"})},
       {"permission", "allow"},
-      {"key_exprs", to_json_key_exprs(topics_pub_allow_)},
+      {"key_exprs", to_key_exprs(topics_pub_allow_, domain_id_)},
     });
     rules.push_back(rule_allow_pub_out);
     policies_rules.push_back("outgoing_publications");
@@ -234,7 +236,7 @@ void PolicyParser::fill_data(
       {"messages", json::array({"declare_subscriber"})},
       {"flows", json::array({"ingress"})},
       {"permission", "allow"},
-      {"key_exprs", to_json_key_exprs(topics_pub_allow_)},
+      {"key_exprs", to_key_exprs(topics_pub_allow_, domain_id_)},
     });
     rules.push_back(rule_allow_pub_in);
     policies_rules.push_back("incoming_subscriptions");
@@ -246,7 +248,7 @@ void PolicyParser::fill_data(
       {"messages", json::array({"declare_subscriber"})},
       {"flows", json::array({"egress"})},
       {"permission", "allow"},
-      {"key_exprs", to_json_key_exprs(topics_sub_allow_)},
+      {"key_exprs", to_key_exprs(topics_sub_allow_, domain_id_)},
     });
     rules.push_back(rule_allow_sub_out);
     policies_rules.push_back("outgoing_subscriptions");
@@ -256,7 +258,7 @@ void PolicyParser::fill_data(
       {"messages", json::array({"put"})},
       {"flows", json::array({"ingress"})},
       {"permission", "allow"},
-      {"key_exprs", to_json_key_exprs(topics_sub_allow_)},
+      {"key_exprs", to_key_exprs(topics_sub_allow_, domain_id_)},
     });
     rules.push_back(rule_allow_sub_in);
     policies_rules.push_back("incoming_publications");
@@ -320,7 +322,7 @@ void PolicyParser::parse_topics(
 
         if (permission_s == nullptr) {
           throw std::runtime_error("Not able to get permission from service " +
-            topics_node->GetLineNum());
+            std::to_string(topics_node->GetLineNum()));
         }
         std::string permission = permission_s;
 
@@ -392,7 +394,8 @@ void PolicyParser::parse_profiles(const tinyxml2::XMLElement * root)
 
               std::string filename = std::string(node_name) + ".json5";
               std::ofstream new_config_file(filename);
-              new_config_file << config.to_string();
+              json j_config = json::parse(config.to_string());
+              new_config_file << j_config.dump(4);
               std::cout << "New file create called " << filename << std::endl;
               new_config_file.close();
 
