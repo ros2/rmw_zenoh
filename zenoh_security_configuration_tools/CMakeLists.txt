@@ -13,6 +13,7 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(nlohmann_json REQUIRED)
 find_package(tinyxml2_vendor REQUIRED)
 find_package(TinyXML2 REQUIRED)
 find_package(CLI11 REQUIRED)
@@ -24,6 +25,7 @@ add_executable(zenoh_security_configuration_tools
 )
 target_link_libraries(zenoh_security_configuration_tools PRIVATE
   CLI11::CLI11
+  nlohmann_json::nlohmann_json
   tinyxml2::tinyxml2
   zenohcxx::zenohc
 )

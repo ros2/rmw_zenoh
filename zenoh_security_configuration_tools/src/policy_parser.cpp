@@ -28,6 +28,7 @@
 
 #include "zenoh_security_configuration_tools/policy_parser.hpp"
 
+#include <nlohmann/json.hpp>
 #include <tinyxml2.h>
 
 #include <iostream>
@@ -170,120 +171,132 @@ void PolicyParser::fill_data(
   zenoh::Config & config,
   const std::string & node_name)
 {
-  std::string rules;
-  std::string policies_rules{};
+  json rules = json::array();
+  json policies_rules = json::array();
 
   if (!services_reply_allow_.empty()) {
-    rules += "{ " \
-      "\"id\": \"incoming_queries\", " \
-      "\"messages\": [\"query\"], " \
-      "\"flows\": [\"ingress\"], " \
-      "\"permission\": \"allow\", " \
-      "\"key_exprs\": " + to_key_exprs(services_reply_allow_) +
-      "},";
+    json rule_allow_reply = json::object({
+      {"id", "incoming_queries"},
+      {"messages", json::array({"query"})},
+      {"flows", json::array({"ingress"})},
+      {"permission", "allow"},
+      {"key_exprs", to_json_key_exprs(services_reply_allow_)},
+    });
+    rules.push_back(rule_allow_reply);
+    policies_rules.push_back("incoming_queries");
 
-    rules += "{ " \
-      "\"id\": \"outgoing_queryables_replies\", " \
-      "\"messages\": [\"declare_queryable\", \"reply\"], " \
-      "\"flows\":[\"egress\"], " \
-      "\"permission\": \"allow\", " \
-      "\"key_exprs\": " + to_key_exprs(services_reply_allow_) +
-      "},";
-    policies_rules += "\"outgoing_queryables_replies\", \"incoming_queries\",";
+    json rule_outgoing_reply = json::object({
+      {"id", "outgoing_queryables_replies"},
+      {"messages", json::array({"declare_queryable", "reply"})},
+      {"flows", json::array({"egress"})},
+      {"permission", "allow"},
+      {"key_exprs", to_json_key_exprs(services_reply_allow_)},
+    });
+    rules.push_back(rule_outgoing_reply);
+    policies_rules.push_back("outgoing_queryables_replies");
   }
 
   if (!services_request_allow_.empty()) {
-    rules += "{ " \
-      "\"id\": \"outgoing_queries\", " \
-      "\"messages\": [\"query\"], " \
-      "\"flows\":[\"egress\"], " \
-      "\"permission\": \"allow\", " \
-      "\"key_exprs\": " + to_key_exprs(services_request_allow_) +
-      "},";
-    rules += "{ " \
-      "\"id\": \"incoming_queryables_replies\", " \
-      "\"messages\": [\"declare_queryable\", \"reply\"], " \
-      "\"flows\":[\"ingress\"], " \
-      "\"permission\": \"allow\", " \
-      "\"key_exprs\": " + to_key_exprs(services_request_allow_) +
-      "},";
-    policies_rules += "\"outgoing_queries\", \"incoming_queryables_replies\",";
+    json rule_allow_request_out = json::object({
+      {"id", "outgoing_queries"},
+      {"messages", json::array({"query"})},
+      {"flows", json::array({"egress"})},
+      {"permission", "allow"},
+      {"key_exprs", to_json_key_exprs(services_request_allow_)},
+    });
+    rules.push_back(rule_allow_request_out);
+    policies_rules.push_back("outgoing_queries");
+
+    json rule_allow_request_in = json::object({
+      {"id", "incoming_queryables_replies"},
+      {"messages", json::array({"declare_queryable", "reply"})},
+      {"flows", json::array({"ingress"})},
+      {"permission", "allow"},
+      {"key_exprs", to_json_key_exprs(services_request_allow_)},
+    });
+    rules.push_back(rule_allow_request_in);
+    policies_rules.push_back("incoming_queryables_replies");
   }
 
   if (!topics_pub_allow_.empty()) {
-    rules += "{ " \
-      "\"id\": \"outgoing_publications\", " \
-      "\"messages\": [ \"put\" ], " \
-      "\"flows\":[\"egress\"], " \
-      "\"permission\": \"allow\", " \
-      "\"key_exprs\": " + to_key_exprs(topics_pub_allow_) +
-      "},";
+    json rule_allow_pub_out = json::object({
+      {"id", "outgoing_publications"},
+      {"messages", json::array({"put"})},
+      {"flows", json::array({"egress"})},
+      {"permission", "allow"},
+      {"key_exprs", to_json_key_exprs(topics_pub_allow_)},
+    });
+    rules.push_back(rule_allow_pub_out);
+    policies_rules.push_back("outgoing_publications");
 
-    rules += "{ " \
-      "\"id\": \"incoming_subscriptions\", " \
-      "\"messages\": [ \"declare_subscriber\" ], " \
-      "\"flows\":[\"ingress\"], " \
-      "\"permission\": \"allow\", " \
-      "\"key_exprs\": " + to_key_exprs(topics_pub_allow_) +
-      "},";
-    policies_rules += "\"outgoing_publications\", \"incoming_subscriptions\",";
+    json rule_allow_pub_in = json::object({
+      {"id", "incoming_subscriptions"},
+      {"messages", json::array({"declare_subscriber"})},
+      {"flows", json::array({"ingress"})},
+      {"permission", "allow"},
+      {"key_exprs", to_json_key_exprs(topics_pub_allow_)},
+    });
+    rules.push_back(rule_allow_pub_in);
+    policies_rules.push_back("incoming_subscriptions");
   }
 
   if (!topics_sub_allow_.empty()) {
-    rules += "{ " \
-      "\"id\": \"outgoing_subscriptions\", " \
-      "\"messages\": [ \"declare_subscriber\" ], " \
-      "\"flows\":[\"egress\"], " \
-      "\"permission\": \"allow\", " \
-      "\"key_exprs\": " + to_key_exprs(topics_sub_allow_) +
-      "},";
-    rules += "{ " \
-      "\"id\": \"incoming_publications\", " \
-      "\"messages\": [ \"put\" ], " \
-      "\"flows\":[\"ingress\"], " \
-      "\"permission\": \"allow\", " \
-      "\"key_exprs\": " + to_key_exprs(topics_sub_allow_) +
-      "},";
-    policies_rules += "\"outgoing_subscriptions\", \"incoming_publications\",";
+    json rule_allow_sub_out = json::object({
+      {"id", "outgoing_subscriptions"},
+      {"messages", json::array({"declare_subscriber"})},
+      {"flows", json::array({"egress"})},
+      {"permission", "allow"},
+      {"key_exprs", to_json_key_exprs(topics_sub_allow_)},
+    });
+    rules.push_back(rule_allow_sub_out);
+    policies_rules.push_back("outgoing_subscriptions");
+
+    json rule_allow_sub_in = json::object({
+      {"id", "incoming_publications"},
+      {"messages", json::array({"put"})},
+      {"flows", json::array({"ingress"})},
+      {"permission", "allow"},
+      {"key_exprs", to_json_key_exprs(topics_sub_allow_)},
+    });
+    rules.push_back(rule_allow_sub_in);
+    policies_rules.push_back("incoming_publications");
   }
 
-  std::string liveliness_messages = "[" \
-    "\"liveliness_token\", " \
-    "\"liveliness_query\", " \
-    "\"declare_liveliness_subscriber\"";
-
+  json liveliness_messages = json::array({
+    "liveliness_token", "liveliness_query", "declare_liveliness_subscriber"});
   if (!services_reply_allow_.empty() || !services_request_allow_.empty()) {
-    liveliness_messages += ", \"reply\"";
+    liveliness_messages.push_back("reply");
   }
 
-  liveliness_messages += "]";
+  json rule_liveliness = json::object({
+    {"id", "liveliness_tokens"},
+    {"messages", liveliness_messages},
+    {"flows", json::array({"ingress", "egress"})},
+    {"permission", "allow"},
+    {"key_exprs",
+      json::array({"@ros2_lv/" + std::to_string(domain_id_) + "/**"})},
+  });
+  rules.push_back(rule_liveliness);
+  policies_rules.push_back("liveliness_tokens");
 
-  rules += "{ " \
-    "\"id\": \"liveliness_tokens\", " \
-    "\"messages\": " + liveliness_messages + "," +
-    "\"flows\":[\"ingress\", \"egress\"], " \
-    "\"permission\": \"allow\", " \
-    "\"key_exprs\": [ \"@ros2_lv/" + std::to_string(domain_id_) + "/**\" ] " \
-    "},";
+  json policies = json::array();
+  policies.push_back(json::object({
+    {"rules", json::array({"liveliness_tokens"})},
+    {"subjects", json::array({"router"})},
+  }));
+  policies.push_back(json::object({
+    {"rules", policies_rules},
+    {"subjects", json::array({node_name})},
+  }));
 
-  policies_rules += "\"liveliness_tokens\"";
+  json subjects = json::array({
+    json::object({{"id", "router"}}),
+    json::object({{"id", node_name}}),
+  });
 
-  std::string policies = "{ " \
-    "\"rules\": [\"liveliness_tokens\"], " \
-    "\"subjects\": [\"router\"] " \
-    "},"
-    "{ " \
-    "\"rules\": [" + policies_rules + "]," +
-    "\"subjects\": [\"" + node_name + "\"] " \
-    "},";
-
-  std::string subjects = "[" \
-    "{\"id\": \"router\"}, " \
-    "{\"id\": \"" + node_name + "\"} " \
-    "]";
-  config.insert_json5("access_control/rules", "[" + rules + "]");
-  config.insert_json5("access_control/policies", "[" + policies + "]");
-  config.insert_json5("access_control/subjects", subjects);
+  config.insert_json5("access_control/rules", rules.dump());
+  config.insert_json5("access_control/policies", policies.dump());
+  config.insert_json5("access_control/subjects", subjects.dump());
 }
 
 void PolicyParser::parse_topics(

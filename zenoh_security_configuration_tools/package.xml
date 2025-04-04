@@ -7,6 +7,9 @@
   <maintainer email="alejandro@openrobotics.org">Alejandro Hernanadez</maintainer>
   <license>Apache License 2.0</license>
 
+
+  <build_depend>nlohmann-json-dev</build_depend>
+
   <depend>cli11</depend>
   <depend>tinyxml2_vendor</depend>
   <depend>zenoh_cpp_vendor</depend>
