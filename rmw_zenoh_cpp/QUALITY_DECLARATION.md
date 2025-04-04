@@ -14,8 +14,6 @@ Below are the rationales, notes, and caveats for this claim, organized by each r
 
 ### Version Stability [1.ii]
 
-TODO(ahcorde): when can we consider this stable ?
-<!-- `rmw_zenoh_cpp` is at a stable version, i.e. `>= 1.0.0`. -->
 The current version can be found in its [package.xml](package.xml), and its change history can be found in its [CHANGELOG](CHANGELOG.rst).
 
 ### Public API Declaration [1.iii]
@@ -73,8 +71,7 @@ The license for `rmw_zenoh_cpp` is Apache 2.0, and a summary is in each source f
 
 There is an automated test which runs a linter that ensures each file has a license statement.
 
-TODO(ahcorde): review link
-<!-- Most recent test results can be found [here](https://ci.ros2.org/view/nightly/job/nightly_linux_release/lastBuild/testReport/rmw_zenoh_cpp/copyright/) -->
+Most recent test results can be found [here](https://ci.ros2.org/view/nightly/job/nightly_linux_release/lastBuild/testReport/rmw_zenoh_cpp/copyright/)
 
 ### Copyright Statements [3.iv]
 
@@ -82,8 +79,7 @@ The copyright holders each provide a statement of copyright in each source code 
 
 There is an automated test which runs a linter that ensures each file has at least one copyright statement.
 
-TODO(ahcorde): Review link
-<!-- The results of the test can be found [here](https://ci.ros2.org/view/nightly/job/nightly_linux_release/lastBuild/testReport/rmw_zenoh_cpp/copyright/). -->
+The results of the test can be found [here](https://ci.ros2.org/view/nightly/job/nightly_linux_release/lastBuild/testReport/rmw_zenoh_cpp/copyright/).
 
 ## Testing [4]
 
@@ -96,9 +92,6 @@ Unit, integration, and system tests higher up in the stack, such as those found 
 ### Public API Testing [4.ii]
 
 `rmw_zenoh_cpp` implements the ROS middleware public API, but also provides public API of its own.
-
-TODO(ahcorde): we don't have unit test for this package
-<!-- Unit tests located in the [`test`](https://github.com/ros2/rmw_zenoh_cpp/tree/master/rmw_zenoh_cpp/test) directory provide coverage for public but `rmw_zenoh_cpp` specific API. -->
 New additions or changes to this API require tests before being added.
 
 Unit, integration, and system tests higher up in the stack, such as those found in [`test_rmw_implementation`](https://github.com/ros2/rmw_implementation/tree/master/test_rmw_implementation), [`test_rclcpp`](https://github.com/ros2/system_tests/tree/master/test_rclcpp), and [`test_communication`](https://github.com/ros2/system_tests/tree/master/test_communication) packages, ensure compliance with the ROS middleware API specification (see [`rmw`](https://github.com/ros2/rmw) package) and further extend coverage.
@@ -115,7 +108,6 @@ This includes:
 
 Changes are required to make a best effort to keep or increase coverage before being accepted, but decreases are allowed if properly justified and accepted by reviewers.
 
-TODO(ahcorde): Review link
 Current coverage statistics can be viewed [here](https://ci.ros2.org/job/ci_linux_coverage/lastSuccessfulBuild/cobertura/).
 
 This package claims to meet the coverage requirements for the current quality level, even though it doesn't have 95% line coverage.
@@ -130,7 +122,6 @@ A summary of how these statistics are calculated can be found in the [ROS 2 On-b
 
 `rmw_zenoh_cpp` uses and passes all the standard linters and static analysis tools for a C++ package as described in the [ROS 2 Developer Guide](https://docs.ros.org/en/rolling/Contributing/Developer-Guide.html#linters-and-static-analysis).
 
-TODO(ahcorde): review link
 Results of the nightly linter tests can be found [here](https://ci.ros2.org/view/nightly/job/nightly_linux_release/lastBuild/testReport/rmw_zenoh_cpp).
 
 ## Dependencies [5]
@@ -159,7 +150,6 @@ It also has several test dependencies, which do not affect the resulting quality
 
 `rmw_zenoh_cpp` supports all of the tier 1 platforms as described in [REP-2000](https://www.ros.org/reps/rep-2000.html#support-tiers), and tests each change against all of them.
 
-TODO(ahcorde): Review links
 Currently nightly results can be seen here:
 * [linux-aarch64_release](https://ci.ros2.org/view/nightly/job/nightly_linux-aarch64_release/lastBuild/testReport/rmw_zenoh_cpp/)
 * [linux_release](https://ci.ros2.org/view/nightly/job/nightly_linux_release/lastBuild/testReport/rmw_zenoh_cpp/)

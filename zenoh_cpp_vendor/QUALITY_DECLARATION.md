@@ -3,8 +3,7 @@ This document is a declaration of software quality for the `zenoh_cpp_vendor` pa
 
 # zenoh_cpp_vendor Quality Declaration
 
-TODO(ahcorde): Review level
-The package `zenoh_cpp_vendor` claims to be in the **Quality Level X** category.
+The package `zenoh_cpp_vendor` claims to be in the **Quality Level 2** category.
 
 Below are the rationales, notes, and caveats for this claim, organized by each requirement listed in the [Package Requirements for Quality Level 1 in REP-2004](https://www.ros.org/reps/rep-2004.html).
 
@@ -16,7 +15,6 @@ Below are the rationales, notes, and caveats for this claim, organized by each r
 
 ### Version Stability [1.ii]
 
-TODO(ahcorde): Is this stable enough?
 `zenoh_cpp_vendor` is at or above a stable version, i.e. `>= 1.0.0`.
 
 ### Public API Declaration [1.iii]
@@ -47,14 +45,6 @@ All pull requests will be peer-reviewed, check the [ROS 2 Developer Guide](https
 
 All pull requests must pass CI on all [tier 1 platforms](https://www.ros.org/reps/rep-2000.html#support-tiers).
 
-TODO(ahcorde): Review links
-
-Currently nightly results can be seen here:
-* [linux-aarch64_release](https://ci.ros2.org/view/nightly/job/nightly_linux-aarch64_release/lastBuild/testReport/zenoh_cpp_vendor/)
-* [linux_release](https://ci.ros2.org/view/nightly/job/nightly_linux_release/lastBuild/testReport/zenoh_cpp_vendor/)
-* [mac_osx_release](https://ci.ros2.org/view/nightly/job/nightly_osx_release/lastBuild/testReport/zenoh_cpp_vendor/)
-* [windows_release](https://ci.ros2.org/view/nightly/job/nightly_win_rel/lastBuild/testReport/zenoh_cpp_vendor/)
-
 ### Documentation Policy [2.v]
 
 All pull requests must resolve related documentation changes before merging.
@@ -73,9 +63,6 @@ All pull requests must resolve related documentation changes before merging.
 
 The license for `zenoh_cpp_vendor` is Apache 2.0, and a summary is in each source file, the type is declared in the [`package.xml`](package.xml) manifest file, and a full copy of the license is in the [`LICENSE`](../LICENSE) file. The vendored library, `zenoh-c` and `zenoh-cpp` license is Apache 2.0 as stated in its [quality declaration](zenoh_q_declaration.md) document (Section 5.iii).
 
-TODO(ahcorde): Review link
-There is an automated test which runs a linter that ensures each file has a license statement. [Here](https://ci.ros2.org/view/nightly/job/nightly_linux-aarch64_release/lastBuild/testReport/zenoh_cpp_vendor/) can be found a list with the latest results of the various linters being run on the package.
-
 ### Copyright Statements [3.iv]
 
 The copyright holders each provide a statement of copyright in each source code file in `zenoh_cpp_vendor`.
@@ -88,11 +75,13 @@ There is an automated test which runs a linter that ensures each file has at lea
 
 ### Feature Testing [4.i]
 
-TODO(ahcorde)
+Each feature in `rmw_zenoh_cpp` has corresponding tests which simulate typical usage, and they are located in different ROS 2 packages.
+New features are required to have tests before being added.
 
 ### Public API Testing [4.ii]
 
-TODO(ahcorde)
+Each part of the public API has tests, and new additions or changes to the public API require tests before being added.
+The tests aim to cover both typical usage and corner cases, but are quantified by contributing to code coverage.
 
 ### Coverage [4.iii]
 
@@ -100,21 +89,11 @@ Lastest code coverage can be found [here](https://ci.ros2.org/job/ci_linux_cover
 
 ### Performance [4.iv]
 
-The `zenoh-c` and `zenoh-cpp` package is benchmarked and the most recent test results can be found
-
-TODO(ahcorde)
+`rmw_zenoh_cpp` does not currently have performance tests.
 
 ### Linters and Static Analysis [4.v]
 
 `zenoh_cpp_vendor` uses and passes all the ROS 2 standard linters and static analysis tools as described in the [ROS 2 Developer Guide](https://docs.ros.org/en/rolling/Contributing/Developer-Guide.html#linters-and-static-analysis). Passing implies there are no linter/static errors when testing against CI of supported platforms.
-
-Currently nightly test results can be seen here:
-
-TODO(ahcorde): Review links
-* [linux-aarch64_release](https://ci.ros2.org/view/nightly/job/nightly_linux-aarch64_release/lastBuild/testReport/zenoh_cpp_vendor/)
-* [linux_release](https://ci.ros2.org/view/nightly/job/nightly_linux_release/lastBuild/testReport/zenoh_cpp_vendor/)
-* [mac_osx_release](https://ci.ros2.org/view/nightly/job/nightly_osx_release/lastBuild/testReport/zenoh_cpp_vendor/)
-* [windows_release](https://ci.ros2.org/view/nightly/job/nightly_win_rel/lastBuild/testReport/zenoh_cpp_vendor/)
 
 ## Dependencies [5]
 
@@ -124,7 +103,6 @@ TODO(ahcorde): Review links
 
 ### Direct Runtime non-ROS Dependency [5.iii]
 
-#TODO(ahcorde): rewview level
 `zenoh_cpp_vendor` depends directly on the external dependency `zenoh-c` and `zenoh-cpp`, which is qualified as quality level x in its [Quality Declaration](./zenoh_q_declaration.md).
 
 ## Platform Support [6]
@@ -167,7 +145,7 @@ The chart below compares the requirements in the REP-2004 with the current state
 |4.ii| Public API tests | ✓ |
 |4.iii.a| Using coverage |✓ |
 |4.iii.a| Coverage policy | ✓ |
-|4.iv.a| Performance tests (if applicable) | ✓ |
+|4.iv.a| Performance tests (if applicable) | ☓ |
 |4.iv.b| Performance tests policy| ✓ |
 |4.v.a| Code style enforcement (linters)| ✓ |
 |4.v.b| Use of static analysis tools | ✓ |

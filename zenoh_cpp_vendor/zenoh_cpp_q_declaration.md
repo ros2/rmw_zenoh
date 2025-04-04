@@ -8,10 +8,10 @@ First, a summary discussing how this library is qualified is presented, and then
 
 ## Summary
 
-[Zenoh](https://zenoh.io/) is an open source communication protocol and middleware designed to facilitate efficient data distribution across heterogeneous systems. It provides location-transparent abstractions for high performance pub/sub and distributed queries.  
+[Zenoh](https://zenoh.io/) is an open source communication protocol and middleware designed to facilitate efficient data distribution across heterogeneous systems. It provides location-transparent abstractions for high performance pub/sub and distributed queries.
 In 2023, an investigation and survey were carried out within the ROS community to identify [an into alternative middleware solutions](https://discourse.ros.org/t/investigation-into-alternative-middleware-solutions/32642) for ROS 2. The [final report](https://discourse.ros.org/uploads/short-url/o9ihvSjCwB8LkzRklpKdeesRTDi.pdf) concluded that Zenoh best meets the requirements, and will be chosen as an alternative middleware. Zenoh was also the most-recommended alternative by users [in the survey](https://docs.google.com/forms/d/1GWb7RrSPkvdgl49LMrsTyoAy3i29LO6AuFSIUzsuwrs/viewanalytics).
 
-The [core of Zenoh](https://github.com/eclipse-zenoh/zenoh) is developped in Rust, ensuring performances, reliability and safety with regard to memory usage: .  
+The [core of Zenoh](https://github.com/eclipse-zenoh/zenoh) is developped in Rust, ensuring performances, reliability and safety with regard to memory usage: .
 [`zenoh-c`](https://github.com/eclipse-zenoh/zenoh-c) provides a C binding based on the Rust core of Zenoh. [`zenoh-cpp`](https://github.com/eclipse-zenoh/zenoh-cpp) provides a C++ binding based on `zenoh-c`. Both are designed as minimal wrappers around the Zenoh API and types, with most of the code and quality assurance efforts concentrated in Zenoh Rust.
 
 All are supported for the majority of the OS platforms, as shown in the 1.2.1 release assets for [zenoh](https://github.com/eclipse-zenoh/zenoh/releases/tag/1.2.1) and [zenoh-c](https://github.com/eclipse-zenoh/zenoh-c/releases/tag/1.2.1) (`zenoh-cpp` consists only in header files):
@@ -112,7 +112,7 @@ Check [Eclipse Developer Process](https://www.eclipse.org/projects/dev_process/)
 ### Continuous Integration [2.iv]
 
 Pull requests are required to pass all tests in the CI system prior to merging, unless Committers consider there is sufficient evidence
-that a failure is the result of a mishap unrelated to the change.  
+that a failure is the result of a mishap unrelated to the change.
 All CI results are public and cover x64 platforms running Linux, macOS and Windows:
 
 - [zenoh-cpp CI results](https://github.com/eclipse-zenoh/zenoh-cpp/actions)
@@ -223,14 +223,7 @@ As external dependencies, there are no ROS dependencies in `zenoh-cpp`, `zenoh-c
 
 ## Platform Support [6]
 
-This library does not state support for any specific platform, but it is built in the ROS 2 buildfarm for all tier 1 platforms:
-
-TODO(ahcorde): Review links
-Currently nightly results can be seen here:
-* [linux-aarch64_release](https://ci.ros2.org/view/nightly/job/nightly_linux-aarch64_release/lastBuild/testReport/zenoh_cpp_vendor/)
-* [linux_release](https://ci.ros2.org/view/nightly/job/nightly_linux_release/lastBuild/testReport/zenoh_cpp_vendor/)
-* [mac_osx_release](https://ci.ros2.org/view/nightly/job/nightly_osx_release/lastBuild/testReport/zenoh_cpp_vendor/)
-* [windows_release](https://ci.ros2.org/view/nightly/job/nightly_win_rel/lastBuild/testReport/zenoh_cpp_vendor/)
+This library does not state support for any specific platform, but it is built in the ROS 2 buildfarm for all tier 1 platforms.
 
 ## Security [7]
 
