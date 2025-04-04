@@ -226,3 +226,10 @@ For more details, see https://github.com/ros2/rmw_zenoh/issues/170.
 Since Iron, ROS 2 introduced type hashes for messages and `rmw_zenoh` includes these type hashes in the Zenoh keyexpressions it constructs for data exchange. While participants will be discoverable, communication between Humble and newer distributions will fail, resulting in messages being silently dropped.
 
 For more details, see https://github.com/ros2/rmw_zenoh/issues/569.
+
+## Quality Declaration files
+
+Quality Declarations for each package in this repository:
+
+* [`rmw_zenoh_cpp`](rmw_zenoh_cpp/QUALITY_DECLARATION.md)
+* [`zenoh_cpp_vendor`](zenoh_cpp_vendor/QUALITY_DECLARATION.md)
