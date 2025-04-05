@@ -11,6 +11,10 @@
   <build_depend>nlohmann-json-dev</build_depend>
 
   <depend>cli11</depend>
+  <depend>rcpputils</depend>
+  <depend>rcutils</depend>
+  <depend>rmw</depend>
+  <depend>rmw_security_common</depend>
   <depend>tinyxml2_vendor</depend>
   <depend>zenoh_cpp_vendor</depend>
 

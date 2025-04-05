@@ -28,14 +28,22 @@
 
 #include "config_generator.hpp"
 
-#include <nlohmann/json.hpp>
 #include <tinyxml2.h>
 
 #include <iostream>
+#include <filesystem>
 #include <fstream>
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <utility>
+
+#include <nlohmann/json.hpp>
+
+#include "rcpputils/scope_exit.hpp"
+#include "rcutils/allocator.h"
+#include "rcutils/types/string_map.h"
+#include "rmw_security_common/security.hpp"
 
 #include <zenoh.hxx>
 
@@ -53,18 +61,32 @@ using json = nlohmann::json;
 
 namespace zenoh
 {
+//==============================================================================
 ConfigGenerator::ConfigGenerator(
-  const std::string & filename,
-  const std::string & configfile,
+  const std::string & policy_filepath,
+  const std::string & enclaves_dir,
+  const std::string & zenoh_config_filepath,
   uint16_t domain_id)
-:configfile_path_(configfile), domain_id_(domain_id)
+: enclaves_dir_(std::nullopt),
+  zenoh_config_filepath_(std::move(zenoh_config_filepath)),
+  domain_id_(std::move(domain_id))
 {
-  const tinyxml2::XMLError error = doc_.LoadFile(filename.c_str());
+  const tinyxml2::XMLError error = doc_.LoadFile(policy_filepath.c_str());
   if (error != tinyxml2::XML_SUCCESS) {
     throw std::runtime_error("Invalid argument: wrong policy file.");
   }
+
+  if (!enclaves_dir.empty()) {
+    std::filesystem::path maybe_dir{enclaves_dir};
+    if (std::filesystem::is_directory(enclaves_dir)) {
+      enclaves_dir_ = std::move(maybe_dir);
+    }
+  }
 }
 
+namespace
+{
+//==============================================================================
 bool replace(
   std::string & str,
   const std::string & from,
@@ -78,6 +100,22 @@ bool replace(
   return true;
 }
 
+//==============================================================================
+json to_key_exprs(
+  const std::set<std::string> & key_exprs,
+  uint16_t domain_id)
+{
+  json key_exprs_ret = json::array();
+
+  for (const auto & name : key_exprs) {
+    key_exprs_ret.push_back(std::to_string(domain_id) + "/" + name + "/**");
+  }
+
+  return key_exprs_ret;
+}
+}  // anonymous namespace
+
+//==============================================================================
 std::string ConfigGenerator::check_name(
   const std::string & name,
   const std::string & node_name)
@@ -90,6 +128,7 @@ std::string ConfigGenerator::check_name(
   return result;
 }
 
+//==============================================================================
 void ConfigGenerator::parse_services(
   const tinyxml2::XMLElement * root,
   const std::string & node_name)
@@ -144,6 +183,7 @@ void ConfigGenerator::parse_services(
   } while ((services_node = services_node->NextSiblingElement()) != nullptr);
 }
 
+//==============================================================================
 void ConfigGenerator::clear()
 {
   services_reply_allow_.clear();
@@ -156,20 +196,8 @@ void ConfigGenerator::clear()
   topics_pub_deny_.clear();
 }
 
-json to_key_exprs(
-  const std::set<std::string> & key_exprs,
-  uint16_t domain_id)
-{
-  json key_exprs_ret = json::array();
-
-  for (const auto & name : key_exprs) {
-    key_exprs_ret.push_back(std::to_string(domain_id) + "/" + name + "/**");
-  }
-
-  return key_exprs_ret;
-}
-
-void ConfigGenerator::fill_data(
+//==============================================================================
+void ConfigGenerator::fill_access_control(
   zenoh::Config & config,
   const std::string & node_name)
 {
@@ -178,21 +206,21 @@ void ConfigGenerator::fill_data(
 
   if (!services_reply_allow_.empty()) {
     json rule_allow_reply = json::object({
-      {"id", "incoming_queries"},
-      {"messages", json::array({"query"})},
-      {"flows", json::array({"ingress"})},
-      {"permission", "allow"},
-      {"key_exprs", to_key_exprs(services_reply_allow_, domain_id_)},
+        {"id", "incoming_queries"},
+        {"messages", json::array({"query"})},
+        {"flows", json::array({"ingress"})},
+        {"permission", "allow"},
+        {"key_exprs", to_key_exprs(services_reply_allow_, domain_id_)},
     });
     rules.push_back(rule_allow_reply);
     policies_rules.push_back("incoming_queries");
 
     json rule_outgoing_reply = json::object({
-      {"id", "outgoing_queryables_replies"},
-      {"messages", json::array({"declare_queryable", "reply"})},
-      {"flows", json::array({"egress"})},
-      {"permission", "allow"},
-      {"key_exprs", to_key_exprs(services_reply_allow_, domain_id_)},
+        {"id", "outgoing_queryables_replies"},
+        {"messages", json::array({"declare_queryable", "reply"})},
+        {"flows", json::array({"egress"})},
+        {"permission", "allow"},
+        {"key_exprs", to_key_exprs(services_reply_allow_, domain_id_)},
     });
     rules.push_back(rule_outgoing_reply);
     policies_rules.push_back("outgoing_queryables_replies");
@@ -200,21 +228,21 @@ void ConfigGenerator::fill_data(
 
   if (!services_request_allow_.empty()) {
     json rule_allow_request_out = json::object({
-      {"id", "outgoing_queries"},
-      {"messages", json::array({"query"})},
-      {"flows", json::array({"egress"})},
-      {"permission", "allow"},
-      {"key_exprs", to_key_exprs(services_request_allow_, domain_id_)},
+        {"id", "outgoing_queries"},
+        {"messages", json::array({"query"})},
+        {"flows", json::array({"egress"})},
+        {"permission", "allow"},
+        {"key_exprs", to_key_exprs(services_request_allow_, domain_id_)},
     });
     rules.push_back(rule_allow_request_out);
     policies_rules.push_back("outgoing_queries");
 
     json rule_allow_request_in = json::object({
-      {"id", "incoming_queryables_replies"},
-      {"messages", json::array({"declare_queryable", "reply"})},
-      {"flows", json::array({"ingress"})},
-      {"permission", "allow"},
-      {"key_exprs", to_key_exprs(services_request_allow_, domain_id_)},
+        {"id", "incoming_queryables_replies"},
+        {"messages", json::array({"declare_queryable", "reply"})},
+        {"flows", json::array({"ingress"})},
+        {"permission", "allow"},
+        {"key_exprs", to_key_exprs(services_request_allow_, domain_id_)},
     });
     rules.push_back(rule_allow_request_in);
     policies_rules.push_back("incoming_queryables_replies");
@@ -222,21 +250,21 @@ void ConfigGenerator::fill_data(
 
   if (!topics_pub_allow_.empty()) {
     json rule_allow_pub_out = json::object({
-      {"id", "outgoing_publications"},
-      {"messages", json::array({"put"})},
-      {"flows", json::array({"egress"})},
-      {"permission", "allow"},
-      {"key_exprs", to_key_exprs(topics_pub_allow_, domain_id_)},
+        {"id", "outgoing_publications"},
+        {"messages", json::array({"put"})},
+        {"flows", json::array({"egress"})},
+        {"permission", "allow"},
+        {"key_exprs", to_key_exprs(topics_pub_allow_, domain_id_)},
     });
     rules.push_back(rule_allow_pub_out);
     policies_rules.push_back("outgoing_publications");
 
     json rule_allow_pub_in = json::object({
-      {"id", "incoming_subscriptions"},
-      {"messages", json::array({"declare_subscriber"})},
-      {"flows", json::array({"ingress"})},
-      {"permission", "allow"},
-      {"key_exprs", to_key_exprs(topics_pub_allow_, domain_id_)},
+        {"id", "incoming_subscriptions"},
+        {"messages", json::array({"declare_subscriber"})},
+        {"flows", json::array({"ingress"})},
+        {"permission", "allow"},
+        {"key_exprs", to_key_exprs(topics_pub_allow_, domain_id_)},
     });
     rules.push_back(rule_allow_pub_in);
     policies_rules.push_back("incoming_subscriptions");
@@ -244,63 +272,144 @@ void ConfigGenerator::fill_data(
 
   if (!topics_sub_allow_.empty()) {
     json rule_allow_sub_out = json::object({
-      {"id", "outgoing_subscriptions"},
-      {"messages", json::array({"declare_subscriber"})},
-      {"flows", json::array({"egress"})},
-      {"permission", "allow"},
-      {"key_exprs", to_key_exprs(topics_sub_allow_, domain_id_)},
+        {"id", "outgoing_subscriptions"},
+        {"messages", json::array({"declare_subscriber"})},
+        {"flows", json::array({"egress"})},
+        {"permission", "allow"},
+        {"key_exprs", to_key_exprs(topics_sub_allow_, domain_id_)},
     });
     rules.push_back(rule_allow_sub_out);
     policies_rules.push_back("outgoing_subscriptions");
 
     json rule_allow_sub_in = json::object({
-      {"id", "incoming_publications"},
-      {"messages", json::array({"put"})},
-      {"flows", json::array({"ingress"})},
-      {"permission", "allow"},
-      {"key_exprs", to_key_exprs(topics_sub_allow_, domain_id_)},
+        {"id", "incoming_publications"},
+        {"messages", json::array({"put"})},
+        {"flows", json::array({"ingress"})},
+        {"permission", "allow"},
+        {"key_exprs", to_key_exprs(topics_sub_allow_, domain_id_)},
     });
     rules.push_back(rule_allow_sub_in);
     policies_rules.push_back("incoming_publications");
   }
 
   json liveliness_messages = json::array({
-    "liveliness_token", "liveliness_query", "declare_liveliness_subscriber"});
+      "liveliness_token", "liveliness_query", "declare_liveliness_subscriber"});
   if (!services_reply_allow_.empty() || !services_request_allow_.empty()) {
     liveliness_messages.push_back("reply");
   }
 
   json rule_liveliness = json::object({
-    {"id", "liveliness_tokens"},
-    {"messages", liveliness_messages},
-    {"flows", json::array({"ingress", "egress"})},
-    {"permission", "allow"},
-    {"key_exprs",
-      json::array({"@ros2_lv/" + std::to_string(domain_id_) + "/**"})},
+      {"id", "liveliness_tokens"},
+      {"messages", liveliness_messages},
+      {"flows", json::array({"ingress", "egress"})},
+      {"permission", "allow"},
+      {"key_exprs",
+        json::array({"@ros2_lv/" + std::to_string(domain_id_) + "/**"})},
   });
   rules.push_back(rule_liveliness);
   policies_rules.push_back("liveliness_tokens");
 
   json policies = json::array();
   policies.push_back(json::object({
-    {"rules", json::array({"liveliness_tokens"})},
-    {"subjects", json::array({"router"})},
+      {"rules", json::array({"liveliness_tokens"})},
+      {"subjects", json::array({"router"})},
   }));
   policies.push_back(json::object({
-    {"rules", policies_rules},
-    {"subjects", json::array({node_name})},
+      {"rules", policies_rules},
+      {"subjects", json::array({node_name})},
   }));
 
   json subjects = json::array({
-    json::object({{"id", "router"}}),
-    json::object({{"id", node_name}}),
+      json::object({{"id", "router"}}),
+      json::object({{"id", node_name}}),
   });
 
+  config.insert_json5("access_control/enabled", "true");
+  config.insert_json5("access_control/default_permission", "'deny'");
   config.insert_json5("access_control/rules", rules.dump());
   config.insert_json5("access_control/policies", policies.dump());
   config.insert_json5("access_control/subjects", subjects.dump());
 }
 
+//==============================================================================
+void ConfigGenerator::fill_certificates(
+  zenoh::Config & config,
+  const std::string & node_name)
+{
+  // Skip this step if enclaves directory was not specified.
+  if (!enclaves_dir_.has_value()) {
+    return;
+  }
+  auto enclaves_dir = enclaves_dir_.value();
+  auto enclave_dir = enclaves_dir / node_name;
+  if (!std::filesystem::is_directory(enclaves_dir)) {
+    std::cout << "No directory with name "
+              << node_name
+              << " present within enclaves directory "
+              << enclaves_dir.string()
+              << ". Skipping authentication..."
+              << std::endl;
+    return;
+  }
+
+  // Access the certificates using utility function from rmw_security_common.
+  rcutils_allocator_t allocator = rcutils_get_default_allocator();
+  rcutils_string_map_t security_files = rcutils_get_zero_initialized_string_map();
+  rcutils_ret_t ret = rcutils_string_map_init(&security_files, 0, allocator);
+  auto scope_exit = rcpputils::make_scope_exit(
+    [&security_files]() {
+      rcutils_ret_t ret = rcutils_string_map_fini(&security_files);
+      if (ret != RMW_RET_OK) {
+        std::cerr << "Failed to fini string map for security." << std::endl;
+        return;
+      }
+  });
+  if (ret != RMW_RET_OK) {
+    std::cerr << "Failed to initialize string map for security." << std::endl;
+    return;
+  }
+  if (get_security_files_support_pkcs(
+      false, "", enclave_dir.string().c_str(), &security_files) != RMW_RET_OK)
+  {
+    std::cerr << "Failed to get certificates for " << node_name << " from" <<
+      enclave_dir.string().c_str() << std::endl;
+    return;
+  }
+
+  // TODO(Yadunund): Actually check if some of these configs are already set and only update
+  // their values as opposed to overwriting.
+  try {
+    json tls_config_json = {
+      {"link", {
+          {"protocols", json::array({"tls"})},
+          {"tls", {
+              {"enable_mtls", true},
+              {"verify_name_on_connect", false},
+              {"root_ca_certificate",
+                std::string(rcutils_string_map_get(&security_files, "IDENTITY_CA"))},
+              {"listen_private_key",
+                std::string(rcutils_string_map_get(&security_files, "PRIVATE_KEY"))},
+              {"listen_certificate",
+                std::string(rcutils_string_map_get(&security_files, "CERTIFICATE"))},
+              {"connect_private_key",
+                std::string(rcutils_string_map_get(&security_files, "PRIVATE_KEY"))},
+              {"connect_certificate",
+                std::string(rcutils_string_map_get(&security_files, "CERTIFICATE"))}
+            }}
+        }}
+    };
+    // Insert the config.
+    config.insert_json5("transport", tls_config_json.dump());
+  } catch (const std::exception & e) {
+    std::cerr << "Error creating tls_config_json: " << e.what() << std::endl;
+    return;
+  }
+
+  config.insert_json5("connect/endpoints", "[\"tls/localhost:7447\"]");
+  config.insert_json5("listen/endpoints", "[\"tls/localhost:0\"]");
+}
+
+//==============================================================================
 void ConfigGenerator::parse_topics(
   const tinyxml2::XMLElement * root,
   const std::string & node_name)
@@ -356,6 +465,7 @@ void ConfigGenerator::parse_topics(
   } while ((topics_node = topics_node->NextSiblingElement()) != nullptr);
 }
 
+//==============================================================================
 void ConfigGenerator::parse_profiles(const tinyxml2::XMLElement * root)
 {
   const tinyxml2::XMLElement * profiles_node = root->FirstChildElement();
@@ -374,23 +484,19 @@ void ConfigGenerator::parse_profiles(const tinyxml2::XMLElement * root)
                 throw std::runtime_error(error_msg);
               }
 
+              zenoh::ZResult result;
               zenoh::Config config = zenoh::Config::create_default();
-              if (!configfile_path_.empty()) {
-                // Initialize the zenoh configuration.
-                zenoh::ZResult result;
-                config = zenoh::Config::from_file(configfile_path_, &result);
-                if (result != Z_OK) {
-                  std::string error_msg = "Invalid configuration file " + configfile_path_;
-                  throw std::runtime_error("Error getting Zenoh config file.");
-                }
+              config = zenoh::Config::from_file(zenoh_config_filepath_, &result);
+              if (result != Z_OK) {
+                std::string error_msg = "Invalid configuration file " + zenoh_config_filepath_;
+                throw std::runtime_error("Error getting Zenoh config file.");
               }
-              config.insert_json5("access_control/enabled", "true");
-              config.insert_json5("access_control/default_permission", "'deny'");
 
               parse_services(profile_node, node_name);
               parse_topics(profile_node, node_name);
 
-              this->fill_data(config, node_name);
+              this->fill_access_control(config, node_name);
+              this->fill_certificates(config, node_name);
 
               std::string filename = std::string(node_name) + ".json5";
               std::ofstream new_config_file(filename);
@@ -416,6 +522,7 @@ void ConfigGenerator::parse_profiles(const tinyxml2::XMLElement * root)
   } while ((profiles_node = profiles_node->NextSiblingElement()) != nullptr);
 }
 
+//==============================================================================
 void ConfigGenerator::parse_enclaves(const tinyxml2::XMLElement * root)
 {
   const tinyxml2::XMLElement * enclaves_node = root->FirstChildElement();
@@ -439,7 +546,8 @@ void ConfigGenerator::parse_enclaves(const tinyxml2::XMLElement * root)
   }
 }
 
-void ConfigGenerator::parse()
+//==============================================================================
+void ConfigGenerator::generate()
 {
   const tinyxml2::XMLElement * root = doc_.RootElement();
   if (root != nullptr) {

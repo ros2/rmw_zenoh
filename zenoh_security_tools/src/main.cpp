@@ -33,16 +33,22 @@
 
 #include "config_generator.hpp"
 
+//==============================================================================
 int main(int argc, char * argv[])
 {
   CLI::App app{"Zenoh Security Configuration Tools.\n"};
 
-  std::string policy_filename;
-  std::string zenoh_config_filename;
+  std::string policy_filepath;
+  std::string enclaves_dir;
+  std::string zenoh_config_filepath;
   uint16_t domain_id = 0;
-  app.add_option("-p,--policy", policy_filename, "Policy file name")->required();
-  app.add_option("-c,--config", zenoh_config_filename, "Zenoh config file name");
-  app.add_option("-d,--domainid", domain_id, "Domain ID");
+  app.add_option("-p,--policy", policy_filepath,
+    "The path to the Access Control Policy file.")->required();
+  app.add_option("-e,--enclaves", enclaves_dir,
+    "The directory with the security enclaves for the various nodes in the policy file.");
+  app.add_option("-d,--ros-domain-id", domain_id, "The ROS Domain ID.")->required();
+  app.add_option("-c,--config", zenoh_config_filepath,
+    "The path to the Zenoh config file.")->required();
 
   try {
     app.parse(argc, argv);
@@ -51,9 +57,10 @@ int main(int argc, char * argv[])
   }
 
   auto config_generator = zenoh::ConfigGenerator(
-    policy_filename,
-    zenoh_config_filename,
+    policy_filepath,
+    enclaves_dir,
+    zenoh_config_filepath,
     domain_id);
-  config_generator.parse();
+  config_generator.generate();
   return 0;
 }

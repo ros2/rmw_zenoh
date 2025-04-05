@@ -26,12 +26,14 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef SRC__CONFIG_GENERATOR_HPP_
-#define SRC__CONFIG_GENERATOR_HPP_
+#ifndef CONFIG_GENERATOR_HPP_
+#define CONFIG_GENERATOR_HPP_
 
 #include <tinyxml2.h>
 
 #include <cstdint>
+#include <filesystem>
+#include <optional>
 #include <set>
 #include <string>
 
@@ -39,6 +41,7 @@
 
 namespace zenoh
 {
+//==============================================================================
 /**
  * This class parses the ROS 2 secutiry policy files into json5 Zenoh Config files
  **/
@@ -47,16 +50,17 @@ class ConfigGenerator
 public:
   /// The library is loaded in the constructor.
   /**
-   * \param[in] filename The policy string path.
+   * \param[in] policy_filepath The policy string path.
    * \throws std::runtime_error if there are some invalid arguments or the library
    * was not load properly
    */
   ConfigGenerator(
-    const std::string & filename,
-    const std::string & configfile,
+    const std::string & policy_filepath,
+    const std::string & enclaves_dir,
+    const std::string & zenoh_config_filepath,
     uint16_t domain_id);
 
-  void parse();
+  void generate();
 
 private:
   void parse_enclaves(const tinyxml2::XMLElement * root);
@@ -64,7 +68,10 @@ private:
   void parse_services(const tinyxml2::XMLElement * root, const std::string & node_name);
   void parse_topics(const tinyxml2::XMLElement * root, const std::string & node_name);
   void clear();
-  void fill_data(
+  void fill_access_control(
+    zenoh::Config & config,
+    const std::string & node_name);
+  void fill_certificates(
     zenoh::Config & config,
     const std::string & node_name);
 
@@ -73,7 +80,8 @@ private:
     const std::string & node_name);
 
   tinyxml2::XMLDocument doc_;
-  std::string configfile_path_;
+  std::optional<std::filesystem::path> enclaves_dir_;
+  std::string zenoh_config_filepath_;
 
   std::set<std::string> services_reply_allow_;
   std::set<std::string> services_reply_deny_;
@@ -89,4 +97,4 @@ private:
 };
 }  // namespace zenoh
 
-#endif  // SRC__CONFIG_GENERATOR_HPP_
+#endif  // CONFIG_GENERATOR_HPP_
