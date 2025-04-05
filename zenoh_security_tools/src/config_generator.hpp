@@ -26,8 +26,8 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef ZENOH_SECURITY_CONFIGURATION_TOOLS__POLICY_PARSER_HPP_
-#define ZENOH_SECURITY_CONFIGURATION_TOOLS__POLICY_PARSER_HPP_
+#ifndef SRC__CONFIG_GENERATOR_HPP_
+#define SRC__CONFIG_GENERATOR_HPP_
 
 #include <tinyxml2.h>
 
@@ -37,14 +37,12 @@
 
 #include <zenoh.hxx>
 
-#include "zenoh_security_configuration_tools/visibility_control.hpp"
-
 namespace zenoh
 {
 /**
  * This class parses the ROS 2 secutiry policy files into json5 Zenoh Config files
  **/
-class PolicyParser
+class ConfigGenerator
 {
 public:
   /// The library is loaded in the constructor.
@@ -53,8 +51,7 @@ public:
    * \throws std::runtime_error if there are some invalid arguments or the library
    * was not load properly
    */
-  ZENOH_SECURITY_CONFIGURATION_TOOLS_PUBLIC
-  PolicyParser(
+  ConfigGenerator(
     const std::string & filename,
     const std::string & configfile,
     uint16_t domain_id);
@@ -92,4 +89,4 @@ private:
 };
 }  // namespace zenoh
 
-#endif  // ZENOH_SECURITY_CONFIGURATION_TOOLS__POLICY_PARSER_HPP_
+#endif  // SRC__CONFIG_GENERATOR_HPP_

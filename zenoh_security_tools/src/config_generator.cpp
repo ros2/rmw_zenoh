@@ -26,7 +26,7 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include "zenoh_security_configuration_tools/policy_parser.hpp"
+#include "config_generator.hpp"
 
 #include <nlohmann/json.hpp>
 #include <tinyxml2.h>
@@ -53,7 +53,7 @@ using json = nlohmann::json;
 
 namespace zenoh
 {
-PolicyParser::PolicyParser(
+ConfigGenerator::ConfigGenerator(
   const std::string & filename,
   const std::string & configfile,
   uint16_t domain_id)
@@ -78,7 +78,7 @@ bool replace(
   return true;
 }
 
-std::string PolicyParser::check_name(
+std::string ConfigGenerator::check_name(
   const std::string & name,
   const std::string & node_name)
 {
@@ -90,7 +90,7 @@ std::string PolicyParser::check_name(
   return result;
 }
 
-void PolicyParser::parse_services(
+void ConfigGenerator::parse_services(
   const tinyxml2::XMLElement * root,
   const std::string & node_name)
 {
@@ -144,7 +144,7 @@ void PolicyParser::parse_services(
   } while ((services_node = services_node->NextSiblingElement()) != nullptr);
 }
 
-void PolicyParser::clear()
+void ConfigGenerator::clear()
 {
   services_reply_allow_.clear();
   services_reply_deny_.clear();
@@ -169,7 +169,7 @@ json to_key_exprs(
   return key_exprs_ret;
 }
 
-void PolicyParser::fill_data(
+void ConfigGenerator::fill_data(
   zenoh::Config & config,
   const std::string & node_name)
 {
@@ -301,7 +301,7 @@ void PolicyParser::fill_data(
   config.insert_json5("access_control/subjects", subjects.dump());
 }
 
-void PolicyParser::parse_topics(
+void ConfigGenerator::parse_topics(
   const tinyxml2::XMLElement * root,
   const std::string & node_name)
 {
@@ -356,7 +356,7 @@ void PolicyParser::parse_topics(
   } while ((topics_node = topics_node->NextSiblingElement()) != nullptr);
 }
 
-void PolicyParser::parse_profiles(const tinyxml2::XMLElement * root)
+void ConfigGenerator::parse_profiles(const tinyxml2::XMLElement * root)
 {
   const tinyxml2::XMLElement * profiles_node = root->FirstChildElement();
   do{
@@ -416,7 +416,7 @@ void PolicyParser::parse_profiles(const tinyxml2::XMLElement * root)
   } while ((profiles_node = profiles_node->NextSiblingElement()) != nullptr);
 }
 
-void PolicyParser::parse_enclaves(const tinyxml2::XMLElement * root)
+void ConfigGenerator::parse_enclaves(const tinyxml2::XMLElement * root)
 {
   const tinyxml2::XMLElement * enclaves_node = root->FirstChildElement();
   if (enclaves_node != nullptr) {
@@ -439,7 +439,7 @@ void PolicyParser::parse_enclaves(const tinyxml2::XMLElement * root)
   }
 }
 
-void PolicyParser::parse()
+void ConfigGenerator::parse()
 {
   const tinyxml2::XMLElement * root = doc_.RootElement();
   if (root != nullptr) {

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(zenoh_security_configuration_tools)
+project(zenoh_security_tools)
 
 # Default to C++17
 if(NOT CMAKE_CXX_STANDARD)
@@ -19,23 +19,16 @@ find_package(TinyXML2 REQUIRED)
 find_package(CLI11 REQUIRED)
 find_package(zenoh_cpp_vendor REQUIRED)
 
-add_executable(zenoh_security_configuration_tools
-    src/zenoh_security_configuration_tools.cpp
-    src/policy_parser.cpp
+add_executable(generate_configs
+    src/main.cpp
+    src/config_generator.cpp
 )
-target_link_libraries(zenoh_security_configuration_tools PRIVATE
+target_link_libraries(generate_configs PRIVATE
   CLI11::CLI11
   nlohmann_json::nlohmann_json
   tinyxml2::tinyxml2
   zenohcxx::zenohc
 )
-target_include_directories(${PROJECT_NAME} PUBLIC
-  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
-  "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>")
-  if(WIN32)
-target_compile_definitions(${PROJECT_NAME}
-    PRIVATE "ZENOH_SECURITY_CONFIGURATION_TOOLS_BUILDING_LIBRARY")
-endif()
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
@@ -44,7 +37,7 @@ endif()
 
 
 install(
-  TARGETS zenoh_security_configuration_tools
+  TARGETS generate_configs
   DESTINATION lib/${PROJECT_NAME}
 )
 

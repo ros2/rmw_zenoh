@@ -1,4 +1,4 @@
-// Copyright (c) 2019, Open Source Robotics Foundation, Inc.
+// Copyright (c) 2025, Open Source Robotics Foundation, Inc.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
@@ -31,7 +31,7 @@
 
 #include <CLI/CLI.hpp>
 
-#include "zenoh_security_configuration_tools/policy_parser.hpp"
+#include "config_generator.hpp"
 
 int main(int argc, char * argv[])
 {
@@ -40,7 +40,7 @@ int main(int argc, char * argv[])
   std::string policy_filename;
   std::string zenoh_config_filename;
   uint16_t domain_id = 0;
-  app.add_option("-f,--policy", policy_filename, "Policy file name")->required();
+  app.add_option("-p,--policy", policy_filename, "Policy file name")->required();
   app.add_option("-c,--config", zenoh_config_filename, "Zenoh config file name");
   app.add_option("-d,--domainid", domain_id, "Domain ID");
 
@@ -50,10 +50,10 @@ int main(int argc, char * argv[])
     return app.exit(e);
   }
 
-  auto policy_parser = zenoh::PolicyParser(
+  auto config_generator = zenoh::ConfigGenerator(
     policy_filename,
     zenoh_config_filename,
     domain_id);
-  policy_parser.parse();
+  config_generator.parse();
   return 0;
 }
