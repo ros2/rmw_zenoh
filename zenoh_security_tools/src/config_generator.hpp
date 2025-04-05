@@ -59,7 +59,7 @@ public:
     const std::string & enclaves_dir,
     const std::string & zenoh_router_config_filepath,
     const std::string & zenoh_session_config_filepath,
-    uint16_t domain_id);
+    uint8_t domain_id);
 
   void generate();
 
@@ -93,7 +93,7 @@ private:
   std::set<std::string> topics_sub_deny_;
   std::set<std::string> topics_pub_deny_;
 
-  uint16_t domain_id_;
+  uint8_t domain_id_;
 };
 }  // namespace zenoh_security_tools
 

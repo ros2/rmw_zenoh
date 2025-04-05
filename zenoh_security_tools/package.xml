@@ -10,7 +10,6 @@
 
   <build_depend>nlohmann-json-dev</build_depend>
 
-  <depend>cli11</depend>
   <depend>rcpputils</depend>
   <depend>rcutils</depend>
   <depend>rmw</depend>

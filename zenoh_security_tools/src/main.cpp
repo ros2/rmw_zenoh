@@ -26,45 +26,133 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include <string>
 #include <cstdint>
-
-#include <CLI/CLI.hpp>
+#include <iostream>
+#include <string>
+#include <vector>
+#include <optional>
+#include <sstream>
 
 #include "config_generator.hpp"
 
-//==============================================================================
-int main(int argc, char * argv[])
+namespace
 {
-  CLI::App app{"Generate Zenoh session configs with security artifacts.\n"};
+//==============================================================================
+struct CommandLineArgs
+{
+  bool help = false;
+  std::optional<std::string> policy_filepath;
+  std::optional<std::string> enclaves_dir;
+  std::optional<uint8_t> ros_domain_id;
+  std::optional<std::string> zenoh_session_config_filepath;
+  std::optional<std::string> zenoh_router_config_filepath;
+};
 
-  std::string policy_filepath;
-  std::string enclaves_dir;
-  std::string zenoh_router_config_filepath;
-  std::string zenoh_session_config_filepath;
-  uint16_t domain_id = 0;
-  app.add_option("-p,--policy", policy_filepath,
-    "The path to the Access Control Policy file.")->required();
-  app.add_option("-e,--enclaves", enclaves_dir,
-    "The directory with the security enclaves for the various nodes in the policy file.");
-  app.add_option("-d,--ros-domain-id", domain_id, "The ROS Domain ID.")->required();
-  app.add_option("-c,--session-config", zenoh_session_config_filepath,
-    "The path to the Zenoh session config file.")->required();
-  app.add_option("-r,--router-config", zenoh_router_config_filepath,
-    "The path to the Zenoh router config file.")->required();
+//==============================================================================
+void print_help()
+{
+  std::cout << "Usage: ros2 run zenoh_security_tools generate_configs [options]\n\n"
+            << "Generate Zenoh session and router configs with security artifacts.\n\n"
+            << "Options:\n"
+            << "  -h,--help                         Print this help message and exit\n"
+            << "  -p,--policy TEXT REQUIRED         The path to the Access Control Policy file.\n"
+            << "  -e,--enclaves TEXT                The directory with the security enclaves "
+            << "for the various nodes in the policy file.\n"
+            << "  -d,--ros-domain-id UINT REQUIRED  The ROS Domain ID.\n"
+            << "  -c,--session-config TEXT REQUIRED The path to the Zenoh session config file.\n"
+            << "  -r,--router-config TEXT REQUIRED  The path to the Zenoh router config file.\n"
+            << std::endl;
+}
 
+//==============================================================================
+std::optional<uint8_t> parse_uint(const std::string & s)
+{
   try {
-    app.parse(argc, argv);
-  } catch (const CLI::ParseError & e) {
-    return app.exit(e);
+    size_t pos = 0;
+    uint8_t n = std::stoul(s, &pos);
+    if (pos == s.length()) {
+      return n;
+    }
+  } catch (const std::invalid_argument &) {
+    return {};
+  } catch (const std::out_of_range &) {
+    return {};
+  }
+  return {};
+}
+
+}  // namespace
+
+//==============================================================================
+int main(int argc, char *argv[])
+{
+  CommandLineArgs args;
+  std::vector<std::string> raw_args(argv + 1, argv + argc);
+
+  for (size_t i = 0; i < raw_args.size(); ++i) {
+    const std::string & arg = raw_args[i];
+
+    if (arg == "-h" || arg == "--help") {
+      args.help = true;
+    } else if ((arg == "-p" || arg == "--policy") && i + 1 < raw_args.size()) {
+      args.policy_filepath = raw_args[++i];
+    } else if ((arg == "-e" || arg == "--enclaves") && i + 1 < raw_args.size()) {
+      args.enclaves_dir = raw_args[++i];
+    } else if ((arg == "-d" || arg == "--ros-domain-id") && i + 1 < raw_args.size()) {
+      auto value = parse_uint(raw_args[++i]);
+      if (value) {
+        args.ros_domain_id = value.value();
+      } else {
+        std::cerr << "Error: Invalid value for --ros-domain-id: " << raw_args[i] << std::endl;
+        print_help();
+        return 1;
+      }
+    } else if ((arg == "-c" || arg == "--session-config") && i + 1 < raw_args.size()) {
+      args.zenoh_session_config_filepath = raw_args[++i];
+    } else if ((arg == "-r" || arg == "--router-config") && i + 1 < raw_args.size()) {
+      args.zenoh_router_config_filepath = raw_args[++i];
+    } else {
+      std::cerr << "Error: Unknown option: " << arg << std::endl;
+      print_help();
+      return 1;
+    }
+  }
+
+  if (args.help) {
+    print_help();
+    return 0;
+  }
+
+  if (!args.policy_filepath) {
+    std::cerr << "Error: --policy is required." << std::endl;
+    print_help();
+    return 1;
+  }
+
+  if (!args.ros_domain_id) {
+    std::cerr << "Error: --ros-domain-id is required." << std::endl;
+    print_help();
+    return 1;
+  }
+
+  if (!args.zenoh_session_config_filepath) {
+    std::cerr << "Error: --session-config is required." << std::endl;
+    print_help();
+    return 1;
+  }
+
+  if (!args.zenoh_router_config_filepath) {
+    std::cerr << "Error: --router-config is required." << std::endl;
+    print_help();
+    return 1;
   }
 
   auto config_generator = zenoh_security_tools::ConfigGenerator(
-    policy_filepath,
-    enclaves_dir,
-    zenoh_router_config_filepath,
-    zenoh_session_config_filepath,
-    domain_id);
+    args.policy_filepath.value(),
+    args.enclaves_dir.value(),
+    args.zenoh_router_config_filepath.value(),
+    args.zenoh_session_config_filepath.value(),
+    args.ros_domain_id.value());
   config_generator.generate();
   return 0;
 }

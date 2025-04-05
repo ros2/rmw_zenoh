@@ -21,7 +21,6 @@ find_package(rmw REQUIRED)
 find_package(rmw_security_common REQUIRED)
 find_package(tinyxml2_vendor REQUIRED)
 find_package(TinyXML2 REQUIRED)
-find_package(CLI11 REQUIRED)
 find_package(zenoh_cpp_vendor REQUIRED)
 
 add_executable(generate_configs
@@ -29,7 +28,6 @@ add_executable(generate_configs
     src/config_generator.cpp
 )
 target_link_libraries(generate_configs PRIVATE
-  CLI11::CLI11
   nlohmann_json::nlohmann_json
   rcpputils::rcpputils
   rcutils::rcutils

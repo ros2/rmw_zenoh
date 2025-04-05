@@ -68,7 +68,7 @@ ConfigGenerator::ConfigGenerator(
   const std::string & enclaves_dir,
   const std::string & zenoh_router_config_filepath,
   const std::string & zenoh_session_config_filepath,
-  uint16_t domain_id)
+  uint8_t domain_id)
 : enclaves_dir_(std::nullopt),
   zenoh_router_config_filepath_(std::move(zenoh_router_config_filepath)),
   zenoh_session_config_filepath_(std::move(zenoh_session_config_filepath)),
@@ -106,7 +106,7 @@ bool replace(
 //==============================================================================
 json to_key_exprs(
   const std::set<std::string> & key_exprs,
-  uint16_t domain_id)
+  uint8_t domain_id)
 {
   json key_exprs_ret = json::array();
 
