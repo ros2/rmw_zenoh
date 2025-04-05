@@ -40,15 +40,18 @@ int main(int argc, char * argv[])
 
   std::string policy_filepath;
   std::string enclaves_dir;
-  std::string zenoh_config_filepath;
+  std::string zenoh_router_config_filepath;
+  std::string zenoh_session_config_filepath;
   uint16_t domain_id = 0;
   app.add_option("-p,--policy", policy_filepath,
     "The path to the Access Control Policy file.")->required();
   app.add_option("-e,--enclaves", enclaves_dir,
     "The directory with the security enclaves for the various nodes in the policy file.");
   app.add_option("-d,--ros-domain-id", domain_id, "The ROS Domain ID.")->required();
-  app.add_option("-c,--config", zenoh_config_filepath,
-    "The path to the Zenoh config file.")->required();
+  app.add_option("-c,--session-config", zenoh_session_config_filepath,
+    "The path to the Zenoh session config file.")->required();
+  app.add_option("-r,--router-config", zenoh_router_config_filepath,
+    "The path to the Zenoh router config file.")->required();
 
   try {
     app.parse(argc, argv);
@@ -59,7 +62,8 @@ int main(int argc, char * argv[])
   auto config_generator = zenoh_security_tools::ConfigGenerator(
     policy_filepath,
     enclaves_dir,
-    zenoh_config_filepath,
+    zenoh_router_config_filepath,
+    zenoh_session_config_filepath,
     domain_id);
   config_generator.generate();
   return 0;

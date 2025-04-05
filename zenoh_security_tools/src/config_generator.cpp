@@ -52,6 +52,7 @@ static const char * enclaves_str = "enclaves";
 static const char * enclave_str = "enclave";
 static const char * profiles_str = "profiles";
 static const char * profile_str = "profile";
+static const char * router_str = "zenohd";
 static const char * services_str = "services";
 static const char * service_str = "service";
 static const char * topics_str = "topics";
@@ -65,10 +66,12 @@ namespace zenoh_security_tools
 ConfigGenerator::ConfigGenerator(
   const std::string & policy_filepath,
   const std::string & enclaves_dir,
-  const std::string & zenoh_config_filepath,
+  const std::string & zenoh_router_config_filepath,
+  const std::string & zenoh_session_config_filepath,
   uint16_t domain_id)
 : enclaves_dir_(std::nullopt),
-  zenoh_config_filepath_(std::move(zenoh_config_filepath)),
+  zenoh_router_config_filepath_(std::move(zenoh_router_config_filepath)),
+  zenoh_session_config_filepath_(std::move(zenoh_session_config_filepath)),
   domain_id_(std::move(domain_id))
 {
   const tinyxml2::XMLError error = doc_.LoadFile(policy_filepath.c_str());
@@ -505,10 +508,12 @@ void ConfigGenerator::parse_profiles(const tinyxml2::XMLElement * root)
               }
 
               zenoh::ZResult result;
-              zenoh::Config config = zenoh::Config::from_file(zenoh_config_filepath_, &result);
+              zenoh::Config config = zenoh::Config::from_file(zenoh_session_config_filepath_,
+                  &result);
               if (result != Z_OK) {
-                std::string error_msg = "Invalid configuration file " + zenoh_config_filepath_;
-                throw std::runtime_error("Error getting Zenoh config file.");
+                std::string error_msg = "Invalid configuration file " +
+                  zenoh_session_config_filepath_;
+                throw std::runtime_error("Error getting Zenoh session config file.");
               }
 
               parse_services(profile_node, node_name);
@@ -566,7 +571,27 @@ void ConfigGenerator::parse_enclaves(const tinyxml2::XMLElement * root)
 }
 
 //==============================================================================
-void ConfigGenerator::generate()
+void ConfigGenerator::generate_router_config()
+{
+  zenoh::ZResult result;
+  zenoh::Config config = zenoh::Config::from_file(zenoh_router_config_filepath_, &result);
+  if (result != Z_OK) {
+    std::string error_msg = "Invalid configuration file " + zenoh_session_config_filepath_;
+    throw std::runtime_error("Error getting Zenoh router config file.");
+  }
+
+  this->fill_certificates(config, router_str);
+
+  std::string filename = std::string(router_str) + ".json5";
+  std::ofstream new_config_file(filename);
+  json j_config = json::parse(config.to_string());
+  new_config_file << j_config.dump(2);
+  std::cout << "New file create called " << filename << std::endl;
+  new_config_file.close();
+}
+
+//==============================================================================
+void ConfigGenerator::generate_session_configs()
 {
   const tinyxml2::XMLElement * root = doc_.RootElement();
   if (root != nullptr) {
@@ -580,6 +605,13 @@ void ConfigGenerator::generate()
   } else {
     throw std::runtime_error("Invalid file");
   }
+}
+
+//==============================================================================
+void ConfigGenerator::generate()
+{
+  generate_session_configs();
+  generate_router_config();
 }
 
 }  // namespace zenoh_security_tools

@@ -13,7 +13,9 @@ Options:
   -p,--policy TEXT REQUIRED         The path to the Access Control Policy file.
   -e,--enclaves TEXT                The directory with the security enclaves for the various nodes in the policy file.
   -d,--ros-domain-id UINT REQUIRED  The ROS Domain ID.
-  -c,--config TEXT REQUIRED         The path to the Zenoh config file.
+  -c,--session-config TEXT REQUIRED         The path to the Zenoh session config file.
+  -r,--router-config TEXT REQUIRED  The path to the Zenoh router config file.
+
 ```
 
 ## Example of configuring security rmw_zenoh
@@ -83,7 +85,8 @@ Generate security configs without enclaves (only access control).
 ```bash
 ros2 run zenoh_security_tools generate_configs \
   --policy policy_listener_talker.xml \
-  --config <path to default session config>/DEFAULT_RMW_ZENOH_SESSION_CONFIG.json5 \
+  --router-config <path to default router config>/DEFAULT_RMW_ZENOH_ROUTER_CONFIG.json5 \
+  --session-config <path to default session config>/DEFAULT_RMW_ZENOH_SESSION_CONFIG.json5 \
   --ros-domain-id 0
 ```
 This will generate Zenoh session config files for each node in the `policy_listener_talker.xml` file.
@@ -133,7 +136,8 @@ This time we generate the configs with authentication and encryption configured 
 ```bash
 ros2 run zenoh_security_tools generate_configs \
   --policy policy_listener_talker.xml \
-  --config <path to default session config>/DEFAULT_RMW_ZENOH_SESSION_CONFIG.json5 \
+  --router-config <path to default router config>/DEFAULT_RMW_ZENOH_ROUTER_CONFIG.json5 \
+  --session-config <path to default session config>/DEFAULT_RMW_ZENOH_SESSION_CONFIG.json5 \
   --ros-domain-id 0
   --enclaves ~/sros2_demo/demo_keystore/enclaves/talker_listener
 ```
@@ -141,7 +145,7 @@ ros2 run zenoh_security_tools generate_configs \
 > [!NOTE]
 The executable assumes that the `~/sros2_demo/demo_keystore/enclaves/talker_listener` directory contains folders with names matching node names defined in the `policy_listener_talker.xml` with the security files present.
 
-Start the zenoh router.
+Start the zenoh router with the `zenohd.json` config file.
 ```bash
 export ZENOH_ROUTER_CONFIG_URI=zenohd.json5
 ros2 rmw_zenoh_cpp rmw_zenohd

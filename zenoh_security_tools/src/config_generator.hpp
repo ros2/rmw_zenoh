@@ -57,12 +57,15 @@ public:
   ConfigGenerator(
     const std::string & policy_filepath,
     const std::string & enclaves_dir,
-    const std::string & zenoh_config_filepath,
+    const std::string & zenoh_router_config_filepath,
+    const std::string & zenoh_session_config_filepath,
     uint16_t domain_id);
 
   void generate();
 
 private:
+  void generate_router_config();
+  void generate_session_configs();
   void parse_enclaves(const tinyxml2::XMLElement * root);
   void parse_profiles(const tinyxml2::XMLElement * root);
   void parse_services(const tinyxml2::XMLElement * root, const std::string & node_name);
@@ -77,7 +80,8 @@ private:
 
   tinyxml2::XMLDocument doc_;
   std::optional<std::filesystem::path> enclaves_dir_;
-  std::string zenoh_config_filepath_;
+  std::string zenoh_router_config_filepath_;
+  std::string zenoh_session_config_filepath_;
 
   std::set<std::string> services_reply_allow_;
   std::set<std::string> services_reply_deny_;
