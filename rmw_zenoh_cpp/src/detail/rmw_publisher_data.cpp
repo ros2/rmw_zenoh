@@ -44,6 +44,10 @@ namespace rmw_zenoh_cpp
 // TODO(yuyuan): SHM, make this configurable
 #define SHM_BUF_OK_SIZE 2621440
 
+// Period (ms) of heartbeats sent for detection of lost samples
+// by a RELIABLE + TRANSIENT_LOCAL Publisher
+#define SAMPLE_MISS_DETECTION_HEARTBEAT_PERIOD 500
+
 ///=============================================================================
 std::shared_ptr<PublisherData> PublisherData::make(
   std::shared_ptr<zenoh::Session> session,
@@ -115,6 +119,14 @@ std::shared_ptr<PublisherData> PublisherData::make(
     adv_pub_opts.publisher_detection = true;
     adv_pub_opts.cache = AdvancedPublisherOptions::CacheOptions::create_default();
     adv_pub_opts.cache->max_samples = adapted_qos_profile.depth;
+    if (adapted_qos_profile.reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE) {
+      // If RELIABLE + TRANSIENT_LOCAL activate sample miss detection for subscriber
+      // to detect missed samples and retrieve those from the Publisher cache.
+      // HeartbeatSporadic is used to prevent excessive background traffic
+      adv_pub_opts.sample_miss_detection.emplace().heartbeat =
+        AdvancedPublisherOptions::SampleMissDetectionOptions::HeartbeatSporadic{
+        SAMPLE_MISS_DETECTION_HEARTBEAT_PERIOD};
+    }
   }
 
   zenoh::KeyExpr pub_ke(entity->topic_info()->topic_keyexpr_);

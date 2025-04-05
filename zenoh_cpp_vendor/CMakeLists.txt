@@ -18,28 +18,25 @@ find_package(ament_cmake_vendor_package REQUIRED)
 set(ZENOHC_CARGO_FLAGS "--no-default-features$<SEMICOLON>--features=shared-memory zenoh/transport_compression zenoh/transport_tcp zenoh/transport_udp zenoh/transport_tls")
 
 # Set VCS_VERSION to include latest changes from zenoh/zenoh-c/zenoh-cpp to benefit from:
-# - Reword SHM warning log about "setting scheduling priority":
-#   - https://github.com/eclipse-zenoh/zenoh/pull/1778
-# - Performances improvements at launch time:
-#   - https://github.com/eclipse-zenoh/zenoh/pull/1786
-#   - https://github.com/eclipse-zenoh/zenoh/pull/1789
-#   - https://github.com/eclipse-zenoh/zenoh/pull/1793
-# - Fixed open timeout
-#   - https://github.com/eclipse-zenoh/zenoh/pull/1796
-# - Improve ACL behaviour, notably for S-ROS
-#   - https://github.com/eclipse-zenoh/zenoh/pull/1781
-#   - https://github.com/eclipse-zenoh/zenoh/pull/1785
-#   - https://github.com/eclipse-zenoh/zenoh/pull/1795
-#   - https://github.com/eclipse-zenoh/zenoh/pull/1806
-# - Reduce the number of threads in case of scouting
-#  - https://github.com/eclipse-zenoh/zenoh-c/pull/937
-# - Namespace prefix support
-#   - https://github.com/eclipse-zenoh/zenoh/pull/1792
-# - Fix debug mode crash
-#  - https://github.com/eclipse-zenoh/zenoh-cpp/pull/432
+# - Fix a bug leading to invalid inapropriate "Unable to push non droppable network message" log and transport closure:
+#    - https://github.com/eclipse-zenoh/zenoh/pull/1855
+# - Fix crash with highly chunked keys:
+#    - https://github.com/eclipse-zenoh/zenoh/pull/1826
+# - Resolve issue with closing the Session in atexit:
+#    - https://github.com/eclipse-zenoh/zenoh/pull/1632
+# - Change `Session::close()` implementation so it can be safely waited and awaited in `atexit``
+#    - https://github.com/eclipse-zenoh/zenoh/pull/1632
+# - Add QoS overwrite interceptor allowing for instance a Router to be configured to change QoS on the fly
+#    - https://github.com/eclipse-zenoh/zenoh/pull/1825
+# - Add link protocols as subject to interceptors (access_control, downsampling or qos overwrite):
+#    - https://github.com/eclipse-zenoh/zenoh/pull/1850
+# - Add new non periodic last sample miss detection mechanism for Advanced Publisher:
+#    - https://github.com/eclipse-zenoh/zenoh/pull/1861
+# - Improve tracing for better analysis on the system like rmw_zenoh
+#    - https://github.com/eclipse-zenoh/zenoh/pull/1844
 ament_vendor(zenoh_c_vendor
   VCS_URL https://github.com/eclipse-zenoh/zenoh-c.git
-  VCS_VERSION e6a1971139f405f7887bf5bb54f0efe402123032
+  VCS_VERSION ffa4bddc947f7ed6c0e3b4546205dd1b73e7df81
   CMAKE_ARGS
     "-DZENOHC_CARGO_FLAGS=${ZENOHC_CARGO_FLAGS}"
     "-DZENOHC_BUILD_WITH_UNSTABLE_API=TRUE"
@@ -50,7 +47,7 @@ ament_export_dependencies(zenohc)
 
 ament_vendor(zenoh_cpp_vendor
   VCS_URL https://github.com/eclipse-zenoh/zenoh-cpp
-  VCS_VERSION 8ad67f6c7a9031acd437c8739bbc8ddab0ca8173
+  VCS_VERSION 868fdad0e7418e8f8cb96e94c89a3aed05905e63
   CMAKE_ARGS
     -DZENOHCXX_ZENOHC=OFF
 )
