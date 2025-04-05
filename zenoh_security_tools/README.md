@@ -2,41 +2,94 @@
 
 The `zenoh_security_tools` package contains the `generate_configs` executable which generates Zenoh session config files with access control, authentication and encryption parameters based on policies and keystores generated using [sros2](https://github.com/ros2/sros2).
 
+## Usage
+```bash
+ros2 run zenoh_security_tools generate_configs -h
 
-# Generate zenoh config file using policy.xml
+Generate Zenoh session configs with security artifacts.
 
- 1 ) Launch zenohd
+Options:
+  -h,--help                         Print this help message and exit
+  -p,--policy TEXT REQUIRED         The path to the Access Control Policy file.
+  -e,--enclaves TEXT                The directory with the security enclaves for the various nodes in the policy file.
+  -d,--ros-domain-id UINT REQUIRED  The ROS Domain ID.
+  -c,--config TEXT REQUIRED         The path to the Zenoh config file.
+```
+
+## Example of configuring security rmw_zenoh
+
+The process of setting up security is very similar to [this tutorial](https://docs.ros.org/en/rolling/Tutorials/Advanced/Security/Introducing-ros2-security.html) but instead of relying on security environment variables and passing enclaves to nodes, we'll
+pass Zenoh session configs with the desired security parameters configured to `rmw_zenoh`.
+These modified session configs are generated using the tool above.
+
+### Setup
+
+The steps below will walk us through running rmw_zenoh with security enabled for a simple talker-lister system.
+
+#### First create a directory for security artifacts and configs that will be generated.
+
+```bash
+mkdir ~/sros2_demo
+```
+
+#### Generate a keystore
+
+```bash
+cd ~/sros2_demo
+ros2 security create_keystore demo_keystore
+```
+
+#### Generate the certificates for authentication and encryption
+
+Generate security files for the `talker` and `listener` nodes, and the `zenohd` router respectively.
+
+```bash
+ros2 security create_enclave demo_keystore /talker_listener/talker
+ros2 security create_enclave demo_keystore /talker_listener/listener
+ros2 security create_enclave demo_keystore /talker_listener/zenohd
+```
+
+#### Generate the policy.xml for access control
+
+Launch zenohd
 ```bash
 ros2 run rmw_zenoh_cpp rmw_zenohd
 ```
 
- 2 ) Launch the listener
+Launch the listener
 ```bash
 export RMW_IMPLEMENTATION=rmw_zenoh_cpp
 ros2 run demo_nodes_cpp listener
 ```
 
- 3 ) Launch the talker
+Launch the talker
 ```bash
 export RMW_IMPLEMENTATION=rmw_zenoh_cpp
 ros2 run demo_nodes_cpp talker
 ```
 
-Now run the policy generator
+Now run the policy generator from sros2
 
 ```bash
 ros2 security generate_policy policy_listener_talker.xml
 ```
 
-Finally run the script:
+Finally, terminate all processes.
+
+## Try access control
+
+Generate security configs without enclaves (only access control).
 
 ```bash
-ros2 run zenoh_security_configuration_tools zenoh_security_configuration_tools --policy policy_service.xml --config <path to default session config>/DEFAULT_RMW_ZENOH_SESSION_CONFIG.json5
+ros2 run zenoh_security_tools generate_configs \
+  --policy policy_listener_talker.xml \
+  --config <path to default session config>/DEFAULT_RMW_ZENOH_SESSION_CONFIG.json5 \
+  --ros-domain-id 0
 ```
+This will generate Zenoh session config files for each node in the `policy_listener_talker.xml` file.
 
-# Try access control
+#### Run the talker with the new config file
 
- 1) Run the talker with the new config file
 ```bash
 export ZENOH_SESSION_CONFIG_URI=talker.json5
 ros2 run demo_nodes_cpp talker
@@ -44,7 +97,7 @@ ros2 run demo_nodes_cpp talker
 [INFO] [1740601933.350487483] [talker]: Publishing: 'Hello World: 2'
 ```
 
- 2) Run the listener with the new config file
+#### Run the listener with the new config file
 ```bash
 export ZENOH_SESSION_CONFIG_URI=listener.json5
 ros2 run demo_nodes_cpp listener
@@ -53,203 +106,69 @@ ros2 run demo_nodes_cpp listener
 [INFO] [1740602313.492200366] [listener]: I heard: [Hello World: 2]
 ```
 
-You can check that everything is fine remapping the topic name (this should not work):
+You can validate access control by remapping the `/chatter` topic which should result in no messages being published.
+
 
 ```bash
+export ZENOH_SESSION_CONFIG_URI=talker.json5
+ros2 rmw_zenoh_cpp rmw_zenohd
+```
+
+```bash
+export ZENOH_SESSION_CONFIG_URI=talker.json5
 ros2 run demo_nodes_cpp talker --ros-args -r chatter:=new_topic
 ```
 
 ```bash
+export ZENOH_SESSION_CONFIG_URI=listener.json5
 ros2 run demo_nodes_cpp listener --ros-args -r chatter:=new_topic
 ...
 # listener should not receive anything
 ```
 
-# policy files
+## Try access control, authentication and encryption
 
-Just in case you want to try this tools here you can find some examples
-
-
-
-<details>
-<summary><b>policy_talker_listerner.xml</b></summary>
-```xml
-<policy version="0.2.0">
-  <enclaves>
-    <enclave path="/">
-      <profiles>
-        <profile node="listener" ns="/">
-          <services reply="ALLOW">
-            <service>~/describe_parameters</service>
-            <service>~/get_parameter_types</service>
-            <service>~/get_parameters</service>
-            <service>~/get_type_description</service>
-            <service>~/list_parameters</service>
-            <service>~/set_parameters</service>
-            <service>~/set_parameters_atomically</service>
-          </services>
-          <topics subscribe="ALLOW">
-            <topic>chatter</topic>
-            <topic>parameter_events</topic>
-          </topics>
-          <topics publish="ALLOW">
-            <topic>parameter_events</topic>
-            <topic>rosout</topic>
-          </topics>
-        </profile>
-        <profile node="talker" ns="/">
-          <services reply="ALLOW">
-            <service>~/describe_parameters</service>
-            <service>~/get_parameter_types</service>
-            <service>~/get_parameters</service>
-            <service>~/get_type_description</service>
-            <service>~/list_parameters</service>
-            <service>~/set_parameters</service>
-            <service>~/set_parameters_atomically</service>
-          </services>
-          <topics subscribe="ALLOW">
-            <topic>parameter_events</topic>
-          </topics>
-          <topics publish="ALLOW">
-            <topic>chatter</topic>
-            <topic>parameter_events</topic>
-            <topic>rosout</topic>
-          </topics>
-        </profile>
-      </profiles>
-    </enclave>
-  </enclaves>
-</policy>
-```
-</details>
+This time we generate the configs with authentication and encryption configured using the enclaves generated by sros2.
 
 ```bash
-ros2 run demo_nodes_cpp talker
+ros2 run zenoh_security_tools generate_configs \
+  --policy policy_listener_talker.xml \
+  --config <path to default session config>/DEFAULT_RMW_ZENOH_SESSION_CONFIG.json5 \
+  --ros-domain-id 0
+  --enclaves ~/sros2_demo/demo_keystore/enclaves/talker_listener
+```
+
+> [!NOTE]
+The executable assumes that the `~/sros2_demo/demo_keystore/enclaves/talker_listener` directory contains folders with names matching node names defined in the `policy_listener_talker.xml` with the security files present.
+
+Start the zenoh router.
+```bash
+export ZENOH_ROUTER_CONFIG_URI=zenohd.json5
+ros2 rmw_zenoh_cpp rmw_zenohd
+```
+
+Start the talker
+
+```bash
+export ZENOH_SESSION_CONFIG_URI=talker.json5
+ros2 rmw_zenoh_cpp rmw_zenohd
+```
+
+Start the listener without setting the session config.
+```bash
 ros2 run demo_nodes_cpp listener
 ```
 
-<details>
-<summary><b>Policy_service.xml</b></summary>
-```xml
-<policy version="0.2.0">
-  <enclaves>
-    <enclave path="/">
-      <profiles>
-        <profile node="add_two_ints_client" ns="/">
-          <services reply="ALLOW">
-            <service>~/describe_parameters</service>
-            <service>~/get_parameter_types</service>
-            <service>~/get_parameters</service>
-            <service>~/get_type_description</service>
-            <service>~/list_parameters</service>
-            <service>~/set_parameters</service>
-            <service>~/set_parameters_atomically</service>
-          </services>
-          <services request="ALLOW">
-            <service>add_two_ints</service>
-          </services>
-          <topics subscribe="ALLOW">
-            <topic>parameter_events</topic>
-          </topics>
-          <topics publish="ALLOW">
-            <topic>parameter_events</topic>
-            <topic>rosout</topic>
-          </topics>
-        </profile>
-        <profile node="add_two_ints_server" ns="/">
-          <services reply="ALLOW">
-            <service>add_two_ints</service>
-            <service>~/describe_parameters</service>
-            <service>~/get_parameter_types</service>
-            <service>~/get_parameters</service>
-            <service>~/get_type_description</service>
-            <service>~/list_parameters</service>
-            <service>~/set_parameters</service>
-            <service>~/set_parameters_atomically</service>
-          </services>
-          <topics subscribe="ALLOW">
-            <topic>parameter_events</topic>
-          </topics>
-          <topics publish="ALLOW">
-            <topic>parameter_events</topic>
-            <topic>rosout</topic>
-          </topics>
-        </profile>
-      </profiles>
-    </enclave>
-  </enclaves>
-</policy>
-```
-</details>
+The listener will not receive any messages.
+
+Restart the listener with the session config.
 
 ```bash
-ros2 run demo_nodes_cpp add_two_ints_client
-ros2 run demo_nodes_cpp add_two_ints_server
+export ZENOH_SESSION_CONFIG_URI=listener.json5
+ros2 run demo_nodes_cpp listener
+...
+[INFO] [1740602312.492840958] [listener]: I heard: [Hello World: 10]
+[INFO] [1740602313.492200366] [listener]: I heard: [Hello World: 11]
 ```
 
-<details>
-<summary><b>policy_action.xml</b></summary>
-```xml
-<policy version="0.2.0">
-  <enclaves>
-    <enclave path="/">
-      <profiles>
-        <profile node="fibonacci_action_client" ns="/">
-          <services reply="ALLOW">
-            <service>~/describe_parameters</service>
-            <service>~/get_parameter_types</service>
-            <service>~/get_parameters</service>
-            <service>~/get_type_description</service>
-            <service>~/list_parameters</service>
-            <service>~/set_parameters</service>
-            <service>~/set_parameters_atomically</service>
-          </services>
-          <services request="ALLOW">
-            <service>/fibonacci/_action/cancel_goal</service>
-            <service>/fibonacci/_action/get_result</service>
-            <service>/fibonacci/_action/send_goal</service>
-          </services>
-          <topics subscribe="ALLOW">
-            <topic>/fibonacci/_action/feedback</topic>
-            <topic>/fibonacci/_action/status</topic>
-            <topic>parameter_events</topic>
-          </topics>
-          <topics publish="ALLOW">
-            <topic>parameter_events</topic>
-            <topic>rosout</topic>
-          </topics>
-        </profile>
-        <profile node="fibonacci_action_server" ns="/">
-          <services reply="ALLOW">
-            <service>/fibonacci/_action/cancel_goal</service>
-            <service>/fibonacci/_action/get_result</service>
-            <service>/fibonacci/_action/send_goal</service>
-            <service>~/describe_parameters</service>
-            <service>~/get_parameter_types</service>
-            <service>~/get_parameters</service>
-            <service>~/get_type_description</service>
-            <service>~/list_parameters</service>
-            <service>~/set_parameters</service>
-            <service>~/set_parameters_atomically</service>
-          </services>
-          <topics subscribe="ALLOW">
-            <topic>parameter_events</topic>
-          </topics>
-          <topics publish="ALLOW">
-            <topic>/fibonacci/_action/feedback</topic>
-            <topic>/fibonacci/_action/status</topic>
-            <topic>parameter_events</topic>
-            <topic>rosout</topic>
-          </topics>
-        </profile>
-      </profiles>
-    </enclave>
-  </enclaves>
-</policy>
-```
-</details>
-
-```bash
-ros2 run action_tutorials_cpp fibonacci_action_client
-ros2 run action_tutorials_cpp fibonacci_action_server
-```
+The messages are received by the listener.
