@@ -59,7 +59,7 @@ static const char * topic_str = "topic";
 
 using json = nlohmann::json;
 
-namespace zenoh
+namespace zenoh_security_tools
 {
 //==============================================================================
 ConfigGenerator::ConfigGenerator(
@@ -113,10 +113,9 @@ json to_key_exprs(
 
   return key_exprs_ret;
 }
-}  // anonymous namespace
 
 //==============================================================================
-std::string ConfigGenerator::check_name(
+std::string check_name(
   const std::string & name,
   const std::string & node_name)
 {
@@ -127,6 +126,7 @@ std::string ConfigGenerator::check_name(
   }
   return result;
 }
+}  // anonymous namespace
 
 //==============================================================================
 void ConfigGenerator::parse_services(
@@ -405,8 +405,28 @@ void ConfigGenerator::fill_certificates(
     return;
   }
 
-  config.insert_json5("connect/endpoints", "[\"tls/localhost:7447\"]");
-  config.insert_json5("listen/endpoints", "[\"tls/localhost:0\"]");
+  auto replace_with_tls =
+    [](const std::string & key, zenoh::Config & config) -> void
+    {
+      try {
+        const json endpoints = json::parse(config.get(key));
+        json tls_endpoints_json = json::array();
+        for (const json & endpoint : endpoints) {
+          std::string endpoint_str = endpoint.get<std::string>();
+          const std::size_t slash_pos = endpoint_str.find('/');
+          if (slash_pos != std::string::npos) {
+            tls_endpoints_json.push_back(endpoint_str.replace(0, slash_pos, "tls"));
+          }
+        }
+        config.insert_json5(key, tls_endpoints_json.dump());
+      } catch (const std::exception & e) {
+        std::cerr << "Error replacing transport with tls: " << e.what() << std::endl;
+        return;
+      }
+    };
+
+  replace_with_tls("connect/endpoints", config);
+  replace_with_tls("listen/endpoints", config);
 }
 
 //==============================================================================
@@ -485,8 +505,7 @@ void ConfigGenerator::parse_profiles(const tinyxml2::XMLElement * root)
               }
 
               zenoh::ZResult result;
-              zenoh::Config config = zenoh::Config::create_default();
-              config = zenoh::Config::from_file(zenoh_config_filepath_, &result);
+              zenoh::Config config = zenoh::Config::from_file(zenoh_config_filepath_, &result);
               if (result != Z_OK) {
                 std::string error_msg = "Invalid configuration file " + zenoh_config_filepath_;
                 throw std::runtime_error("Error getting Zenoh config file.");
@@ -501,7 +520,7 @@ void ConfigGenerator::parse_profiles(const tinyxml2::XMLElement * root)
               std::string filename = std::string(node_name) + ".json5";
               std::ofstream new_config_file(filename);
               json j_config = json::parse(config.to_string());
-              new_config_file << j_config.dump(4);
+              new_config_file << j_config.dump(2);
               std::cout << "New file create called " << filename << std::endl;
               new_config_file.close();
 
@@ -563,4 +582,4 @@ void ConfigGenerator::generate()
   }
 }
 
-}  // namespace zenoh
+}  // namespace zenoh_security_tools

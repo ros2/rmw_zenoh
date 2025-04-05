@@ -36,7 +36,7 @@
 //==============================================================================
 int main(int argc, char * argv[])
 {
-  CLI::App app{"Zenoh Security Configuration Tools.\n"};
+  CLI::App app{"Generate Zenoh session configs with security artifacts.\n"};
 
   std::string policy_filepath;
   std::string enclaves_dir;
@@ -56,7 +56,7 @@ int main(int argc, char * argv[])
     return app.exit(e);
   }
 
-  auto config_generator = zenoh::ConfigGenerator(
+  auto config_generator = zenoh_security_tools::ConfigGenerator(
     policy_filepath,
     enclaves_dir,
     zenoh_config_filepath,

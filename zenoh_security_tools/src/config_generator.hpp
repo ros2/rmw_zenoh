@@ -39,7 +39,7 @@
 
 #include <zenoh.hxx>
 
-namespace zenoh
+namespace zenoh_security_tools
 {
 //==============================================================================
 /**
@@ -75,10 +75,6 @@ private:
     zenoh::Config & config,
     const std::string & node_name);
 
-  std::string check_name(
-    const std::string & name,
-    const std::string & node_name);
-
   tinyxml2::XMLDocument doc_;
   std::optional<std::filesystem::path> enclaves_dir_;
   std::string zenoh_config_filepath_;
@@ -95,6 +91,6 @@ private:
 
   uint16_t domain_id_;
 };
-}  // namespace zenoh
+}  // namespace zenoh_security_tools
 
 #endif  // CONFIG_GENERATOR_HPP_
