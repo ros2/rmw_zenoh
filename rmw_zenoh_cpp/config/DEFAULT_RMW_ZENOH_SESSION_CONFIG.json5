@@ -153,9 +153,10 @@
       /// (e.g. autoconnect_strategy : { to_router:  "always", to_peer: "greater-zid" }),
       /// or different values for router or peer mode
       /// (e.g. autoconnect_strategy : { peer: { to_router:  "always", to_peer: "greater-zid" } }).
-      /// ROS setting: by default all peers rely on the router to discover each other. Thus configuring the peer to send gossip
-      ///              messages only to the router is sufficient and avoids unecessary traffic between Nodes at launch time.
-      autoconnect_strategy: { peer: { to_router: "always", to_peer: "greater-zid" } },
+      /// ROS setting: until https://github.com/eclipse-zenoh/zenoh/issues/1890 is fixed, it's better
+      ///              to not use "greater-zid" with multicast scouting to avoid excessive interconnection delay.
+      ///              The risk of double connections is anyway smaller than with gossip scouting.
+      autoconnect_strategy: { peer: { to_router: "always", to_peer: "always" } },
       /// Whether or not to listen for scout messages on UDP multicast and reply to them.
       listen: true,
     },
