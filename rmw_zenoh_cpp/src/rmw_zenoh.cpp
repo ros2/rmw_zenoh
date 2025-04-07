@@ -2220,7 +2220,7 @@ rmw_wait(
   // rmw_wait should return *all* entities that have data available, and let the caller decide
   // how to handle them.
   //
-  // If there is no data currently available in any of the entities we were told to wait on, we
+  // If there is no data currently available in any of the entities we were told to wait on,
   // we attach a context-global condition variable to each entity, calculate a timeout based on
   // wait_timeout, and then sleep on the condition variable.  If any of the entities has an event
   // during that time, it will wake up from that sleep.
