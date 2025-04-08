@@ -78,15 +78,6 @@ AttachmentData::AttachmentData(const zenoh::Bytes & bytes)
   zenoh::ext::Deserializer deserializer(bytes);
   this->sequence_number_ = deserializer.deserialize<int64_t>();
   this->source_timestamp_ = deserializer.deserialize<int64_t>();
-<<<<<<< HEAD
-
-  const auto source_gid_str = deserializer.deserialize<std::string>();
-  if (source_gid_str != "source_gid") {
-    throw std::runtime_error("source_gid is not found in the attachment.");
-  }
   this->source_gid_ = deserializer.deserialize<std::array<uint8_t, 16>>();
-=======
-  this->source_gid_ = deserializer.deserialize<std::array<uint8_t, RMW_GID_STORAGE_SIZE>>();
->>>>>>> 2c91032 (Change serialization format in attachment_helpers.cpp (#601))
 }
 }  // namespace rmw_zenoh_cpp
