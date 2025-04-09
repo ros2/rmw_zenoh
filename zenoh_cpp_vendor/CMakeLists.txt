@@ -41,8 +41,7 @@ ament_vendor(zenoh_c_vendor
     "-DZENOHC_CARGO_FLAGS=${ZENOHC_CARGO_FLAGS}"
     "-DZENOHC_BUILD_WITH_UNSTABLE_API=TRUE"
     "-DZENOHC_CUSTOM_TARGET=${ZENOHC_CUSTOM_TARGET}"
-  PATCH_COMMAND
-    git apply ${CMAKE_CURRENT_SOURCE_DIR}/pin-rust-1.75.0.patch
+  PATCHES ${CMAKE_CURRENT_SOURCE_DIR}/pin-rust-1.75.0.patch
 )
 
 ament_export_dependencies(zenohc)
