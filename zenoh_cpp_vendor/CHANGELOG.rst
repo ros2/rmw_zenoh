@@ -2,6 +2,12 @@
 Changelog for package zenoh_cpp_vendor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.6.0 (2025-04-18)
+------------------
+* Bump Zenoh to v1.3.2 and improve e2e reliability with HeartbeatSporadic (`#591 <https://github.com/ros2/rmw_zenoh/issues/591>`_)
+* Add quality declaration (`#483 <https://github.com/ros2/rmw_zenoh/issues/483>`_)
+* Contributors: Alejandro Hernández Cordero, Julien Enoch
+
 0.5.0 (2025-03-20)
 ------------------
 * Fix liveliness crash in debug mode (`#544 <https://github.com/ros2/rmw_zenoh/issues/544>`_)
