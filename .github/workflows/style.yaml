@@ -19,6 +19,6 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: uncrustify
-      run: /ros_entrypoint.sh ament_uncrustify rmw_zenoh_cpp/
+      run: /ros_entrypoint.sh ament_uncrustify rmw_zenoh_cpp/ zenoh_security_tools/
     - name: cpplint
-      run: /ros_entrypoint.sh ament_cpplint rmw_zenoh_cpp/
+      run: /ros_entrypoint.sh ament_cpplint rmw_zenoh_cpp/ zenoh_security_tools/
