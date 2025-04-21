@@ -2,8 +2,8 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.2.4 (2025-04-20)
+------------------
 * Change serialization format in attachment_helpers.cpp (`#605 <https://github.com/ros2/rmw_zenoh/issues/605>`_)
 * Fix the comment. (`#598 <https://github.com/ros2/rmw_zenoh/issues/598>`_)
 * Bump Zenoh to v1.3.2 and improve e2e reliability with HeartbeatSporadic (`#593 <https://github.com/ros2/rmw_zenoh/issues/593>`_)
