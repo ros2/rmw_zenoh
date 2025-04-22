@@ -65,11 +65,11 @@ void print_help()
 }
 
 //==============================================================================
-std::optional<uint8_t> parse_uint(const std::string & s)
+std::optional<unsigned long> parse_uint(const std::string & s)
 {
   try {
     size_t pos = 0;
-    uint8_t n = std::stoul(s, &pos);
+    unsigned long n = std::stoul(s, &pos);
     if (pos == s.length()) {
       return n;
     }
