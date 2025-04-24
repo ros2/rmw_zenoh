@@ -2,6 +2,9 @@
 Changelog for package zenoh_cpp_vendor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.7.0 (2025-04-24)
+------------------
+
 0.6.0 (2025-04-18)
 ------------------
 * Bump Zenoh to v1.3.2 and improve e2e reliability with HeartbeatSporadic (`#591 <https://github.com/ros2/rmw_zenoh/issues/591>`_)

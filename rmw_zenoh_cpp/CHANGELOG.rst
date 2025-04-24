@@ -2,6 +2,9 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.7.0 (2025-04-24)
+------------------
+
 0.6.0 (2025-04-18)
 ------------------
 * Change serialization format in attachment_helpers.cpp (`#601 <https://github.com/ros2/rmw_zenoh/issues/601>`_)
