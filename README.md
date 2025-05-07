@@ -166,6 +166,40 @@ For example, if another `Zenoh router` is listening on IP address `192.168.1.1` 
 
 Then, start the `Zenoh router` after setting the `ZENOH_ROUTER_CONFIG_URI` environment variable to the absolute path of the modified config file.
 
+### Connecting to the Zenoh router on another host
+
+In some scenarios, we want to connect to the Zenoh router on another host directly for better performance.
+For example, it's more efficient to connect to the Zenohd of a robot while running RViz remotely.
+By default, Zenoh router doesn't forward messages between peers, because this is unnecessary in the same host.
+Therefore, we need to switch the remote node into the client mode to make Zenoh router forward messages.
+
+Assume that the Zenoh router is listening to `tcp/192.168.1.1:7447`.
+Here are two ways to configure on the remote side:
+
+1. Copy the [DEFAULT_RMW_ZENOH_SESSION_CONFIG.json5](rmw_zenoh_cpp/config/DEFAULT_RMW_ZENOH_SESSION_CONFIG.json5) and set the `ZENOH_SESSION_CONFIG_URI` to the path of that config file.
+
+    ```json5
+    /// ... preceding parts of the config file.
+    {
+      mode: "client",
+      connect: {
+        endpoints: ["tcp/192.168.1.1:7447"],
+      },
+    }
+    /// ... following parts of the config file.
+    ```
+
+2. A simpler way is to override the config by `ZENOH_CONFIG_OVERRIDE`
+
+    ```bash
+    export ZENOH_CONFIG_OVERRIDE='mode="client";connect/endpoints=["tcp/192.168.1.1:7447"]' 
+    ```
+
+### Security
+
+Security is available in `rmw_zenoh` by means of access control, authentication and encryption.
+The [zenoh_security_tools](./zenoh_security_tools/) package contains a script to generate Zenoh configs with security configured along with documentation on its usage.
+
 ### Logging
 
 The core of Zenoh is implemented in Rust and uses a logging library that can be configured via a `RUST_LOG` environment variable.
@@ -221,7 +255,7 @@ Note that composable nodes should *never* call `rclcpp::shutdown()`, as the comp
 
 For more details, see https://github.com/ros2/rmw_zenoh/issues/170.
 
-### rmw_zenoh is incompatible between Humble and newer distributions. 
+### rmw_zenoh is incompatible between Humble and newer distributions.
 
 Since Iron, ROS 2 introduced type hashes for messages and `rmw_zenoh` includes these type hashes in the Zenoh keyexpressions it constructs for data exchange. While participants will be discoverable, communication between Humble and newer distributions will fail, resulting in messages being silently dropped.
 
