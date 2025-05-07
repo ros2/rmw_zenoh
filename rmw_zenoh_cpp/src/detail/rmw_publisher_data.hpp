@@ -67,8 +67,8 @@ public:
     const std::optional<ShmContext> & shm
   );
 
-  // Get a copy of the keyexpr_hash of this PublisherData's liveliness::Entity.
-  std::size_t keyexpr_hash() const;
+  // Get a copy of the gid_hash of this PublisherData's liveliness::Entity.
+  std::size_t gid_hash() const;
 
   // Get a copy of the TopicInfo of this PublisherData.
   liveliness::TopicInfo topic_info() const;

@@ -501,7 +501,7 @@ rmw_destroy_publisher(rmw_node_t * node, rmw_publisher_t * publisher)
     return RMW_RET_INVALID_ARGUMENT;
   }
   // Remove any event callbacks registered to this publisher.
-  context_impl->graph_cache()->remove_qos_event_callbacks(pub_data->keyexpr_hash());
+  context_impl->graph_cache()->remove_qos_event_callbacks(pub_data->gid_hash());
   // Remove the PublisherData from NodeData.
   node_data->delete_pub_data(publisher);
 
@@ -2186,6 +2186,11 @@ check_and_attach_condition(
     }
   }
 
+  // No conditions are available. Set the triggered flag of the wait_set to false.
+  // Note that wait_set_data->condition_mutex has been locked before calling
+  // check_and_attach_condition. So it's safe to modify the wait_set_data triggered flag.
+  wait_set_data->triggered = false;
+
   return false;
 }
 }  // namespace
@@ -2230,33 +2235,37 @@ rmw_wait(
   // signals to the upper layers that it isn't ready.  If something is ready, then we leave it as
   // a valid pointer.
 
-  bool skip_wait = check_and_attach_condition(
-    subscriptions, guard_conditions, services, clients, events, wait_set_data);
-  if (!skip_wait) {
+  {
+    // Take the lock before the check_and_attach_condition to ensure conditions and flags
+    // are not modified while being checked by concurrent calls.
     std::unique_lock<std::mutex> lock(wait_set_data->condition_mutex);
 
-    // According to the RMW documentation, if wait_timeout is NULL that means
-    // "wait forever", if it specified as 0 it means "never wait", and if it is anything else wait
-    // for that amount of time.
-    if (wait_timeout == nullptr) {
-      wait_set_data->condition_variable.wait(
-        lock, [wait_set_data]() {
-          return wait_set_data->triggered;
-        });
-    } else {
-      if (wait_timeout->sec != 0 || wait_timeout->nsec != 0) {
-        wait_set_data->condition_variable.wait_for(
-          lock,
-          std::chrono::nanoseconds(wait_timeout->nsec + RCUTILS_S_TO_NS(wait_timeout->sec)),
-          [wait_set_data]() {return wait_set_data->triggered;});
+    bool skip_wait = check_and_attach_condition(
+      subscriptions, guard_conditions, services, clients, events, wait_set_data);
+    if (!skip_wait) {
+      // According to the RMW documentation, if wait_timeout is NULL that means
+      // "wait forever", if it specified as 0 it means "never wait", and if it is anything else wait
+      // for that amount of time.
+      if (wait_timeout == nullptr) {
+        wait_set_data->condition_variable.wait(
+          lock, [wait_set_data]() {
+            return wait_set_data->triggered;
+          });
+      } else {
+        if (wait_timeout->sec != 0 || wait_timeout->nsec != 0) {
+          wait_set_data->condition_variable.wait_for(
+            lock,
+            std::chrono::nanoseconds(wait_timeout->nsec + RCUTILS_S_TO_NS(wait_timeout->sec)),
+            [wait_set_data]() {return wait_set_data->triggered;});
+        }
       }
-    }
 
-    // It is important to reset this here while still holding the lock, otherwise every subsequent
-    // call to rmw_wait() will be immediately ready.  We could handle this another way by making
-    // "triggered" a stack variable in this function and "attaching" it during
-    // "check_and_attach_condition", but that isn't clearly better so leaving this.
-    wait_set_data->triggered = false;
+      // It is important to reset this here while still holding the lock, otherwise every subsequent
+      // call to rmw_wait() will be immediately ready.  We could handle this another way by making
+      // "triggered" a stack variable in this function and "attaching" it during
+      // "check_and_attach_condition", but that isn't clearly better so leaving this.
+      wait_set_data->triggered = false;
+    }
   }
 
   bool wait_result = false;

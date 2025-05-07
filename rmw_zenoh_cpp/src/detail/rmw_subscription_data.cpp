@@ -196,6 +196,13 @@ bool SubscriptionData::init()
     // Enable detection of late joiner publishers and query for their historical data.
     adv_sub_opts.history->detect_late_publishers = true;
     adv_sub_opts.history->max_samples = entity_->topic_info()->qos_.depth;
+    if (entity_->topic_info()->qos_.reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE) {
+      // Activate recovery of lost samples.
+      // This requires the Publisher to have sample_miss_detection configured,
+      // which is the case for a RELIABLE + TRANSIENT_LOCAL Publisher.
+      adv_sub_opts.recovery.emplace().last_sample_miss_detection =
+        AdvancedSubscriberOptions::RecoveryOptions::Heartbeat{};
+    }
   }
 
   std::weak_ptr<SubscriptionData> data_wp = shared_from_this();
@@ -256,10 +263,10 @@ bool SubscriptionData::init()
 }
 
 ///=============================================================================
-std::size_t SubscriptionData::keyexpr_hash() const
+std::size_t SubscriptionData::gid_hash() const
 {
   std::lock_guard<std::mutex> lock(mutex_);
-  return entity_->keyexpr_hash();
+  return entity_->gid_hash();
 }
 
 ///=============================================================================
@@ -309,7 +316,7 @@ rmw_ret_t SubscriptionData::shutdown()
   }
 
   // Remove any event callbacks registered to this subscription.
-  graph_cache_->remove_qos_event_callbacks(entity_->keyexpr_hash());
+  graph_cache_->remove_qos_event_callbacks(entity_->gid_hash());
 
   // Unregister this subscription from the ROS graph.
   zenoh::ZResult result;
