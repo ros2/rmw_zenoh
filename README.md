@@ -126,7 +126,7 @@ export ZENOH_ROUTER_CONFIG_URI=$HOME/MY_ZENOH_ROUTER_CONFIG.json5
 ```
 
 `rmw_zenoh` allows you to override configuration fields using the `ZENOH_CONFIG_OVERRIDE` environment variable .
-These overrides apply to ROS 2 nodes and the Zenoh router **after** the `ZENOH_SESSION_CONFIG_URI` or `ZENOH_ROUTER_CONFIG_URI` (if specified)
+These overrides apply to `Zenoh sessions` and the `Zenoh router` **after** the `ZENOH_SESSION_CONFIG_URI` or `ZENOH_ROUTER_CONFIG_URI` (if specified)
 has been processed.
 
 You can specify multiple key-value pairs using the following syntax:
@@ -136,16 +136,41 @@ export ZENOH_CONFIG_OVERRIDE="key/path/to/field1=value1;key/path/to/field2=value
 
 #### Examples
 
-- Specify custom endpoints for listening and connecting:
-```bash
-export ZENOH_CONFIG_OVERRIDE='listen/endpoints=["tcp/127.0.0.1:7448"];connect/endpoints=["tcp/192.168.0.1:7449", "tcp/192.168.0.2:7449"]'
-```
-This configuration sets the node to listen on
+- Make a `Zenoh router` to connect to one or more remote `Zenoh routers`:
 
-- Enable multicast scouting (disabled by default) that allows ROS2 nodes to discover each other without requiring a Zenoh router:
-```bash
-export ZENOH_CONFIG_OVERRIDE='scouting/multicast/enabled=true'
-```
+  ```bash
+  export ZENOH_CONFIG_OVERRIDE='connect/endpoints=["tcp/192.168.0.3:7447", "tcp/192.168.0.4:7447"]'
+  ros2 run rmw_zenoh_cpp rmw_zenohd
+  ```
+
+- Enable multicast scouting (disabled by default) to allow ROS 2 nodes running on a same host to discover each other without requiring a Zenoh router:
+
+  ```bash
+  # terminal 1
+  export ZENOH_ROUTER_CHECK_ATTEMPTS=-1
+  export ZENOH_CONFIG_OVERRIDE='scouting/multicast/enabled=true'
+  ros2 run demo_nodes_cpp talker
+
+  # terminal 2
+  export ZENOH_ROUTER_CHECK_ATTEMPTS=-1
+  export ZENOH_CONFIG_OVERRIDE='scouting/multicast/enabled=true'
+  ros2 run demo_nodes_cpp listener
+  ```
+
+- Enable multicast scouting to allow ROS 2 nodes running on distinct hosts to discover each other
+  (the nodes have to listen on all available interfaces, not only `localhost` which is the default configuration):
+
+  ```bash
+  # host 1
+  export ZENOH_ROUTER_CHECK_ATTEMPTS=-1
+  export ZENOH_CONFIG_OVERRIDE='listen/endpoints=["tcp/0.0.0.0:0"];scouting/multicast/enabled=true'
+  ros2 run demo_nodes_cpp talker
+
+  # host 2
+  export ZENOH_ROUTER_CHECK_ATTEMPTS=-1
+  export ZENOH_CONFIG_OVERRIDE='listen/endpoints=["tcp/0.0.0.0:0"];scouting/multicast/enabled=true'
+  ros2 run demo_nodes_cpp listener
+  ```
 
 ### Connecting multiple hosts
 By default, all discovery & communication is restricted within a host, where a host is a machine running a `Zenoh router` along with various ROS 2 nodes with their default [configurations](rmw_zenoh_cpp/config/).
