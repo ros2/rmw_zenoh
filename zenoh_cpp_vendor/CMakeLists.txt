@@ -36,11 +36,12 @@ set(ZENOHC_CARGO_FLAGS "--no-default-features$<SEMICOLON>--features=shared-memor
 #    - https://github.com/eclipse-zenoh/zenoh/pull/1844
 ament_vendor(zenoh_c_vendor
   VCS_URL https://github.com/eclipse-zenoh/zenoh-c.git
-  VCS_VERSION ffa4bddc947f7ed6c0e3b4546205dd1b73e7df81
+  VCS_VERSION f60bbaba51417256b267f59f909a48eb99f1833b
   CMAKE_ARGS
     "-DZENOHC_CARGO_FLAGS=${ZENOHC_CARGO_FLAGS}"
     "-DZENOHC_BUILD_WITH_UNSTABLE_API=TRUE"
     "-DZENOHC_CUSTOM_TARGET=${ZENOHC_CUSTOM_TARGET}"
+  PATCHES ${CMAKE_CURRENT_SOURCE_DIR}/pin-rust-1.75.0.patch
 )
 
 ament_export_dependencies(zenohc)
