@@ -1311,7 +1311,6 @@ __rmw_take_serialized(
     return RMW_RET_INCORRECT_RMW_IMPLEMENTATION);
   RMW_CHECK_ARGUMENT_FOR_NULL(serialized_message, RMW_RET_INVALID_ARGUMENT);
   RMW_CHECK_ARGUMENT_FOR_NULL(taken, RMW_RET_INVALID_ARGUMENT);
-  RMW_CHECK_ARGUMENT_FOR_NULL(message_info, RMW_RET_INVALID_ARGUMENT);
   rmw_zenoh_cpp::SubscriptionData * sub_data =
     static_cast<rmw_zenoh_cpp::SubscriptionData *>(subscription->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(sub_data, RMW_RET_INVALID_ARGUMENT);
@@ -1325,7 +1324,7 @@ __rmw_take_serialized(
     rmw_take,
     static_cast<const void *>(subscription),
     static_cast<const void *>(serialized_message),
-    message_info->source_timestamp,
+    (message_info ? message_info->source_timestamp : 0LL),
     *taken);
   return ret;
 }
@@ -1355,6 +1354,7 @@ rmw_take_serialized_message_with_info(
   rmw_message_info_t * message_info,
   rmw_subscription_allocation_t * allocation)
 {
+  RMW_CHECK_ARGUMENT_FOR_NULL(message_info, RMW_RET_INVALID_ARGUMENT);
   static_cast<void>(allocation);
 
   return __rmw_take_serialized(subscription, serialized_message, taken, message_info);
