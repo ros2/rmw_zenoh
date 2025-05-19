@@ -71,11 +71,10 @@ rmw_qos_profile_check_compatible(
   if (reason && reason_size != 0u) {
     reason[0] = '\0';
   }
-  // In Zenoh, there are not qos incompatibilities.
-  // Further publishers do not have any reliability settings.
-  // The once scenario where transport may not occur is where a publisher with
-  // TRANSIENT_LOCAL durability publishes a message before a subscription with
-  // VOLATILE durability spins up. However, any subsequent messages published
+  // In Zenoh, there are no QoS incompatibilities.
+  // The one scenario where transport may not occur is where a publisher with
+  // `TRANSIENT_LOCAL` durability publishes a message before a subscription with
+  // `VOLATILE` durability spins up. However, any subsequent messages published
   // will be received by the subscription.
   if (publisher_profile.durability == RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL &&
     subscription_profile.durability == RMW_QOS_POLICY_DURABILITY_VOLATILE)
