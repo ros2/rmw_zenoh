@@ -2,8 +2,8 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.7.1 (2025-05-19)
+------------------
 * fix(comment): correct the QoS incompatibilities (`#644 <https://github.com/ros2/rmw_zenoh/issues/644>`_)
 * fix rmw_take_serialized_message. (`#638 <https://github.com/ros2/rmw_zenoh/issues/638>`_)
 * Update CMakeLists.txt (`#617 <https://github.com/ros2/rmw_zenoh/issues/617>`_)
