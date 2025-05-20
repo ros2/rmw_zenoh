@@ -2,6 +2,12 @@
 Changelog for package zenoh_cpp_vendor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* fix: pin rust toolchain to v1.75.0 (`#634 <https://github.com/ros2/rmw_zenoh/issues/634>`_)
+* fix: use the right commit to bump zenoh to v1.3.2 (`#631 <https://github.com/ros2/rmw_zenoh/issues/631>`_)
+* Contributors: Yadunund, Yuyuan Yuan
+
 0.6.0 (2025-04-18)
 ------------------
 * Bump Zenoh to v1.3.2 and improve e2e reliability with HeartbeatSporadic (`#591 <https://github.com/ros2/rmw_zenoh/issues/591>`_)

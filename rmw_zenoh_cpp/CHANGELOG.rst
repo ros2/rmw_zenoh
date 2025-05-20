@@ -2,6 +2,13 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* fix(comment): correct the QoS incompatibilities (`#645 <https://github.com/ros2/rmw_zenoh/issues/645>`_)
+* fix rmw_take_serialized_message. (`#639 <https://github.com/ros2/rmw_zenoh/issues/639>`_)
+* Update CMakeLists.txt (`#622 <https://github.com/ros2/rmw_zenoh/issues/622>`_)
+* Contributors: Alejandro Hernández Cordero, mosfet80, Tomoya Fujita
+
 0.6.0 (2025-04-18)
 ------------------
 * Change serialization format in attachment_helpers.cpp (`#601 <https://github.com/ros2/rmw_zenoh/issues/601>`_)
