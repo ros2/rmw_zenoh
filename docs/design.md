@@ -69,27 +69,21 @@ Default Configuration for Zenoh Sessions and Router:
 | Mode                 | peer                       | router                    |
 | Listen               | `tcp/localhost:0`          | `tcp/[::]:7447`           |
 | Connect              | `tcp/localhost:7447`       | -                         |
-| UDP Multicast        | Disabled                   | Disabled                  |
 | Gossip Scouting      | Enabled                    | Enabled                   |
+| UDP Multicast        | Disabled                   | Disabled                  |
 
-The Router is listening for incoming TCP connections port 7447 for all available interfaces (`tcp/[::]:7447`).
+**The Router** is listening for incoming TCP connections port 7447 for all available interfaces (`tcp/[::]:7447`).
 
-The Sessions connect to the local Router via the loopback interface (`tcp/localhost:7447`). They also listen for incoming TCP connections via the loopback on a port chosen by the OS (`tcp/localhost:0`).
+**The Sessions** connect to the local Router via the loopback interface (`tcp/localhost:7447`). They also listen for incoming TCP connections via the loopback on a port chosen by the OS (`tcp/localhost:0`).
 
-The Gossip Scouting protocol is enabled to allow the router to discover the endpoints (IP+port) used by each connecting Session and to forward those endpoints to the other Sessions. As a result, Sessions can create peer-to-peer connections over the loopback..
+**The Gossip Scouting** protocol is enabled to allow the router to discover the endpoints (IP+port) used by each connecting Session and to forward those endpoints to the other Sessions. As a result, Sessions can create peer-to-peer connections over the loopback..
 
-The UDP Multicast Scouting is disabled by default. The decision to not rely on UDP multicast for discovery was intentional, aimed at avoiding issues with misconfigured networks, operating systems, or containers. It also helps prevent uncontrolled communication between robots on the same LAN, which could lead to interferences.
+**The UDP Multicast** Scouting is disabled by default. The decision to not rely on UDP multicast for discovery was intentional, aimed at avoiding issues with misconfigured networks, operating systems, or containers. It also helps prevent uncontrolled communication between robots in the same LAN, which could lead to interferences if not properly configured with different `ROS_DOMAIN_ID` or namespaces.
 
 
 ## Router
 
-Zenoh has the ability to do discovery using local multicast announcements.
-However, local multicast has some limitations, both intrinsic and specific to Zenoh:
-
-* Multicast discovery can cause a lot of discovery traffic while discovering all other entities in the graph.
-* Multicast discovery has a limited TTL (time-to-live), which means it can usually only discover peers on the local network segment.
-
-To alleviate issues with multicast discovery, `rmw_zenoh_cpp` relies on a Zenoh router to discover peers and forward this discovery information to other peers via Zenoh's `gossip scouting` functionality.
+With the default configuration, `rmw_zenoh_cpp` relies on a Zenoh router to discover peers and forward this discovery information to other peers via Zenoh's `gossip scouting` functionality.
 Hence `rmw_zenoh_cpp` requires the Zenoh router to be running.
 
 It should be noted that when building upstream Zenoh from source, a `zenohd` binary is created which is the router.
