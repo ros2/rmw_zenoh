@@ -2,7 +2,7 @@
 
 ## Introduction
 
-`rmw_zenoh_cpp` maps the ROS 2 [RMW API](https://github.com/ros2/rmw/tree/rolling/rmw/include/rmw) as of late 2023 onto Zenoh APIs, using [zenoh-c](https://github.com/eclipse-zenoh/zenoh-c).
+`rmw_zenoh_cpp` maps the ROS 2 [RMW API](https://github.com/ros2/rmw/tree/rolling/rmw/include/rmw) onto Zenoh APIs, using [zenoh-cpp](https://github.com/eclipse-zenoh/zenoh-cpp) and [zenoh-c](https://github.com/eclipse-zenoh/zenoh-c).
 The end result is that users can use ROS 2 to send and receive data over Zenoh, using the APIs that they are already familiar with.
 
 ## Brief overview
@@ -13,7 +13,7 @@ There is more detail on each item below, but a brief overview on how this is acc
 * Each "context" in ROS 2 is mapped to a single Zenoh "session".  That means that there may be many publishers, subscriptions, services, and clients sharing the same session.
 * Every "context" has a local "graph cache" that keeps track of the details of the network graph of ROS 2 entities.
 * Zenoh publishers, subscriptions, services, and clients are created or destroyed when the corresponding RMW APIs are called.
-* Data is sent and received through the appropriate zenoh-c API when the corresponding RMW APIs are called.
+* Data is sent and received through the appropriate zenoh-cpp API when the corresponding RMW APIs are called.
 
 The following diagram shows the default network topology of a subsystem composed of 3 nodes:
 
@@ -28,13 +28,17 @@ flowchart TB
     classDef yellow fill:#a724f7,stroke:#000,stroke-width:2px,color:#fff
 
     %% DIAGRAM %%
-    Router(Zenoh Router:\n tcp/localhost:7447):::yellow
+    Router("`Zenoh Router:
+    tcp/localhost:7447`"):::yellow
 
     %% Discovery connections %%
 
-    Router <-..-> |discovery| S1(["Zenoh Session\n(Pub)"]):::blue
-    Router <-..-> |discovery| S2(["Zenoh Session\n(Sub)"]):::blue
-    Router <-..-> |discovery| S3(["Zenoh Session\n(Sub)"]):::blue
+    Router <-..-> |discovery| S1(["`Zenoh Session
+    (Pub)`"]):::blue
+    Router <-..-> |discovery| S2(["`Zenoh Session
+    (Sub)`"]):::blue
+    Router <-..-> |discovery| S3(["`Zenoh Session
+    (Sub)`"]):::blue
 
     subgraph Sessions
 
@@ -55,13 +59,27 @@ flowchart TB
       linkStyle 7 stroke:green
     end
 ```
-Default Configuration for Zenoh Sessions:
-| Config | Zenoh Session    | Zenoh Router    |
-| :---:   | :---: | :---: |
-| Mode | Peer   | Router   |
-| Connect | tcp/localhost:7447   |  -  |
-| UDP Multicast | Disabled | Disabled   |
-| Gossip Scouting | Enabled | Enabled   |
+
+Default Configuration for Zenoh Sessions and Router:
+
+| Config | Zenoh Session | Zenoh Router  |
+| :---:           | :---:                | :---:            |
+| Default config file  | [DEFAULT_RMW_ZENOH_SESSION_CONFIG.json5](../rmw_zenoh_cpp/config/DEFAULT_RMW_ZENOH_SESSION_CONFIG.json5) | [DEFAULT_RMW_ZENOH_ROUTER_CONFIG.json5](../rmw_zenoh_cpp/config/DEFAULT_RMW_ZENOH_ROUTER_CONFIG.json5) |
+| Environment variable | `ZENOH_SESSION_CONFIG_URI` | `ZENOH_ROUTER_CONFIG_URI` |
+| Mode                 | peer                       | router                    |
+| Listen               | `tcp/localhost:0`          | `tcp/[::]:7447`           |
+| Connect              | `tcp/localhost:7447`       | -                         |
+| UDP Multicast        | Disabled                   | Disabled                  |
+| Gossip Scouting      | Enabled                    | Enabled                   |
+
+The Router is listening for incoming TCP connections port 7447 for all available interfaces (`tcp/[::]:7447`).
+
+The Sessions connect to the local Router via the loopback interface (`tcp/localhost:7447`). They also listen for incoming TCP connections via the loopback on a port chosen by the OS (`tcp/localhost:0`).
+
+The Gossip Scouting protocol is enabled to allow the router to discover the endpoints (IP+port) used by each connecting Session and to forward those endpoints to the other Sessions. As a result, Sessions can create peer-to-peer connections over the loopback..
+
+The UDP Multicast Scouting is disabled by default. The decision to not rely on UDP multicast for discovery was intentional, aimed at avoiding issues with misconfigured networks, operating systems, or containers. It also helps prevent uncontrolled communication between robots on the same LAN, which could lead to interferences.
+
 
 ## Router
 
