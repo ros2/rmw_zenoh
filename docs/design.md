@@ -348,13 +348,13 @@ When a new publisher is created, a liveliness token of type `MP` is sent out.
 
 A ROS 2 Publisher publishes messages calling the Zenoh `put` operation with:
 
-* the key expression mapped from the topic
+* the key expression mapped from the topic name
 * the serialized message
 * an attachment containing a sequence number, a source timestamp and publisher GID. It is encoded as such:
   * 8 bytes for the sequence number (int64_t), encoded as a little-endian
   * 8 bytes for the timestamp (number of ns since UNIX EPOCH as int64_t), encoded as a little-endian
   * 1 byte for the length of the publisher GID (currently always 16)
-  * 16 bytes for the publisher GID (array of 16 buint8_tytes)
+  * 16 bytes for the publisher GID (array of 16 int8_t)
 
 ### Related RMW APIs
 
@@ -422,18 +422,31 @@ When a new subscription is created, a liveliness token of type `MS` is sent out.
 In ROS 2, services are meant to be used for remote procedure calls that will return fairly quickly.
 `rmw_zenoh_cpp` uses Zenoh queryables to implement ROS 2 services.
 When a client wants to make a request, it uses the rmw API `rmw_send_request`.
-Attached to that request are various other pieces of metadata, like the sequence number of the request and the GUID of the client that sent the request.
-The sequence number is used to correlate this request to the response that comes back later.
-`rmw_zenoh_cpp` then calls the Zenoh `z_get` function to send a query out to the network.
 
-Assuming there is a service server listening to that queryable, it will receive the request, perform a computation, and return the result.
-The result will then be made available to the client via `rmw_take_response`.
+A ROS 2 service client sends a request calling the Zenoh `get` operation with:
+
+* the key expression mapped from the service name
+* the serialized request
+* an attachment containing a sequence number, a source timestamp and client GID. It is encoded as such:
+  * 8 bytes for the sequence number (int64_t), encoded as a little-endian
+  * 8 bytes for the timestamp (number of ns since UNIX EPOCH as int64_t), encoded as a little-endian
+  * 1 byte for the length of the client GID (currently always 16)
+  * 16 bytes for the client GID (array of 16 int8_t)
+* the target option set to `ALL_COMPLETE`, as queryable for service servers are declared as complete
+
+The sequence number is used to correlate this request to the response that comes back later.
+
+Assuming there is a service server listening to that queryable, it will receive the request, perform a computation, and return the response.
+The response will then be made available to the client via `rmw_take_response`.
 
 When a new service client is created, a liveliness token of type `SC` is sent out.
 
 ### Related RMW APIs
 
 * rmw_create_client
+* ClientData
+* AttachmentData
+* ZenohReply
 * rmw_destroy_client
 * rmw_send_request
 * rwm_take_response
@@ -448,24 +461,36 @@ When a new service client is created, a liveliness token of type `SC` is sent ou
 
 ### Related Zenoh-c APIs
 
-* zc_liveliness_declare_token
-* z_get
-* z_attachment_get
+* Session::liveliness_declare_token
+* Session::get
+* Session::GetOptions
+* Reply
 
 ## Service Servers
 
 In ROS 2, services are meant to be used for remote procedure calls that will return fairly quickly.
 `rmw_zenoh_cpp` uses Zenoh queryables to implement ROS 2 services.
 When a ROS 2 node wants to advertise a service to the network, it calls `rmw_create_service`.
-`rmw_zenoh_cpp` uses the `z_declare_queryable` Zenoh API to create that service.
+`rmw_zenoh_cpp` uses the `declare_queryable` Zenoh API to create that service. The queryable is delared with the key expression mapped from the service name. As this key expression doesn't contain any wildcard (`*` or `**`) the queryable is declared as complete (i.e. it can send a reply for every request).
+
 When a client request comes in, `rmw_take_request` is called to send the query to the user callback, which should perform some computation.
-Once the user callback returns, `rmw_send_response` is called to send the response back to the requester.
+Once the user callback returns, `rmw_send_response` is called to send the response back to the requester. This response is sent calling the Zenoh `reply` operation with:
+
+* the serialized response
+* an attachment containing the sequence number received in the request attachment, a source timestamp for the reply and the client GID received in the request attachment. It is encoded as such:
+  * 8 bytes for the sequence number (int64_t), encoded as a little-endian
+  * 8 bytes for the timestamp (number of ns since UNIX EPOCH as int64_t), encoded as a little-endian
+  * 1 byte for the length of the client GID (currently always 16)
+  * 16 bytes for the client GID (array of 16 int8_t)
 
 When a new service server is created, a liveliness token of type `SS` is sent out.
 
 ### Related RMW APIs
 
 * rmw_create_service
+* ServiceData
+* AttachmentData
+* ZenohQuery
 * rmw_destroy_service
 * rmw_take_request
 * rmw_send_response
@@ -478,12 +503,12 @@ When a new service server is created, a liveliness token of type `SS` is sent ou
 
 ### Related Zenoh-c APIs
 
-* zc_liveliness_declare_token
-* z_attachment_get
-* z_declare_queryable
-* z_undeclare_queryable
-* z_query_value
-* z_query_attachment
+* Session::liveliness_declare_token
+* Session::declare_queryable
+* Session::QueryableOptions
+* Query
+* Query::reply
+* Query::ReplyOptions
 
 ## Quality of Service
 
