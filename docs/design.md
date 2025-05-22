@@ -300,7 +300,7 @@ The user can use a custom configuration by setting the `ZENOH_SESSION_CONFIG_URI
 * rmw_destroy_wait_set
 * rmw_wait
 
-### Related Zenoh-c APIs
+### Related Zenoh APIs
 
 * Session::open
 * Session::liveliness_declare_subscriber
@@ -332,7 +332,7 @@ When a new node is created through the RMW API, a liveliness token of type `NN` 
 * rmw_destroy_node
 * rmw_node_get_graph_guard_condition
 
-### Related Zenoh-c APIs
+### Related Zenoh APIs
 
 * Session::liveliness_declare_token
 
@@ -340,46 +340,60 @@ When a new node is created through the RMW API, a liveliness token of type `NN` 
 
 A ROS 2 publisher sends data to 0 or more connected subscriptions.
 A Zenoh publisher does exactly the same thing, so ROS 2 publishers are mapped onto Zenoh publishers in `rmw_zenoh_cpp`.
-If the Quality of Service durability for a publisher is `TRANSIENT_LOCAL`, a Zenoh publication cache will also be created with `ze_declare_publication_cache`.
+The Zenoh advanced publisher API is used to benefit of some features that are implemented on top of a regular Zenoh publisher.
+For instance, if the Quality of Service durability for a publisher is `TRANSIENT_LOCAL`, the Zenoh advanced publisher will be created with a publication cache.
 See the [Quality of Service](#Quality-of-Service) section below for more information.
 
 When a new publisher is created, a liveliness token of type `MP` is sent out.
 
+A ROS 2 Publisher publishes messages calling the Zenoh `put` operation with:
+
+* the key expression mapped from the topic
+* the serialized message
+* an attachment containing a sequence number, a source timestamp and publisher GID. It is encoded as such:
+  * 8 bytes for the sequence number (int64_t), encoded as a little-endian
+  * 8 bytes for the timestamp (number of ns since UNIX EPOCH as int64_t), encoded as a little-endian
+  * 1 byte for the length of the publisher GID (currently always 16)
+  * 16 bytes for the publisher GID (array of 16 buint8_tytes)
+
 ### Related RMW APIs
 
 * rmw_create_publisher
+* PublisherData
+* PublisherData::publish
+* PublisherData::publish_serialized_message
+* AttachmentData
 * rmw_destroy_publisher
-* rmw_publish
-* rmw_publish_serialized_message
 * rmw_borrow_loaned_message
 * rmw_return_loaned_message
 * rmw_publisher_wait_for_all_acked
 * rmw_publisher_get_network_flow_endpoints
 * rmw_publisher_event_init
 
-### Related Zenoh-c APIs
+### Related Zenoh APIs
 
-* zc_liveliness_declare_token
-* zc_publish_put_owned
-* ze_declare_publication_cache
-* z_declare_publisher
-* z_undeclare_publisher
-* z_publisher_put
+* Session::liveliness_declare_token
+* Session::declare_advanced_publisher
+* SessionExt::AdvancedPublisherOptions
+* AdvancedPublisher::put
 
 ## Subscriptions
 
 A ROS 2 subscription receives data from 1 or more connected publishers.
 A Zenoh subscriber does exactly the same thing, so ROS 2 subscriptions are mapped onto Zenoh subscribers in `rmw_zenoh_cpp`.
-If the Quality of Service durability for a subscription is `TRANSIENT_LOCAL`, a Zenoh `ze_owned_querying_subscriber_t` will be created; in all other cases, a `z_owned_subscriber_t` will be created.
+The Zenoh advanced subscriber API is used to benefit of some features that are implemented on top of a regular Zenoh publisher.
+For instance, if the Quality of Service durability for a subscription is `TRANSIENT_LOCAL`, the Zenoh advanced publisher will be created with options to query the historical data cached by the advanced publishers.
 See the [Quality of Service](#Quality-of-Service) section below for more information.
+
 When new data arrives, a callback within `rmw_zenoh_cpp` is executed, which takes ownership of the data and signals that there is data available.
-Then rmw_wait can find out that there is data available, and the data can be delivered via rmw_take.
+Then `rmw_wait` can find out that there is data available, and the data can be delivered via `rmw_take`.
 
 When a new subscription is created, a liveliness token of type `MS` is sent out.
 
 ### Related RMW APIs
 
 * rmw_create_subscription
+* SubscriptionData
 * rmw_destroy_subscription
 * rmw_take
 * rmw_take_with_info
@@ -396,13 +410,12 @@ When a new subscription is created, a liveliness token of type `MS` is sent out.
 * rmw_subscription_get_network_flow_endpoints
 * rmw_subscription_event_init
 
-### Related Zenoh-c APIs
+### Related Zenoh APIs
 
-* zc_liveliness_declare_token
-* zc_sample_payload_rcinc
-* ze_declare_querying_subscriber
-* z_declare_subscriber
-* z_undeclare_subscriber
+* Session::liveliness_declare_token
+* Session::declare_advanced_subscriber
+* SessionExt::AdvancedSubscriberOptions
+* Sample
 
 ## Service Clients
 
