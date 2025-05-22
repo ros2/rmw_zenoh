@@ -176,13 +176,13 @@ The key expression of these liveliness tokens encode information about the entit
 The format of a liveliness token for a node is:
 
 ```text
-@ros2_lv/<domain_id>/<session_id>/<node_id>/<node_id>/<entity_kind>/<mangled_enclave>/<mangled_namespace>/<node_name>`
+@ros2_lv/<domain_id>/<session_id>/<node_id>/<node_id>/<entity_kind>/<mangled_enclave>/<mangled_namespace>/<node_name>
 ```
 
 The format of a liveliness token for a publisher, subscription, service server, or service client:
 
 ```text
-@ros2_lv/<domain_id>/<session_id>/<node_id>/<entity_id>/<entity_kind>/<mangled_enclave>/<mangled_namespace>/<node_name>/<mangled_qualified_name>/<type_name>/<type_hash>/<qos>`
+@ros2_lv/<domain_id>/<session_id>/<node_id>/<entity_id>/<entity_kind>/<mangled_enclave>/<mangled_namespace>/<node_name>/<mangled_qualified_name>/<type_name>/<type_hash>/<qos>
 ```
 
 Where:
@@ -190,7 +190,7 @@ Where:
 * A mangled name is the name with each `/` characters replaced by `%`
 * `@ros2_lv` - A constant prefix marking a [Zenoh hermetic namespace](https://github.com/eclipse-zenoh/roadmap/blob/main/rfcs/ALL/Key%20Expressions.md#namespaces) (i.e. `*` or `**` never match this perfix chunk)
 * `<domain_id>` - The value of the `ROS_DOMAIN_ID` environment variable (`0` by default)
-* `<session_id>` - The Zenoh session ID (1 session per-context)
+* `<session_id>` - The Zenoh session ID (only one session per-context)
 * `<node_id>` - The ID of the node within the context
 * `<entity_id>` - The ID of the entity within the node
 * `<entity_kind>` - The kind of the entity. Possible values:
@@ -200,7 +200,7 @@ Where:
   * `SS` for a service server
   * `SC` for a service client
 * `<mangled_enclave>` - The mangled SROS enclave name (just `%` if not set)
-* `<mangled_namespace>` - The mangled namespace (just `%` for the globabl namespace)
+* `<mangled_namespace>` - The mangled namespace (just `%` if not set)
 * `<node_name>` - The node name
 * `<mangled_qualified_name>` - The mangled [fully qualified name](https://design.ros2.org/articles/topic_and_service_names.html#fully-qualified-names) of the topic or service (i.e. including namespace, if any)
 * `<type_name>` - The topic or service type name, as declared in DDS (e.g.: `std_msgs::msg::dds_::String_`) when encoded in CDR
@@ -277,7 +277,7 @@ Examples using the demo_nodes_cpp package:
 ## Contexts
 
 A ROS 2 context describes a certain middleware configuration, which can contain 0 or more ROS 2 nodes.
-In `rmw_zenoh_cpp`, a context maps to a Zenoh session, along with a liveliness token for the graph cache and some additional metadata.
+In `rmw_zenoh_cpp`, a context maps to a Zenoh session, along with a subscription to liveliness tokens for the graph cache and some additional metadata.
 
 Zenoh allows sessions to be custom configured through a configuration file.
 If otherwise unconfigured, `rmw_zenoh_cpp` uses a [default configuration file](../rmw_zenoh_cpp/config/DEFAULT_RMW_ZENOH_SESSION_CONFIG.json5).
@@ -285,13 +285,14 @@ The user can use a custom configuration by setting the `ZENOH_SESSION_CONFIG_URI
 
 ### Related RMW APIs
 
+* rmw_context_impl_s
+* rmw_context_impl_s::Data
 * rmw_get_zero_initialized_init_options
 * rmw_init_options_copy
 * rmw_init_options_fini
 * rmw_get_zero_initialized_context
 * rmw_init
 * rmw_shutdown
-* rmw_context_init
 * rmw_create_guard_condition
 * rmw_destroy_guard_condition
 * rmw_trigger_guard_condition
@@ -301,13 +302,10 @@ The user can use a custom configuration by setting the `ZENOH_SESSION_CONFIG_URI
 
 ### Related Zenoh-c APIs
 
-* zc_liveliness_declare_subscriber
-* zc_liveliness_get
-* z_open
-* z_close
-* z_undeclare_subscriber
-* z_call
-* z_session_check
+* Session::open
+* Session::liveliness_declare_subscriber
+* Session::liveliness_get
+* Session::close
 
 ## Namespaces
 
@@ -329,13 +327,14 @@ When a new node is created through the RMW API, a liveliness token of type `NN` 
 
 ### Related RMW APIs
 
+* NodeData
 * rmw_create_node
 * rmw_destroy_node
 * rmw_node_get_graph_guard_condition
 
 ### Related Zenoh-c APIs
 
-* zc_liveliness_declare_token
+* Session::liveliness_declare_token
 
 ## Publishers
 
