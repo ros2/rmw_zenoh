@@ -516,18 +516,18 @@ The ROS 2 RMW layer defines quite a few Quality of Service settings that are lar
 Here is an incomplete list of some of the settings and the values that they can take:
 
 * RELIABILITY
-    * RELIABLE - Applicable only for subscriptions.  Data delivery is retried until it is successfully delivered.
-    * BEST_EFFORT - Data may be dropped during delivery. Because Zenoh is TCP-based (by default), this may not work exactly the same as in DDS.  This is the `SYSTEM_DEFAULT` reliability.
+    * RELIABLE - Applicable only for publishers. Data delivery via a reliable transport (e.g. `tcp` or `quic`), if such endpoints are configured.
+    * BEST_EFFORT - Data may be dropped during delivery. If non-reliable endpoints are configured (e.g. `udp`) they will be used. Otherwise reliable transport will be used. Note that with default configuration, only TCP transport are used. This is the `SYSTEM_DEFAULT` reliability.
 * HISTORY
-    * KEEP_LAST - For subscriptions, only keep up to a maximum number of samples (defined by depth); once the maximum is reached, older samples will be lost.  This is the `SYSTEM_DEFAULT` history.
-    * KEEP_ALL - For subscriptions, keep all values.
+    * KEEP_LAST - For subscriptions, only keep up to a maximum number of samples (defined by depth); once the maximum is reached, older samples will be lost. For publications, if TRANSIENT_LOCAL is set, the DEPTH will define the size of the publication cache. This is the `SYSTEM_DEFAULT` history.
+    * KEEP_ALL - For subscriptions, keep all values. For publication, if RELIABLE, the `CongestionControl::BLOCK` mode is set, meaning the publisher will be blocked when network congestion occurs. This leads a periodic publisher to adapt its publication rate to what the network or the subscriptions can handle.
 * DEPTH - The maximum number of samples to keep; only comes into play when KEEP_LAST history is used.  If `DEPTH` is set to 0, `rmw_zenoh_cpp` will choose a depth of 42.
 * DURABILITY
-    * VOLATILE - Samples will only be delivered to subscriptions that are active at the time of publishing.  In `rmw_zenoh_cpp`, this is implemented via `z_declare_subscriber` on the subscription side and `z_declare_publisher` on the publisher side.  This is the `SYSTEM_DEFAULT` durability.
-    * TRANSIENT_LOCAL - "Late-joining" subscriptions will receive historical data, along with any new data.  In `rmw_zenoh_cpp`, this is implemented via `ze_declare_querying_subscriber` on the subscription side and `ze_declare_publication_cache` on the publisher side.
+    * VOLATILE - Samples will only be delivered to subscriptions that are active at the time of publishing. This is the `SYSTEM_DEFAULT` durability.
+    * TRANSIENT_LOCAL - "Late-joining" subscriptions will receive historical data, along with any new data.  In `rmw_zenoh_cpp`, this is implemented for publications via the activation of a cache on the `AdvancedPublisher`. On the subscription side the `AdvancedSubscriber` is configured to query this cache to retrieve the historical data.
 * LIVELINESS
     * AUTOMATIC - The "liveliness" of an entity of the system is managed by the RMW layer.  This is the only LIVELINESS that `rmw_zenoh_cpp` supports.
-    * MANUAL_BY_TOPIC - It is up to the application to periodically publish to a particular topic to assert liveliness.
+    * MANUAL_BY_TOPIC - No supported. It is up to the application to periodically publish to a particular topic to assert liveliness.
 * DEADLINE - The period at which messages are expected to be sent/received.  Currently unimplemented in `rmw_zenoh_cpp`.
 * LIFESPAN - The age at which messages are expired and no longer valid.  Currently unimplemented in `rmw_zenoh_cpp`.
 
