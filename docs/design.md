@@ -459,7 +459,7 @@ When a new service client is created, a liveliness token of type `SC` is sent ou
 * rmw_service_server_is_available
 * rmw_client_set_on_new_response_callback
 
-### Related Zenoh-c APIs
+### Related Zenoh APIs
 
 * Session::liveliness_declare_token
 * Session::get
@@ -501,7 +501,7 @@ When a new service server is created, a liveliness token of type `SS` is sent ou
 * rmw_take_serialized_message_with_info
 * rmw_wait
 
-### Related Zenoh-c APIs
+### Related Zenoh APIs
 
 * Session::liveliness_declare_token
 * Session::declare_queryable
@@ -543,7 +543,7 @@ This means that any publisher can match any subscriber.
 * rmw_service_request_subscription_get_actual_qos
 * rmw_service_response_publisher_get_actual_qos
 
-### Related Zenoh-c APIs
+### Related Zenoh APIs
 
 N/A
 
@@ -577,7 +577,7 @@ Events are broken down into subscription events and publisher events:
 * rmw_subscription_event_init
 * rmw_take_event
 
-### Related Zenoh-c APIs
+### Related Zenoh APIs
 
 N/A
 
