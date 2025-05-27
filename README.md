@@ -220,12 +220,12 @@ Here are two ways to configure on the remote side:
     export ZENOH_CONFIG_OVERRIDE='mode="client";connect/endpoints=["tcp/192.168.1.1:7447"]' 
     ```
 
-### Security
+## Security
 
 Security is available in `rmw_zenoh` by means of access control, authentication and encryption.
 The [zenoh_security_tools](./zenoh_security_tools/) package contains a script to generate Zenoh configs with security configured along with documentation on its usage.
 
-### Logging
+## Logging
 
 The core of Zenoh is implemented in Rust and uses a logging library that can be configured via a `RUST_LOG` environment variable.
 This variable can be configured independently for each Node and the Zenoh router.
@@ -237,7 +237,20 @@ For instance:
 
 For more information on the `RUST_LOG` syntax, see https://docs.rs/env_logger/latest/env_logger/#enabling-logging.
 
-### Known Issues
+## On interoperability with other Zenoh APIs
+
+The current scope of `rmw_zenoh` is limited to ROS 2 nodes on Tier-1 supported platforms and relying on a ROS Client Library (rcl).
+
+While it is possible for an application using any Zenoh API to interoperate with `rmw_zenoh`, supporting such use cases is beyond the scope of this repository's goals. If you aim to develop such a Zenoh application, you must follow the same design than `rmw_zenoh` for key expressions, data serialization format, attachments, and liveliness tokens.
+See [docs/design.md](docs/design.md) for more details.
+
+## On interoperability with [eclipse-zenoh/zenoh-plugin-ros2dds](https://github.com/eclipse-zenoh/zenoh-plugin-ros2dds) and `zenoh-bridge-ros2dds`
+
+`zenoh-plugin-ros2dds` allows to bridge DDS-based ROS 2 communications (mainly using CycloneDDS) to Zenoh.
+
+`rmw_zenoh` utilizes Zenoh differently, particularly in terms of key expressions. Consequently, `rmw_zenoh` cannot interoperate with `zenoh-plugin-ros2dds`. This use case is beyond the scope of `rmw_zenoh`.
+
+## Known Issues
 
 ### Router crashes on IPv4-only systems
 
