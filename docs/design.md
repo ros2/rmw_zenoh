@@ -76,7 +76,7 @@ Default Configuration for Zenoh Sessions and Router:
 
 **The Sessions** connect to the local Router via the loopback interface (`tcp/localhost:7447`). They also listen for incoming TCP connections via the loopback on a port chosen by the OS (`tcp/localhost:0`).
 
-**The Gossip Scouting** protocol is enabled to allow the router to discover the endpoints (IP+port) used by each connecting Session and to forward those endpoints to the other Sessions. As a result, Sessions can create peer-to-peer connections over the loopback..
+**The Gossip Scouting** protocol is enabled to allow the router to discover the endpoints (IP:port) used by each connecting Session and to forward those endpoints to the other Sessions. As a result, Sessions can create peer-to-peer connections over the loopback interface.
 
 **The UDP Multicast** Scouting is disabled by default. The decision to not rely on UDP multicast for discovery was intentional, aimed at avoiding issues with misconfigured networks, operating systems, or containers. It also helps prevent uncontrolled communication between robots in the same LAN, which could lead to interferences if not properly configured with different `ROS_DOMAIN_ID` or namespaces.
 
