@@ -241,7 +241,7 @@ For more information on the `RUST_LOG` syntax, see https://docs.rs/env_logger/la
 
 The current scope of `rmw_zenoh` is limited to ROS 2 nodes on Tier-1 supported platforms and relying on a ROS Client Library (rcl).
 
-While it is possible for an application using any Zenoh API to interoperate with `rmw_zenoh`, supporting such applications is beyond the scope of this repository's mainteners. If you aim to develop such a Zenoh application, you must follow the same design than `rmw_zenoh` for key expressions, data serialization format, attachments, and liveliness tokens.
+While it is possible for an application using any Zenoh API to interoperate with `rmw_zenoh`, supporting such use cases is beyond the scope of this repository's goals. If you aim to develop such a Zenoh application, you must follow the same design than `rmw_zenoh` for key expressions, data serialization format, attachments, and liveliness tokens.
 See [docs/design.md](docs/design.md) for more details.
 
 ## On interoperability with [eclipse-zenoh/zenoh-plugin-ros2dds](https://github.com/eclipse-zenoh/zenoh-plugin-ros2dds) and `zenoh-bridge-ros2dds`
