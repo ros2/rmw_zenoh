@@ -118,9 +118,9 @@ N/A
 
 ## Topic and Service name mapping to Zenoh key expressions
 
-With Zenoh a pub/sub pair or querier/queryable pair with matching key expressions can communicate regardless of the data type, the encoding, or the QoS.
+Zenoh inherently allows any pub/sub or querier/queryable pair to communicate, irrespective of their data type, encoding, or QoS, as long as their key expressions match.
 
-As a consequence, to ensure that `rmw_zenoh_cpp` behaves similarly to other RMWs, the key expressions have been designed to:
+In contrast, to ensure rmw_zenoh_cpp aligns with the behavior of other RMW implementations, its key expressions have been specifically designed to
 
 * Prevent any communication between Sessions using different `ROS_DOMAIN_ID`, even when they are connecting to the same Zenoh infrastructure (i.e., interconnected routers).
 * Prevent any communication between Publishers and Subscribers that use the same topic name but have different type names or type definitions. This also applies to Service Servers and Clients.
