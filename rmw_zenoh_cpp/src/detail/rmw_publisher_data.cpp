@@ -23,6 +23,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <cstdint>
 
 #include "cdr.hpp"
 #include "rmw_context_impl_s.hpp"
