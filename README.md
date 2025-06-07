@@ -217,10 +217,10 @@ Here are two ways to configure on the remote side:
 2. A simpler way is to override the config by `ZENOH_CONFIG_OVERRIDE`
 
     ```bash
-    export ZENOH_CONFIG_OVERRIDE='mode="client";connect/endpoints=["tcp/192.168.1.1:7447"]' 
+    export ZENOH_CONFIG_OVERRIDE='mode="client";connect/endpoints=["tcp/192.168.1.1:7447"]'
     ```
 
-## Zenoh SHM
+## Zenoh Shared Memory
 
 Zenoh-backed shared memory provides implicit SHM optimization for any messages passing through (not only those created with loaned messages API).
 
@@ -241,9 +241,9 @@ The following additional configuration options available as environment variable
 
 ### Interoperability
 
-- SHM-enabled nodes are fully interoperable with remote (non-localhost) nodes and localhost non-SHM-enabled nodes on transparent basis. 
+- SHM-enabled nodes are fully interoperable with remote (non-localhost) nodes and localhost non-SHM-enabled nodes on transparent basis.
 - SHM subsystem is fully transparent and interoperable with any oter RMW-compatible Zenoh software like bridges etc.
-- Zenoh SHM works intra- and inter- containers if container's POSIX SHM is configured properly.  
+- Zenoh SHM works intra- and inter- containers if container's POSIX SHM is configured properly.
 
 ## Security
 

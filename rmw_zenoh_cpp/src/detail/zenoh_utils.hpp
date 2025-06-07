@@ -19,6 +19,7 @@
 
 #include <array>
 #include <chrono>
+#include <cstddef>
 #include <functional>
 #include <optional>
 #include <utility>
@@ -65,8 +66,10 @@ private:
   std::chrono::nanoseconds::rep received_timestamp_;
 };
 
+///=============================================================================
 int64_t get_system_time_in_ns();
 
+///=============================================================================
 class Payload
 {
 public:
@@ -91,6 +94,15 @@ private:
   // Is `std::vector<uint8_t>` in case of a non-contiguous payload
   // and `zenoh::Slice` plus a `zenoh::Bytes` otherwise.
   std::variant<NonContiguous, Contiguous, Empty> bytes_;
+};
+
+///=============================================================================
+struct ShmContext
+{
+  zenoh::PosixShmProvider shm_provider;
+  size_t msgsize_threshold;
+
+  ShmContext(size_t alloc_size, size_t msgsize_threshold);
 };
 }  // namespace rmw_zenoh_cpp
 
