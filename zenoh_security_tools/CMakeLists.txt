@@ -18,7 +18,7 @@ find_package(rcpputils REQUIRED)
 find_package(rcutils REQUIRED)
 # todo(Yadunund): Remove rmw dependency after https://github.com/ros2/rmw/pull/400 is merged.
 find_package(rmw REQUIRED)
-find_package(rmw_security_common REQUIRED)
+find_package(rmw_dds_common REQUIRED)
 find_package(tinyxml2_vendor REQUIRED)
 find_package(TinyXML2 REQUIRED)
 find_package(zenoh_cpp_vendor REQUIRED)
@@ -32,7 +32,7 @@ target_link_libraries(generate_configs PRIVATE
   rcpputils::rcpputils
   rcutils::rcutils
   rmw::rmw
-  rmw_security_common::rmw_security_common_library
+  rmw_dds_common::rmw_dds_common_library
   tinyxml2::tinyxml2
   zenohcxx::zenohc
 )

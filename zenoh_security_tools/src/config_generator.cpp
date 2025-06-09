@@ -43,7 +43,7 @@
 #include "rcpputils/scope_exit.hpp"
 #include "rcutils/allocator.h"
 #include "rcutils/types/string_map.h"
-#include "rmw_security_common/security.hpp"
+#include "rmw_dds_common/security.hpp"
 
 #include <zenoh.hxx>
 
@@ -355,24 +355,10 @@ void ConfigGenerator::fill_certificates(
     return;
   }
 
-  // Access the certificates using utility function from rmw_security_common.
-  rcutils_allocator_t allocator = rcutils_get_default_allocator();
-  rcutils_string_map_t security_files = rcutils_get_zero_initialized_string_map();
-  rcutils_ret_t ret = rcutils_string_map_init(&security_files, 0, allocator);
-  auto scope_exit = rcpputils::make_scope_exit(
-    [&security_files]() {
-      rcutils_ret_t ret = rcutils_string_map_fini(&security_files);
-      if (ret != RMW_RET_OK) {
-        std::cerr << "Failed to fini string map for security." << std::endl;
-        return;
-      }
-  });
-  if (ret != RMW_RET_OK) {
-    std::cerr << "Failed to initialize string map for security." << std::endl;
-    return;
-  }
-  if (get_security_files_support_pkcs(
-      false, "", enclave_dir.string().c_str(), &security_files) != RMW_RET_OK)
+  // Access the certificates using utility function from rmw_dds_common.
+  std::unordered_map<std::string, std::string> security_files;
+  if (!rmw_dds_common::get_security_files(
+      false, std::string(""), enclave_dir.string(), security_files))
   {
     std::cerr << "Failed to get certificates for " << node_name << " from" <<
       enclave_dir.string().c_str() << std::endl;
@@ -388,16 +374,11 @@ void ConfigGenerator::fill_certificates(
           {"tls", {
               {"enable_mtls", true},
               {"verify_name_on_connect", false},
-              {"root_ca_certificate",
-                std::string(rcutils_string_map_get(&security_files, "IDENTITY_CA"))},
-              {"listen_private_key",
-                std::string(rcutils_string_map_get(&security_files, "PRIVATE_KEY"))},
-              {"listen_certificate",
-                std::string(rcutils_string_map_get(&security_files, "CERTIFICATE"))},
-              {"connect_private_key",
-                std::string(rcutils_string_map_get(&security_files, "PRIVATE_KEY"))},
-              {"connect_certificate",
-                std::string(rcutils_string_map_get(&security_files, "CERTIFICATE"))}
+              {"root_ca_certificate", security_files["IDENTITY_CA"]},
+              {"listen_private_key", security_files["PRIVATE_KEY"]},
+              {"listen_certificate", security_files["CERTIFICATE"]},
+              {"connect_private_key", security_files["PRIVATE_KEY"]},
+              {"connect_certificate", security_files["CERTIFICATE"]}
             }}
         }}
     };
