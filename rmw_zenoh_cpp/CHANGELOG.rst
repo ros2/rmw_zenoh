@@ -2,6 +2,17 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.2.4 (2025-04-20)
+------------------
+* Change serialization format in attachment_helpers.cpp (`#605 <https://github.com/ros2/rmw_zenoh/issues/605>`_)
+* Fix the comment. (`#598 <https://github.com/ros2/rmw_zenoh/issues/598>`_)
+* Bump Zenoh to v1.3.2 and improve e2e reliability with HeartbeatSporadic (`#593 <https://github.com/ros2/rmw_zenoh/issues/593>`_)
+* Trigger qos event callback if there are changes before registration  (`#589 <https://github.com/ros2/rmw_zenoh/issues/589>`_)
+* Set wait_set->triggered flag to false (`#584 <https://github.com/ros2/rmw_zenoh/issues/584>`_)
+* Add space after `id` token in `rmw_zenohd` log string (`#578 <https://github.com/ros2/rmw_zenoh/issues/578>`_)
+* fix: use `std::unique_lock` to unlock correctly on Windows (`#573 <https://github.com/ros2/rmw_zenoh/issues/573>`_)
+* Contributors: ChenYing Kuo (CY), Julien Enoch, Luca Cominardi, Patrick Roncagliolo, Yadunund, yellowhatter, Yuyuan Yuan
+
 0.2.3 (2025-03-20)
 ------------------
 * Switch to std::map for TopicTypeMap (`#565 <https://github.com/ros2/rmw_zenoh/issues/565>`_)
