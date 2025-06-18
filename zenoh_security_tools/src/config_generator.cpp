@@ -97,7 +97,7 @@ bool replace(
   const std::string & to)
 {
   size_t start_pos = str.find(from);
-  if(start_pos == std::string::npos) {
+  if (start_pos == std::string::npos) {
     return false;
   }
   str.replace(start_pos, from.length(), to);
@@ -154,8 +154,8 @@ void ConfigGenerator::parse_services(
 
         if (permission_s == nullptr) {
           throw std::runtime_error(
-            "Not able to get permission from service " +
-            std::to_string(services_node->GetLineNum()));
+                  "Not able to get permission from service " +
+                  std::to_string(services_node->GetLineNum()));
         }
         std::string permission = permission_s;
 
@@ -305,7 +305,8 @@ void ConfigGenerator::fill_access_control(
     policies_rules.push_back("incoming_publications");
   }
 
-  json liveliness_messages = json::array({
+  json liveliness_messages = json::array(
+    {
       "liveliness_token", "liveliness_query", "declare_liveliness_subscriber"});
   if (!services_reply_allow_.empty() || !services_request_allow_.empty()) {
     liveliness_messages.push_back("reply");
@@ -451,8 +452,8 @@ void ConfigGenerator::parse_topics(
 
         if (permission_s == nullptr) {
           throw std::runtime_error(
-            "Not able to get permission from service " +
-            std::to_string(topics_node->GetLineNum()));
+                  "Not able to get permission from service " +
+                  std::to_string(topics_node->GetLineNum()));
         }
         std::string permission = permission_s;
 
