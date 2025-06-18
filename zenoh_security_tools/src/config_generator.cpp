@@ -153,7 +153,8 @@ void ConfigGenerator::parse_services(
         }
 
         if (permission_s == nullptr) {
-          throw std::runtime_error("Not able to get permission from service " +
+          throw std::runtime_error(
+            "Not able to get permission from service " +
             std::to_string(services_node->GetLineNum()));
         }
         std::string permission = permission_s;
@@ -209,89 +210,97 @@ void ConfigGenerator::fill_access_control(
   json policies_rules = json::array();
 
   if (!services_reply_allow_.empty()) {
-    json rule_allow_reply = json::object({
+    json rule_allow_reply = json::object(
+      {
         {"id", "incoming_queries"},
         {"messages", json::array({"query"})},
         {"flows", json::array({"ingress"})},
         {"permission", "allow"},
         {"key_exprs", to_key_exprs(services_reply_allow_, domain_id_)},
-    });
+      });
     rules.push_back(rule_allow_reply);
     policies_rules.push_back("incoming_queries");
 
-    json rule_outgoing_reply = json::object({
+    json rule_outgoing_reply = json::object(
+      {
         {"id", "outgoing_queryables_replies"},
         {"messages", json::array({"declare_queryable", "reply"})},
         {"flows", json::array({"egress"})},
         {"permission", "allow"},
         {"key_exprs", to_key_exprs(services_reply_allow_, domain_id_)},
-    });
+      });
     rules.push_back(rule_outgoing_reply);
     policies_rules.push_back("outgoing_queryables_replies");
   }
 
   if (!services_request_allow_.empty()) {
-    json rule_allow_request_out = json::object({
+    json rule_allow_request_out = json::object(
+      {
         {"id", "outgoing_queries"},
         {"messages", json::array({"query"})},
         {"flows", json::array({"egress"})},
         {"permission", "allow"},
         {"key_exprs", to_key_exprs(services_request_allow_, domain_id_)},
-    });
+      });
     rules.push_back(rule_allow_request_out);
     policies_rules.push_back("outgoing_queries");
 
-    json rule_allow_request_in = json::object({
+    json rule_allow_request_in = json::object(
+      {
         {"id", "incoming_queryables_replies"},
         {"messages", json::array({"declare_queryable", "reply"})},
         {"flows", json::array({"ingress"})},
         {"permission", "allow"},
         {"key_exprs", to_key_exprs(services_request_allow_, domain_id_)},
-    });
+      });
     rules.push_back(rule_allow_request_in);
     policies_rules.push_back("incoming_queryables_replies");
   }
 
   if (!topics_pub_allow_.empty()) {
-    json rule_allow_pub_out = json::object({
+    json rule_allow_pub_out = json::object(
+      {
         {"id", "outgoing_publications"},
         {"messages", json::array({"put"})},
         {"flows", json::array({"egress"})},
         {"permission", "allow"},
         {"key_exprs", to_key_exprs(topics_pub_allow_, domain_id_)},
-    });
+      });
     rules.push_back(rule_allow_pub_out);
     policies_rules.push_back("outgoing_publications");
 
-    json rule_allow_pub_in = json::object({
+    json rule_allow_pub_in = json::object(
+      {
         {"id", "incoming_subscriptions"},
         {"messages", json::array({"declare_subscriber"})},
         {"flows", json::array({"ingress"})},
         {"permission", "allow"},
         {"key_exprs", to_key_exprs(topics_pub_allow_, domain_id_)},
-    });
+      });
     rules.push_back(rule_allow_pub_in);
     policies_rules.push_back("incoming_subscriptions");
   }
 
   if (!topics_sub_allow_.empty()) {
-    json rule_allow_sub_out = json::object({
+    json rule_allow_sub_out = json::object(
+      {
         {"id", "outgoing_subscriptions"},
         {"messages", json::array({"declare_subscriber"})},
         {"flows", json::array({"egress"})},
         {"permission", "allow"},
         {"key_exprs", to_key_exprs(topics_sub_allow_, domain_id_)},
-    });
+      });
     rules.push_back(rule_allow_sub_out);
     policies_rules.push_back("outgoing_subscriptions");
 
-    json rule_allow_sub_in = json::object({
+    json rule_allow_sub_in = json::object(
+      {
         {"id", "incoming_publications"},
         {"messages", json::array({"put"})},
         {"flows", json::array({"ingress"})},
         {"permission", "allow"},
         {"key_exprs", to_key_exprs(topics_sub_allow_, domain_id_)},
-    });
+      });
     rules.push_back(rule_allow_sub_in);
     policies_rules.push_back("incoming_publications");
   }
@@ -302,31 +311,37 @@ void ConfigGenerator::fill_access_control(
     liveliness_messages.push_back("reply");
   }
 
-  json rule_liveliness = json::object({
+  json rule_liveliness = json::object(
+    {
       {"id", "liveliness_tokens"},
       {"messages", liveliness_messages},
       {"flows", json::array({"ingress", "egress"})},
       {"permission", "allow"},
       {"key_exprs",
         json::array({"@ros2_lv/" + std::to_string(domain_id_) + "/**"})},
-  });
+    });
   rules.push_back(rule_liveliness);
   policies_rules.push_back("liveliness_tokens");
 
   json policies = json::array();
-  policies.push_back(json::object({
+  policies.push_back(
+    json::object(
+    {
       {"rules", json::array({"liveliness_tokens"})},
       {"subjects", json::array({"router"})},
-  }));
-  policies.push_back(json::object({
+    }));
+  policies.push_back(
+    json::object(
+    {
       {"rules", policies_rules},
       {"subjects", json::array({node_name})},
-  }));
+    }));
 
-  json subjects = json::array({
+  json subjects = json::array(
+    {
       json::object({{"id", "router"}}),
       json::object({{"id", node_name}}),
-  });
+    });
 
   config.insert_json5("access_control/enabled", "true");
   config.insert_json5("access_control/default_permission", "'deny'");
@@ -435,7 +450,8 @@ void ConfigGenerator::parse_topics(
         }
 
         if (permission_s == nullptr) {
-          throw std::runtime_error("Not able to get permission from service " +
+          throw std::runtime_error(
+            "Not able to get permission from service " +
             std::to_string(topics_node->GetLineNum()));
         }
         std::string permission = permission_s;
@@ -490,8 +506,9 @@ void ConfigGenerator::parse_profiles(const tinyxml2::XMLElement * root)
               }
 
               zenoh::ZResult result;
-              zenoh::Config config = zenoh::Config::from_file(zenoh_session_config_filepath_,
-                  &result);
+              zenoh::Config config = zenoh::Config::from_file(
+                zenoh_session_config_filepath_,
+                &result);
               if (result != Z_OK) {
                 std::string error_msg = "Invalid configuration file " +
                   zenoh_session_config_filepath_;

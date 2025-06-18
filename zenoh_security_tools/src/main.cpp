@@ -84,7 +84,7 @@ std::optional<uint32_t> parse_uint(const std::string & s)
 }  // namespace
 
 //==============================================================================
-int main(int argc, char *argv[])
+int main(int argc, char * argv[])
 {
   CommandLineArgs args;
   std::vector<std::string> raw_args(argv + 1, argv + argc);
