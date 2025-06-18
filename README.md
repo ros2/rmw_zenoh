@@ -221,9 +221,8 @@ Here are two ways to configure on the remote side:
     ```
 
 ## Security
-
 Security is available in `rmw_zenoh` by means of access control, authentication and encryption.
-A `jazzy` port of the `zenoh_security_tools` package which contains a script to generate Zenoh configs with security configured along with documentation on its usage is [underway](https://github.com/ros2/rmw_zenoh/pull/661).
+The [zenoh_security_tools](./zenoh_security_tools/) package contains a script to generate Zenoh configs with security configured along with documentation on its usage.
 
 ## Logging
 
