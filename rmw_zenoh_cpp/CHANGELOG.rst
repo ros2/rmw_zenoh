@@ -2,6 +2,12 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Use data() to avoid potentially dereferencing an empty vector (`#668 <https://github.com/ros2/rmw_zenoh/issues/668>`_)
+* Bump Zenoh to 1.4.0 (`#657 <https://github.com/ros2/rmw_zenoh/issues/657>`_)
+* Contributors: Julien Enoch, Øystein Sture
+
 0.6.1 (2025-05-20)
 ------------------
 * fix(comment): correct the QoS incompatibilities (`#645 <https://github.com/ros2/rmw_zenoh/issues/645>`_)
