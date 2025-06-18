@@ -2,8 +2,8 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.2.5 (2025-06-18)
+------------------
 * Use data() to avoid potentially dereferencing an empty vector (`#669 <https://github.com/ros2/rmw_zenoh/issues/669>`_)
 * Bump Zenoh to 1.4.0 (`#658 <https://github.com/ros2/rmw_zenoh/issues/658>`_)
 * fix rmw_take_serialized_message. (`#640 <https://github.com/ros2/rmw_zenoh/issues/640>`_)
