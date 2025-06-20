@@ -3,6 +3,12 @@
 [![build](https://github.com/ros2/rmw_zenoh/actions/workflows/build.yaml/badge.svg?branch=humble)](https://github.com/ros2/rmw_zenoh/actions/workflows/build.yaml)
 [![style](https://github.com/ros2/rmw_zenoh/actions/workflows/style.yaml/badge.svg?branch=humble)](https://github.com/ros2/rmw_zenoh/actions/workflows/style.yaml)
 
+| Package | Status |
+| ------- | ------ |
+| rmw_zenoh_cpp | [![Build Status](https://build.ros2.org/view/Hbin_uJ64/job/Hbin_uJ64__rmw_zenoh_cpp__ubuntu_jammy_amd64__binary/badge/icon)](https://build.ros2.org/view/Hbin_uJ64/job/Hbin_uJ64__rmw_zenoh_cpp__ubuntu_jammy_amd64__binary/) |
+| zenoh_cpp_vendor | [![Build Status](https://build.ros2.org/view/Hbin_uJ64/job/Hbin_uJ64__zenoh_cpp_vendor__ubuntu_jammy_amd64__binary/badge/icon)](https://build.ros2.org/view/Hbin_uJ64/job/Hbin_uJ64__zenoh_cpp_vendor__ubuntu_jammy_amd64__binary/) |
+| zenoh_security_tools | [![Build Status](https://build.ros2.org/view/Hbin_uJ64/job/Hbin_uJ64__zenoh_security_tools__ubuntu_jammy_amd64__binary/badge/icon)](https://build.ros2.org/view/Hbin_uJ64/job/Hbin_uJ64__zenoh_security_tools__ubuntu_jammy_amd64__binary/) |
+
 A ROS 2 RMW implementation based on Zenoh that is written using the zenoh-cpp bindings.
 
 ## Design
