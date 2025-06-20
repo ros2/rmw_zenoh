@@ -3,6 +3,12 @@
 [![build](https://github.com/ros2/rmw_zenoh/actions/workflows/build.yaml/badge.svg)](https://github.com/ros2/rmw_zenoh/actions/workflows/build.yaml)
 [![style](https://github.com/ros2/rmw_zenoh/actions/workflows/style.yaml/badge.svg)](https://github.com/ros2/rmw_zenoh/actions/workflows/style.yaml)
 
+| Package | Status |
+| ------- | ------ |
+| rmw_zenoh_cpp | [![Build Status](https://build.ros2.org/view/Rbin_uN64/job/Rbin_uN64__rmw_zenoh_cpp__ubuntu_noble_amd64__binary/badge/icon)](https://build.ros2.org/view/Rbin_uN64/job/Rbin_uN64__rmw_zenoh_cpp__ubuntu_noble_amd64__binary/) |
+| zenoh_cpp_vendor | [![Build Status](https://build.ros2.org/view/Rbin_uN64/job/Rbin_uN64__zenoh_cpp_vendor__ubuntu_noble_amd64__binary/badge/icon)](https://build.ros2.org/view/Rbin_uN64/job/Rbin_uN64__zenoh_cpp_vendor__ubuntu_noble_amd64__binary/) |
+| zenoh_security_tools | [![Build Status](https://build.ros2.org/view/Rbin_uN64/job/Rbin_uN64__zenoh_security_tools__ubuntu_noble_amd64__binary/badge/icon)](https://build.ros2.org/view/Rbin_uN64/job/Rbin_uN64__zenoh_security_tools__ubuntu_noble_amd64__binary/) |
+
 A ROS 2 RMW implementation based on Zenoh that is written using the zenoh-cpp bindings.
 
 ## Design
@@ -217,7 +223,7 @@ Here are two ways to configure on the remote side:
 2. A simpler way is to override the config by `ZENOH_CONFIG_OVERRIDE`
 
     ```bash
-    export ZENOH_CONFIG_OVERRIDE='mode="client";connect/endpoints=["tcp/192.168.1.1:7447"]' 
+    export ZENOH_CONFIG_OVERRIDE='mode="client";connect/endpoints=["tcp/192.168.1.1:7447"]'
     ```
 
 ## Security
