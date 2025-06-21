@@ -32,6 +32,7 @@
 #include "rcutils/types.h"
 
 #include "rmw/rmw.h"
+#include "rmw/get_service_endpoint_info.h"
 #include "rmw/get_topic_endpoint_info.h"
 #include "rmw/names_and_types.h"
 
@@ -168,6 +169,13 @@ public:
     const char * topic_name,
     bool no_demangle,
     rmw_topic_endpoint_info_array_t * endpoints_info) const;
+
+  rmw_ret_t get_entities_info_by_service(
+    liveliness::EntityType entity_type,
+    rcutils_allocator_t * allocator,
+    const char * service_name,
+    bool no_demangle,
+    rmw_service_endpoint_info_array_t * endpoints_info) const;
 
   rmw_ret_t service_server_is_available(
     const liveliness::TopicInfo & client_topic_info,
