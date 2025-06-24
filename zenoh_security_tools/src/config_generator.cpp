@@ -375,7 +375,7 @@ void ConfigGenerator::fill_certificates(
   // Access the certificates using utility function from rmw_dds_common.
   std::unordered_map<std::string, std::string> security_files;
   if (!rmw_dds_common::get_security_files(
-      false, std::string(""), enclave_dir.string(), security_files))
+      std::string(""), enclave_dir.string(), security_files))
   {
     std::cerr << "Failed to get certificates for " << node_name << " from" <<
       enclave_dir.string().c_str() << std::endl;
