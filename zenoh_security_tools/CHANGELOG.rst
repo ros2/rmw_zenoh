@@ -2,8 +2,8 @@
 Changelog for package zenoh_security_tools
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.1.3 (2025-06-26)
+------------------
 * Fixed zenoh_security_tools build (`#681 <https://github.com/ros2/rmw_zenoh/issues/681>`_)
 * Contributors: Alejandro Hernández Cordero
 
