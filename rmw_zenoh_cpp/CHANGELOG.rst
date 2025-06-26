@@ -2,6 +2,9 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+
 0.1.2 (2025-06-19)
 ------------------
 * Use data() to avoid potentially dereferencing an empty vector (`#667 <https://github.com/ros2/rmw_zenoh/issues/667>`_) (`#670 <https://github.com/ros2/rmw_zenoh/issues/670>`_)
