@@ -13,7 +13,7 @@ find_package(ament_cmake_vendor_package REQUIRED)
 # Add a set of usefull features that are not enabled by default in zenoh-c.
 # For a complete list of features see: https://github.com/eclipse-zenoh/zenoh/blob/main/zenoh/Cargo.toml
 # Note: the list of features are separated with whitespaces.
-# However, if you want to add other cargo build flags, is "$<SEMICOLON>" as separator and not ";" as the
+# However, if you want to add other cargo build flags, use "$<SEMICOLON>" as separator and not ";" as the
 # latter is a list separater in cmake and hence the string will be split into two when expanded.
 set(ZENOHC_CARGO_FLAGS "--features=shared-memory zenoh/transport_serial")
 
