@@ -29,6 +29,7 @@ set(ZENOHC_CARGO_FLAGS "--no-default-features$<SEMICOLON>--features=shared-memor
 #    - https://github.com/eclipse-zenoh/zenoh/pull/1914
 # - Add support for DiffServ's DSCP config for endpoints:
 #    - https://github.com/eclipse-zenoh/zenoh/pull/1937
+set(ZENOH_C_IS_VENDORED TRUE)
 ament_vendor(zenoh_c_vendor
   VCS_URL https://github.com/eclipse-zenoh/zenoh-c.git
   VCS_VERSION 6bea1f1ebc29412548f36af91cf2225c8bf476d4
@@ -42,6 +43,7 @@ ament_vendor(zenoh_c_vendor
 
 ament_export_dependencies(zenohc)
 
+set(ZENOH_CPP_IS_VENDORED TRUE)
 ament_vendor(zenoh_cpp_vendor
   VCS_URL https://github.com/eclipse-zenoh/zenoh-cpp
   VCS_VERSION 7379592436398079934f4296d2fa90217f8eddf9
