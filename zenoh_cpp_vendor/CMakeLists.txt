@@ -37,6 +37,7 @@ ament_vendor(zenoh_c_vendor
     "-DZENOHC_BUILD_WITH_UNSTABLE_API=TRUE"
     "-DZENOHC_CUSTOM_TARGET=${ZENOHC_CUSTOM_TARGET}"
   PATCHES ${CMAKE_CURRENT_SOURCE_DIR}/pin-rust-1.75.0.patch
+  IS_VENDORED_OUTPUT_VARIABLE_NAME ZENOH_C_IS_VENDORED
 )
 
 ament_export_dependencies(zenohc)
@@ -46,9 +47,12 @@ ament_vendor(zenoh_cpp_vendor
   VCS_VERSION 7379592436398079934f4296d2fa90217f8eddf9
   CMAKE_ARGS
     -DZENOHCXX_ZENOHC=OFF
+  IS_VENDORED_OUTPUT_VARIABLE_NAME ZENOH_CPP_IS_VENDORED
 )
 
-externalproject_add_stepdependencies(zenoh_cpp_vendor configure zenoh_c_vendor)
+if(ZENOH_C_IS_VENDORED AND ZENOH_CPP_IS_VENDORED)
+  externalproject_add_stepdependencies(zenoh_cpp_vendor configure zenoh_c_vendor)
+endif()
 
 ament_export_dependencies(zenohcxx)
 
