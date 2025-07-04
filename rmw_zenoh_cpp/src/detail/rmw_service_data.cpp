@@ -524,7 +524,7 @@ rmw_ret_t ServiceData::shutdown()
     if (result != Z_OK) {
       RMW_ZENOH_LOG_ERROR_NAMED(
         "rmw_zenoh_cpp",
-        "Unable to undeclare liveliness token");
+        "Unable to undeclare the liveliness token");
       return RMW_RET_ERROR;
     }
 
@@ -532,7 +532,7 @@ rmw_ret_t ServiceData::shutdown()
     if (result != Z_OK) {
       RMW_ZENOH_LOG_ERROR_NAMED(
         "rmw_zenoh_cpp",
-        "Unable to undeclare queryable");
+        "Unable to undeclare the queryable");
       return RMW_RET_ERROR;
     }
   }
