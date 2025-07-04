@@ -132,11 +132,16 @@ std::shared_ptr<ClientData> ClientData::make(
   zenoh::KeyExpr querier_ke(entity->topic_info()->topic_keyexpr_);
   auto options = zenoh::Session::QuerierOptions::create_default();
   options.target = Z_QUERY_TARGET_ALL_COMPLETE;
-  // The default timeout for a z_get query is 10 seconds and if a response is not received within
-  // this window, the queryable will return an invalid reply. However, it is common for actions,
-  // which are implemented using services, to take an extended duration to complete. Hence, we set
-  // the timeout_ms to the largest supported value to account for most realistic scenarios.
-  options.timeout_ms = std::numeric_limits<uint64_t>::max();
+  // Among action-related services, only get_result usually requires a long response time.
+  // In most scenarios, a shorter timeout is sufficient and helps prevent excessive waiting
+  // in case a service reply is missed.
+  if (querier_ke.intersects(zenoh::KeyExpr("**/_action/get_result/**"))) {
+    // The default timeout for a z_get query is 10 seconds and if a response is not received within
+    // this window, the queryable will return an invalid reply. However, it is common for actions,
+    // which are implemented using services, to take an extended duration to complete. Hence, we set
+    // the timeout_ms to the largest supported value to account for most realistic scenarios.
+    options.timeout_ms = std::numeric_limits<uint64_t>::max();
+  }
   // Latest consolidation guarantees unicity of replies for the same key expression,
   // which optimizes bandwidth. The default is "None", which imples replies may come in any order
   // and any number.
