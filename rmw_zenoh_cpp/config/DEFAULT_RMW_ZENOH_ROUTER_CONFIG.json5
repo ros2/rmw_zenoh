@@ -215,8 +215,7 @@
 
   /// The default timeout to apply to queries in milliseconds.
   /// ROS setting: increase the value to avoid timeout at launch time with a large number of Nodes starting all together.
-  ///              Note: the requests to services and actions are hard-coded with an infinite timeout. Hence, this setting
-  ///              only applies to the queries made by the Advanced Subscriber for TRANSIENT_LOCAL implementation.
+  ///              Note that only action-related service get_result is hard-coded with an infinite timeout.
   queries_default_timeout: 60000,
 
   /// The routing strategy to use and it's configuration.
