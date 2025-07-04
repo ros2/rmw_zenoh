@@ -109,6 +109,7 @@ private:
     const rmw_client_t * client,
     std::shared_ptr<liveliness::Entity> entity,
     std::shared_ptr<zenoh::Session> sess,
+    zenoh::Querier querier_,
     const void * request_type_support_impl,
     const void * response_type_support_impl,
     std::shared_ptr<RequestTypeSupport> request_type_support,
@@ -124,8 +125,8 @@ private:
   std::shared_ptr<liveliness::Entity> entity_;
   // A shared session.
   std::shared_ptr<zenoh::Session> sess_;
-  // An owned keyexpression.
-  std::optional<zenoh::KeyExpr> keyexpr_;
+  // Zenoh querier
+  zenoh::Querier querier_;
   // Liveliness token for the service.
   std::optional<zenoh::LivelinessToken> token_;
   // Type support fields.
