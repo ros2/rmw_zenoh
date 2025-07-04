@@ -240,7 +240,7 @@ void ClientData::add_new_reply(std::unique_ptr<ZenohReply> reply)
       "Query queue depth of %ld reached, discarding oldest Query "
       "for client for %s",
       adapted_qos_profile.depth,
-      this->entity_->topic_info().value().topic_keyexpr_);
+      this->entity_->topic_info().value().topic_keyexpr_.c_str());
     reply_queue_.pop_front();
   }
   reply_queue_.emplace_back(std::move(reply));
@@ -502,7 +502,7 @@ rmw_ret_t ClientData::shutdown()
     if (result != Z_OK) {
       RMW_ZENOH_LOG_ERROR_NAMED(
         "rmw_zenoh_cpp",
-        "Unable to undeclare liveliness token");
+        "Unable to undeclare the liveliness token");
       return RMW_RET_ERROR;
     }
   }
@@ -511,7 +511,7 @@ rmw_ret_t ClientData::shutdown()
   if (result != Z_OK) {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
-      "Unable to undeclare querier");
+      "Unable to undeclare the querier");
     return RMW_RET_ERROR;
   }
 
