@@ -2,6 +2,13 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.1.4 (2025-07-11)
+------------------
+* Avoid ambiguity with variable shadowing (`#706 <https://github.com/ros2/rmw_zenoh/issues/706>`_) (`#709 <https://github.com/ros2/rmw_zenoh/issues/709>`_)
+* Only configure the timeout of the action-related service `get_result` to maximum value. (`#685 <https://github.com/ros2/rmw_zenoh/issues/685>`_) (`#703 <https://github.com/ros2/rmw_zenoh/issues/703>`_)
+* Use Zenoh Querier to replace Session.get (`#694 <https://github.com/ros2/rmw_zenoh/issues/694>`_) (`#699 <https://github.com/ros2/rmw_zenoh/issues/699>`_)
+* Contributors: ChenYing Kuo (CY), Yadunund
+
 0.1.3 (2025-06-26)
 ------------------
 
@@ -35,7 +42,7 @@ Changelog for package rmw_zenoh_cpp
 * fix: use the default destructor that automatically drops the zenoh reply/query and hence sends the final signal (`#473 <https://github.com/ros2/rmw_zenoh/issues/473>`_) (`#475 <https://github.com/ros2/rmw_zenoh/issues/475>`_)
 * Switch to debug log if topic_name not in topic_map (`#454 <https://github.com/ros2/rmw_zenoh/issues/454>`_) (`#465 <https://github.com/ros2/rmw_zenoh/issues/465>`_)
 * Bump Zenoh to commit id 3bbf6af (1.2.1 + few commits) (`#456 <https://github.com/ros2/rmw_zenoh/issues/456>`_) (`#462 <https://github.com/ros2/rmw_zenoh/issues/462>`_)
-* Contributors: mergify[bot]
+* Contributors: Alejandro Hernández Cordero, ChenYing Kuo (CY), Chris Lalancette, Christophe Bedard, G.A. vd. Hoorn, Julien Enoch, Luca Cominardi, Øystein Sture, Paul Bouchier, Yadunund, yellowhatter, Yuyuan Yuan
 
 0.1.1 (2025-02-04)
 ------------------
@@ -48,7 +55,7 @@ Changelog for package rmw_zenoh_cpp
 * Sync the config with the default config in Zenoh. (`#414 <https://github.com/ros2/rmw_zenoh/issues/414>`_)
 * fix: check the context validity before accessing the session (`#407 <https://github.com/ros2/rmw_zenoh/issues/407>`_)
 * Fix wan't typo (`#402 <https://github.com/ros2/rmw_zenoh/issues/402>`_)
-* Contributors: Alejandro Hernández Cordero, ChenYing Kuo (CY), Chris Lalancette, Julien Enoch, Mahmo Clephas, Yadunud Mazouz, Timund, Yuyuan Yuan
+* Contributors: Alejandro Hernández Cordero, ChenYing Kuo (CY), Chris Lalancette, Julien Enoch, Mahmo Clephas, Yadunud, Mahmoud Mazouz, Timund, Yuyuan Yuan
 
 0.1.0 (2025-01-02)
 ------------------
