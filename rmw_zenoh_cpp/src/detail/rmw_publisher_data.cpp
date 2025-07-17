@@ -265,10 +265,10 @@ rmw_ret_t PublisherData::publish(
 
   // TODO(ahcorde): shmbuf
   auto deleter = [msg_bytes, allocator](uint8_t *) {
-    if (msg_bytes) {
-      allocator->deallocate(msg_bytes, allocator->state);
-    }
-  };
+      if (msg_bytes) {
+        allocator->deallocate(msg_bytes, allocator->state);
+      }
+    };
   zenoh::Bytes payload(msg_bytes, data_length, deleter);
   // The delete responsibility has been handed over to zenoh::Bytes now
   always_free_msg_bytes.cancel();
