@@ -207,7 +207,7 @@ rmw_ret_t PublisherData::publish(
     type_support_impl_);
 
   // To store serialized message byte array.
-  char * msg_bytes = nullptr;
+  uint8_t * msg_bytes = nullptr;
 
   rcutils_allocator_t * allocator = &rmw_node_->context->options.allocator;
 
@@ -219,12 +219,12 @@ rmw_ret_t PublisherData::publish(
     });
 
   // Get memory from the allocator.
-  msg_bytes = static_cast<char *>(allocator->allocate(max_data_length, allocator->state));
+  msg_bytes = static_cast<uint8_t *>(allocator->allocate(max_data_length, allocator->state));
   RMW_CHECK_FOR_NULL_WITH_MSG(
     msg_bytes, "bytes for message is null", return RMW_RET_BAD_ALLOC);
 
   // Object that manages the raw buffer
-  eprosima::fastcdr::FastBuffer fastbuffer(msg_bytes, max_data_length);
+  eprosima::fastcdr::FastBuffer fastbuffer(reinterpret_cast<char *>(msg_bytes), max_data_length);
 
   // Object that serializes the data
   rmw_zenoh_cpp::Cdr ser(fastbuffer);
@@ -249,10 +249,14 @@ rmw_ret_t PublisherData::publish(
     sequence_number_++, source_timestamp, entity_->copy_gid()).serialize_to_zbytes();
 
   // TODO(ahcorde): shmbuf
-  std::vector<uint8_t> raw_data(
-    reinterpret_cast<const uint8_t *>(msg_bytes),
-    reinterpret_cast<const uint8_t *>(msg_bytes) + data_length);
-  zenoh::Bytes payload(std::move(raw_data));
+  auto deleter = [msg_bytes, allocator](uint8_t *) {
+      if (msg_bytes) {
+        allocator->deallocate(msg_bytes, allocator->state);
+      }
+    };
+  zenoh::Bytes payload(msg_bytes, data_length, deleter);
+  // The delete responsibility has been handed over to zenoh::Bytes now
+  always_free_msg_bytes.cancel();
 
   TRACEPOINT(
     rmw_publish, ros_message);
