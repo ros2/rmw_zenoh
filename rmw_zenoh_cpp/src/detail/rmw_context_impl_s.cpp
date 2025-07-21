@@ -193,6 +193,9 @@ public:
     graph_guard_condition_ = std::make_unique<rmw_guard_condition_t>();
     graph_guard_condition_->implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
     graph_guard_condition_->data = &guard_condition_data_;
+
+    // Initialize the serialization buffer pool.
+    serialization_buffer_pool_ = std::make_shared<rmw_zenoh_cpp::BufferPool>();
   }
 
   void init()
