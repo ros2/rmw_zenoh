@@ -2,6 +2,14 @@
 Changelog for package zenoh_cpp_vendor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.8.1 (2025-07-01)
+------------------
+
+0.8.0 (2025-06-18)
+------------------
+* Bump Zenoh to 1.4.0 (`#652 <https://github.com/ros2/rmw_zenoh/issues/652>`_)
+* Contributors: Julien Enoch
+
 0.7.1 (2025-05-19)
 ------------------
 * fix: pin rust toolchain to v1.75.0 (`#602 <https://github.com/ros2/rmw_zenoh/issues/602>`_)
