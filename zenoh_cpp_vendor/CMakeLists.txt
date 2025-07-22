@@ -31,7 +31,7 @@ set(ZENOHC_CARGO_FLAGS "--features=shared-memory zenoh/transport_serial")
 #    - https://github.com/eclipse-zenoh/zenoh/pull/1937
 ament_vendor(zenoh_c_vendor
   VCS_URL https://github.com/eclipse-zenoh/zenoh-c.git
-  VCS_VERSION 6bea1f1ebc29412548f36af91cf2225c8bf476d4
+  VCS_VERSION ce429e221c46932a79f3377d99a49e4d64c5e25e
   CMAKE_ARGS
     "-DZENOHC_CARGO_FLAGS=${ZENOHC_CARGO_FLAGS}"
     "-DZENOHC_BUILD_WITH_UNSTABLE_API=TRUE"
@@ -43,7 +43,7 @@ ament_export_dependencies(zenohc)
 
 ament_vendor(zenoh_cpp_vendor
   VCS_URL https://github.com/eclipse-zenoh/zenoh-cpp
-  VCS_VERSION 7379592436398079934f4296d2fa90217f8eddf9
+  VCS_VERSION 2f648c6be51adffb99537134f2b60a7f8b30e490
   CMAKE_ARGS
     -DZENOHCXX_ZENOHC=OFF
 )
