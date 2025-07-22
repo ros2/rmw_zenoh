@@ -302,7 +302,7 @@ rmw_ret_t PublisherData::publish(
     );
   // The delete responsibility has been handed over to zenoh::Bytes now
   always_free_msg_bytes.cancel();
-  
+
   TRACETOOLS_TRACEPOINT(
     rmw_publish, static_cast<const void *>(rmw_publisher_), ros_message, source_timestamp);
   pub_.put(std::move(payload), std::move(opts), &result);
