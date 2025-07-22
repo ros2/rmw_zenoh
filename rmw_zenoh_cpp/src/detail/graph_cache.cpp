@@ -1141,7 +1141,7 @@ rmw_ret_t GraphCache::get_entities_info_by_topic(
   }
 
   memcpy(
-    endpoints_info->info_array, &endpoints[0],
+    endpoints_info->info_array, endpoints.data(),
     sizeof(rmw_topic_endpoint_info_t) * endpoints.size());
 
   return RMW_RET_OK;

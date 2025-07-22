@@ -10,12 +10,12 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_vendor_package REQUIRED)
 
-# Disable default features and enable only the most useful ones. This reduces build time and footprint.
+# Add a set of usefull features that are not enabled by default in zenoh-c.
 # For a complete list of features see: https://github.com/eclipse-zenoh/zenoh/blob/main/zenoh/Cargo.toml
-# Note: We separate the two args needed for cargo with "$<SEMICOLON>" and not ";" as the
-# latter is a list separater in cmake and hence the string will be split into two
-# when expanded.
-set(ZENOHC_CARGO_FLAGS "--no-default-features$<SEMICOLON>--features=shared-memory zenoh/transport_compression zenoh/transport_tcp zenoh/transport_udp zenoh/transport_tls")
+# Note: the list of features are separated with whitespaces.
+# However, if you want to add other cargo build flags, use "$<SEMICOLON>" as separator and not ";" as the
+# latter is a list separater in cmake and hence the string will be split into two when expanded.
+set(ZENOHC_CARGO_FLAGS "--features=shared-memory zenoh/transport_serial")
 
 # Set VCS_VERSION to 1.4.0 commits of zenoh/zenoh-c/zenoh-cpp to benefit from:
 # - Add a "bind" config option for endpoints:

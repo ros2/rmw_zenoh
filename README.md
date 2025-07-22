@@ -3,6 +3,12 @@
 [![build](https://github.com/ros2/rmw_zenoh/actions/workflows/build.yaml/badge.svg)](https://github.com/ros2/rmw_zenoh/actions/workflows/build.yaml)
 [![style](https://github.com/ros2/rmw_zenoh/actions/workflows/style.yaml/badge.svg)](https://github.com/ros2/rmw_zenoh/actions/workflows/style.yaml)
 
+| Package | Status |
+| ------- | ------ |
+| rmw_zenoh_cpp | [![Build Status](https://build.ros2.org/view/Jbin_uN64/job/Jbin_uN64__rmw_zenoh_cpp__ubuntu_noble_amd64__binary/badge/icon)](https://build.ros2.org/view/Jbin_uN64/job/Jbin_uN64__rmw_zenoh_cpp__ubuntu_noble_amd64__binary/) |
+| zenoh_cpp_vendor | [![Build Status](https://build.ros2.org/view/Jbin_uN64/job/Jbin_uN64__zenoh_cpp_vendor__ubuntu_noble_amd64__binary/badge/icon)](https://build.ros2.org/view/Jbin_uN64/job/Jbin_uN64__zenoh_cpp_vendor__ubuntu_noble_amd64__binary/) |
+| zenoh_security_tools | [![Build Status](https://build.ros2.org/view/Jbin_uN64/job/Jbin_uN64__zenoh_security_tools__ubuntu_noble_amd64__binary/badge/icon)](https://build.ros2.org/view/Jbin_uN64/job/Jbin_uN64__zenoh_security_tools__ubuntu_noble_amd64__binary/) |
+
 A ROS 2 RMW implementation based on Zenoh that is written using the zenoh-cpp bindings.
 
 ## Design
@@ -262,7 +268,20 @@ For instance:
 
 For more information on the `RUST_LOG` syntax, see https://docs.rs/env_logger/latest/env_logger/#enabling-logging.
 
-### Known Issues
+## On interoperability with other Zenoh APIs
+
+The current scope of `rmw_zenoh` is limited to ROS 2 nodes on Tier-1 supported platforms and relying on a ROS Client Library (rcl).
+
+While it is possible for an application using any Zenoh API to interoperate with `rmw_zenoh`, supporting such use cases is beyond the scope of this repository's goals. If you aim to develop such a Zenoh application, you must follow the same design than `rmw_zenoh` for key expressions, data serialization format, attachments, and liveliness tokens.
+See [docs/design.md](docs/design.md) for more details.
+
+## On interoperability with [eclipse-zenoh/zenoh-plugin-ros2dds](https://github.com/eclipse-zenoh/zenoh-plugin-ros2dds) and `zenoh-bridge-ros2dds`
+
+`zenoh-plugin-ros2dds` allows to bridge DDS-based ROS 2 communications (mainly using CycloneDDS) to Zenoh.
+
+`rmw_zenoh` utilizes Zenoh differently, particularly in terms of key expressions. Consequently, `rmw_zenoh` cannot interoperate with `zenoh-plugin-ros2dds`. This use case is beyond the scope of `rmw_zenoh`.
+
+## Known Issues
 
 ### Router crashes on IPv4-only systems
 

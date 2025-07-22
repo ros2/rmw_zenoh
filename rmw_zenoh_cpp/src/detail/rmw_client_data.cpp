@@ -129,12 +129,32 @@ std::shared_ptr<ClientData> ClientData::make(
     return nullptr;
   }
 
+  zenoh::KeyExpr querier_ke(entity->topic_info()->topic_keyexpr_);
+  auto options = zenoh::Session::QuerierOptions::create_default();
+  options.target = Z_QUERY_TARGET_ALL_COMPLETE;
+  // Among action-related services, only get_result usually requires a long response time.
+  // In most scenarios, a shorter timeout is sufficient and helps prevent excessive waiting
+  // in case a service reply is missed.
+  if (querier_ke.intersects(zenoh::KeyExpr("**/_action/get_result/**"))) {
+    // The default timeout for a z_get query is 10 seconds and if a response is not received within
+    // this window, the queryable will return an invalid reply. However, it is common for actions,
+    // which are implemented using services, to take an extended duration to complete. Hence, we set
+    // the timeout_ms to the largest supported value to account for most realistic scenarios.
+    options.timeout_ms = std::numeric_limits<uint64_t>::max();
+  }
+  // Latest consolidation guarantees unicity of replies for the same key expression,
+  // which optimizes bandwidth. The default is "None", which imples replies may come in any order
+  // and any number.
+  options.consolidation = zenoh::ConsolidationMode::Z_CONSOLIDATION_MODE_NONE;
+  auto querier = session->declare_querier(querier_ke, std::move(options));
+
   std::shared_ptr<ClientData> client_data = std::shared_ptr<ClientData>(
     new ClientData{
       node,
       client,
       entity,
       session,
+      std::move(querier),
       request_members,
       response_members,
       request_type_support,
@@ -150,6 +170,7 @@ ClientData::ClientData(
   const rmw_client_t * rmw_client,
   std::shared_ptr<liveliness::Entity> entity,
   std::shared_ptr<zenoh::Session> sess,
+  zenoh::Querier querier,
   const void * request_type_support_impl,
   const void * response_type_support_impl,
   std::shared_ptr<RequestTypeSupport> request_type_support,
@@ -158,6 +179,7 @@ ClientData::ClientData(
   rmw_client_(rmw_client),
   entity_(std::move(entity)),
   sess_(std::move(sess)),
+  querier_(std::move(querier)),
   request_type_support_impl_(request_type_support_impl),
   response_type_support_impl_(response_type_support_impl),
   request_type_support_(request_type_support),
@@ -167,8 +189,6 @@ ClientData::ClientData(
   is_shutdown_(false),
   initialized_(false)
 {
-  std::string topic_keyexpr = this->entity_->topic_info().value().topic_keyexpr_;
-  keyexpr_ = zenoh::KeyExpr(topic_keyexpr);
   std::string liveliness_keyexpr = this->entity_->liveliness_keyexpr();
   zenoh::ZResult result;
   this->token_ = sess_->liveliness_declare_token(
@@ -223,7 +243,7 @@ void ClientData::add_new_reply(std::unique_ptr<ZenohReply> reply)
       "Query queue depth of %ld reached, discarding oldest Query "
       "for client for %s",
       adapted_qos_profile.depth,
-      std::string(keyexpr_.value().as_string_view()).c_str());
+      this->entity_->topic_info().value().topic_keyexpr_.c_str());
     reply_queue_.pop_front();
   }
   reply_queue_.emplace_back(std::move(reply));
@@ -363,20 +383,10 @@ rmw_ret_t ClientData::send_request(
   *sequence_id = sequence_number_++;
 
   // Send request
-  zenoh::Session::GetOptions opts = zenoh::Session::GetOptions::create_default();
+  auto opts = zenoh::Querier::GetOptions::create_default();
   int64_t source_timestamp = rmw_zenoh_cpp::get_system_time_in_ns();
   opts.attachment = rmw_zenoh_cpp::AttachmentData(
     *sequence_id, source_timestamp, entity_->copy_gid()).serialize_to_zbytes();
-  opts.target = Z_QUERY_TARGET_ALL_COMPLETE;
-  // The default timeout for a z_get query is 10 seconds and if a response is not received within
-  // this window, the queryable will return an invalid reply. However, it is common for actions,
-  // which are implemented using services, to take an extended duration to complete. Hence, we set
-  // the timeout_ms to the largest supported value to account for most realistic scenarios.
-  opts.timeout_ms = std::numeric_limits<uint64_t>::max();
-  // Latest consolidation guarantees unicity of replies for the same key expression,
-  // which optimizes bandwidth. The default is "None", which imples replies may come in any order
-  // and any number.
-  opts.consolidation = zenoh::ConsolidationMode::Z_CONSOLIDATION_MODE_NONE;
 
   std::vector<uint8_t> raw_bytes(
     reinterpret_cast<const uint8_t *>(request_bytes),
@@ -389,8 +399,7 @@ rmw_ret_t ClientData::send_request(
   // We explicitly release the mutex here to avoid an ABBA deadlock as
   // documented in https://github.com/ros2/rmw_zenoh/issues/484.
   lock.unlock();
-  context_impl->session()->get(
-    keyexpr_.value(),
+  querier_.get(
     parameters,
     [client_data](const zenoh::Reply & reply) {
       if (!reply.is_ok()) {
@@ -490,9 +499,17 @@ rmw_ret_t ClientData::shutdown()
     if (result != Z_OK) {
       RMW_ZENOH_LOG_ERROR_NAMED(
         "rmw_zenoh_cpp",
-        "Unable to undeclare liveliness token");
+        "Unable to undeclare the liveliness token");
       return RMW_RET_ERROR;
     }
+  }
+  zenoh::ZResult result;
+  std::move(querier_).undeclare(&result);
+  if (result != Z_OK) {
+    RMW_ZENOH_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to undeclare the querier");
+    return RMW_RET_ERROR;
   }
 
   sess_.reset();
