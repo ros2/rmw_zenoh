@@ -43,6 +43,7 @@ add_library(rmw_zenoh_cpp SHARED
   src/detail/rmw_subscription_data.cpp
   src/detail/service_type_support.cpp
   src/detail/simplified_xxhash3.cpp
+  src/detail/shm_context.cpp
   src/detail/type_support.cpp
   src/detail/type_support_common.cpp
   src/detail/zenoh_config.cpp
