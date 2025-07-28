@@ -276,8 +276,8 @@ rmw_ret_t PublisherData::publish(
 
   auto payload = shmbuf.has_value() ? zenoh::Bytes(std::move(*shmbuf)) :
     zenoh::Bytes(
-      msg_bytes,
-      data_length,
+    msg_bytes,
+    data_length,
     [msg_bytes, allocator](uint8_t *) {allocator->deallocate(msg_bytes, allocator->state);}
     );
   // The delete responsibility has been handed over to zenoh::Bytes now
@@ -355,7 +355,7 @@ rmw_ret_t PublisherData::publish_serialized_message(
 
       TRACETOOLS_TRACEPOINT(
         rmw_publish, static_cast<const void *>(rmw_publisher_), serialized_message,
-          source_timestamp);
+        source_timestamp);
 
       pub_.put(std::move(payload), std::move(opts), &result);
     }
