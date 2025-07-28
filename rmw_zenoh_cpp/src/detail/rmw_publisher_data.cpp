@@ -234,7 +234,7 @@ rmw_ret_t PublisherData::publish(
 
     if (std::holds_alternative<zenoh::ZShmMut>(alloc_result)) {
       auto && buf = std::get<zenoh::ZShmMut>(std::move(alloc_result));
-      msg_bytes = reinterpret_cast<char *>(buf.data());
+      msg_bytes = reinterpret_cast<uint8_t *>(buf.data());
       shmbuf = std::make_optional(std::move(buf));
     } else {
       // Print a warning and revert to regular allocation
@@ -243,19 +243,19 @@ rmw_ret_t PublisherData::publish(
 
       // TODO(yellowhatter): split the whole publish method onto shm and non-shm versions
       // Get memory from the allocator.
-      msg_bytes = static_cast<char *>(allocator->allocate(max_data_length, allocator->state));
+      msg_bytes = static_cast<uint8_t *>(allocator->allocate(max_data_length, allocator->state));
       RMW_CHECK_FOR_NULL_WITH_MSG(
         msg_bytes, "bytes for message is null", return RMW_RET_BAD_ALLOC);
     }
   } else {
     // Get memory from the allocator.
-    msg_bytes = static_cast<char *>(allocator->allocate(max_data_length, allocator->state));
+    msg_bytes = static_cast<uint8_t *>(allocator->allocate(max_data_length, allocator->state));
     RMW_CHECK_FOR_NULL_WITH_MSG(
       msg_bytes, "bytes for message is null", return RMW_RET_BAD_ALLOC);
   }
 
   // Object that manages the raw buffer
-  eprosima::fastcdr::FastBuffer fastbuffer(reinterpret_cast<char *>(msg_bytes), max_data_length);
+  eprosima::fastcdr::FastBuffer fastbuffer(reinterpret_cast<uint8_t *>(msg_bytes), max_data_length);
 
   // Object that serializes the data
   rmw_zenoh_cpp::Cdr ser(fastbuffer);
@@ -281,9 +281,10 @@ rmw_ret_t PublisherData::publish(
 
   auto payload = shmbuf.has_value() ? zenoh::Bytes(std::move(*shmbuf)) :
     zenoh::Bytes(
-    std::vector<uint8_t>(
-      reinterpret_cast<const uint8_t *>(msg_bytes),
-      reinterpret_cast<const uint8_t *>(msg_bytes) + data_length));
+      msg_bytes,
+      data_length,
+      [msg_bytes, allocator](uint8_t *) { allocator->deallocate(msg_bytes, allocator->state); }
+    );
   // The delete responsibility has been handed over to zenoh::Bytes now
   always_free_msg_bytes.cancel();
 
