@@ -283,7 +283,7 @@ rmw_ret_t PublisherData::publish(
     zenoh::Bytes(
       msg_bytes,
       data_length,
-      [msg_bytes, allocator](uint8_t *) { allocator->deallocate(msg_bytes, allocator->state); }
+      [msg_bytes, allocator](uint8_t *) {allocator->deallocate(msg_bytes, allocator->state);}
     );
   // The delete responsibility has been handed over to zenoh::Bytes now
   always_free_msg_bytes.cancel();
