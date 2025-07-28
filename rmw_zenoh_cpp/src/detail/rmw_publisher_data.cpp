@@ -338,8 +338,7 @@ rmw_ret_t PublisherData::publish_serialized_message(
       zenoh::Bytes payload(std::move(buf));
 
       TRACEPOINT(
-        rmw_publish, static_cast<const void *>(rmw_publisher_), serialized_message,
-        source_timestamp);
+        rmw_publish, serialized_message);
 
       pub_.put(std::move(payload), std::move(opts), &result);
     } else {
@@ -354,8 +353,7 @@ rmw_ret_t PublisherData::publish_serialized_message(
       zenoh::Bytes payload(raw_image);
 
       TRACEPOINT(
-        rmw_publish, static_cast<const void *>(rmw_publisher_), serialized_message,
-        source_timestamp);
+        rmw_publish, serialized_message);
 
       pub_.put(std::move(payload), std::move(opts), &result);
     }
@@ -366,7 +364,7 @@ rmw_ret_t PublisherData::publish_serialized_message(
     zenoh::Bytes payload(raw_image);
 
     TRACEPOINT(
-      rmw_publish, static_cast<const void *>(rmw_publisher_), serialized_message, source_timestamp);
+      rmw_publish, serialized_message);
 
     pub_.put(std::move(payload), std::move(opts), &result);
   }
