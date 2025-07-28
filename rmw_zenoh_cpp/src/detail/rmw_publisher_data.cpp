@@ -250,7 +250,7 @@ rmw_ret_t PublisherData::publish(
   }
 
   // Object that manages the raw buffer
-  eprosima::fastcdr::FastBuffer fastbuffer(reinterpret_cast<uint8_t *>(msg_bytes), max_data_length);
+  eprosima::fastcdr::FastBuffer fastbuffer(reinterpret_cast<char *>(msg_bytes), max_data_length);
 
   // Object that serializes the data
   rmw_zenoh_cpp::Cdr ser(fastbuffer);
@@ -337,7 +337,7 @@ rmw_ret_t PublisherData::publish_serialized_message(
       memcpy(msg_bytes, serialized_message->buffer, data_length);
       zenoh::Bytes payload(std::move(buf));
 
-      TRACETOOLS_TRACEPOINT(
+      TRACEPOINT(
         rmw_publish, static_cast<const void *>(rmw_publisher_), serialized_message,
         source_timestamp);
 
@@ -353,7 +353,7 @@ rmw_ret_t PublisherData::publish_serialized_message(
         serialized_message->buffer + data_length);
       zenoh::Bytes payload(raw_image);
 
-      TRACETOOLS_TRACEPOINT(
+      TRACEPOINT(
         rmw_publish, static_cast<const void *>(rmw_publisher_), serialized_message,
         source_timestamp);
 
@@ -365,7 +365,7 @@ rmw_ret_t PublisherData::publish_serialized_message(
       serialized_message->buffer + data_length);
     zenoh::Bytes payload(raw_image);
 
-    TRACETOOLS_TRACEPOINT(
+    TRACEPOINT(
       rmw_publish, static_cast<const void *>(rmw_publisher_), serialized_message, source_timestamp);
 
     pub_.put(std::move(payload), std::move(opts), &result);
