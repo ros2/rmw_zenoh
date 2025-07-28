@@ -242,7 +242,7 @@ export ZENOH_CONFIG_OVERRIDE='transport/shared_memory/enabled=true'
 ```
 
 The following additional configuration options available as environment variables:
-- `ZENOH_SHM_ALLOC_SIZE`: size (in bytes) of memory to allocate as shared memory arena. Must be a multiply of 4. The default value is 16Mb.
+- `ZENOH_SHM_ALLOC_SIZE`: size (in bytes) of memory to allocate as shared memory arena. Must be a multiply of 4. The default value is 16MB.
 - `ZENOH_SHM_MESSAGE_SIZE_THRESHOLD`: threshold (in bytes) for ROS message wire size to be sent as SHM buffer. Must be a multiply of 4. The default value is 512.
 
 ### Interoperability
