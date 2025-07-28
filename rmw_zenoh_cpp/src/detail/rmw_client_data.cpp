@@ -78,7 +78,7 @@ std::shared_ptr<ClientData> ClientData::make(
   // We remove the suffix when appending the type to the liveliness tokens for
   // better reusability within GraphCache.
   std::string service_type = request_type_support->get_name();
-  size_t suffix_substring_position = service_type.find("Request_");
+  size_t suffix_substring_position = service_type.rfind("Request_");
   if (std::string::npos != suffix_substring_position) {
     service_type = service_type.substr(0, suffix_substring_position);
   } else {
