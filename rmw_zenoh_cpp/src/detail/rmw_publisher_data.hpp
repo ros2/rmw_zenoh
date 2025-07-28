@@ -28,7 +28,6 @@
 #include "event.hpp"
 #include "liveliness_utils.hpp"
 #include "message_type_support.hpp"
-#include "shm_context.hpp"
 #include "type_support_common.hpp"
 #include "zenoh_utils.hpp"
 

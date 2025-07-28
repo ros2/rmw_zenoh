@@ -194,8 +194,7 @@ PublisherData::PublisherData(
 ///=============================================================================
 rmw_ret_t PublisherData::publish(
   const void * ros_message,
-  const std::optional<ShmContext> & shm
-)
+  const std::optional<ShmContext> & shm)
 {
   std::lock_guard<std::mutex> lock(mutex_);
   if (is_shutdown_) {
