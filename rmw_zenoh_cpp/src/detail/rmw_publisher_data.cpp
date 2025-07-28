@@ -209,7 +209,7 @@ PublisherData::PublisherData(
 ///=============================================================================
 rmw_ret_t PublisherData::publish(
   const void * ros_message,
-  const std::optional<ShmContext> & shm)
+  const std::shared_ptr<ShmContext> shm)
 {
   std::lock_guard<std::mutex> lock(mutex_);
   if (is_shutdown_) {
@@ -237,13 +237,10 @@ rmw_ret_t PublisherData::publish(
     });
 
   // Get memory from SHM buffer if available.
-  if (shm.has_value() && max_data_length >= shm.value().msgsize_threshold) {
+  if (shm && max_data_length >= shm->msgsize_threshold) {
     RMW_ZENOH_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "SHM is enabled.");
 
-    auto & provider = shm.value().shm_provider;
-
-    // TODO(yellowhatter): SHM, use alignment based on msgsize_threshold
-    auto alloc_result = provider.alloc_gc_defrag(max_data_length);
+    auto alloc_result = shm->shm_provider.alloc_gc_defrag(max_data_length);
 
     if (std::holds_alternative<zenoh::ZShmMut>(alloc_result)) {
       auto && buf = std::get<zenoh::ZShmMut>(std::move(alloc_result));
@@ -321,7 +318,7 @@ rmw_ret_t PublisherData::publish(
 ///=============================================================================
 rmw_ret_t PublisherData::publish_serialized_message(
   const rmw_serialized_message_t * serialized_message,
-  const std::optional<ShmContext> & shm)
+  const std::shared_ptr<ShmContext> shm)
 {
   eprosima::fastcdr::FastBuffer buffer(
     reinterpret_cast<char *>(serialized_message->buffer), serialized_message->buffer_length);
@@ -344,13 +341,10 @@ rmw_ret_t PublisherData::publish_serialized_message(
     sequence_number_++, source_timestamp, entity_->copy_gid()).serialize_to_zbytes();
 
   // Get memory from SHM buffer if available.
-  if (shm.has_value() && data_length >= shm.value().msgsize_threshold) {
+  if (shm && data_length >= shm->msgsize_threshold) {
     RMW_ZENOH_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "SHM is enabled.");
 
-    auto & provider = shm.value().shm_provider;
-
-    // TODO(yellowhatter): SHM, use alignment based on msgsize_threshold
-    auto alloc_result = provider.alloc_gc_defrag(data_length);
+    auto alloc_result = shm->shm_provider.alloc_gc_defrag(data_length);
 
     if (std::holds_alternative<zenoh::ZShmMut>(alloc_result)) {
       auto && buf = std::get<zenoh::ZShmMut>(std::move(alloc_result));
