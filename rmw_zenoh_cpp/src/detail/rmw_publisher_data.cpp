@@ -228,9 +228,7 @@ rmw_ret_t PublisherData::publish(
     auto & provider = shm.value().shm_provider;
 
     // TODO(yellowhatter): SHM, use alignment based on msgsize_threshold
-    auto alloc_result = provider.alloc_gc_defrag(
-      max_data_length,
-      zenoh::AllocAlignment({0}));
+    auto alloc_result = provider.alloc_gc_defrag(max_data_length);
 
     if (std::holds_alternative<zenoh::ZShmMut>(alloc_result)) {
       auto && buf = std::get<zenoh::ZShmMut>(std::move(alloc_result));
@@ -337,7 +335,7 @@ rmw_ret_t PublisherData::publish_serialized_message(
     auto & provider = shm.value().shm_provider;
 
     // TODO(yellowhatter): SHM, use alignment based on msgsize_threshold
-    auto alloc_result = provider.alloc_gc_defrag_blocking(data_length, zenoh::AllocAlignment({0}));
+    auto alloc_result = provider.alloc_gc_defrag(data_length);
 
     if (std::holds_alternative<zenoh::ZShmMut>(alloc_result)) {
       auto && buf = std::get<zenoh::ZShmMut>(std::move(alloc_result));
