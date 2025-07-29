@@ -17,21 +17,15 @@ find_package(ament_cmake_vendor_package REQUIRED)
 # latter is a list separater in cmake and hence the string will be split into two when expanded.
 set(ZENOHC_CARGO_FLAGS "--features=shared-memory zenoh/transport_serial")
 
-# Set VCS_VERSION to 1.4.0 commits of zenoh/zenoh-c/zenoh-cpp to benefit from:
-# - Add a "bind" config option for endpoints:
-#    - https://github.com/eclipse-zenoh/zenoh/pull/1892
-# - Add a "low_pass_filter" config:
-#    - https://github.com/eclipse-zenoh/zenoh/pull/1868
-#    - https://github.com/eclipse-zenoh/zenoh/pull/1895
-# - Add "zids" config parameter to "qos_overwrite":
-#    - https://github.com/eclipse-zenoh/zenoh/pull/1908
-# - Add support for link weights:
-#    - https://github.com/eclipse-zenoh/zenoh/pull/1914
-# - Add support for DiffServ's DSCP config for endpoints:
-#    - https://github.com/eclipse-zenoh/zenoh/pull/1937
+# Set VCS_VERSION to 1.5.0 commits of zenoh/zenoh-c/zenoh-cpp to benefit from:
+# - Add support for CongestionControl::BlockFirst
+#    - https://github.com/eclipse-zenoh/zenoh/pull/2014
+# - Improve the performance of key expression processing:
+#    - https://github.com/eclipse-zenoh/zenoh/pull/2025
+#    - https://github.com/eclipse-zenoh/zenoh/pull/2035
 ament_vendor(zenoh_c_vendor
   VCS_URL https://github.com/eclipse-zenoh/zenoh-c.git
-  VCS_VERSION 6bea1f1ebc29412548f36af91cf2225c8bf476d4
+  VCS_VERSION 92c54ad3b1bbf1afc094a71ad61f96df7adb1ecd
   CMAKE_ARGS
     "-DZENOHC_CARGO_FLAGS=${ZENOHC_CARGO_FLAGS}"
     "-DZENOHC_BUILD_WITH_UNSTABLE_API=TRUE"
@@ -43,7 +37,7 @@ ament_export_dependencies(zenohc)
 
 ament_vendor(zenoh_cpp_vendor
   VCS_URL https://github.com/eclipse-zenoh/zenoh-cpp
-  VCS_VERSION 7379592436398079934f4296d2fa90217f8eddf9
+  VCS_VERSION d0eae207c6cfee8df9fb8622812a297ef9bfd18e
   CMAKE_ARGS
     -DZENOHCXX_ZENOHC=OFF
 )
