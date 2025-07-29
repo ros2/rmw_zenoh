@@ -2,8 +2,8 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.8.2 (2025-07-29)
+------------------
 * rmw_zenoh_cpp: Include algorithm for std::find_if (`#723 <https://github.com/ros2/rmw_zenoh/issues/723>`_)
 * Use rfind to avoid issues with service types ending in Request or Response (`#719 <https://github.com/ros2/rmw_zenoh/issues/719>`_)
 * Remove the extra copy on the publisher side (`#711 <https://github.com/ros2/rmw_zenoh/issues/711>`_)
