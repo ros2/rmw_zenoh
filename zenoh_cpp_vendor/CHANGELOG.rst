@@ -2,6 +2,11 @@
 Changelog for package zenoh_cpp_vendor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.8.2 (2025-07-29)
+------------------
+* Change zenoh-c features to use its default + shared-memory + transport_serial (`#692 <https://github.com/ros2/rmw_zenoh/issues/692>`_)
+* Contributors: Julien Enoch
+
 0.8.1 (2025-07-01)
 ------------------
 

@@ -2,6 +2,16 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.8.2 (2025-07-29)
+------------------
+* rmw_zenoh_cpp: Include algorithm for std::find_if (`#723 <https://github.com/ros2/rmw_zenoh/issues/723>`_)
+* Use rfind to avoid issues with service types ending in Request or Response (`#719 <https://github.com/ros2/rmw_zenoh/issues/719>`_)
+* Remove the extra copy on the publisher side (`#711 <https://github.com/ros2/rmw_zenoh/issues/711>`_)
+* Avoid ambiguity with variable shadowing (`#706 <https://github.com/ros2/rmw_zenoh/issues/706>`_)
+* Only configure the timeout of the action-related service `get_result` to maximum value. (`#685 <https://github.com/ros2/rmw_zenoh/issues/685>`_)
+* Use Zenoh Querier to replace Session.get (`#694 <https://github.com/ros2/rmw_zenoh/issues/694>`_)
+* Contributors: ChenYing Kuo (CY), Filip, Jan Vermaete, yadunund
+
 0.8.1 (2025-07-01)
 ------------------
 
