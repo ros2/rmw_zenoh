@@ -29,6 +29,7 @@ set(ZENOHC_CARGO_FLAGS "--features=shared-memory zenoh/transport_serial")
 #    - https://github.com/eclipse-zenoh/zenoh/pull/1914
 # - Add support for DiffServ's DSCP config for endpoints:
 #    - https://github.com/eclipse-zenoh/zenoh/pull/1937
+set(ZENOH_C_IS_VENDORED TRUE)
 ament_vendor(zenoh_c_vendor
   VCS_URL https://github.com/eclipse-zenoh/zenoh-c.git
   VCS_VERSION 6bea1f1ebc29412548f36af91cf2225c8bf476d4
@@ -37,18 +38,23 @@ ament_vendor(zenoh_c_vendor
     "-DZENOHC_BUILD_WITH_UNSTABLE_API=TRUE"
     "-DZENOHC_CUSTOM_TARGET=${ZENOHC_CUSTOM_TARGET}"
   PATCHES ${CMAKE_CURRENT_SOURCE_DIR}/pin-rust-1.75.0.patch
+  IS_VENDORED_OUTPUT_VARIABLE_NAME ZENOH_C_IS_VENDORED
 )
 
 ament_export_dependencies(zenohc)
 
+set(ZENOH_CPP_IS_VENDORED TRUE)
 ament_vendor(zenoh_cpp_vendor
   VCS_URL https://github.com/eclipse-zenoh/zenoh-cpp
   VCS_VERSION 7379592436398079934f4296d2fa90217f8eddf9
   CMAKE_ARGS
     -DZENOHCXX_ZENOHC=OFF
+  IS_VENDORED_OUTPUT_VARIABLE_NAME ZENOH_CPP_IS_VENDORED
 )
 
-externalproject_add_stepdependencies(zenoh_cpp_vendor configure zenoh_c_vendor)
+if(ZENOH_C_IS_VENDORED AND ZENOH_CPP_IS_VENDORED)
+  externalproject_add_stepdependencies(zenoh_cpp_vendor configure zenoh_c_vendor)
+endif()
 
 ament_export_dependencies(zenohcxx)
 
