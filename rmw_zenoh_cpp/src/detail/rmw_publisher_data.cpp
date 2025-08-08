@@ -262,7 +262,7 @@ rmw_ret_t PublisherData::publish(
 
   if (!shm_buf.has_value()) {
     // Try to get memory from the serialization buffer pool.
-    pool_buf = std::make_optional(context_impl->serialization_buffer_pool()->allocate(max_data_length));
+    pool_buf = context_impl->serialization_buffer_pool()->allocate(max_data_length);
     if (pool_buf.value().data == nullptr) {
       void * data = allocator->allocate(max_data_length, allocator->state);
       RMW_CHECK_FOR_NULL_WITH_MSG(

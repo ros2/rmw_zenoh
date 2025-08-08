@@ -114,17 +114,24 @@ struct ShmContext
 class BufferPool
 {
 public:
-  struct Buffer
+  class Buffer
   {
+    friend class BufferPool;
+
+public:
     uint8_t * data;
     size_t size;
+
+private:
+    Buffer(uint8_t * data_ptr, size_t size_val)
+    : data(data_ptr), size(size_val) {}
   };
 
   BufferPool();
 
   ~BufferPool();
 
-  Buffer allocate(size_t size);
+  std::optional<Buffer> allocate(size_t size);
 
   void deallocate(Buffer buffer);
 

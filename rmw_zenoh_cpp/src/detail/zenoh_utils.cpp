@@ -164,7 +164,7 @@ BufferPool::~BufferPool()
 }
 
 ///=============================================================================
-BufferPool::Buffer BufferPool::allocate(size_t size)
+std::optional<BufferPool::Buffer> BufferPool::allocate(size_t size)
 {
   std::lock_guard<std::mutex> guard(mutex_);
 
@@ -172,28 +172,28 @@ BufferPool::Buffer BufferPool::allocate(size_t size)
 
   if (buffers_.empty()) {
     if (size_ + size > max_size_) {
-      return {};
+      return std::nullopt;
     } else {
       size_ += size;
     }
     uint8_t * data = static_cast<uint8_t *>(allocator.allocate(size, allocator.state));
     if (data == nullptr) {
-      return {};
+      return std::nullopt;
     } else {
-      return Buffer {data, size};
+      return Buffer(data, size);
     }
   } else {
     Buffer buffer = buffers_.back();
     buffers_.pop_back();
     if (buffer.size < size) {
-      size_t size_diff = size - buffer.size;
+      const size_t size_diff = size - buffer.size;
       if (size_ + size_diff > max_size_) {
-        return {};
+        return std::nullopt;
       }
       uint8_t * data = static_cast<uint8_t *>(allocator.reallocate(
           buffer.data, size, allocator.state));
       if (data == nullptr) {
-        return {};
+        return std::nullopt;
       }
       size_ += size_diff;
       buffer.data = data;
