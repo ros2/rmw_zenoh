@@ -141,8 +141,8 @@ std::shared_ptr<ServiceData> ServiceData::make(
     });
 
   zenoh::ZResult result;
-  service_data->keyexpr_ = service_data->entity_->topic_info()->topic_keyexpr_;
-  zenoh::KeyExpr service_ke(service_data->keyexpr_, true, &result);
+  std::string keyexpr_string = service_data->entity_->topic_info()->topic_keyexpr_;
+  service_data->keyexpr_ = zenoh::KeyExpr(keyexpr_string, true, &result);
   if (result != Z_OK) {
     RMW_SET_ERROR_MSG("unable to create zenoh keyexpr.");
     return nullptr;
@@ -154,7 +154,7 @@ std::shared_ptr<ServiceData> ServiceData::make(
 
   std::weak_ptr<rmw_zenoh_cpp::ServiceData> data_wp = service_data;
   service_data->qable_ = session->declare_queryable(
-    service_ke,
+    service_data->keyexpr_.value(),
     [data_wp](const zenoh::Query & query) {
       auto sub_data = data_wp.lock();
       if (sub_data == nullptr) {
@@ -254,7 +254,7 @@ void ServiceData::add_new_query(std::unique_ptr<ZenohQuery> query)
       "Query queue depth of %ld reached, discarding oldest Query "
       "for service for %s",
       adapted_qos_profile.depth,
-      keyexpr_.c_str());
+      std::string(keyexpr_.value().as_string_view()).c_str());
     query_queue_.pop_front();
   }
   query_queue_.emplace_back(std::move(query));
@@ -450,13 +450,6 @@ rmw_ret_t ServiceData::send_response(
     reinterpret_cast<const uint8_t *>(response_bytes) + data_length);
   zenoh::Bytes payload(std::move(raw_bytes));
 
-  zenoh::ZResult result;
-  zenoh::KeyExpr service_ke(keyexpr_.c_str(), true, &result);
-  if (result != Z_OK) {
-    RMW_SET_ERROR_MSG("unable to create KeyExpr");
-    return RMW_RET_ERROR;
-  }
-
   TRACETOOLS_TRACEPOINT(
     rmw_send_response,
     static_cast<const void *>(rmw_service_),
@@ -464,7 +457,8 @@ rmw_ret_t ServiceData::send_response(
     request_id->writer_guid,
     request_id->sequence_number,
     source_timestamp);
-  loaned_query.reply(service_ke, std::move(payload), std::move(options), &result);
+  zenoh::ZResult result;
+  loaned_query.reply(keyexpr_.value(), std::move(payload), std::move(options), &result);
   if (result != Z_OK) {
     RMW_SET_ERROR_MSG("unable to reply");
     return RMW_RET_ERROR;

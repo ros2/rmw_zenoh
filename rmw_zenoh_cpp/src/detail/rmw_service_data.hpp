@@ -118,8 +118,8 @@ private:
 
   // A shared session
   std::shared_ptr<zenoh::Session> sess_;
-  // The keyexpr string.
-  std::string keyexpr_;
+  // The keyexpr.
+  std::optional<zenoh::KeyExpr> keyexpr_;
   // An owned queryable.
   // The Queryable *must* exist in order for anything in this ServiceData class,
   // and hence rmw_zenoh_cpp, to work.
