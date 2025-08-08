@@ -227,7 +227,8 @@ rmw_ret_t PublisherData::publish(
   // To store serialized message byte array.
   uint8_t * msg_bytes = nullptr;
 
-  rmw_context_impl_s * context_impl = static_cast<rmw_context_impl_s *>(rmw_node_->data);
+  rmw_context_impl_s * context_impl =
+    static_cast<rmw_context_impl_s *>(rmw_node_->data);
   if (context_impl == nullptr) {
     RMW_SET_ERROR_MSG("Unable to cast rmw_node->data into rmw_context_impl_s.");
     return RMW_RET_ERROR;
