@@ -142,7 +142,7 @@ std::shared_ptr<ServiceData> ServiceData::make(
 
   zenoh::ZResult result;
   std::string keyexpr_string = service_data->entity_->topic_info()->topic_keyexpr_;
-  service_data->keyexpr_ = zenoh::KeyExpr(keyexpr_string, true, &result);
+  service_data->keyexpr_ = zenoh::KeyExpr(std::move(keyexpr_string), true, &result);
   if (result != Z_OK) {
     RMW_SET_ERROR_MSG("unable to create zenoh keyexpr.");
     return nullptr;
