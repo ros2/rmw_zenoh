@@ -18,11 +18,24 @@ find_package(ament_cmake_vendor_package REQUIRED)
 set(ZENOHC_CARGO_FLAGS "--features=shared-memory zenoh/transport_serial")
 
 # Set VCS_VERSION to 1.5.0 commits of zenoh/zenoh-c/zenoh-cpp to benefit from:
-# - Add support for CongestionControl::BlockFirst
-#    - https://github.com/eclipse-zenoh/zenoh/pull/2014
-# - Improve the performance of key expression processing:
-#    - https://github.com/eclipse-zenoh/zenoh/pull/2025
-#    - https://github.com/eclipse-zenoh/zenoh/pull/2035
+#   - Add CongestionControl::BlockFirst QoS
+#      - https://github.com/eclipse-zenoh/zenoh/pull/2014
+#   - Add more options for messages selection to 'qos/network' config:
+#      - https://github.com/eclipse-zenoh/zenoh/pull/2030
+#   - Add ZID subject property to access_control config:
+#      - https://github.com/eclipse-zenoh/zenoh/pull/2015
+#   - Fix access control over UDP listen endpoints
+#      - https://github.com/eclipse-zenoh/zenoh/pull/1980
+#      - Performance improvements:
+#      - https://github.com/eclipse-zenoh/zenoh/pull/1988
+#      - https://github.com/eclipse-zenoh/zenoh/pull/2025
+#      - https://github.com/eclipse-zenoh/zenoh/pull/2035
+#      - https://github.com/eclipse-zenoh/zenoh/pull/2046
+#      - https://github.com/eclipse-zenoh/zenoh/pull/2047
+#      - https://github.com/eclipse-zenoh/zenoh/pull/2053
+#      - https://github.com/eclipse-zenoh/zenoh/pull/2062
+#  - Fix build failure on Windows:
+#     - https://github.com/eclipse-zenoh/zenoh-c/pull/1079
 ament_vendor(zenoh_c_vendor
   VCS_URL https://github.com/eclipse-zenoh/zenoh-c.git
   VCS_VERSION 71af32739394bc3200aa1bea32206dc28216e04e
@@ -37,7 +50,7 @@ ament_export_dependencies(zenohc)
 
 ament_vendor(zenoh_cpp_vendor
   VCS_URL https://github.com/eclipse-zenoh/zenoh-cpp
-  VCS_VERSION bd31bdeb2656ee4267ad0d2f5376dcf1bb844d6d
+  VCS_VERSION d0eae207c6cfee8df9fb8622812a297ef9bfd18e
   CMAKE_ARGS
     -DZENOHCXX_ZENOHC=OFF
 )
