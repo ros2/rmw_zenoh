@@ -50,11 +50,8 @@ public:
   // Loan the Zenoh session.
   const std::shared_ptr<zenoh::Session> session() const;
 
-  // Get a reference to the shm_provider.
-  // Note: This is not thread-safe.
-  // TODO(Yadunund): Remove this API and instead include a publish() API
-  // that handles the shm_provider once the context manages publishers.
-  std::optional<zenoh::ShmProvider> & shm_provider();
+  // Get an shm subsystem.
+  const std::shared_ptr<rmw_zenoh_cpp::ShmContext> shm() const;
 
   // Get the graph guard condition.
   rmw_guard_condition_t * graph_guard_condition();
