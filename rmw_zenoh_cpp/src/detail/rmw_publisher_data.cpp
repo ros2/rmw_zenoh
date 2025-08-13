@@ -372,10 +372,6 @@ rmw_ret_t PublisherData::publish_serialized_message(
     pub_.put(std::move(payload), std::move(opts), &result);
   }
 
-<<<<<<< HEAD
-  pub_.put(std::move(payload), std::move(opts), &result);
-=======
->>>>>>> c2978f3 (Shared Memory on C++ API (#363))
   if (result != Z_OK) {
     if (result == Z_ESESSION_CLOSED) {
       RMW_ZENOH_LOG_WARN_NAMED(
