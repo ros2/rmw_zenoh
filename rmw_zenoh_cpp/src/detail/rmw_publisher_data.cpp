@@ -277,8 +277,8 @@ rmw_ret_t PublisherData::publish(
 
   auto payload = shmbuf.has_value() ? zenoh::Bytes(std::move(*shmbuf)) :
     zenoh::Bytes(
-      msg_bytes,
-      data_length,
+    msg_bytes,
+    data_length,
     [msg_bytes, allocator](uint8_t *) {allocator->deallocate(msg_bytes, allocator->state);}
     );
   // The delete responsibility has been handed over to zenoh::Bytes now
