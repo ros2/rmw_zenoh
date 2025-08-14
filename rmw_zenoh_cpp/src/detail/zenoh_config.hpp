@@ -61,6 +61,25 @@ std::optional<zenoh::Config> get_z_config(const ConfigurableEntity & entity);
 /// @return The number of times to try connecting to a zenoh router and
 ///   std::nullopt if establishing a connection to a router is not required.
 std::optional<uint64_t> zenoh_router_check_attempts();
+
+///=============================================================================
+/// Get the amount of shared memory to be pre-allocated for Zenoh SHM operation
+/// based on the environment variable ZENOH_SHM_ALLOC_SIZE.
+/// @details The behavior is as follows:
+///   - If not set or <= 0, the default value of 16MB is returned.
+///   - Else value of environemnt variable is returned.
+/// @return The amount of shared memory to be pre-allocated for Zenoh SHM operation
+size_t zenoh_shm_alloc_size();
+
+///=============================================================================
+/// Message size threshold for implicit SHM optimization based on the environment
+/// variable ZENOH_SHM_MESSAGE_SIZE_THRESHOLD.
+/// Messages smaller than this threshold will not be forwarded through Zenoh SHM
+/// @details The behavior is as follows:
+///   - If not set or <= 0, the default value of 512B is returned.
+///   - Else value of environemnt variable is returned.
+/// @return The amount of shared memory to be pre-allocated for Zenoh SHM operation
+size_t zenoh_shm_message_size_threshold();
 }  // namespace rmw_zenoh_cpp
 
 #endif  // DETAIL__ZENOH_CONFIG_HPP_
