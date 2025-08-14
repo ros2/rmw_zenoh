@@ -226,6 +226,31 @@ Here are two ways to configure on the remote side:
     export ZENOH_CONFIG_OVERRIDE='mode="client";connect/endpoints=["tcp/192.168.1.1:7447"]'
     ```
 
+## Zenoh Shared Memory
+
+Zenoh-backed shared memory provides implicit SHM optimization for any messages passing through (not only those created with loaned messages API).
+
+### Configuration
+
+> [!NOTE]
+> To have Zenoh SHM working, it should be enabled on all Zenoh routers across the message path.
+
+To enable Zenoh SHM, the `transport/shared_memory/enabled` zenoh Config key should be set to `true` in Zenoh `config json` file or through environment like this:
+
+```bash
+export ZENOH_CONFIG_OVERRIDE='transport/shared_memory/enabled=true'
+```
+
+The following additional configuration options available as environment variables:
+- `ZENOH_SHM_ALLOC_SIZE`: size (in bytes) of memory to allocate as shared memory arena. Must be a multiple of 4. The default value is 16MB.
+- `ZENOH_SHM_MESSAGE_SIZE_THRESHOLD`: threshold (in bytes) for ROS message wire size to be sent as SHM buffer. Must be a multiple of 4. The default value is 512.
+
+### Interoperability
+
+- SHM-enabled nodes are fully interoperable with remote (non-localhost) nodes and localhost non-SHM-enabled nodes on transparent basis.
+- SHM subsystem is fully transparent and interoperable with any oter RMW-compatible Zenoh software like bridges etc.
+- Zenoh SHM works intra- and inter- containers if container's POSIX SHM is configured properly.
+
 ## Security
 
 Security is available in `rmw_zenoh` by means of access control, authentication and encryption.

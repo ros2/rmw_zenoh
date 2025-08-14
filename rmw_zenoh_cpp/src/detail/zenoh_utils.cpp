@@ -95,6 +95,7 @@ Payload::Payload(const zenoh::Bytes & bytes)
   }
 }
 
+///=============================================================================
 const uint8_t * Payload::data() const
 {
   if (std::holds_alternative<Empty>(bytes_)) {
@@ -106,6 +107,7 @@ const uint8_t * Payload::data() const
   }
 }
 
+///=============================================================================
 size_t Payload::size() const
 {
   if (std::holds_alternative<Empty>(bytes_)) {
@@ -117,9 +119,19 @@ size_t Payload::size() const
   }
 }
 
+///=============================================================================
 bool Payload::empty() const
 {
   return std::holds_alternative<Empty>(bytes_);
 }
+
+///=============================================================================
+// Create Layout for provider's memory
+// Provider's alignment is 1 (=2^0) bytes as we are going to make only 1-byte aligned allocations
+// TODO(yellowhatter): use zenoh_shm_message_size_threshold as base for alignment
+ShmContext::ShmContext(size_t alloc_size, size_t msgsize_threshold)
+: shm_provider(zenoh::PosixShmProvider(alloc_size)),
+  msgsize_threshold(msgsize_threshold)
+{}
 
 }  // namespace rmw_zenoh_cpp
