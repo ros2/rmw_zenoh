@@ -118,7 +118,15 @@ private:
 
   // A shared session
   std::shared_ptr<zenoh::Session> sess_;
-  // The keyexpr.
+  // An owned keyexpr.
+  // The KeyExpr *must* exist in order for anything in this ServiceData class,
+  // and hence rmw_zenoh_cpp, to work.
+  // However, zenoh::KeyExpr does not have an empty constructor,
+  // so just declaring this as a zenoh::KeyExpr fails to compile.
+  // We work around that by wrapping it in a std::optional, so the std::optional
+  // gets constructed at ServiceData constructor time,
+  // and then we initialize keyexpr_ later. Note that the zenoh-cpp API KeyExpr() throws an
+  // exception if it fails, so this should all be safe to do.
   std::optional<zenoh::KeyExpr> keyexpr_;
   // An owned queryable.
   // The Queryable *must* exist in order for anything in this ServiceData class,
