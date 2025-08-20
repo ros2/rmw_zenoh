@@ -128,25 +128,27 @@ std::shared_ptr<ServiceData> ServiceData::make(
     return nullptr;
   }
 
+  zenoh::ZResult result;
+  std::string keyexpr_string = entity->topic_info()->topic_keyexpr_;
+  auto keyexpr = zenoh::KeyExpr(std::move(keyexpr_string), true, &result);
+  if (result != Z_OK) {
+    RMW_SET_ERROR_MSG("unable to create zenoh keyexpr.");
+    return nullptr;
+  }
+
   auto service_data = std::shared_ptr<ServiceData>(
     new ServiceData{
       node,
       rmw_service,
       std::move(entity),
       session,
+      std::move(keyexpr),
       request_members,
       response_members,
       std::move(request_type_support),
       std::move(response_type_support)
     });
 
-  zenoh::ZResult result;
-  std::string keyexpr_string = service_data->entity_->topic_info()->topic_keyexpr_;
-  service_data->keyexpr_ = zenoh::KeyExpr(std::move(keyexpr_string), true, &result);
-  if (result != Z_OK) {
-    RMW_SET_ERROR_MSG("unable to create zenoh keyexpr.");
-    return nullptr;
-  }
 
   zenoh::Session::QueryableOptions qable_options =
     zenoh::Session::QueryableOptions::create_default();
@@ -154,7 +156,7 @@ std::shared_ptr<ServiceData> ServiceData::make(
 
   std::weak_ptr<rmw_zenoh_cpp::ServiceData> data_wp = service_data;
   service_data->qable_ = session->declare_queryable(
-    service_data->keyexpr_.value(),
+    service_data->keyexpr_,
     [data_wp](const zenoh::Query & query) {
       auto sub_data = data_wp.lock();
       if (sub_data == nullptr) {
@@ -196,6 +198,7 @@ ServiceData::ServiceData(
   const rmw_service_t * rmw_service,
   std::shared_ptr<liveliness::Entity> entity,
   std::shared_ptr<zenoh::Session> session,
+  zenoh::KeyExpr keyexpr,
   const void * request_type_support_impl,
   const void * response_type_support_impl,
   std::unique_ptr<RequestTypeSupport> request_type_support,
@@ -204,6 +207,7 @@ ServiceData::ServiceData(
   rmw_service_(rmw_service),
   entity_(std::move(entity)),
   sess_(std::move(session)),
+  keyexpr_(std::move(keyexpr)),
   request_type_support_impl_(request_type_support_impl),
   response_type_support_impl_(response_type_support_impl),
   request_type_support_(std::move(request_type_support)),
@@ -254,7 +258,7 @@ void ServiceData::add_new_query(std::unique_ptr<ZenohQuery> query)
       "Query queue depth of %ld reached, discarding oldest Query "
       "for service for %s",
       adapted_qos_profile.depth,
-      std::string(keyexpr_.value().as_string_view()).c_str());
+      std::string(keyexpr_.as_string_view()).c_str());
     query_queue_.pop_front();
   }
   query_queue_.emplace_back(std::move(query));
@@ -458,7 +462,7 @@ rmw_ret_t ServiceData::send_response(
     request_id->sequence_number,
     source_timestamp);
   zenoh::ZResult result;
-  loaned_query.reply(keyexpr_.value(), std::move(payload), std::move(options), &result);
+  loaned_query.reply(keyexpr_, std::move(payload), std::move(options), &result);
   if (result != Z_OK) {
     RMW_SET_ERROR_MSG("unable to reply");
     return RMW_RET_ERROR;
