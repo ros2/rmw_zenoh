@@ -2,6 +2,16 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* fixing typo flow to flows in config files (`#747 <https://github.com/ros2/rmw_zenoh/issues/747>`_)
+* Shared Memory on C++ API (`#743 <https://github.com/ros2/rmw_zenoh/issues/743>`_)
+* Bump Zenoh to v1.5.0 (`#737 <https://github.com/ros2/rmw_zenoh/issues/737>`_)
+* rmw_zenoh_cpp: Include algorithm for std::find_if (`#727 <https://github.com/ros2/rmw_zenoh/issues/727>`_)
+* Use rfind to avoid issues with service types ending in Request or Response (`#722 <https://github.com/ros2/rmw_zenoh/issues/722>`_)
+* Remove the extra copy on the publisher side (`#714 <https://github.com/ros2/rmw_zenoh/issues/714>`_)
+* Contributors: ChenYing Kuo (CY), Christophe Bedard, Faseel Chemmadan, Filip, Jan Vermaete, Julien Enoch, milidam, Steven Palma, Yadunund, yellowhatter, Yuyuan Yuan
+
 0.1.4 (2025-07-11)
 ------------------
 * Avoid ambiguity with variable shadowing (`#706 <https://github.com/ros2/rmw_zenoh/issues/706>`_) (`#709 <https://github.com/ros2/rmw_zenoh/issues/709>`_)
