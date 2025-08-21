@@ -2,6 +2,12 @@
 Changelog for package zenoh_cpp_vendor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Bump Zenoh to v1.5.0 (`#736 <https://github.com/ros2/rmw_zenoh/issues/736>`_)
+* Change zenoh-c features to use its default + shared-memory + transport_serial (`#716 <https://github.com/ros2/rmw_zenoh/issues/716>`_)
+* Contributors: ChenYing Kuo (CY), Julien Enoch, Yadunund, Yuyuan Yuan
+
 0.2.5 (2025-06-18)
 ------------------
 * Bump Zenoh to 1.4.0 (`#658 <https://github.com/ros2/rmw_zenoh/issues/658>`_)
