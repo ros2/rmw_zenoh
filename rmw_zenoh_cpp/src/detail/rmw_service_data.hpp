@@ -102,6 +102,7 @@ private:
     const rmw_service_t * rmw_service,
     std::shared_ptr<liveliness::Entity> entity,
     std::shared_ptr<zenoh::Session> session,
+    zenoh::KeyExpr keyexpr,
     const void * request_type_support_impl,
     const void * response_type_support_impl,
     std::unique_ptr<RequestTypeSupport> request_type_support,
@@ -118,8 +119,8 @@ private:
 
   // A shared session
   std::shared_ptr<zenoh::Session> sess_;
-  // The keyexpr string.
-  std::string keyexpr_;
+  // An owned keyexpr.
+  zenoh::KeyExpr keyexpr_;
   // An owned queryable.
   // The Queryable *must* exist in order for anything in this ServiceData class,
   // and hence rmw_zenoh_cpp, to work.
