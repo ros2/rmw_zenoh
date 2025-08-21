@@ -2,6 +2,14 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Do not include rosidl_typesupport\_{c,cpp} in rmw impl typesupport list (`#748 <https://github.com/ros2/rmw_zenoh/issues/748>`_)
+* fixing typo flow to flows in config files (`#740 <https://github.com/ros2/rmw_zenoh/issues/740>`_)
+* Shared Memory on C++ API (`#363 <https://github.com/ros2/rmw_zenoh/issues/363>`_)
+* Bump Zenoh to v1.5.0 (`#728 <https://github.com/ros2/rmw_zenoh/issues/728>`_)
+* Contributors: ChenYing Kuo (CY), Christophe Bedard, Faseel Chemmadan, Julien Enoch, milidam, Steven Palma, Yadunund, yellowhatter, Yuyuan Yuan
+
 0.8.2 (2025-07-29)
 ------------------
 * rmw_zenoh_cpp: Include algorithm for std::find_if (`#723 <https://github.com/ros2/rmw_zenoh/issues/723>`_)
