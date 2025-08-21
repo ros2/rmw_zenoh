@@ -452,26 +452,8 @@ rmw_ret_t ServiceData::send_response(
     reinterpret_cast<const uint8_t *>(response_bytes) + data_length);
   zenoh::Bytes payload(std::move(raw_bytes));
 
-<<<<<<< HEAD
-  zenoh::ZResult result;
-  zenoh::KeyExpr service_ke(keyexpr_.c_str(), true, &result);
-  if (result != Z_OK) {
-    RMW_SET_ERROR_MSG("unable to create KeyExpr");
-    return RMW_RET_ERROR;
-  }
-
-  loaned_query.reply(service_ke, std::move(payload), std::move(options), &result);
-=======
-  TRACETOOLS_TRACEPOINT(
-    rmw_send_response,
-    static_cast<const void *>(rmw_service_),
-    static_cast<const void *>(ros_response),
-    request_id->writer_guid,
-    request_id->sequence_number,
-    source_timestamp);
   zenoh::ZResult result;
   loaned_query.reply(keyexpr_, std::move(payload), std::move(options), &result);
->>>>>>> eddf55b (refactor: avoid redundant key expression creation when replying (#732))
   if (result != Z_OK) {
     RMW_SET_ERROR_MSG("unable to reply");
     return RMW_RET_ERROR;
