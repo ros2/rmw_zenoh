@@ -2,6 +2,19 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* fixing typo flow to flows in config files (`#745 <https://github.com/ros2/rmw_zenoh/issues/745>`_)
+* Shared Memory on C++ API (`#741 <https://github.com/ros2/rmw_zenoh/issues/741>`_)
+* Bump Zenoh to v1.5.0 (`#735 <https://github.com/ros2/rmw_zenoh/issues/735>`_)
+* rmw_zenoh_cpp: Include algorithm for std::find_if (`#725 <https://github.com/ros2/rmw_zenoh/issues/725>`_)
+* Use rfind to avoid issues with service types ending in Request or Response (`#720 <https://github.com/ros2/rmw_zenoh/issues/720>`_)
+* Remove the extra copy on the publisher side (`#712 <https://github.com/ros2/rmw_zenoh/issues/712>`_)
+* Avoid ambiguity with variable shadowing (`#707 <https://github.com/ros2/rmw_zenoh/issues/707>`_)
+* Only configure the timeout of the action-related service `get_result` to maximum value. (`#701 <https://github.com/ros2/rmw_zenoh/issues/701>`_)
+* Use Zenoh Querier to replace Session.get (`#697 <https://github.com/ros2/rmw_zenoh/issues/697>`_)
+* Contributors: ChenYing Kuo (CY), Christophe Bedard, Faseel Chemmadan, Filip, Jan Vermaete, Julien Enoch, milidam, Steven Palma, Yadunund, yellowhatter, Yuyuan Yuan
+
 0.6.2 (2025-06-18)
 ------------------
 * Use data() to avoid potentially dereferencing an empty vector (`#668 <https://github.com/ros2/rmw_zenoh/issues/668>`_)
