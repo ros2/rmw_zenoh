@@ -2,8 +2,8 @@
 Changelog for package zenoh_cpp_vendor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.9.0 (2025-08-21)
+------------------
 * Bump Zenoh to v1.5.0 (`#728 <https://github.com/ros2/rmw_zenoh/issues/728>`_)
 * Contributors: ChenYing Kuo (CY), Julien Enoch, Yuyuan Yuan
 

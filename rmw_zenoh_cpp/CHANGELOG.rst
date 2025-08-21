@@ -2,8 +2,8 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.9.0 (2025-08-21)
+------------------
 * Do not include rosidl_typesupport\_{c,cpp} in rmw impl typesupport list (`#748 <https://github.com/ros2/rmw_zenoh/issues/748>`_)
 * fixing typo flow to flows in config files (`#740 <https://github.com/ros2/rmw_zenoh/issues/740>`_)
 * Shared Memory on C++ API (`#363 <https://github.com/ros2/rmw_zenoh/issues/363>`_)
