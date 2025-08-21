@@ -2,8 +2,8 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.1.5 (2025-08-21)
+------------------
 * fixing typo flow to flows in config files (`#747 <https://github.com/ros2/rmw_zenoh/issues/747>`_)
 * Shared Memory on C++ API (`#743 <https://github.com/ros2/rmw_zenoh/issues/743>`_)
 * Bump Zenoh to v1.5.0 (`#737 <https://github.com/ros2/rmw_zenoh/issues/737>`_)

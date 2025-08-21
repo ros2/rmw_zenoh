@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>rmw_zenoh_cpp</name>
-  <version>0.1.4</version>
+  <version>0.1.5</version>
   <description>A ROS 2 middleware implementation using zenoh-cpp</description>
   <maintainer email="yadunund@openrobotics.org">Yadunund</maintainer>
 
