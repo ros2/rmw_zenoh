@@ -226,6 +226,22 @@ Here are two ways to configure on the remote side:
     export ZENOH_CONFIG_OVERRIDE='mode="client";connect/endpoints=["tcp/192.168.1.1:7447"]'
     ```
 
+
+### Serialization Buffer Pool
+
+The RMW recycles serialization buffers on transmission using a buffer pool with bounded memory
+usage.
+These buffers are returned to the pool - without being deallocated - once they cross the
+network boundary in host-to-host communication, or after transmission in inter-process
+communication, or upon being consumed by subscriptions in intra-process communication, etc.
+
+When the total size of the allocated buffers within the pool exceeds
+`RMW_ZENOH_BUFFER_POOL_MAX_SIZE_BYTES`, serialization buffers are allocated using the system
+allocator and moved to Zenoh; no recycling is performed in this case to prevent the buffer pool from
+growing uncontrollably.
+
+The default value of `RMW_ZENOH_BUFFER_POOL_MAX_SIZE_BYTES` is 8 MiB; this value was chosen since it is roughly the size of the cache in a modern CPU.
+
 ## Zenoh Shared Memory
 
 Zenoh-backed shared memory provides implicit SHM optimization for any messages passing through (not only those created with loaned messages API).
@@ -250,21 +266,6 @@ The following additional configuration options available as environment variable
 - SHM-enabled nodes are fully interoperable with remote (non-localhost) nodes and localhost non-SHM-enabled nodes on transparent basis.
 - SHM subsystem is fully transparent and interoperable with any oter RMW-compatible Zenoh software like bridges etc.
 - Zenoh SHM works intra- and inter- containers if container's POSIX SHM is configured properly.
-
-### Serialization Buffer Pool
-
-The RMW recycles serialization buffers on transmission using a buffer pool with bounded memory
-usage.
-These buffers are returned to the pool - without being deallocated - once they cross the
-network boundary in host-to-host communication, or after transmission in inter-process
-communication, or upon being consumed by subscriptions in intra-process communication, etc.
-
-When the total size of the allocated buffers within the pool exceeds
-`RMW_ZENOH_BUFFER_POOL_MAX_SIZE_BYTES`, serialization buffers are allocated using the system
-allocator and moved to Zenoh; no recycling is performed in this case to prevent the buffer pool from
-growing uncontrollably.
-
-The default value of `RMW_ZENOH_BUFFER_POOL_MAX_SIZE_BYTES` is 8 MiB; this value was chosen since it is roughly the size of the cache in a modern CPU.
 
 ## Security
 
