@@ -241,7 +241,7 @@ rmw_ret_t PublisherData::publish(
   std::optional<BufferPool::Buffer> pool_buf = std::nullopt;
 
   auto always_free_msg_bytes = rcpputils::make_scope_exit(
-    [&msg_bytes, allocator, &shm_buf, &pool_buf ]() {
+    [&msg_bytes, allocator, &shm_buf, &pool_buf]() {
       if (!msg_bytes || shm_buf.has_value() || (pool_buf.has_value() && pool_buf.value().data)) {
         return;
       }
