@@ -235,7 +235,8 @@ Zenoh-backed shared memory provides implicit SHM optimization for any messages p
 > [!NOTE]
 > To have Zenoh SHM working, it should be enabled on all Zenoh routers across the message path.
 
-To enable Zenoh SHM, the `transport/shared_memory/enabled` zenoh Config key should be set to `true` in Zenoh `config json` file or through environment like this:
+To enable Zenoh SHM, the `transport/shared_memory/enabled` zenoh Config key should be set to `true` in the Zenoh configuration files for all the sessions and the router.
+You can also override this config with the `ZENOH_CONFIG_OVERRIDE` environment variable:
 
 ```bash
 export ZENOH_CONFIG_OVERRIDE='transport/shared_memory/enabled=true'
@@ -243,7 +244,8 @@ export ZENOH_CONFIG_OVERRIDE='transport/shared_memory/enabled=true'
 
 The following additional configuration options available as environment variables:
 - `ZENOH_SHM_ALLOC_SIZE`: size (in bytes) of memory to allocate as shared memory arena. Must be a multiple of 4. The default value is 16MB.
-- `ZENOH_SHM_MESSAGE_SIZE_THRESHOLD`: threshold (in bytes) for ROS message wire size to be sent as SHM buffer. Must be a multiple of 4. The default value is 512.
+- `ZENOH_SHM_MESSAGE_SIZE_THRESHOLD`: threshold (in bytes) for ROS message wire size to be sent as SHM buffer. Must be a multiple of 4. The default value is 512. Note that depending on your hardware caracteristics (CPU, memory) it could be counter-productive for the latency of small messages to lower this threashold.
+
 
 ### Interoperability
 
