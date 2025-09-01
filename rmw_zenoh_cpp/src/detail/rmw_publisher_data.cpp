@@ -268,13 +268,13 @@ rmw_ret_t PublisherData::publish(
   if (!shm_buf.has_value()) {
     // Try to get memory from the serialization buffer pool.
     pool_buf = context_impl->serialization_buffer_pool()->allocate(max_data_length);
-    if (pool_buf.value().data == nullptr) {
+    if (pool_buf.has_value() && pool_buf.value().data) {
+      msg_bytes = pool_buf->data;
+    } else {
       void * data = allocator->allocate(max_data_length, allocator->state);
       RMW_CHECK_FOR_NULL_WITH_MSG(
         data, "failed to allocate serialization buffer", return RMW_RET_BAD_ALLOC);
       msg_bytes = static_cast<uint8_t *>(data);
-    } else {
-      msg_bytes = pool_buf->data;
     }
   }
 
