@@ -24,6 +24,7 @@
 
 #include "graph_cache.hpp"
 #include "rmw_node_data.hpp"
+#include "zenoh_utils.hpp"
 
 #include "rmw/ret_types.h"
 #include "rmw/types.h"
@@ -70,6 +71,9 @@ public:
 
   /// Return a shared_ptr to the GraphCache stored in this context.
   std::shared_ptr<rmw_zenoh_cpp::GraphCache> graph_cache();
+
+  /// Return a shared_ptr to the Serialization buffer pool stored in this context.
+  std::shared_ptr<rmw_zenoh_cpp::BufferPool> serialization_buffer_pool();
 
   /// Create a NodeData and store it within this context. The NodeData can be
   /// retrieved using get_node().
