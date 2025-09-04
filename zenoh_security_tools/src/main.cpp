@@ -129,6 +129,10 @@ int main(int argc, char *argv[])
     return 1;
   }
 
+  if (!args.enclaves_dir) {
+    std::cerr << "Warning: --enclaves not provided." << std::endl;
+  }
+
   if (!args.ros_domain_id) {
     std::cerr << "Error: --ros-domain-id is required." << std::endl;
     print_help();
@@ -149,7 +153,7 @@ int main(int argc, char *argv[])
 
   auto config_generator = zenoh_security_tools::ConfigGenerator(
     args.policy_filepath.value(),
-    args.enclaves_dir.value(),
+    args.enclaves_dir,
     args.zenoh_router_config_filepath.value(),
     args.zenoh_session_config_filepath.value(),
     args.ros_domain_id.value());
