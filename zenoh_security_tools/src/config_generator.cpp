@@ -66,11 +66,11 @@ namespace zenoh_security_tools
 //==============================================================================
 ConfigGenerator::ConfigGenerator(
   const std::string & policy_filepath,
-  const std::string & enclaves_dir,
+  std::optional<std::string> enclaves_dir,
   const std::string & zenoh_router_config_filepath,
   const std::string & zenoh_session_config_filepath,
   uint8_t domain_id)
-: enclaves_dir_(std::nullopt),
+: enclaves_dir_(std::move(enclaves_dir)),
   zenoh_router_config_filepath_(std::move(zenoh_router_config_filepath)),
   zenoh_session_config_filepath_(std::move(zenoh_session_config_filepath)),
   domain_id_(std::move(domain_id))
@@ -78,13 +78,6 @@ ConfigGenerator::ConfigGenerator(
   const tinyxml2::XMLError error = doc_.LoadFile(policy_filepath.c_str());
   if (error != tinyxml2::XML_SUCCESS) {
     throw std::runtime_error("Invalid argument: wrong policy file.");
-  }
-
-  if (!enclaves_dir.empty()) {
-    std::filesystem::path maybe_dir{enclaves_dir};
-    if (std::filesystem::is_directory(enclaves_dir)) {
-      enclaves_dir_ = std::move(maybe_dir);
-    }
   }
 }
 
@@ -344,7 +337,16 @@ void ConfigGenerator::fill_certificates(
   if (!enclaves_dir_.has_value()) {
     return;
   }
-  auto enclaves_dir = enclaves_dir_.value();
+
+  std::filesystem::path enclaves_dir{enclaves_dir_.value()};
+  if (!std::filesystem::is_directory(enclaves_dir)) {
+    std::cout << "No directory for enclaves with name "
+              << enclaves_dir.string()
+              << ". Skipping authentication..."
+              << std::endl;
+    return;
+  }
+
   auto enclave_dir = enclaves_dir / node_name;
   if (!std::filesystem::is_directory(enclaves_dir)) {
     std::cout << "No directory with name "
