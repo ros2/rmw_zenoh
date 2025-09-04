@@ -56,7 +56,7 @@ public:
    */
   ConfigGenerator(
     const std::string & policy_filepath,
-    const std::string & enclaves_dir,
+    std::optional<std::string> enclaves_dir,
     const std::string & zenoh_router_config_filepath,
     const std::string & zenoh_session_config_filepath,
     uint8_t domain_id);
@@ -79,7 +79,7 @@ private:
     const std::string & node_name);
 
   tinyxml2::XMLDocument doc_;
-  std::optional<std::filesystem::path> enclaves_dir_;
+  std::optional<std::string> enclaves_dir_;
   std::string zenoh_router_config_filepath_;
   std::string zenoh_session_config_filepath_;
 
