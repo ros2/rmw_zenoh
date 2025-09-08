@@ -37,6 +37,7 @@
 #include <stdexcept>
 #include <string>
 #include <utility>
+#include <set>
 
 #include <nlohmann/json.hpp>
 
