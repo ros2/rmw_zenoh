@@ -292,14 +292,6 @@ rmw_ret_t PublisherData::publish(
   opts.put_options.attachment = rmw_zenoh_cpp::AttachmentData(
     sequence_number_++, source_timestamp, entity_->copy_gid()).serialize_to_zbytes();
 
-<<<<<<< HEAD
-  auto payload = shmbuf.has_value() ? zenoh::Bytes(std::move(*shmbuf)) :
-    zenoh::Bytes(
-    msg_bytes,
-    data_length,
-    [msg_bytes, allocator](uint8_t *) {allocator->deallocate(msg_bytes, allocator->state);}
-    );
-=======
   zenoh::Bytes payload;
   if (shm_buf.has_value()) {
     payload = zenoh::Bytes(std::move(*shm_buf));
@@ -315,7 +307,6 @@ rmw_ret_t PublisherData::publish(
       reinterpret_cast<const uint8_t *>(msg_bytes) + data_length);
     payload = zenoh::Bytes(std::move(raw_data));
   }
->>>>>>> b473721 (Recycle serialization buffers on transmission (#342))
   // The delete responsibility has been handed over to zenoh::Bytes now
   always_free_msg_bytes.cancel();
 
