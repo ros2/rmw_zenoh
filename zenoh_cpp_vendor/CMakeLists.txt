@@ -17,7 +17,7 @@ find_package(ament_cmake_vendor_package REQUIRED)
 # latter is a list separater in cmake and hence the string will be split into two when expanded.
 set(ZENOHC_CARGO_FLAGS "--features=shared-memory zenoh/transport_serial")
 
-# Set VCS_VERSION to 1.5.0 commits of zenoh/zenoh-c/zenoh-cpp to benefit from:
+# Set VCS_VERSION to 1.5.1 commits of zenoh/zenoh-c/zenoh-cpp to benefit from:
 #   - Add CongestionControl::BlockFirst QoS
 #      - https://github.com/eclipse-zenoh/zenoh/pull/2014
 #   - Add more options for messages selection to 'qos/network' config:
@@ -36,9 +36,12 @@ set(ZENOHC_CARGO_FLAGS "--features=shared-memory zenoh/transport_serial")
 #      - https://github.com/eclipse-zenoh/zenoh/pull/2062
 #  - Fix build failure on Windows:
 #     - https://github.com/eclipse-zenoh/zenoh-c/pull/1079
+#  - Shared Memory performances improvements (throughput and latency)
+#     - https://github.com/eclipse-zenoh/zenoh/pull/2113
+#     - https://github.com/eclipse-zenoh/zenoh/pull/2116
 ament_vendor(zenoh_c_vendor
   VCS_URL https://github.com/eclipse-zenoh/zenoh-c.git
-  VCS_VERSION 71af32739394bc3200aa1bea32206dc28216e04e
+  VCS_VERSION 8f9ce70e4c4b55d150632730fd4c48abffbde765
   CMAKE_ARGS
     "-DZENOHC_CARGO_FLAGS=${ZENOHC_CARGO_FLAGS}"
     "-DZENOHC_BUILD_WITH_UNSTABLE_API=TRUE"
@@ -50,7 +53,7 @@ ament_export_dependencies(zenohc)
 
 ament_vendor(zenoh_cpp_vendor
   VCS_URL https://github.com/eclipse-zenoh/zenoh-cpp
-  VCS_VERSION d0eae207c6cfee8df9fb8622812a297ef9bfd18e
+  VCS_VERSION 05533d20db70ffc1d53a0e07f39caa999e82febd
   CMAKE_ARGS
     -DZENOHCXX_ZENOHC=OFF
 )
