@@ -97,7 +97,7 @@ bool replace(
 }
 
 //==============================================================================
-// Convert topic/service names to allowed key expression for 
+// Convert topic/service names to allowed key expression for
 // Zenoh publications, subscriptions, queryables and queries
 json to_key_exprs(
   const std::set<std::string> & key_exprs,
