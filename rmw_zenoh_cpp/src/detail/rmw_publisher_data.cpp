@@ -297,7 +297,7 @@ rmw_ret_t PublisherData::publish(
     payload = zenoh::Bytes(std::move(*shm_buf));
   } else if (pool_buf.has_value() && pool_buf.value().data) {
     auto deleter = [buffer_pool = context_impl->serialization_buffer_pool(),
-        buffer = pool_buf](uint8_t *){
+        buffer = pool_buf](uint8_t *) {
         buffer_pool->deallocate(buffer.value());
       };
     payload = zenoh::Bytes(msg_bytes, data_length, deleter);
