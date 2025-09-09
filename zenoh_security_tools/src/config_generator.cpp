@@ -38,6 +38,7 @@
 #include <string>
 #include <unordered_map>
 #include <utility>
+#include <set>
 
 #include <nlohmann/json.hpp>
 
@@ -98,6 +99,8 @@ bool replace(
 }
 
 //==============================================================================
+// Convert topic/service names to allowed key expression for
+// Zenoh publications, subscriptions, queryables and queries
 json to_key_exprs(
   const std::set<std::string> & key_exprs,
   uint8_t domain_id)
@@ -105,7 +108,38 @@ json to_key_exprs(
   json key_exprs_ret = json::array();
 
   for (const auto & name : key_exprs) {
-    key_exprs_ret.push_back(std::to_string(domain_id) + "/" + name + "/**");
+    key_exprs_ret.push_back(std::to_string(domain_id) + "/" + name + "/*/*");
+  }
+
+  return key_exprs_ret;
+}
+
+//==============================================================================
+// Convert topic names to allowed key expression for
+// Zenoh AdvancedPublisher's queryable and liveliness token
+json to_adv_pub_queryable_key_exprs(
+  const std::set<std::string> & key_exprs,
+  uint8_t domain_id)
+{
+  json key_exprs_ret = json::array();
+
+  for (const auto & name : key_exprs) {
+    key_exprs_ret.push_back(std::to_string(domain_id) + "/" + name + "/*/*/@adv/pub/*/*/_");
+  }
+
+  return key_exprs_ret;
+}
+
+//==============================================================================
+// Convert topic names to allowed key expression for Zenoh AdvancedSubscriber's query
+json to_adv_sub_query_key_exprs(
+  const std::set<std::string> & key_exprs,
+  uint8_t domain_id)
+{
+  json key_exprs_ret = json::array();
+
+  for (const auto & name : key_exprs) {
+    key_exprs_ret.push_back(std::to_string(domain_id) + "/" + name + "/*/*/@adv/**");
   }
 
   return key_exprs_ret;
@@ -248,7 +282,7 @@ void ConfigGenerator::fill_access_control(
   if (!topics_pub_allow_.empty()) {
     json rule_allow_pub_out = json::object({
         {"id", "outgoing_publications"},
-        {"messages", json::array({"put"})},
+        {"messages", json::array({"put", "reply"})},
         {"flows", json::array({"egress"})},
         {"permission", "allow"},
         {"key_exprs", to_key_exprs(topics_pub_allow_, domain_id_)},
@@ -265,6 +299,31 @@ void ConfigGenerator::fill_access_control(
     });
     rules.push_back(rule_allow_pub_in);
     policies_rules.push_back("incoming_subscriptions");
+
+    // For TRANSIENT_LOCAL publishers, allow outgoing AdvancedPublisher's
+    // Queryable and LivelinessToken declarations
+    json rule_allow_transient_local_queryable = json::object({
+        {"id", "outgoing_publications_transient_local_queryable"},
+        {"messages", json::array({"declare_queryable", "liveliness_token"})},
+        {"flows", json::array({"egress"})},
+        {"permission", "allow"},
+        {"key_exprs", to_adv_pub_queryable_key_exprs(topics_pub_allow_, domain_id_)},
+    });
+    rules.push_back(rule_allow_transient_local_queryable);
+    policies_rules.push_back("outgoing_publications_transient_local_queryable");
+
+    // For TRANSIENT_LOCAL publishers, allow incoming queries from AdvancedSubscriber.
+    // The replies have the same key expression than the publication, and this is
+    // allowed by rule "outgoing_publications" above.
+    json rule_allow_transient_local_query = json::object({
+        {"id", "incoming_subscriptions_transient_local_query"},
+        {"messages", json::array({"query"})},
+        {"flows", json::array({"ingress"})},
+        {"permission", "allow"},
+        {"key_exprs", to_adv_sub_query_key_exprs(topics_pub_allow_, domain_id_)},
+    });
+    rules.push_back(rule_allow_transient_local_query);
+    policies_rules.push_back("incoming_subscriptions_transient_local_query");
   }
 
   if (!topics_sub_allow_.empty()) {
@@ -280,13 +339,38 @@ void ConfigGenerator::fill_access_control(
 
     json rule_allow_sub_in = json::object({
         {"id", "incoming_publications"},
-        {"messages", json::array({"put"})},
+        {"messages", json::array({"put", "reply"})},
         {"flows", json::array({"ingress"})},
         {"permission", "allow"},
         {"key_exprs", to_key_exprs(topics_sub_allow_, domain_id_)},
     });
     rules.push_back(rule_allow_sub_in);
     policies_rules.push_back("incoming_publications");
+
+    // For TRANSIENT_LOCAL subscriber, allow outgoing queries to the AdvancedPublishers
+    // The replies have the same key expression than the publication, and this is
+    // allowed by rule "incoming_publications" above.
+    json rule_allow_transient_local_query = json::object({
+        {"id", "outgoing_subscriptions_transient_local_query"},
+        {"messages", json::array({"query", "declare_liveliness_subscriber"})},
+        {"flows", json::array({"egress"})},
+        {"permission", "allow"},
+        {"key_exprs", to_adv_sub_query_key_exprs(topics_sub_allow_, domain_id_)},
+    });
+    rules.push_back(rule_allow_transient_local_query);
+    policies_rules.push_back("outgoing_subscriptions_transient_local_query");
+
+    // For TRANSIENT_LOCAL subscriber, allow incoming Queryable and
+    // LivelinessToken declarations from AdvancedPublisher.
+    json rule_allow_transient_local_queryable = json::object({
+        {"id", "incoming_subscriptions_transient_local_queryable"},
+        {"messages", json::array({"declare_queryable", "liveliness_token"})},
+        {"flows", json::array({"ingress"})},
+        {"permission", "allow"},
+        {"key_exprs", to_adv_pub_queryable_key_exprs(topics_sub_allow_, domain_id_)},
+    });
+    rules.push_back(rule_allow_transient_local_queryable);
+    policies_rules.push_back("incoming_subscriptions_transient_local_queryable");
   }
 
   json liveliness_messages = json::array({
