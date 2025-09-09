@@ -309,26 +309,28 @@ void ConfigGenerator::fill_access_control(
 
     // For TRANSIENT_LOCAL publishers, allow outgoing AdvancedPublisher's
     // Queryable and LivelinessToken declarations
-    json rule_allow_transient_local_queryable = json::object({
+    json rule_allow_transient_local_queryable = json::object(
+      {
         {"id", "outgoing_publications_transient_local_queryable"},
         {"messages", json::array({"declare_queryable", "liveliness_token"})},
         {"flows", json::array({"egress"})},
         {"permission", "allow"},
         {"key_exprs", to_adv_pub_queryable_key_exprs(topics_pub_allow_, domain_id_)},
-    });
+      });
     rules.push_back(rule_allow_transient_local_queryable);
     policies_rules.push_back("outgoing_publications_transient_local_queryable");
 
     // For TRANSIENT_LOCAL publishers, allow incoming queries from AdvancedSubscriber.
     // The replies have the same key expression than the publication, and this is
     // allowed by rule "outgoing_publications" above.
-    json rule_allow_transient_local_query = json::object({
+    json rule_allow_transient_local_query = json::object(
+      {
         {"id", "incoming_subscriptions_transient_local_query"},
         {"messages", json::array({"query"})},
         {"flows", json::array({"ingress"})},
         {"permission", "allow"},
         {"key_exprs", to_adv_sub_query_key_exprs(topics_pub_allow_, domain_id_)},
-    });
+      });
     rules.push_back(rule_allow_transient_local_query);
     policies_rules.push_back("incoming_subscriptions_transient_local_query");
   }
@@ -359,25 +361,27 @@ void ConfigGenerator::fill_access_control(
     // For TRANSIENT_LOCAL subscriber, allow outgoing queries to the AdvancedPublishers
     // The replies have the same key expression than the publication, and this is
     // allowed by rule "incoming_publications" above.
-    json rule_allow_transient_local_query = json::object({
+    json rule_allow_transient_local_query = json::object(
+      {
         {"id", "outgoing_subscriptions_transient_local_query"},
         {"messages", json::array({"query", "declare_liveliness_subscriber"})},
         {"flows", json::array({"egress"})},
         {"permission", "allow"},
         {"key_exprs", to_adv_sub_query_key_exprs(topics_sub_allow_, domain_id_)},
-    });
+      });
     rules.push_back(rule_allow_transient_local_query);
     policies_rules.push_back("outgoing_subscriptions_transient_local_query");
 
     // For TRANSIENT_LOCAL subscriber, allow incoming Queryable and
     // LivelinessToken declarations from AdvancedPublisher.
-    json rule_allow_transient_local_queryable = json::object({
+    json rule_allow_transient_local_queryable = json::object(
+      {
         {"id", "incoming_subscriptions_transient_local_queryable"},
         {"messages", json::array({"declare_queryable", "liveliness_token"})},
         {"flows", json::array({"ingress"})},
         {"permission", "allow"},
         {"key_exprs", to_adv_pub_queryable_key_exprs(topics_sub_allow_, domain_id_)},
-    });
+      });
     rules.push_back(rule_allow_transient_local_queryable);
     policies_rules.push_back("incoming_subscriptions_transient_local_queryable");
   }
