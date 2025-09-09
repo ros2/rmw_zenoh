@@ -20,6 +20,7 @@
 #include <cinttypes>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <utility>
 #include <variant>
@@ -211,15 +212,25 @@ rmw_ret_t PublisherData::publish(
   // To store serialized message byte array.
   uint8_t * msg_bytes = nullptr;
 
-  std::optional<zenoh::ZShmMut> shmbuf = std::nullopt;
-
+  rmw_context_impl_s * context_impl =
+    static_cast<rmw_context_impl_s *>(rmw_node_->data);
+  if (context_impl == nullptr) {
+    RMW_SET_ERROR_MSG("Unable to cast rmw_node->data into rmw_context_impl_s.");
+    return RMW_RET_ERROR;
+  }
   rcutils_allocator_t * allocator = &rmw_node_->context->options.allocator;
 
+  // Optional shared memory buffer
+  std::optional<zenoh::ZShmMut> shm_buf = std::nullopt;
+  // Optional buffer reused for serialization from the buffer pool
+  std::optional<BufferPool::Buffer> pool_buf = std::nullopt;
+
   auto always_free_msg_bytes = rcpputils::make_scope_exit(
-    [&msg_bytes, allocator, &shmbuf]() {
-      if (msg_bytes && !shmbuf.has_value()) {
-        allocator->deallocate(msg_bytes, allocator->state);
+    [&msg_bytes, allocator, &shm_buf, &pool_buf]() {
+      if (!msg_bytes || shm_buf.has_value() || (pool_buf.has_value() && pool_buf.value().data)) {
+        return;
       }
+      allocator->deallocate(msg_bytes, allocator->state);
     });
 
   // Get memory from SHM buffer if available.
@@ -231,24 +242,30 @@ rmw_ret_t PublisherData::publish(
     if (std::holds_alternative<zenoh::ZShmMut>(alloc_result)) {
       auto && buf = std::get<zenoh::ZShmMut>(std::move(alloc_result));
       msg_bytes = reinterpret_cast<uint8_t *>(buf.data());
-      shmbuf = std::make_optional(std::move(buf));
+      shm_buf = std::make_optional(std::move(buf));
     } else {
       // Print a warning and revert to regular allocation
       RMW_ZENOH_LOG_DEBUG_NAMED(
         "rmw_zenoh_cpp", "Failed to allocate a SHM buffer, fallback to non-SHM");
-
-      // TODO(yellowhatter): split the whole publish method onto shm and non-shm versions
-      // Get memory from the allocator.
-      msg_bytes = static_cast<uint8_t *>(allocator->allocate(max_data_length, allocator->state));
-      RMW_CHECK_FOR_NULL_WITH_MSG(
-        msg_bytes, "bytes for message is null", return RMW_RET_BAD_ALLOC);
     }
-  } else {
-    // Get memory from the allocator.
-    msg_bytes = static_cast<uint8_t *>(allocator->allocate(max_data_length, allocator->state));
-    RMW_CHECK_FOR_NULL_WITH_MSG(
-      msg_bytes, "bytes for message is null", return RMW_RET_BAD_ALLOC);
   }
+
+  if (!shm_buf.has_value()) {
+    // Try to get memory from the serialization buffer pool.
+    pool_buf = context_impl->serialization_buffer_pool()->allocate(max_data_length);
+    if (pool_buf.has_value() && pool_buf.value().data) {
+      msg_bytes = pool_buf->data;
+    } else {
+      void * data = allocator->allocate(max_data_length, allocator->state);
+      RMW_CHECK_FOR_NULL_WITH_MSG(
+        data, "failed to allocate serialization buffer", return RMW_RET_BAD_ALLOC);
+      msg_bytes = static_cast<uint8_t *>(data);
+    }
+  }
+
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    msg_bytes, "bytes for message is null", return RMW_RET_BAD_ALLOC);
+
 
   // Object that manages the raw buffer
   eprosima::fastcdr::FastBuffer fastbuffer(reinterpret_cast<char *>(msg_bytes), max_data_length);
@@ -275,12 +292,21 @@ rmw_ret_t PublisherData::publish(
   opts.put_options.attachment = rmw_zenoh_cpp::AttachmentData(
     sequence_number_++, source_timestamp, entity_->copy_gid()).serialize_to_zbytes();
 
-  auto payload = shmbuf.has_value() ? zenoh::Bytes(std::move(*shmbuf)) :
-    zenoh::Bytes(
-    msg_bytes,
-    data_length,
-    [msg_bytes, allocator](uint8_t *) {allocator->deallocate(msg_bytes, allocator->state);}
-    );
+  zenoh::Bytes payload;
+  if (shm_buf.has_value()) {
+    payload = zenoh::Bytes(std::move(*shm_buf));
+  } else if (pool_buf.has_value() && pool_buf.value().data) {
+    auto deleter = [buffer_pool = context_impl->serialization_buffer_pool(),
+        buffer = pool_buf](uint8_t *) {
+        buffer_pool->deallocate(buffer.value());
+      };
+    payload = zenoh::Bytes(msg_bytes, data_length, deleter);
+  } else {
+    std::vector<uint8_t> raw_data(
+      reinterpret_cast<const uint8_t *>(msg_bytes),
+      reinterpret_cast<const uint8_t *>(msg_bytes) + data_length);
+    payload = zenoh::Bytes(std::move(raw_data));
+  }
   // The delete responsibility has been handed over to zenoh::Bytes now
   always_free_msg_bytes.cancel();
 
