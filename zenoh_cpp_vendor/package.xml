@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>zenoh_cpp_vendor</name>
-  <version>0.2.6</version>
+  <version>0.2.7</version>
   <description>Vendor pkg to install zenoh-cpp</description>
   <maintainer email="yadunund@openrobotics.org">Yadunund</maintainer>
   <license>Apache License 2.0</license>
