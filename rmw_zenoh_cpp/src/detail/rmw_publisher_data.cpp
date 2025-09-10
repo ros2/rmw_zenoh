@@ -260,7 +260,7 @@ rmw_ret_t PublisherData::publish(
       shm_buf = std::make_optional(std::move(buf));
     } else {
       // Print a warning and revert to regular allocation
-      RMW_ZENOH_LOG_DEBUG_NAMED(
+      RMW_ZENOH_LOG_WARN_NAMED(
         "rmw_zenoh_cpp", "Failed to allocate a SHM buffer, fallback to non-SHM");
     }
   }
