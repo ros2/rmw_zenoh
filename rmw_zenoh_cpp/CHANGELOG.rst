@@ -2,6 +2,12 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Recycle serialization buffers on transmission (`#766 <https://github.com/ros2/rmw_zenoh/issues/766>`_)
+* refactor: avoid redundant key expression creation when replying (`#754 <https://github.com/ros2/rmw_zenoh/issues/754>`_)
+* Contributors: Chris Lalancette, Yadunund, Mahmoud Mazouz, Yuyuan Yuan, Julien Enoch
+
 0.6.3 (2025-08-21)
 ------------------
 * fixing typo flow to flows in config files (`#745 <https://github.com/ros2/rmw_zenoh/issues/745>`_)

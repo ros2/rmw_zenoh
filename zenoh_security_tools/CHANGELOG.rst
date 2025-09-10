@@ -2,6 +2,12 @@
 Changelog for package zenoh_security_tools
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* SROS: add ACL rules for TRANSIENT_LOCAL pub/sub (fix `#753 <https://github.com/ros2/rmw_zenoh/issues/753>`_) (`#780 <https://github.com/ros2/rmw_zenoh/issues/780>`_)
+* Fix handling of enclave path in zenoh_security_tools (`#771 <https://github.com/ros2/rmw_zenoh/issues/771>`_)
+* Contributors: Julien Enoch, Yadunund
+
 0.6.3 (2025-08-21)
 ------------------
 
