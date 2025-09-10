@@ -2,6 +2,12 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.9.1 (2025-09-10)
+------------------
+* Recycle serialization buffers on transmission (`#342 <https://github.com/ros2/rmw_zenoh/issues/342>`_)
+* refactor: avoid redundant key expression creation when replying (`#732 <https://github.com/ros2/rmw_zenoh/issues/732>`_)
+* Contributors: Chris Lalancette, Yadunund, Mahmoud Mazouz, Yuyuan Yuan, Julien Enoch
+
 0.9.0 (2025-08-21)
 ------------------
 * Do not include rosidl_typesupport\_{c,cpp} in rmw impl typesupport list (`#748 <https://github.com/ros2/rmw_zenoh/issues/748>`_)
