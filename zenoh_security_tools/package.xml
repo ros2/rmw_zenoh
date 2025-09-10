@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>zenoh_security_tools</name>
-  <version>0.6.3</version>
+  <version>0.6.4</version>
   <description>This package generates config files to enforce security with Zenoh</description>
   <maintainer email="alejandro@openrobotics.org">Alejandro Hernanadez</maintainer>
   <license>Apache License 2.0</license>
