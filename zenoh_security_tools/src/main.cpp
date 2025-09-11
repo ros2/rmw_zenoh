@@ -153,7 +153,7 @@ int main(int argc, char * argv[])
 
   auto config_generator = zenoh_security_tools::ConfigGenerator(
     args.policy_filepath.value(),
-    args.enclaves_dir,
+    args.enclaves_dir.has_value() ? args.enclaves_dir.value() : "",
     args.zenoh_router_config_filepath.value(),
     args.zenoh_session_config_filepath.value(),
     args.ros_domain_id.value());
