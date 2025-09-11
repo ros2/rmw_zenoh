@@ -302,10 +302,10 @@ rmw_ret_t PublisherData::publish(
       };
     payload = zenoh::Bytes(msg_bytes, data_length, deleter);
   } else {
-    std::vector<uint8_t> raw_data(
-      reinterpret_cast<const uint8_t *>(msg_bytes),
-      reinterpret_cast<const uint8_t *>(msg_bytes) + data_length);
-    payload = zenoh::Bytes(std::move(raw_data));
+    auto deleter = [msg_bytes, allocator](uint8_t *) {
+        allocator->deallocate(msg_bytes, allocator->state);
+      };
+    payload = zenoh::Bytes(msg_bytes, data_length, deleter);
   }
   // The delete responsibility has been handed over to zenoh::Bytes now
   always_free_msg_bytes.cancel();
