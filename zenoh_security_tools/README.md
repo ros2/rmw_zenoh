@@ -113,7 +113,7 @@ You can validate access control by remapping the `/chatter` topic which should r
 
 
 ```bash
-export ZENOH_SESSION_CONFIG_URI=talker.json5
+export ZENOH_SESSION_CONFIG_URI=zenohd.json5
 ros2 rmw_zenoh_cpp rmw_zenohd
 ```
 
