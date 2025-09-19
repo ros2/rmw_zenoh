@@ -390,10 +390,26 @@ rmw_ret_t ClientData::send_request(
     [client_data](const zenoh::Reply & reply) {
       if (!reply.is_ok()) {
         auto reply_err_str = reply.get_err().get_payload().as_string();
-        RMW_ZENOH_LOG_ERROR_NAMED(
-          "rmw_zenoh_cpp",
-          "z_reply_is_ok returned False Reason: %s",
-          reply_err_str.c_str())
+        auto locked_client_data = client_data.lock();
+        if (locked_client_data != nullptr && locked_client_data->entity_ != nullptr) {
+          auto topic_info = locked_client_data->entity_->topic_info();
+          if (topic_info.has_value()) {
+            RMW_ZENOH_LOG_ERROR_NAMED(
+              "rmw_zenoh_cpp",
+              "z_reply_is_ok returned False Reason: %s for service '%s'",
+              reply_err_str.c_str(), topic_info->name_.c_str());
+          } else {
+            RMW_ZENOH_LOG_ERROR_NAMED(
+              "rmw_zenoh_cpp",
+              "z_reply_is_ok returned False Reason: %s",
+              reply_err_str.c_str());
+          }
+        } else {
+          RMW_ZENOH_LOG_ERROR_NAMED(
+            "rmw_zenoh_cpp",
+            "z_reply_is_ok returned False Reason: %s",
+            reply_err_str.c_str());
+        }
         return;
       }
       const zenoh::Sample & sample = reply.get_ok();

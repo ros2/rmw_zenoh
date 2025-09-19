@@ -473,14 +473,16 @@ rmw_ret_t PublisherData::shutdown()
   if (result != Z_OK) {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
-      "Unable to undeclare the liveliness token");
+      "Unable to undeclare the liveliness token for topic '%s'",
+      entity_->topic_info().value().name_.c_str());
     return RMW_RET_ERROR;
   }
   std::move(pub_).undeclare(&result);
   if (result != Z_OK) {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
-      "Unable to undeclare the publisher");
+      "Unable to undeclare the publisher for topic '%s'",
+      entity_->topic_info().value().name_.c_str());
     return RMW_RET_ERROR;
   }
 
