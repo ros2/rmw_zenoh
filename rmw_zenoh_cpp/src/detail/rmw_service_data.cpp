@@ -254,9 +254,9 @@ void ServiceData::add_new_query(std::unique_ptr<ZenohQuery> query)
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Query queue depth of %ld reached, discarding oldest Query "
-      "for service for %s",
+      "for service '%s'",
       adapted_qos_profile.depth,
-      std::string(keyexpr_.as_string_view()).c_str());
+      entity_->topic_info().value().name_.c_str());
     query_queue_.pop_front();
   }
   query_queue_.emplace_back(std::move(query));
