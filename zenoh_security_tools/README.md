@@ -114,7 +114,7 @@ You can validate access control by remapping the `/chatter` topic which should r
 
 ```bash
 export ZENOH_SESSION_CONFIG_URI=zenohd.json5
-ros2 rmw_zenoh_cpp rmw_zenohd
+ros2 run rmw_zenoh_cpp rmw_zenohd
 ```
 
 ```bash
@@ -138,7 +138,7 @@ ros2 run zenoh_security_tools generate_configs \
   --policy policy_listener_talker.xml \
   --router-config <path to default router config>/DEFAULT_RMW_ZENOH_ROUTER_CONFIG.json5 \
   --session-config <path to default session config>/DEFAULT_RMW_ZENOH_SESSION_CONFIG.json5 \
-  --ros-domain-id 0
+  --ros-domain-id 0 \
   --enclaves ~/sros2_demo/demo_keystore/enclaves/talker_listener
 ```
 
@@ -148,14 +148,14 @@ The executable assumes that the `~/sros2_demo/demo_keystore/enclaves/talker_list
 Start the zenoh router with the `zenohd.json` config file.
 ```bash
 export ZENOH_ROUTER_CONFIG_URI=zenohd.json5
-ros2 rmw_zenoh_cpp rmw_zenohd
+ros2 run rmw_zenoh_cpp rmw_zenohd
 ```
 
 Start the talker
 
 ```bash
 export ZENOH_SESSION_CONFIG_URI=talker.json5
-ros2 rmw_zenoh_cpp rmw_zenohd
+ros2 run demo_nodes_cpp talker
 ```
 
 Start the listener without setting the session config.
