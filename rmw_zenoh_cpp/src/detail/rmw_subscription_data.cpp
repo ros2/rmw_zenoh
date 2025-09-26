@@ -161,6 +161,7 @@ bool SubscriptionData::init()
   sess_ = context_impl->session();
 
   using AdvancedSubscriberOptions = zenoh::ext::SessionExt::AdvancedSubscriberOptions;
+  using RecoveryOptions = AdvancedSubscriberOptions::RecoveryOptions;
   auto adv_sub_opts = AdvancedSubscriberOptions::create_default();
 
   // Instantiate the subscription with suitable options depending on the
@@ -178,8 +179,8 @@ bool SubscriptionData::init()
       // Activate recovery of lost samples.
       // This requires the Publisher to have sample_miss_detection configured,
       // which is the case for a RELIABLE + TRANSIENT_LOCAL Publisher.
-      adv_sub_opts.recovery.emplace().last_sample_miss_detection =
-        AdvancedSubscriberOptions::RecoveryOptions::Heartbeat{};
+      adv_sub_opts.recovery = AdvancedSubscriberOptions::RecoveryOptions{};
+      adv_sub_opts.recovery->last_sample_miss_detection = RecoveryOptions::Heartbeat{};
     }
   }
 
