@@ -115,6 +115,7 @@ std::shared_ptr<PublisherData> PublisherData::make(
   }
 
   using AdvancedPublisherOptions = zenoh::ext::SessionExt::AdvancedPublisherOptions;
+  using SampleMissDetectionOptions = AdvancedPublisherOptions::SampleMissDetectionOptions;
   auto adv_pub_opts = AdvancedPublisherOptions::create_default();
 
   if (adapted_qos_profile.durability == RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL) {
@@ -126,8 +127,9 @@ std::shared_ptr<PublisherData> PublisherData::make(
       // If RELIABLE + TRANSIENT_LOCAL activate sample miss detection for subscriber
       // to detect missed samples and retrieve those from the Publisher cache.
       // HeartbeatSporadic is used to prevent excessive background traffic
-      adv_pub_opts.sample_miss_detection.emplace().heartbeat =
-        AdvancedPublisherOptions::SampleMissDetectionOptions::HeartbeatSporadic{
+      adv_pub_opts.sample_miss_detection = SampleMissDetectionOptions{};
+      adv_pub_opts.sample_miss_detection->heartbeat =
+        SampleMissDetectionOptions::HeartbeatSporadic{
         SAMPLE_MISS_DETECTION_HEARTBEAT_PERIOD};
     }
   }
