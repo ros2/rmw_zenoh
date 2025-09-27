@@ -216,9 +216,14 @@
   },
 
   /// The default timeout to apply to queries in milliseconds.
-  /// ROS setting: increase the value to avoid timeout at launch time with a large number of Nodes starting all together.
-  ///              Note that only action-related service get_result is hard-coded with an infinite timeout.
-  queries_default_timeout: 60000,
+  /// ROS setting: The default value of 600000 ms (10 minutes) is already quite high, but it can be increased if needed.
+  ///              For instance to avoid timeout with Service Server that that is unresponsive or lagging,
+  ///              which could occur at launch time with a large number of Nodes starting all together.
+  ///              It’s recommended to configure a value that exceeds the longest timeout specified in any
+  ///              `spin_until_complete(service_call_future_result, timeout)` call.
+  ///              Note that the action-related service "get_result" is hard-coded with an infinite timeout,
+  ///              as in some use case an action could spend several hours (e.g. mission plans).
+  queries_default_timeout: 600000,
 
   /// The routing strategy to use and it's configuration.
   routing: {
