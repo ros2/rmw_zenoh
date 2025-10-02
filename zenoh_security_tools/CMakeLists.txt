@@ -19,7 +19,6 @@ find_package(rcutils REQUIRED)
 # todo(Yadunund): Remove rmw dependency after https://github.com/ros2/rmw/pull/400 is merged.
 find_package(rmw REQUIRED)
 find_package(rmw_security_common REQUIRED)
-find_package(tinyxml2_vendor REQUIRED)
 find_package(TinyXML2 REQUIRED)
 find_package(zenoh_cpp_vendor REQUIRED)
 
