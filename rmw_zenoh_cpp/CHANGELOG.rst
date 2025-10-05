@@ -2,8 +2,8 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.1.7 (2025-10-05)
+------------------
 * Change default value of ZENOH_SHM_ALLOC_SIZE to 48 MiB (`#833 <https://github.com/ros2/rmw_zenoh/issues/833>`_)
 * config: increase queries_default_timeout to 10min (`#826 <https://github.com/ros2/rmw_zenoh/issues/826>`_)
 * Fix compile with clang (`#823 <https://github.com/ros2/rmw_zenoh/issues/823>`_)
