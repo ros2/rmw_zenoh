@@ -2,8 +2,8 @@
 Changelog for package zenoh_security_tools
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.2.8 (2025-10-05)
+------------------
 * Fix commands in zenoh_security_tools README (`#816 <https://github.com/ros2/rmw_zenoh/issues/816>`_)
 * Revert "fix: handle missing enclaves_dir argument for zenoh_security_tools" (`#807 <https://github.com/ros2/rmw_zenoh/issues/807>`_)
 * Correct a description error in the zenoh_security_tools README (`#794 <https://github.com/ros2/rmw_zenoh/issues/794>`_)
