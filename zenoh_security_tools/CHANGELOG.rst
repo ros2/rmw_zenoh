@@ -2,6 +2,14 @@
 Changelog for package zenoh_security_tools
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Fix commands in zenoh_security_tools README (`#816 <https://github.com/ros2/rmw_zenoh/issues/816>`_)
+* Revert "fix: handle missing enclaves_dir argument for zenoh_security_tools" (`#807 <https://github.com/ros2/rmw_zenoh/issues/807>`_)
+* Correct a description error in the zenoh_security_tools README (`#794 <https://github.com/ros2/rmw_zenoh/issues/794>`_)
+* fix: handle missing enclaves_dir argument for zenoh_security_tools (`#791 <https://github.com/ros2/rmw_zenoh/issues/791>`_)
+* Contributors: Barry Xu, Christophe Bedard, Yadunund
+i
 0.2.7 (2025-09-10)
 ------------------
 * SROS: add ACL rules for TRANSIENT_LOCAL pub/sub (fix `#753 <https://github.com/ros2/rmw_zenoh/issues/753>`_) (`#781 <https://github.com/ros2/rmw_zenoh/issues/781>`_)
