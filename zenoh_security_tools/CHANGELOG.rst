@@ -2,6 +2,15 @@
 Changelog for package zenoh_security_tools
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Removed tinyxml2_vendor dependency (`#829 <https://github.com/ros2/rmw_zenoh/issues/829>`_)
+* Fix commands in zenoh_security_tools README (`#814 <https://github.com/ros2/rmw_zenoh/issues/814>`_)
+* Revert "fix: handle missing enclaves_dir argument for zenoh_security_tools (#…" (`#802 <https://github.com/ros2/rmw_zenoh/issues/802>`_)
+* Correct a description error in the zenoh_security_tools README (`#789 <https://github.com/ros2/rmw_zenoh/issues/789>`_)
+* fix: handle missing enclaves_dir argument for zenoh_security_tools (`#788 <https://github.com/ros2/rmw_zenoh/issues/788>`_)
+* Contributors: Alejandro Hernández Cordero, Barry Xu, Christophe Bedard, Yadunund
+
 0.9.1 (2025-09-10)
 ------------------
 * SROS: add ACL rules for TRANSIENT_LOCAL pub/sub (fix `#753 <https://github.com/ros2/rmw_zenoh/issues/753>`_) (`#779 <https://github.com/ros2/rmw_zenoh/issues/779>`_)

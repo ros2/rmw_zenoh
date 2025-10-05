@@ -2,6 +2,16 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Change default value of ZENOH_SHM_ALLOC_SIZE to 48 MiB (`#830 <https://github.com/ros2/rmw_zenoh/issues/830>`_)
+* config: increase queries_default_timeout to 10min (`#820 <https://github.com/ros2/rmw_zenoh/issues/820>`_)
+* Fix compile with clang (`#819 <https://github.com/ros2/rmw_zenoh/issues/819>`_)
+* feat(logging): add contextual information to log messages (`#809 <https://github.com/ros2/rmw_zenoh/issues/809>`_)
+* Align the config with upstream Zenoh. (`#785 <https://github.com/ros2/rmw_zenoh/issues/785>`_)
+* fix: resolve memory leak when publishing with the default allocator (`#797 <https://github.com/ros2/rmw_zenoh/issues/797>`_)
+* Contributors: ChenYing Kuo (CY), Julien Enoch, Yuyuan Yuan, Yadunund
+
 0.9.1 (2025-09-10)
 ------------------
 * Recycle serialization buffers on transmission (`#342 <https://github.com/ros2/rmw_zenoh/issues/342>`_)
