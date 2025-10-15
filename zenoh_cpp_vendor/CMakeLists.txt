@@ -17,31 +17,30 @@ find_package(ament_cmake_vendor_package REQUIRED)
 # latter is a list separater in cmake and hence the string will be split into two when expanded.
 set(ZENOHC_CARGO_FLAGS "--features=shared-memory zenoh/transport_serial")
 
-# Set VCS_VERSION to 1.5.1 commits of zenoh/zenoh-c/zenoh-cpp to benefit from:
-#   - Add CongestionControl::BlockFirst QoS
-#      - https://github.com/eclipse-zenoh/zenoh/pull/2014
-#   - Add more options for messages selection to 'qos/network' config:
-#      - https://github.com/eclipse-zenoh/zenoh/pull/2030
-#   - Add ZID subject property to access_control config:
-#      - https://github.com/eclipse-zenoh/zenoh/pull/2015
-#   - Fix access control over UDP listen endpoints
-#      - https://github.com/eclipse-zenoh/zenoh/pull/1980
-#      - Performance improvements:
-#      - https://github.com/eclipse-zenoh/zenoh/pull/1988
-#      - https://github.com/eclipse-zenoh/zenoh/pull/2025
-#      - https://github.com/eclipse-zenoh/zenoh/pull/2035
-#      - https://github.com/eclipse-zenoh/zenoh/pull/2046
-#      - https://github.com/eclipse-zenoh/zenoh/pull/2047
-#      - https://github.com/eclipse-zenoh/zenoh/pull/2053
-#      - https://github.com/eclipse-zenoh/zenoh/pull/2062
-#  - Fix build failure on Windows:
-#     - https://github.com/eclipse-zenoh/zenoh-c/pull/1079
-#  - Shared Memory performances improvements (throughput and latency)
-#     - https://github.com/eclipse-zenoh/zenoh/pull/2113
-#     - https://github.com/eclipse-zenoh/zenoh/pull/2116
+# Set VCS_VERSION to 1.6.1 commits of zenoh/zenoh-c/zenoh-cpp to benefit from:
+#  * Various performance improvements:
+#    - https://github.com/eclipse-zenoh/zenoh/pull/2109
+#    - https://github.com/eclipse-zenoh/zenoh/pull/2127
+#    - https://github.com/eclipse-zenoh/zenoh/pull/2174
+#  * Shared Memory improvements:
+#    - https://github.com/eclipse-zenoh/zenoh/pull/2117
+#    - https://github.com/eclipse-zenoh/zenoh/pull/2136
+#    - https://github.com/eclipse-zenoh/zenoh-c/pull/1105
+#    - https://github.com/eclipse-zenoh/zenoh-c/pull/1106
+#    - https://github.com/eclipse-zenoh/zenoh/pull/2193
+#  * Fix IPv6 address parsing for TLS and QUIC locators:
+#    - https://github.com/eclipse-zenoh/zenoh/pull/2138
+#  * Fix a bug leading to 100% CPU usage in certain circumstances :
+#    - https://github.com/eclipse-zenoh/zenoh/pull/2140
+#  * Fix zenoh/stats feature support
+#    - https://github.com/eclipse-zenoh/zenoh-c/pull/1110
+#  * Fix partial reconnection in case of multilink configuration
+#    - https://github.com/eclipse-zenoh/zenoh/pull/2173
+#  * Fix Access Control subject matching
+#    - https://github.com/eclipse-zenoh/zenoh/pull/2141
 ament_vendor(zenoh_c_vendor
   VCS_URL https://github.com/eclipse-zenoh/zenoh-c.git
-  VCS_VERSION fff54bb201e2798487e43304ec0e51e19eea4806
+  VCS_VERSION c12a77393fd8e1fc8b1e23a4aff8d8df9b4725f8
   CMAKE_ARGS
     "-DZENOHC_CARGO_FLAGS=${ZENOHC_CARGO_FLAGS}"
     "-DZENOHC_BUILD_WITH_UNSTABLE_API=TRUE"
@@ -53,7 +52,7 @@ ament_export_dependencies(zenohc)
 
 ament_vendor(zenoh_cpp_vendor
   VCS_URL https://github.com/eclipse-zenoh/zenoh-cpp
-  VCS_VERSION d66769f69d074ed51be13833f8e36749bfdee077
+  VCS_VERSION 029b00f131a089ee15e61ba42806ef8f3951f4e6
   CMAKE_ARGS
     -DZENOHCXX_ZENOHC=OFF
 )
