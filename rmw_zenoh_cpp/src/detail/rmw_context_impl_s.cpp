@@ -180,7 +180,10 @@ public:
 
     // Initialize the shm subsystem if shared_memory is enabled in the config
     if (shm_enabled) {
-      RMW_ZENOH_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "SHM is enabled");
+      RMW_ZENOH_LOG_DEBUG_NAMED("rmw_zenoh_cpp",
+        "SHM is enabled - allocated size: %d - msg size threshold: %d",
+        rmw_zenoh_cpp::zenoh_shm_alloc_size(),
+        rmw_zenoh_cpp::zenoh_shm_message_size_threshold());
 
       shm_ = std::make_shared<rmw_zenoh_cpp::ShmContext>(
           rmw_zenoh_cpp::zenoh_shm_alloc_size(),
