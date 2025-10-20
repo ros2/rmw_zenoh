@@ -56,7 +56,7 @@ ament_export_dependencies(zenohc)
 
 ament_vendor(zenoh_cpp_vendor
   VCS_URL https://github.com/eclipse-zenoh/zenoh-cpp
-  VCS_VERSION 65689877cb7dd877fca953eaf26366ebdbfe592b
+  VCS_VERSION 0cd54f291039a65b96921a5951a66aeef088e67c
   CMAKE_ARGS
     -DZENOHCXX_ZENOHC=OFF
 )
