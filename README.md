@@ -263,6 +263,10 @@ The following additional configuration options available as environment variable
 - `ZENOH_SHM_ALLOC_SIZE`: size (in bytes) of memory to allocate as shared memory arena. Must be a multiple of 4. The default value is 48 MiB.
 - `ZENOH_SHM_MESSAGE_SIZE_THRESHOLD`: threshold (in bytes) for ROS message wire size to be sent as SHM buffer. Must be a multiple of 4. The default value is 512. Note that depending on your hardware caracteristics (CPU, memory) it could be counter-productive for the latency of small messages to lower this threashold.
 
+> [!IMPORTANT]
+> Make sure that the host's shared memory space (`/dev/shm` on Linux) is large enough for all the processes you run to allocate the `ZENOH_SHM_ALLOC_SIZE` amount of memory. As `rmw_zenoh` is pre-commiting the memory on startup, a process will fail if the shared memory is not available.
+> The default value of 48 MiB has been chosen to support out-of-the-box very large payloads such as a 4K video image (~24 MiB per image, 2 images in-flight). If you want to reduce the global amount of shared memory used by your ROS 2 system, you can tune the `ZENOH_SHM_ALLOC_SIZE` value according to each node requirements.
+
 ### Interoperability
 
 - SHM-enabled nodes are fully interoperable with remote (non-localhost) nodes and localhost non-SHM-enabled nodes on transparent basis.
