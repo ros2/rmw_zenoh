@@ -17,7 +17,7 @@ find_package(ament_cmake_vendor_package REQUIRED)
 # latter is a list separater in cmake and hence the string will be split into two when expanded.
 set(ZENOHC_CARGO_FLAGS "--features=shared-memory zenoh/transport_serial")
 
-# Set VCS_VERSION to 1.6.1 commits of zenoh/zenoh-c/zenoh-cpp to benefit from:
+# Set VCS_VERSION to 1.6.2 commits of zenoh/zenoh-c/zenoh-cpp to benefit from:
 #  * Various performance improvements:
 #    - https://github.com/eclipse-zenoh/zenoh/pull/2109
 #    - https://github.com/eclipse-zenoh/zenoh/pull/2127
@@ -38,9 +38,13 @@ set(ZENOHC_CARGO_FLAGS "--features=shared-memory zenoh/transport_serial")
 #    - https://github.com/eclipse-zenoh/zenoh/pull/2173
 #  * Fix Access Control subject matching
 #    - https://github.com/eclipse-zenoh/zenoh/pull/2141
+# * Fix 1.6.1 warnings: "Request to update QueryableInfo for inexistent face id"
+#   - https://github.com/eclipse-zenoh/zenoh/pull/2205
+# * Precommit SHM pages, avoiding overcommit and possible crash if SHM exhausts
+#   - https://github.com/eclipse-zenoh/zenoh/pull/2175
 ament_vendor(zenoh_c_vendor
   VCS_URL https://github.com/eclipse-zenoh/zenoh-c.git
-  VCS_VERSION c12a77393fd8e1fc8b1e23a4aff8d8df9b4725f8
+  VCS_VERSION f376456ccf75ed837a21a186bdf5191cba50eb3b
   CMAKE_ARGS
     "-DZENOHC_CARGO_FLAGS=${ZENOHC_CARGO_FLAGS}"
     "-DZENOHC_BUILD_WITH_UNSTABLE_API=TRUE"
@@ -52,7 +56,7 @@ ament_export_dependencies(zenohc)
 
 ament_vendor(zenoh_cpp_vendor
   VCS_URL https://github.com/eclipse-zenoh/zenoh-cpp
-  VCS_VERSION 65689877cb7dd877fca953eaf26366ebdbfe592b
+  VCS_VERSION 0cd54f291039a65b96921a5951a66aeef088e67c
   CMAKE_ARGS
     -DZENOHCXX_ZENOHC=OFF
 )
