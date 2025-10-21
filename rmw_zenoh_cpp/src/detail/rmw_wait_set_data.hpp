@@ -40,7 +40,7 @@ struct rmw_wait_set_data_t
   //
   // To solve the issue, rmw_wait() still does all of the checking and attaching unlocked. However,
   // the "notify" method of each entity takes the condition_mutex lock, and in addition to kicking
-  // the condition_variable it sets "triggreed" in this structure to "true". Then after rmw_wait()
+  // the condition_variable it sets "triggered" in this structure to "true". Then after rmw_wait()
   // has finished attaching, it takes the lock and sets a predicate on the condition_variable so
   // that it will quit if wait_set_data->triggered is true. Thus, if one of the entities became
   // ready after we checked, the condition_variable will notice it and not go to sleep.
