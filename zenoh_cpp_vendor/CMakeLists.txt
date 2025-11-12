@@ -43,8 +43,8 @@ set(ZENOHC_CARGO_FLAGS "--features=shared-memory zenoh/transport_serial")
 # * Precommit SHM pages, avoiding overcommit and possible crash if SHM exhausts
 #   - https://github.com/eclipse-zenoh/zenoh/pull/2175
 ament_vendor(zenoh_c_vendor
-  VCS_URL https://github.com/eclipse-zenoh/zenoh-c.git
-  VCS_VERSION f376456ccf75ed837a21a186bdf5191cba50eb3b
+  VCS_URL https://github.com/ZettaScaleLabs/zenoh-c.git
+  VCS_VERSION 4cd035cebc7c01754bbabbe78c21a60368a4dfa4
   CMAKE_ARGS
     "-DZENOHC_CARGO_FLAGS=${ZENOHC_CARGO_FLAGS}"
     "-DZENOHC_BUILD_WITH_UNSTABLE_API=TRUE"
@@ -55,8 +55,8 @@ ament_vendor(zenoh_c_vendor
 ament_export_dependencies(zenohc)
 
 ament_vendor(zenoh_cpp_vendor
-  VCS_URL https://github.com/eclipse-zenoh/zenoh-cpp
-  VCS_VERSION 0cd54f291039a65b96921a5951a66aeef088e67c
+  VCS_URL https://github.com/ZettaScaleLabs/zenoh-cpp
+  VCS_VERSION 401e96e2a61871f55b6ababa85ee0c86a5b7af27
   CMAKE_ARGS
     -DZENOHCXX_ZENOHC=OFF
 )

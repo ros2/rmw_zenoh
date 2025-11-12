@@ -70,8 +70,9 @@ public:
 
     zenoh::ZResult result;
 
-    // Check if shm is enabled.
+    // Get shm configuration.
     bool shm_enabled = false;
+    std::size_t msgsize_threshold = 512;
     {
       std::string shm_enabled_val = config.value().get(Z_CONFIG_SHARED_MEMORY_KEY, &result);
       if (result == Z_OK) {
@@ -81,6 +82,36 @@ public:
           "rmw_zenoh_cpp",
           "Not able to get %s from the config file",
           Z_CONFIG_SHARED_MEMORY_KEY);
+      }
+
+      const auto threshold_key =
+        "transport/shared_memory/transport_optimization/message_size_threshold";
+      std::string shm_size_threshold_val = config.value().get(
+        threshold_key,
+        &result);
+      if (result == Z_OK) {
+        try {
+          msgsize_threshold = std::stoull(shm_size_threshold_val);
+        } catch (const std::invalid_argument & e) {
+          RMW_ZENOH_LOG_ERROR_NAMED(
+            "rmw_zenoh_cpp",
+            "Not able to get %s from the config file: invalid argument: %s",
+            threshold_key,
+            e.what()
+          );
+        } catch (const std::out_of_range & e) {
+          RMW_ZENOH_LOG_ERROR_NAMED(
+            "rmw_zenoh_cpp",
+            "Not able to get %s from the config file: out of range: %s",
+            threshold_key,
+            e.what()
+          );
+        }
+      } else {
+        RMW_ZENOH_LOG_ERROR_NAMED(
+          "rmw_zenoh_cpp",
+          "Not able to get %s from the config file",
+          threshold_key);
       }
     }
 
@@ -181,13 +212,11 @@ public:
     // Initialize the shm subsystem if shared_memory is enabled in the config
     if (shm_enabled) {
       RMW_ZENOH_LOG_DEBUG_NAMED("rmw_zenoh_cpp",
-        "SHM is enabled - allocated size: %d - msg size threshold: %d",
-        rmw_zenoh_cpp::zenoh_shm_alloc_size(),
-        rmw_zenoh_cpp::zenoh_shm_message_size_threshold());
+        "SHM is enabled - msg size threshold: %d",
+        msgsize_threshold);
 
       shm_ = std::make_shared<rmw_zenoh_cpp::ShmContext>(
-          rmw_zenoh_cpp::zenoh_shm_alloc_size(),
-          rmw_zenoh_cpp::zenoh_shm_message_size_threshold()
+          msgsize_threshold
       );
     } else {
       RMW_ZENOH_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "SHM is disabled");
