@@ -2,6 +2,12 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Fix typo in 'triggered' (`#848 <https://github.com/ros2/rmw_zenoh/issues/848>`_)
+* Log details at SHM creation (alloc and threshold sizes) (`#838 <https://github.com/ros2/rmw_zenoh/issues/838>`_)
+* Contributors: Alejandro Hernandez Cordero, Christophe Bedard, Julien Enoch
+
 0.1.7 (2025-10-05)
 ------------------
 * Change default value of ZENOH_SHM_ALLOC_SIZE to 48 MiB (`#833 <https://github.com/ros2/rmw_zenoh/issues/833>`_)
