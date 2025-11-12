@@ -17,6 +17,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -29,6 +30,8 @@
 #include "detail/zenoh_config.hpp"
 
 static std::unique_ptr<zenoh::Session> g_session = nullptr;
+
+static std::optional<std::string> g_restore_config = {};
 
 static
 std::optional<std::string>
@@ -128,6 +131,8 @@ rmw_test_isolation_start()
     return RMW_RET_ERROR;
   }
 
+  g_restore_config = rcpputils::get_env_var("ZENOH_CONFIG_OVERRIDE");
+
   std::string config_override = "connect/endpoints=" + endpoints.value();
   if (!rcpputils::set_env_var(
       "ZENOH_CONFIG_OVERRIDE",
@@ -145,7 +150,9 @@ rmw_test_isolation_start()
 rmw_ret_t
 rmw_test_isolation_stop()
 {
-  rcpputils::set_env_var("ZENOH_CONFIG_OVERRIDE", nullptr);
+  if(g_restore_config) {
+    rcpputils::set_env_var("ZENOH_CONFIG_OVERRIDE", g_restore_config->c_str());
+  }
 
   if(g_session) {
     g_session->close();
