@@ -2,8 +2,8 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.10.1 (2025-11-12)
+-------------------
 * Restore ZENOH_CONFIG_OVERRIDE after isolation is finished (`#855 <https://github.com/ros2/rmw_zenoh/issues/855>`_)
 * Fix typo in 'triggered' (`#844 <https://github.com/ros2/rmw_zenoh/issues/844>`_)
 * Log details at SHM creation (alloc and threashold sizes) (`#835 <https://github.com/ros2/rmw_zenoh/issues/835>`_)
