@@ -2,8 +2,8 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.1.8 (2025-11-12)
+------------------
 * Fix typo in 'triggered' (`#848 <https://github.com/ros2/rmw_zenoh/issues/848>`_)
 * Log details at SHM creation (alloc and threshold sizes) (`#838 <https://github.com/ros2/rmw_zenoh/issues/838>`_)
 * Contributors: Alejandro Hernandez Cordero, Christophe Bedard, Julien Enoch
