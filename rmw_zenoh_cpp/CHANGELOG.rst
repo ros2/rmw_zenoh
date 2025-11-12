@@ -2,9 +2,15 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Fix typo in 'triggered' (`#847 <https://github.com/ros2/rmw_zenoh/issues/847>`_)
+* Log details at SHM creation (alloc and threashold sizes) (`#837 <https://github.com/ros2/rmw_zenoh/issues/837>`_)
+* Contributors: Alejandro Hernandez Cordero, Christophe Bedard, Julien Enoch
+
 0.2.8 (2025-10-05)
 ------------------
-* Change default value of ZENOH_SHM_ALLOC_SIZE to 48 MiB (`#832 https://github.com/ros2/rmw_zenoh/issues/832>`_)
+* Change default value of ZENOH_SHM_ALLOC_SIZE to 48 MiB (`#832 <https://github.com/ros2/rmw_zenoh/issues/832>`_)
 * config: increase queries_default_timeout to 10min (`#825 <https://github.com/ros2/rmw_zenoh/issues/825>`_)
 * Fix compile with clang (`#822 <https://github.com/ros2/rmw_zenoh/issues/822>`_)
 * feat(logging): add contextual information to log messages (`#812 <https://github.com/ros2/rmw_zenoh/issues/812>`_)
