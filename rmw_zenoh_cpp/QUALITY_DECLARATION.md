@@ -1,10 +1,10 @@
-This document is a declaration of software quality for the `rmw_zenoh_cpp` package, based on the guidelines in [REP-2004](https://www.ros.org/reps/rep-2004.html).
+This document is a declaration of software quality for the `rmw_zenoh_cpp` package, based on the guidelines in [REP-2004](https://reps.openrobotics.org/rep-2004/).
 
 # `rmw_zenoh_cpp` Quality Declaration
 
 The package `rmw_zenoh_cpp` claims to be in the **Quality Level 2** category.
 
-Below are the rationales, notes, and caveats for this claim, organized by each requirement listed in the [Package Requirements for Quality Level 2 in REP-2004](https://www.ros.org/reps/rep-2004.html).
+Below are the rationales, notes, and caveats for this claim, organized by each requirement listed in the [Package Requirements for Quality Level 2 in REP-2004](https://reps.openrobotics.org/rep-2004/).
 
 ## Version Policy [1]
 
@@ -48,7 +48,7 @@ Following the recommended guidelines for ROS Core packages, all pull requests mu
 
 ### Continuous Integration [2.iv]
 
-All pull request must pass CI on all [tier 1 platforms](https://www.ros.org/reps/rep-2000.html#support-tiers).
+All pull request must pass CI on all [tier 1 platforms](https://reps.openrobotics.org/rep-2000/#support-tiers).
 
 ### Documentation Policy [2.v]
 
@@ -148,7 +148,7 @@ It also has several test dependencies, which do not affect the resulting quality
 
 ## Platform Support [6]
 
-`rmw_zenoh_cpp` supports all of the tier 1 platforms as described in [REP-2000](https://www.ros.org/reps/rep-2000.html#support-tiers), and tests each change against all of them.
+`rmw_zenoh_cpp` supports all of the tier 1 platforms as described in [REP-2000](https://reps.openrobotics.org/rep-2000/#support-tiers), and tests each change against all of them.
 
 Currently nightly results can be seen here:
 * [linux-aarch64_release](https://ci.ros2.org/view/nightly/job/nightly_linux-aarch64_release/lastBuild/testReport/rmw_zenoh_cpp/)
@@ -160,7 +160,7 @@ Currently nightly results can be seen here:
 
 ### Vulnerability Disclosure Policy [7.i]
 
-This package conforms to the Vulnerability Disclosure Policy in [REP-2006](https://www.ros.org/reps/rep-2006.html).
+This package conforms to the Vulnerability Disclosure Policy in [REP-2006](https://reps.openrobotics.org/rep-2006/).
 
 # Current status Summary
 
