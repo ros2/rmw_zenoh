@@ -25,7 +25,7 @@ For information about the Design please visit [design](docs/design.md) page.
 `rmw_zenoh` can either be installed via binaries (recommended for stable development) or built from source (recommended if latest features are needed). See instructions below.
 
 ### Binary Installation
-Binary packages for supported ROS 2 distributions (see distro branches) are available on respective [Tier-1](https://www.ros.org/reps/rep-2000.html#support-tiers) platforms for the distributions.
+Binary packages for supported ROS 2 distributions (see distro branches) are available on respective [Tier-1](https://reps.openrobotics.org/rep-2000/#support-tiers) platforms for the distributions.
 First ensure that your system is set up to install ROS 2 binaries by following the instructions [here](https://docs.ros.org/en/rolling/Installation/Ubuntu-Install-Debs.html).
 
 Then install `rmw_zenoh` binaries using the command
@@ -261,7 +261,7 @@ export ZENOH_CONFIG_OVERRIDE='transport/shared_memory/enabled=true'
 The following additional configuration options available as environment variables:
 
 - `ZENOH_SHM_ALLOC_SIZE`: size (in bytes) of memory to allocate as shared memory arena. Must be a multiple of 4. The default value is 48 MiB.
-- `ZENOH_SHM_MESSAGE_SIZE_THRESHOLD`: threshold (in bytes) for ROS message wire size to be sent as SHM buffer. Must be a multiple of 4. The default value is 512. Note that depending on your hardware caracteristics (CPU, memory) it could be counter-productive for the latency of small messages to lower this threashold.
+- `ZENOH_SHM_MESSAGE_SIZE_THRESHOLD`: threshold (in bytes) for ROS message wire size to be sent as SHM buffer. Must be a multiple of 4. The default value is 512. Note that depending on your hardware characteristics (CPU, memory) it could be counter-productive for the latency of small messages to lower this threshold.
 
 > [!IMPORTANT]
 > Make sure that the host's shared memory space (`/dev/shm` on Linux) is large enough for all the processes you run to allocate the `ZENOH_SHM_ALLOC_SIZE` amount of memory. As `rmw_zenoh` is pre-commiting the memory on startup, a process will fail if the shared memory is not available.
@@ -270,7 +270,7 @@ The following additional configuration options available as environment variable
 ### Interoperability
 
 - SHM-enabled nodes are fully interoperable with remote (non-localhost) nodes and localhost non-SHM-enabled nodes on transparent basis.
-- SHM subsystem is fully transparent and interoperable with any oter RMW-compatible Zenoh software like bridges etc.
+- SHM subsystem is fully transparent and interoperable with any other RMW-compatible Zenoh software like bridges etc.
 - Zenoh SHM works intra- and inter- containers if container's POSIX SHM is configured properly.
 
 ## Security
