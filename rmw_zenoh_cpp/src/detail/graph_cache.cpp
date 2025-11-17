@@ -1149,6 +1149,116 @@ rmw_ret_t GraphCache::get_entities_info_by_topic(
 }
 
 ///=============================================================================
+rmw_ret_t GraphCache::get_entities_info_by_service(
+  liveliness::EntityType entity_type,
+  rcutils_allocator_t * allocator,
+  const char * service_name,
+  bool no_demangle,
+  rmw_service_endpoint_info_array_t * endpoints_info) const
+{
+  static_cast<void>(no_demangle);
+  RMW_CHECK_ARGUMENT_FOR_NULL(service_name, RMW_RET_INVALID_ARGUMENT);
+  RCUTILS_CHECK_ALLOCATOR_WITH_MSG(
+    allocator, "allocator argument is invalid", return RMW_RET_INVALID_ARGUMENT);
+
+  if (entity_type != EntityType::Client && entity_type != EntityType::Service) {
+    return RMW_RET_INVALID_ARGUMENT;
+  }
+  std::lock_guard<std::mutex> lock(graph_mutex_);
+
+  GraphNode::TopicMap::const_iterator service_it = graph_services_.find(service_name);
+  // Exit early if the topic does not exist in the graph.
+  if (service_it == graph_services_.end()) {
+    return RMW_RET_OK;
+  }
+
+  std::vector<rmw_service_endpoint_info_t> endpoints;
+  for (const auto & [topic_type_name, topic_qos_map] : service_it->second) {
+    for (const auto & [_, topic_data] : topic_qos_map) {
+      const TopicData::EntitySet & entity_set =
+        entity_type == EntityType::Client ? topic_data->pubs_ :
+        topic_data->subs_;
+      for (const liveliness::ConstEntityPtr & entity : entity_set) {
+        rmw_service_endpoint_info_t ep = rmw_get_zero_initialized_service_endpoint_info();
+
+        rmw_ret_t ret = rmw_service_endpoint_info_set_node_name(
+          &ep, entity->node_name().c_str(), allocator);
+        if (RMW_RET_OK != ret) {
+          return ret;
+        }
+
+        ret = rmw_service_endpoint_info_set_node_namespace(
+          &ep, entity->node_namespace().c_str(), allocator);
+        if (RMW_RET_OK != ret) {
+          return ret;
+        }
+
+        ret = rmw_service_endpoint_info_set_service_type(
+          &ep, _demangle_if_ros_type(topic_type_name).c_str(), allocator);
+        if (RMW_RET_OK != ret) {
+          return ret;
+        }
+
+        ret = rmw_service_endpoint_info_set_endpoint_type(
+          &ep,
+          entity_type ==
+          EntityType::Client ? RMW_ENDPOINT_CLIENT : RMW_ENDPOINT_SERVER);
+        if (RMW_RET_OK != ret) {
+          return ret;
+        }
+
+        ret = rmw_service_endpoint_info_set_endpoint_count(&ep, 1);
+        if (RMW_RET_OK != ret) {
+          return ret;
+        }
+
+        ret = rmw_service_endpoint_info_set_qos_profiles(
+          &ep, &topic_data->info_.qos_, 1, allocator);
+        if (RMW_RET_OK != ret) {
+          return ret;
+        }
+
+        rosidl_type_hash_t type_hash;
+        rcutils_ret_t rc_ret = rosidl_parse_type_hash_string(
+          topic_data->info_.type_hash_.c_str(),
+          &type_hash);
+
+        if (RCUTILS_RET_OK == rc_ret) {
+          ret = rmw_service_endpoint_info_set_service_type_hash(&ep, &type_hash);
+          if (RMW_RET_OK != ret) {
+            return ret;
+          }
+        }
+
+        ret = rmw_service_endpoint_info_set_gids(
+          &ep,
+          entity->copy_gid().data(),
+          1,
+          RMW_GID_STORAGE_SIZE,
+          allocator);
+        if (RMW_RET_OK != ret) {
+          return ret;
+        }
+
+        endpoints.push_back(ep);
+      }
+    }
+  }
+
+  rmw_ret_t ret = rmw_service_endpoint_info_array_init_with_size(
+    endpoints_info, endpoints.size(), allocator);
+  if (RMW_RET_OK != ret) {
+    return ret;
+  }
+
+  memcpy(
+    endpoints_info->info_array, &endpoints[0],
+    sizeof(rmw_service_endpoint_info_t) * endpoints.size());
+
+  return RMW_RET_OK;
+}
+
+///=============================================================================
 rmw_ret_t GraphCache::service_server_is_available(
   const liveliness::TopicInfo & client_topic_info,
   bool * is_available) const
