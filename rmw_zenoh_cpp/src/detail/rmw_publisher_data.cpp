@@ -44,9 +44,6 @@
 
 namespace rmw_zenoh_cpp
 {
-// TODO(yuyuan): SHM, make this configurable
-#define SHM_BUF_OK_SIZE 2621440
-
 // Period (ms) of heartbeats sent for detection of lost samples
 // by a RELIABLE + TRANSIENT_LOCAL Publisher
 #define SAMPLE_MISS_DETECTION_HEARTBEAT_PERIOD 500
