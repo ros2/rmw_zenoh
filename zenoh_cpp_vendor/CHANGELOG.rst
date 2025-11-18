@@ -2,6 +2,11 @@
 Changelog for package zenoh_cpp_vendor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.10.2 (2025-11-18)
+-------------------
+* Fix REP url locations (`#858 <https://github.com/ros2/rmw_zenoh/issues/858>`_)
+* Contributors: Tim Clephas
+
 0.10.1 (2025-11-12)
 -------------------
 * Bump zenoh to 1.6.2 (`#842 <https://github.com/ros2/rmw_zenoh/issues/842>`_)
