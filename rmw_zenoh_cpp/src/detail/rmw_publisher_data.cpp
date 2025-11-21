@@ -252,7 +252,7 @@ rmw_ret_t PublisherData::publish(
     if (auto shm_provider = shm->get_shm_provider(*sess_)) {
       RMW_ZENOH_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "SHM is enabled.");
 
-      auto alloc_result = shm_provider.value().alloc_gc_defrag(max_data_length);
+      auto alloc_result = shm_provider.value().shm_provider().alloc_gc_defrag(max_data_length);
       if (std::holds_alternative<zenoh::ZShmMut>(alloc_result)) {
         auto && buf = std::get<zenoh::ZShmMut>(std::move(alloc_result));
         msg_bytes = reinterpret_cast<uint8_t *>(buf.data());
@@ -380,7 +380,7 @@ rmw_ret_t PublisherData::publish_serialized_message(
     if (auto shm_provider = shm->get_shm_provider(*sess_)) {
       RMW_ZENOH_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "SHM is enabled.");
 
-      auto alloc_result = shm_provider.value().alloc_gc_defrag(data_length);
+      auto alloc_result = shm_provider.value().shm_provider().alloc_gc_defrag(data_length);
       if (std::holds_alternative<zenoh::ZShmMut>(alloc_result)) {
         auto && buf = std::get<zenoh::ZShmMut>(std::move(alloc_result));
         shm_buf = std::make_optional(std::move(buf));

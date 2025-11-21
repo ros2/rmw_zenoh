@@ -108,7 +108,7 @@ struct ShmContext
 
   explicit ShmContext(size_t msgsize_threshold);
 
-  std::optional<zenoh::ShmProvider> get_shm_provider(zenoh::Session & session);
+  std::optional<zenoh::SharedShmProvider> get_shm_provider(zenoh::Session & session);
 };
 
 ///=============================================================================

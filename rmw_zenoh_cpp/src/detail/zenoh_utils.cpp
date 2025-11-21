@@ -133,11 +133,11 @@ ShmContext::ShmContext(size_t msgsize_threshold)
 : msgsize_threshold(msgsize_threshold)
 {}
 
-std::optional<zenoh::ShmProvider> ShmContext::get_shm_provider(zenoh::Session & session)
+std::optional<zenoh::SharedShmProvider> ShmContext::get_shm_provider(zenoh::Session & session)
 {
-  auto maybe_provider = session.get_shm_provider();
+  auto maybe_provider = session.obtain_shm_provider();
   if (std::holds_alternative<zenoh::SharedShmProvider>(maybe_provider)) {
-    return std::get<zenoh::SharedShmProvider>(std::move(maybe_provider)).inner_shm_provider();
+    return std::get<zenoh::SharedShmProvider>(std::move(maybe_provider));
   }
   return std::nullopt;
 }
