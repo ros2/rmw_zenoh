@@ -2,6 +2,12 @@
 Changelog for package zenoh_security_tools
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.10.2 (2025-11-18)
+-------------------
+
+0.10.1 (2025-11-12)
+-------------------
+
 0.10.0 (2025-10-04)
 -------------------
 * Removed tinyxml2_vendor dependency (`#829 <https://github.com/ros2/rmw_zenoh/issues/829>`_)

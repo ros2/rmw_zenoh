@@ -5,7 +5,7 @@ This document is a declaration of software quality for the `zenoh_cpp_vendor` pa
 
 The package `zenoh_cpp_vendor` claims to be in the **Quality Level 2** category.
 
-Below are the rationales, notes, and caveats for this claim, organized by each requirement listed in the [Package Requirements for Quality Level 1 in REP-2004](https://www.ros.org/reps/rep-2004.html).
+Below are the rationales, notes, and caveats for this claim, organized by each requirement listed in the [Package Requirements for Quality Level 1 in REP-2004](https://reps.openrobotics.org/rep-2004/).
 
 ## Version Policy [1]
 
@@ -43,7 +43,7 @@ All pull requests will be peer-reviewed, check the [ROS 2 Developer Guide](https
 
 ### Continuous Integration [2.iv]
 
-All pull requests must pass CI on all [tier 1 platforms](https://www.ros.org/reps/rep-2000.html#support-tiers).
+All pull requests must pass CI on all [tier 1 platforms](https://reps.openrobotics.org/rep-2000/#support-tiers).
 
 ### Documentation Policy [2.v]
 
@@ -85,7 +85,7 @@ The tests aim to cover both typical usage and corner cases, but are quantified b
 
 ### Coverage [4.iii]
 
-Lastest code coverage can be found [here](https://ci.ros2.org/job/ci_linux_coverage/lastSuccessfulBuild/cobertura/).
+Latest code coverage can be found [here](https://ci.ros2.org/job/ci_linux_coverage/lastSuccessfulBuild/cobertura/).
 
 ### Performance [4.iv]
 
@@ -107,13 +107,13 @@ Lastest code coverage can be found [here](https://ci.ros2.org/job/ci_linux_cover
 
 ## Platform Support [6]
 
-`zenoh_cpp_vendor` supports all of the tier 1 platforms as described in [REP-2000](https://www.ros.org/reps/rep-2000.html#support-tiers).
+`zenoh_cpp_vendor` supports all of the tier 1 platforms as described in [REP-2000](https://reps.openrobotics.org/rep-2000/#support-tiers).
 
 ## Security [7]
 
 ### Vulnerability Disclosure Policy [7.i]
 
-This package conforms to the Vulnerability Disclosure Policy in [REP-2006](https://www.ros.org/reps/rep-2006.html).
+This package conforms to the Vulnerability Disclosure Policy in [REP-2006](https://reps.openrobotics.org/rep-2006/).
 
 # Current status Summary
 

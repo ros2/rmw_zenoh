@@ -2,6 +2,19 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.10.2 (2025-11-18)
+-------------------
+* Add rmw_get_clients_info_by_service and rmw_get_servers_info_by_service (`#679 <https://github.com/ros2/rmw_zenoh/issues/679>`_)
+* Fix REP url locations (`#858 <https://github.com/ros2/rmw_zenoh/issues/858>`_)
+* Contributors: Minju, Lee, Tim Clephas
+
+0.10.1 (2025-11-12)
+-------------------
+* Restore ZENOH_CONFIG_OVERRIDE after isolation is finished (`#855 <https://github.com/ros2/rmw_zenoh/issues/855>`_)
+* Fix typo in 'triggered' (`#844 <https://github.com/ros2/rmw_zenoh/issues/844>`_)
+* Log details at SHM creation (alloc and threashold sizes) (`#835 <https://github.com/ros2/rmw_zenoh/issues/835>`_)
+* Contributors: Alejandro Hernandez Cordero, Christophe Bedard, Julien Enoch, Scott K Logan
+
 0.10.0 (2025-10-04)
 -------------------
 * Change default value of ZENOH_SHM_ALLOC_SIZE to 48 MiB (`#830 <https://github.com/ros2/rmw_zenoh/issues/830>`_)

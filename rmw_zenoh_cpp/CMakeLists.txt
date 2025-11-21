@@ -52,6 +52,7 @@ add_library(rmw_zenoh_cpp SHARED
   src/rmw_event.cpp
   src/rmw_get_network_flow_endpoints.cpp
   src/rmw_get_node_info_and_types.cpp
+  src/rmw_get_service_endpoint_info.cpp
   src/rmw_get_service_names_and_types.cpp
   src/rmw_get_topic_endpoint_info.cpp
   src/rmw_get_topic_names_and_types.cpp
