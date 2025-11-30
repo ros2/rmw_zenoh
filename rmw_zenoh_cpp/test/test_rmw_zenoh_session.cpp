@@ -14,12 +14,12 @@
 
 #include <gtest/gtest.h>
 
+#include <unistd.h>
+
 #include <chrono>
 #include <memory>
 #include <string>
 #include <thread>
-
-#include <unistd.h>
 
 #include <rclcpp/rclcpp.hpp>
 #include <zenoh.hxx>
@@ -63,8 +63,6 @@ TEST_F(TestRmwZenohSession, GetZenohSessionFromContext)
 
 TEST_F(TestRmwZenohSession, ZenohSessionDirectAccess)
 {
-  using namespace zenoh;
-
   // Create a node
   auto node = std::make_shared<rclcpp::Node>("test_zenoh_session_direct");
 
@@ -85,7 +83,7 @@ TEST_F(TestRmwZenohSession, ZenohSessionDirectAccess)
 
   // Create a simple keyexpr to test session functionality
   const std::string test_key = "test/rmw_zenoh/session/" + std::to_string(getpid());
-  KeyExpr keyexpr(test_key);
+  zenoh::KeyExpr keyexpr(test_key);
 
   // Test creating a publisher using the session directly
   // This demonstrates that applications can use the session for advanced Zenoh operations

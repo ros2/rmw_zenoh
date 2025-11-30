@@ -2722,7 +2722,6 @@ rmw_client_set_on_new_response_callback(
     std::move(callback), user_data);
   return RMW_RET_OK;
 }
-
 }  // extern "C"
 
 //==============================================================================
