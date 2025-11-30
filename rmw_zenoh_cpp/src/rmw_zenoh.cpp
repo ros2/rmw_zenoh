@@ -58,7 +58,7 @@
 
 #include "tracetools/tracetools.h"
 
-#include "rmw_zenoh.h"
+#include "rmw_zenoh_cpp/rmw_zenoh.h"
 
 namespace
 {
@@ -2723,6 +2723,8 @@ rmw_client_set_on_new_response_callback(
    return RMW_RET_OK;
 }
 
+}  // extern "C"
+
 //==============================================================================
 /// Get the Zenoh session associated with the given RMW context.
 const std::shared_ptr<zenoh::Session>
@@ -2742,5 +2744,3 @@ rmw_zenoh_get_session(const rmw_context_t * context)
     context->impl);
   return context_impl->session();
 }
-
-}  // extern "C"

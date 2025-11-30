@@ -23,9 +23,12 @@ find_package(rosidl_typesupport_fastrtps_c REQUIRED)
 find_package(rosidl_typesupport_fastrtps_cpp REQUIRED)
 find_package(rmw REQUIRED)
 find_package(rmw_test_fixture REQUIRED)
-find_package(rclcpp REQUIRED)
 find_package(tracetools REQUIRED)
 find_package(zenoh_cpp_vendor REQUIRED)
+
+if(BUILD_TESTING)
+  find_package(rclcpp REQUIRED)
+endif()
 
 add_library(rmw_zenoh_cpp SHARED
   src/detail/attachment_helpers.cpp
@@ -170,9 +173,19 @@ install(
   DESTINATION lib/${PROJECT_NAME}
 )
 
-add_executable(rmw_zenoh_session_example examples/rmw_zenoh_session_example.cpp)
-target_link_libraries(rmw_zenoh_session_example rmw_zenoh_cpp rclcpp::rclcpp)
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
 
-install(TARGETS rmw_zenoh_session_example DESTINATION lib/${PROJECT_NAME})
+  ament_add_gtest(test_rmw_zenoh_session test/test_rmw_zenoh_session.cpp)
+  target_include_directories(test_rmw_zenoh_session
+    PRIVATE
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  )
+  target_link_libraries(test_rmw_zenoh_session
+    rmw_zenoh_cpp
+    rclcpp::rclcpp
+    zenohcxx::zenohc
+  )
+endif()
 
 ament_package()
