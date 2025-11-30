@@ -28,7 +28,7 @@
 /// \param[in] context The RMW context.
 /// \return A shared pointer to the Zenoh session, or nullptr if invalid.
 RMW_PUBLIC
-const std::shared_ptr<zenoh::Session>
+const std::shared_ptr < zenoh::Session >
 rmw_zenoh_get_session(const rmw_context_t * context);
 
 #endif  // __cplusplus

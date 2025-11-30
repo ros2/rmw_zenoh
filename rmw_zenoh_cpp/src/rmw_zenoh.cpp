@@ -2718,9 +2718,9 @@ rmw_client_set_on_new_response_callback(
   rmw_zenoh_cpp::ClientData * client_data =
     static_cast<rmw_zenoh_cpp::ClientData *>(client->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(client_data, RMW_RET_INVALID_ARGUMENT);
-   client_data->set_on_new_response_callback(
-     std::move(callback), user_data);
-   return RMW_RET_OK;
+  client_data->set_on_new_response_callback(
+    std::move(callback), user_data);
+  return RMW_RET_OK;
 }
 
 }  // extern "C"
