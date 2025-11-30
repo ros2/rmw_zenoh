@@ -58,6 +58,8 @@
 
 #include "tracetools/tracetools.h"
 
+#include "rmw_zenoh.h"
+
 namespace
 {
 //==============================================================================
@@ -2716,8 +2718,29 @@ rmw_client_set_on_new_response_callback(
   rmw_zenoh_cpp::ClientData * client_data =
     static_cast<rmw_zenoh_cpp::ClientData *>(client->data);
   RMW_CHECK_ARGUMENT_FOR_NULL(client_data, RMW_RET_INVALID_ARGUMENT);
-  client_data->set_on_new_response_callback(
-    std::move(callback), user_data);
-  return RMW_RET_OK;
+   client_data->set_on_new_response_callback(
+     std::move(callback), user_data);
+   return RMW_RET_OK;
 }
+
+//==============================================================================
+/// Get the Zenoh session associated with the given RMW context.
+const std::shared_ptr<zenoh::Session>
+rmw_zenoh_get_session(const rmw_context_t * context)
+{
+  RMW_CHECK_ARGUMENT_FOR_NULL(context, nullptr);
+  RMW_CHECK_TYPE_IDENTIFIERS_MATCH(
+    context,
+    context->implementation_identifier,
+    rmw_zenoh_cpp::rmw_zenoh_identifier,
+    return nullptr);
+  RMW_CHECK_FOR_NULL_WITH_MSG(
+    context->impl,
+    "expected initialized context",
+    return nullptr);
+  rmw_context_impl_s * context_impl = static_cast<rmw_context_impl_s *>(
+    context->impl);
+  return context_impl->session();
+}
+
 }  // extern "C"
