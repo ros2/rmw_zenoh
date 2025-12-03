@@ -68,6 +68,26 @@ public:
       throw std::runtime_error("Error configuring Zenoh session.");
     }
 
+    // Insert or replace some Config parameters based on environment variables.
+    {
+      // Handle SHM allocation size.
+      if (const auto shm_alloc_size = zenoh_shm_alloc_size() ) {
+        const auto alloc_key = "transport/shared_memory/transport_optimization/pool_size";
+        config.value().insert_json5(
+          alloc_key,
+          std::to_string(shm_alloc_size.value()));
+      }
+
+      // Handle SHM message size threshold.
+      if (const auto shm_thr eshold = zenoh_shm_message_size_threshold() ) {
+        const auto threshold_key =
+          "transport/shared_memory/transport_optimization/message_size_threshold";
+        config.value().insert_json5(
+          threshold_key,
+          std::to_string(shm_threshold.value()));
+      }
+    }
+
     zenoh::ZResult result;
 
     // Get shm configuration.
