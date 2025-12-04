@@ -71,7 +71,7 @@ public:
     // Insert or replace some Config parameters based on environment variables.
     {
       // Handle SHM allocation size.
-      if (const auto shm_alloc_size = zenoh_shm_alloc_size() ) {
+      if (const auto shm_alloc_size = rmw_zenoh_cpp::zenoh_shm_alloc_size() ) {
         const auto alloc_key = "transport/shared_memory/transport_optimization/pool_size";
         config.value().insert_json5(
           alloc_key,
@@ -79,7 +79,7 @@ public:
       }
 
       // Handle SHM message size threshold.
-      if (const auto shm_threshold = zenoh_shm_message_size_threshold() ) {
+      if (const auto shm_threshold = rmw_zenoh_cpp::zenoh_shm_message_size_threshold() ) {
         const auto threshold_key =
           "transport/shared_memory/transport_optimization/message_size_threshold";
         config.value().insert_json5(
