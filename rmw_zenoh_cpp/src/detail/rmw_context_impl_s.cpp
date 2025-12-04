@@ -72,6 +72,11 @@ public:
     {
       // Handle SHM allocation size.
       if (const auto shm_alloc_size = rmw_zenoh_cpp::zenoh_shm_alloc_size() ) {
+        RMW_ZENOH_LOG_WARN_NAMED(
+            "rmw_zenoh_cpp",
+            "Deprecatin warning: ZENOH_SHM_ALLOC_SIZE: "
+            "environment variable is deprecated, please see README.md");
+
         const auto alloc_key = "transport/shared_memory/transport_optimization/pool_size";
         config.value().insert_json5(
           alloc_key,
@@ -80,6 +85,11 @@ public:
 
       // Handle SHM message size threshold.
       if (const auto shm_threshold = rmw_zenoh_cpp::zenoh_shm_message_size_threshold() ) {
+        RMW_ZENOH_LOG_WARN_NAMED(
+            "rmw_zenoh_cpp",
+            "Deprecatin warning: ZENOH_SHM_MESSAGE_SIZE_THRESHOLD: "
+            "environment variable is deprecated, please see README.md");
+
         const auto threshold_key =
           "transport/shared_memory/transport_optimization/message_size_threshold";
         config.value().insert_json5(
