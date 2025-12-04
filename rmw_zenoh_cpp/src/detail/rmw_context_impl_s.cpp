@@ -79,7 +79,7 @@ public:
       }
 
       // Handle SHM message size threshold.
-      if (const auto shm_thr eshold = zenoh_shm_message_size_threshold() ) {
+      if (const auto shm_threshold = zenoh_shm_message_size_threshold() ) {
         const auto threshold_key =
           "transport/shared_memory/transport_optimization/message_size_threshold";
         config.value().insert_json5(
