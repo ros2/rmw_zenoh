@@ -249,28 +249,26 @@ Zenoh-backed shared memory provides implicit SHM optimization for any messages p
 ### Configuration
 
 > [!NOTE]
-> To have Zenoh SHM working, it should be enabled on all Zenoh routers across the message path.
+> To have Zenoh SHM working, it should be enabled on all Zenoh sessions exchanging messages. It can also be enabled on the router for lower latency between the Nodes and the router, in case a message shall be routed outside.
 
-To enable Zenoh SHM, the `transport/shared_memory/enabled` zenoh Config key should be set to `true` in the Zenoh configuration files for all the sessions and the router.
+To enable Zenoh SHM, the `transport/shared_memory/enabled` Zenoh config key should be set to `true` in the Zenoh configuration files for all the sessions and the router.
 You can also override this config with the `ZENOH_CONFIG_OVERRIDE` environment variable:
 
 ```bash
 export ZENOH_CONFIG_OVERRIDE='transport/shared_memory/enabled=true'
 ```
 
-The following additional configuration options available as environment variables:
+Each Node allocates at startup a SHM segment where it will write the data to send. The size of this segment can be configured via the `transport/shared_memory/transport_optimization/pool_size` Zenoh config key. The default value is 50331648 bytes (48 MiB).
+You can also override this value with the `ZENOH_SHM_ALLOC_SIZE` environment variable. This environment variable exists for backward compatibility reason. It will be deprecated and eventually removed in a future release.
 
-> [!NOTE]
-> When set, these variables take precedence over the transport_optimization configuration section, which
-> controls SHM optimization. They are retained solely for backward compatibility and may be removed in a future
-> release.
+Each Node will write the data that exceed a configurable threashold in this segment. Smaller data will be send via the network, as there is no benefit to use SHM for small data. This threshold can be configured via the `transport/shared_memory/transport_optimization/message_size_threshold` Zenoh config key. The default value is 512 bytes. Note that depending on your hardware characteristics (CPU, memory) it could be counter-productive for the latency of small messages to lower this threshold.
+You can also override this value with the `ZENOH_SHM_MESSAGE_SIZE_THRESHOLD` environment variable. This environment variable exists for backward compatibility reason. It will be deprecated and eventually removed in a future release.
 
-- `ZENOH_SHM_ALLOC_SIZE`: size (in bytes) of memory to allocate as shared memory arena. Must be a multiple of 4. The default value is 48 MiB and applied if this variable is <=0 or not set.
-- `ZENOH_SHM_MESSAGE_SIZE_THRESHOLD`: threshold (in bytes) for ROS message wire size to be sent as SHM buffer. Must be a multiple of 4. The default value is 512 and applied if this variable is <=0 or not set. Note that depending on your hardware characteristics (CPU, memory) it could be counter-productive for the latency of small messages to lower this threshold.
+Zenoh automatically handles garbage collection of data in shared memory once all recipients have read it. It also defragments the shared memory segment to maintain space for large payloads. If writing to shared memory fails (for instance if a recipient didn't yet read the previous data) Zenoh seamlessly falls back to network transport. This ensures publishers are never blocked and data is always delivered.
 
 > [!IMPORTANT]
-> Make sure that the host's shared memory space (`/dev/shm` on Linux) is large enough for all the processes you run to allocate the `ZENOH_SHM_ALLOC_SIZE` amount of memory. As `rmw_zenoh` is pre-commiting the memory on startup, a process will fail if the shared memory is not available.
-> The default value of 48 MiB has been chosen to support out-of-the-box very large payloads such as a 4K video image (~24 MiB per image, 2 images in-flight). If you want to reduce the global amount of shared memory used by your ROS 2 system, you can tune the `ZENOH_SHM_ALLOC_SIZE` value according to each node requirements.
+> Make sure that the host's shared memory space (`/dev/shm` on Linux) is large enough for all the processes you run to allocate the configured amount of memory. As `rmw_zenoh` is pre-commiting the memory on startup, a process will fail if the shared memory is not available.
+> The default value of 48 MiB has been chosen to support out-of-the-box very large payloads such as a 4K video image (~24 MiB per image, 2 images in-flight). If this size mulitiplied by the number of ROS processes in your system exceeds the host's shared memory space, you need to reduce this size for the processes that do not need to send such large payloads. On the other hand, if a Node is sending payloads larger than 24 MiB in one or several topics, you need to consider increasing its shared memory size configuration.
 
 ### Interoperability
 
