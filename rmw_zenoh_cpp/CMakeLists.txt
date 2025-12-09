@@ -22,9 +22,14 @@ find_package(rcutils REQUIRED)
 find_package(rosidl_typesupport_fastrtps_c REQUIRED)
 find_package(rosidl_typesupport_fastrtps_cpp REQUIRED)
 find_package(rmw REQUIRED)
+find_package(rmw_security_common REQUIRED)
 find_package(rmw_test_fixture REQUIRED)
 find_package(tracetools REQUIRED)
 find_package(zenoh_cpp_vendor REQUIRED)
+
+if(SECURITY)
+  set(HAVE_SECURITY 1)
+endif()
 
 add_library(rmw_zenoh_cpp SHARED
   src/detail/attachment_helpers.cpp
@@ -71,6 +76,7 @@ target_link_libraries(rmw_zenoh_cpp
     rosidl_typesupport_fastrtps_c::rosidl_typesupport_fastrtps_c
     rosidl_typesupport_fastrtps_cpp::rosidl_typesupport_fastrtps_cpp
     rmw::rmw
+    rmw_security_common::rmw_security_common_library
     tracetools::tracetools
     zenohcxx::zenohc
 )
@@ -82,6 +88,7 @@ target_compile_definitions(rmw_zenoh_cpp
     RMW_VERSION_MAJOR=${rmw_VERSION_MAJOR}
     RMW_VERSION_MINOR=${rmw_VERSION_MINOR}
     RMW_VERSION_PATCH=${rmw_VERSION_PATCH}
+    HAVE_SECURITY=${HAVE_SECURITY}
 )
 
 add_library(rmw_zenoh_cpp_test_fixture SHARED

@@ -25,6 +25,7 @@
   <depend>rosidl_typesupport_fastrtps_c</depend>
   <depend>rosidl_typesupport_fastrtps_cpp</depend>
   <depend>rmw</depend>
+  <depend>rmw_security_common</depend>
   <depend>rmw_test_fixture</depend>
   <depend>tracetools</depend>
 

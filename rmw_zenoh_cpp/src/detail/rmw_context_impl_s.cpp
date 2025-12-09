@@ -37,6 +37,7 @@
 
 #include "rcpputils/scope_exit.hpp"
 #include "rmw/error_handling.h"
+#include "rmw_security_common/security.hpp"
 #include "zenoh_utils.hpp"
 
 // Megabytes of SHM to reserve.
@@ -52,7 +53,8 @@ public:
   // Constructor.
   Data(
     std::size_t domain_id,
-    const std::string & enclave)
+    const std::string & enclave,
+    const rmw_security_options_t & security_options)
   : domain_id_(std::move(domain_id)),
     enclave_(std::move(enclave)),
     is_shutdown_(false),
@@ -67,7 +69,55 @@ public:
     if (!config.has_value()) {
       throw std::runtime_error("Error configuring Zenoh session.");
     }
+#ifdef HAVE_SECURITY
+    rcutils_allocator_t allocator = rcutils_get_default_allocator();
+    rcutils_string_map_t security_files = rcutils_get_zero_initialized_string_map();
+    rcutils_ret_t ret = rcutils_string_map_init(&security_files, 0, allocator);
 
+    auto scope_exit = rcpputils::make_scope_exit(
+      [&security_files]() {
+        rcutils_ret_t ret = rcutils_string_map_fini(&security_files);
+        if (ret != RMW_RET_OK) {
+          throw std::runtime_error("Failed to fini string map for security.");
+        }
+    });
+
+    if (ret != RMW_RET_OK) {
+      throw std::runtime_error("Failed to initialize string map for security.");
+    }
+
+    if (get_security_files_support_pkcs(
+        false, "", security_options.security_root_path, &security_files) == RMW_RET_OK)
+    {
+      config.value().insert_json5("connect/endpoints", "[\"tls/localhost:7447\"]");
+      config.value().insert_json5("listen/endpoints", "[\"tls/localhost:0\"]");
+
+      std::string tls_config = "{\"link\": \n"
+        "\t\t{ \n"
+        "\t\t\t\"protocols\": [ \n"
+        "\t\t\t\t\"tls\" \n"
+        "\t\t\t], \n"
+        "\t\t\t\"tls\": { \n"
+        "\t\t\t\t\"enable_mtls\": true, \n"
+        "\t\t\t\t\"verify_name_on_connect\": false, \n"
+        "\t\t\t\t\"root_ca_certificate\": \"" + std::string(rcutils_string_map_get(&security_files,
+        "IDENTITY_CA")) + "\",\n" +
+        "\t\t\t\t\"listen_private_key\": \"" + std::string(rcutils_string_map_get(&security_files,
+        "PRIVATE_KEY")) + "\",\n" +
+        "\t\t\t\t\"listen_certificate\": \"" + std::string(rcutils_string_map_get(&security_files,
+        "CERTIFICATE")) + "\",\n" +
+        "\t\t\t\t\"connect_private_key\": \"" + std::string(rcutils_string_map_get(&security_files,
+        "PRIVATE_KEY")) + "\",\n" +
+        "\t\t\t\t\"connect_certificate\": \"" + std::string(rcutils_string_map_get(&security_files,
+        "CERTIFICATE")) + "\",\n" +
+        "\t\t\t}, \n"
+        "\t\t}, \n"
+        "\t}\n";
+      config.value().insert_json5(
+        "transport",
+        tls_config);
+    }
+#endif
     zenoh::ZResult result;
 
     // Check if shm is enabled.
@@ -103,8 +153,8 @@ public:
       constexpr int64_t ticks_between_print(std::chrono::milliseconds(1000) / sleep_time);
       do {
         zenoh::ZResult result;
-        const auto zids = this->session_->get_routers_z_id(&result);
-        if (result == Z_OK && !zids.empty()) {
+        this->session_->get_routers_z_id(&result);
+        if (result == Z_OK) {
           break;
         }
         if ((connection_attempts % ticks_between_print) == 0) {
@@ -456,9 +506,10 @@ private:
 ///=============================================================================
 rmw_context_impl_s::rmw_context_impl_s(
   const std::size_t domain_id,
-  const std::string & enclave)
+  const std::string & enclave,
+  const rmw_security_options_t & security_options)
 {
-  data_ = std::make_shared<Data>(domain_id, std::move(enclave));
+  data_ = std::make_shared<Data>(domain_id, std::move(enclave), security_options);
   data_->init();
 }
 
