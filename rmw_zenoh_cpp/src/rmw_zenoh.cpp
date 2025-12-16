@@ -619,7 +619,7 @@ rmw_publish(
 
   return pub_data->publish(
     ros_message,
-    context_impl->shm()
+    context_impl->shm().get()
   );
 }
 
@@ -727,7 +727,7 @@ rmw_publish_serialized_message(
 
   return publisher_data->publish_serialized_message(
     serialized_message,
-    context_impl->shm()
+    context_impl->shm().get()
   );
 }
 
