@@ -17,34 +17,20 @@ find_package(ament_cmake_vendor_package REQUIRED)
 # latter is a list separater in cmake and hence the string will be split into two when expanded.
 set(ZENOHC_CARGO_FLAGS "--features=shared-memory zenoh/transport_serial")
 
-# Set VCS_VERSION to 1.6.2 commits of zenoh/zenoh-c/zenoh-cpp to benefit from:
-#  * Various performance improvements:
-#    - https://github.com/eclipse-zenoh/zenoh/pull/2109
-#    - https://github.com/eclipse-zenoh/zenoh/pull/2127
-#    - https://github.com/eclipse-zenoh/zenoh/pull/2174
-#  * Shared Memory improvements:
-#    - https://github.com/eclipse-zenoh/zenoh/pull/2117
-#    - https://github.com/eclipse-zenoh/zenoh/pull/2136
-#    - https://github.com/eclipse-zenoh/zenoh-c/pull/1105
-#    - https://github.com/eclipse-zenoh/zenoh-c/pull/1106
-#    - https://github.com/eclipse-zenoh/zenoh/pull/2193
-#  * Fix IPv6 address parsing for TLS and QUIC locators:
-#    - https://github.com/eclipse-zenoh/zenoh/pull/2138
-#  * Fix a bug leading to 100% CPU usage in certain circumstances :
-#    - https://github.com/eclipse-zenoh/zenoh/pull/2140
-#  * Fix zenoh/stats feature support
-#    - https://github.com/eclipse-zenoh/zenoh-c/pull/1110
-#  * Fix partial reconnection in case of multilink configuration
-#    - https://github.com/eclipse-zenoh/zenoh/pull/2173
-#  * Fix Access Control subject matching
-#    - https://github.com/eclipse-zenoh/zenoh/pull/2141
-# * Fix 1.6.1 warnings: "Request to update QueryableInfo for inexistent face id"
-#   - https://github.com/eclipse-zenoh/zenoh/pull/2205
-# * Precommit SHM pages, avoiding overcommit and possible crash if SHM exhausts
-#   - https://github.com/eclipse-zenoh/zenoh/pull/2175
+# Set VCS_VERSION to 1.7.1 commits of zenoh/zenoh-c/zenoh-cpp to benefit from:
+# * Query cancellation
+#   - https://github.com/eclipse-zenoh/zenoh/pull/2223
+#   - https://github.com/eclipse-zenoh/zenoh-c/pull/1134
+#   - https://github.com/eclipse-zenoh/zenoh-cpp/pull/663
+# * Access to transport optimization SHM provider
+#   - https://github.com/eclipse-zenoh/zenoh/pull/2221
+#   - https://github.com/eclipse-zenoh/zenoh-c/pull/1132
+#   - https://github.com/eclipse-zenoh/zenoh-cpp/pull/654
+# * Metrics per key (requires to add "zenoh/stats" feature to ZENOHC_CARGO_FLAGS for build)
+#   - https://github.com/eclipse-zenoh/zenoh/pull/2284
 ament_vendor(zenoh_c_vendor
   VCS_URL https://github.com/eclipse-zenoh/zenoh-c.git
-  VCS_VERSION f376456ccf75ed837a21a186bdf5191cba50eb3b
+  VCS_VERSION 73e7a0bdcf78b8263a02b7aee453ee6de8187589
   CMAKE_ARGS
     "-DZENOHC_CARGO_FLAGS=${ZENOHC_CARGO_FLAGS}"
     "-DZENOHC_BUILD_WITH_UNSTABLE_API=TRUE"
@@ -56,7 +42,7 @@ ament_export_dependencies(zenohc)
 
 ament_vendor(zenoh_cpp_vendor
   VCS_URL https://github.com/eclipse-zenoh/zenoh-cpp
-  VCS_VERSION 0cd54f291039a65b96921a5951a66aeef088e67c
+  VCS_VERSION 47a80d345d74ebef16f3783423bf3bbd89cd6c30
   CMAKE_ARGS
     -DZENOHCXX_ZENOHC=OFF
 )
