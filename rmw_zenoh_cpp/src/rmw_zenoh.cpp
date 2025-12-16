@@ -145,9 +145,8 @@ bool rmw_feature_supported(rmw_feature_t feature)
       return true;
     case RMW_MIDDLEWARE_CAN_TAKE_DYNAMIC_MESSAGE:
       return false;
-    default:
-      return false;
   }
+  return false;
 }
 
 //==============================================================================
@@ -2667,8 +2666,6 @@ rmw_set_log_severity(rmw_log_severity_t severity)
     case RMW_LOG_SEVERITY_FATAL:
       rmw_zenoh_cpp::Logger::get().set_log_level(RCUTILS_LOG_SEVERITY_FATAL);
       break;
-    default:
-      return RMW_RET_UNSUPPORTED;
   }
   return RMW_RET_OK;
 }

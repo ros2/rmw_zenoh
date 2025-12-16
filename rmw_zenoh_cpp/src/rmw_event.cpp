@@ -263,7 +263,7 @@ rmw_take_event(
         *taken = true;
         return RMW_RET_OK;
       }
-    default: {
+    case rmw_zenoh_cpp::ZENOH_EVENT_INVALID: {
         return RMW_RET_INVALID_ARGUMENT;
       }
   }
