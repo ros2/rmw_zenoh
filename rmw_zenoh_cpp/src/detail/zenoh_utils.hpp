@@ -104,10 +104,11 @@ private:
 ///=============================================================================
 struct ShmContext
 {
-  zenoh::PosixShmProvider shm_provider;
   size_t msgsize_threshold;
 
-  ShmContext(size_t alloc_size, size_t msgsize_threshold);
+  explicit ShmContext(size_t msgsize_threshold);
+
+  std::optional<zenoh::SharedShmProvider> get_shm_provider(zenoh::Session & session);
 };
 
 ///=============================================================================

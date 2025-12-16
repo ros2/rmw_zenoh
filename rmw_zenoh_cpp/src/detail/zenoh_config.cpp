@@ -45,9 +45,7 @@ static const std::unordered_map<ConfigurableEntity,
 
 static const char * router_check_attempts_envar = "ZENOH_ROUTER_CHECK_ATTEMPTS";
 static const char * zenoh_shm_alloc_size_envar = "ZENOH_SHM_ALLOC_SIZE";
-static const size_t zenoh_shm_alloc_size_default = 48 * 1024 * 1024;
 static const char * zenoh_shm_message_size_threshold_envar = "ZENOH_SHM_MESSAGE_SIZE_THRESHOLD";
-static const size_t zenoh_shm_message_size_threshold_default = 512;
 /// Allow users to override the configuration using key-value pairs.
 /// The supporting syntax is "key1=value2;key2=value2;...". For instance,
 /// ZENOH_CONFIG_OVERRIDE='listen/endpoints=["tcp/127.0.0.1:7448"];scouting/multicast/enabled=true'
@@ -160,7 +158,7 @@ std::optional<uint64_t> zenoh_router_check_attempts()
 }
 
 ///=============================================================================
-size_t zenoh_shm_alloc_size()
+std::optional<size_t> zenoh_shm_alloc_size()
 {
   const char * envar_value;
 
@@ -168,7 +166,7 @@ size_t zenoh_shm_alloc_size()
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp", "Envar %s cannot be read. Report this bug.",
       zenoh_shm_alloc_size_envar);
-    return zenoh_shm_alloc_size_default;
+    return std::nullopt;
   }
 
   // If the environment variable contains a value, handle it accordingly.
@@ -185,10 +183,11 @@ size_t zenoh_shm_alloc_size()
     }
   }
 
-  return zenoh_shm_alloc_size_default;
+  return std::nullopt;
 }
+
 ///=============================================================================
-size_t zenoh_shm_message_size_threshold()
+std::optional<size_t> zenoh_shm_message_size_threshold()
 {
   const char * envar_value;
 
@@ -196,7 +195,7 @@ size_t zenoh_shm_message_size_threshold()
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp", "Envar %s cannot be read. Report this bug.",
       zenoh_shm_message_size_threshold_envar);
-    return zenoh_shm_message_size_threshold_default;
+    return std::nullopt;
   }
 
   // If the environment variable contains a value, handle it accordingly.
@@ -218,6 +217,7 @@ size_t zenoh_shm_message_size_threshold()
     }
   }
 
-  return zenoh_shm_message_size_threshold_default;
+  return std::nullopt;
 }
+
 }  // namespace rmw_zenoh_cpp
