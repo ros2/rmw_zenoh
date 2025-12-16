@@ -270,6 +270,17 @@ Zenoh automatically handles garbage collection of data in shared memory once all
 > Make sure that the host's shared memory space (`/dev/shm` on Linux) is large enough for all the processes you run to allocate the configured amount of memory. As `rmw_zenoh` is pre-commiting the memory on startup, a process will fail if the shared memory is not available.
 > The default value of 48 MiB has been chosen to support out-of-the-box very large payloads such as a 4K video image (~24 MiB per image, 2 images in-flight). If this size mulitiplied by the number of ROS processes in your system exceeds the host's shared memory space, you need to reduce this size for the processes that do not need to send such large payloads. On the other hand, if a Node is sending payloads larger than 24 MiB in one or several topics, you need to consider increasing its shared memory size configuration.
 
+> [!TIP]
+> Shared memory can be used between Docker containers. Several solutions for this:
+>
+> 1. Use `--ipc=host` for each container to use host's shared memory domain. Drawback: no isolation with host's application also using shared memory.
+>
+> 2. Use `--ipc=shareable` for 1 container and `--ipc=container:<donor-name-or-ID>` for the other containers. Drawback: the "donor" container shall be run before the other and be always running.
+>
+> 3. Create a local volume with type `tmpfs` and mount it as `/dev/shm` for each container.  
+>    E.g.: `docker volume create --driver local --opt type=tmpfs --opt device=tmpfs --opt o=size=6400m,uid=1000 my_shm`
+>
+
 ### Interoperability
 
 - SHM-enabled nodes are fully interoperable with remote (non-localhost) nodes and localhost non-SHM-enabled nodes on transparent basis.
