@@ -44,9 +44,6 @@
 
 namespace rmw_zenoh_cpp
 {
-// TODO(yuyuan): SHM, make this configurable
-#define SHM_BUF_OK_SIZE 2621440
-
 // Period (ms) of heartbeats sent for detection of lost samples
 // by a RELIABLE + TRANSIENT_LOCAL Publisher
 #define SAMPLE_MISS_DETECTION_HEARTBEAT_PERIOD 500
@@ -198,7 +195,7 @@ PublisherData::PublisherData(
 ///=============================================================================
 rmw_ret_t PublisherData::publish(
   const void * ros_message,
-  const std::shared_ptr<ShmContext> shm)
+  ShmContext * shm)
 {
   std::lock_guard<std::mutex> lock(mutex_);
   if (is_shutdown_) {
@@ -237,18 +234,24 @@ rmw_ret_t PublisherData::publish(
 
   // Get memory from SHM buffer if available.
   if (shm && max_data_length >= shm->msgsize_threshold) {
-    RMW_ZENOH_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "SHM is enabled.");
+    if (auto shm_provider = shm->get_shm_provider(*sess_)) {
+      RMW_ZENOH_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "SHM is enabled.");
 
-    auto alloc_result = shm->shm_provider.alloc_gc_defrag(max_data_length);
+      auto alloc_result = shm_provider.value().shm_provider().alloc_gc_defrag(max_data_length);
 
-    if (std::holds_alternative<zenoh::ZShmMut>(alloc_result)) {
-      auto && buf = std::get<zenoh::ZShmMut>(std::move(alloc_result));
-      msg_bytes = reinterpret_cast<uint8_t *>(buf.data());
-      shm_buf = std::make_optional(std::move(buf));
+      if (std::holds_alternative<zenoh::ZShmMut>(alloc_result)) {
+        auto && buf = std::get<zenoh::ZShmMut>(std::move(alloc_result));
+        msg_bytes = reinterpret_cast<uint8_t *>(buf.data());
+        shm_buf = std::make_optional(std::move(buf));
+      } else {
+        // Print a warning and revert to regular allocation
+        RMW_ZENOH_LOG_DEBUG_NAMED(
+          "rmw_zenoh_cpp", "Failed to allocate a SHM buffer, fallback to non-SHM");
+      }
     } else {
       // Print a warning and revert to regular allocation
       RMW_ZENOH_LOG_DEBUG_NAMED(
-        "rmw_zenoh_cpp", "Failed to allocate a SHM buffer, fallback to non-SHM");
+        "rmw_zenoh_cpp", "SHM provider is not yet available, fallback to non-SHM");
     }
   }
 
@@ -267,7 +270,6 @@ rmw_ret_t PublisherData::publish(
 
   RMW_CHECK_FOR_NULL_WITH_MSG(
     msg_bytes, "bytes for message is null", return RMW_RET_BAD_ALLOC);
-
 
   // Object that manages the raw buffer
   eprosima::fastcdr::FastBuffer fastbuffer(reinterpret_cast<char *>(msg_bytes), max_data_length);
@@ -332,7 +334,7 @@ rmw_ret_t PublisherData::publish(
 ///=============================================================================
 rmw_ret_t PublisherData::publish_serialized_message(
   const rmw_serialized_message_t * serialized_message,
-  const std::shared_ptr<ShmContext> shm)
+  ShmContext * shm)
 {
   eprosima::fastcdr::FastBuffer buffer(
     reinterpret_cast<char *>(serialized_message->buffer), serialized_message->buffer_length);
@@ -341,6 +343,9 @@ rmw_ret_t PublisherData::publish_serialized_message(
     RMW_SET_ERROR_MSG("cannot correctly set serialized buffer");
     return RMW_RET_ERROR;
   }
+
+  // Optional shared memory buffer
+  std::optional<zenoh::ZShmMut> shm_buf = std::nullopt;
 
   std::lock_guard<std::mutex> lock(mutex_);
 
@@ -356,41 +361,40 @@ rmw_ret_t PublisherData::publish_serialized_message(
 
   // Get memory from SHM buffer if available.
   if (shm && data_length >= shm->msgsize_threshold) {
-    RMW_ZENOH_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "SHM is enabled.");
+    if (auto shm_provider = shm->get_shm_provider(*sess_)) {
+      RMW_ZENOH_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "SHM is enabled.");
 
-    auto alloc_result = shm->shm_provider.alloc_gc_defrag(data_length);
+      auto alloc_result = shm_provider.value().shm_provider().alloc_gc_defrag(data_length);
 
-    if (std::holds_alternative<zenoh::ZShmMut>(alloc_result)) {
-      auto && buf = std::get<zenoh::ZShmMut>(std::move(alloc_result));
-      auto msg_bytes = reinterpret_cast<char *>(buf.data());
-      memcpy(msg_bytes, serialized_message->buffer, data_length);
-      zenoh::Bytes payload(std::move(buf));
-
-      TRACEPOINT(
-        rmw_publish, serialized_message);
-
-      pub_.put(std::move(payload), std::move(opts), &result);
+      if (std::holds_alternative<zenoh::ZShmMut>(alloc_result)) {
+        auto && buf = std::get<zenoh::ZShmMut>(std::move(alloc_result));
+        shm_buf = std::make_optional(std::move(buf));
+      } else {
+        // Print a warning and revert to regular allocation
+        RMW_ZENOH_LOG_DEBUG_NAMED(
+          "rmw_zenoh_cpp", "Failed to allocate a SHM buffer, fallback to non-SHM");
+      }
     } else {
       // Print a warning and revert to regular allocation
       RMW_ZENOH_LOG_DEBUG_NAMED(
-        "rmw_zenoh_cpp", "Failed to allocate a SHM buffer, fallback to non-SHM");
-
-      // TODO(yellowhatter): split the whole publish method onto shm and non-shm versions
-      std::vector<uint8_t> raw_image(
-        serialized_message->buffer,
-        serialized_message->buffer + data_length);
-      zenoh::Bytes payload(raw_image);
-
-      TRACEPOINT(
-        rmw_publish, serialized_message);
-
-      pub_.put(std::move(payload), std::move(opts), &result);
+        "rmw_zenoh_cpp", "SHM provider is not yet available, fallback to non-SHM");
     }
+  }
+
+  if (shm_buf.has_value()) {
+    auto msg_bytes = reinterpret_cast<char *>(shm_buf.value().data());
+    memcpy(msg_bytes, serialized_message->buffer, data_length);
+    zenoh::Bytes payload(std::move(*shm_buf));
+
+    TRACEPOINT(
+      rmw_publish, serialized_message);
+
+    pub_.put(std::move(payload), std::move(opts), &result);
   } else {
     std::vector<uint8_t> raw_image(
       serialized_message->buffer,
       serialized_message->buffer + data_length);
-    zenoh::Bytes payload(raw_image);
+    zenoh::Bytes payload(std::move(raw_image));
 
     TRACEPOINT(
       rmw_publish, serialized_message);

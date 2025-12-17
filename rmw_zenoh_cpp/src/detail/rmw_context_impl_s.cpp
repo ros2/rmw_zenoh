@@ -43,6 +43,15 @@
 // TODO(clalancette): Make this configurable, or get it from the configuration
 #define SHM_BUFFER_SIZE_MB 10
 
+// Zenoh config key for SHM pool size
+static const char * CONFIG_KEY_SHM_POOL_SIZE =
+  "transport/shared_memory/transport_optimization/pool_size";
+
+// Zenoh config key for SHM threshold size
+static const char * CONFIG_KEY_SHM_THRESHOLD_SIZE =
+  "transport/shared_memory/transport_optimization/message_size_threshold";
+
+
 // Bundle all class members into a data struct which can be passed as a
 // weak ptr to various threads for thread-safe access without capturing
 // "this" ptr by reference.
@@ -68,10 +77,37 @@ public:
       throw std::runtime_error("Error configuring Zenoh session.");
     }
 
+    // Insert or replace some Config parameters based on environment variables.
+    {
+      // Handle SHM allocation size.
+      if (const auto shm_alloc_size = rmw_zenoh_cpp::zenoh_shm_alloc_size() ) {
+        RMW_ZENOH_LOG_INFO_NAMED(
+          "rmw_zenoh_cpp",
+          "ZENOH_SHM_ALLOC_SIZE=%d overriding the configuration key '%s'.",
+          shm_alloc_size.value(), CONFIG_KEY_SHM_POOL_SIZE);
+        config.value().insert_json5(
+          CONFIG_KEY_SHM_POOL_SIZE,
+          std::to_string(shm_alloc_size.value()));
+      }
+
+      // Handle SHM message size threshold.
+      if (const auto shm_threshold = rmw_zenoh_cpp::zenoh_shm_message_size_threshold() ) {
+        RMW_ZENOH_LOG_INFO_NAMED(
+          "rmw_zenoh_cpp",
+          "ZENOH_SHM_MESSAGE_SIZE_THRESHOLD=%d overriding the configuration key '%s'.",
+          shm_threshold.value(), CONFIG_KEY_SHM_THRESHOLD_SIZE);
+        config.value().insert_json5(
+          CONFIG_KEY_SHM_THRESHOLD_SIZE,
+          std::to_string(shm_threshold.value()));
+      }
+    }
+
     zenoh::ZResult result;
 
-    // Check if shm is enabled.
+    // Get shm configuration.
     bool shm_enabled = false;
+    std::size_t shm_pool_size = 0;
+    std::size_t msgsize_threshold = 512;
     {
       std::string shm_enabled_val = config.value().get(Z_CONFIG_SHARED_MEMORY_KEY, &result);
       if (result == Z_OK) {
@@ -81,6 +117,62 @@ public:
           "rmw_zenoh_cpp",
           "Not able to get %s from the config file",
           Z_CONFIG_SHARED_MEMORY_KEY);
+      }
+
+      std::string shm_size_threshold_val = config.value().get(
+        CONFIG_KEY_SHM_THRESHOLD_SIZE,
+        &result);
+      if (result == Z_OK) {
+        try {
+          msgsize_threshold = std::stoull(shm_size_threshold_val);
+        } catch (const std::invalid_argument & e) {
+          RMW_ZENOH_LOG_ERROR_NAMED(
+            "rmw_zenoh_cpp",
+            "Not able to get %s from the config file: invalid argument: %s",
+            CONFIG_KEY_SHM_THRESHOLD_SIZE,
+            e.what()
+          );
+        } catch (const std::out_of_range & e) {
+          RMW_ZENOH_LOG_ERROR_NAMED(
+            "rmw_zenoh_cpp",
+            "Not able to get %s from the config file: out of range: %s",
+            CONFIG_KEY_SHM_THRESHOLD_SIZE,
+            e.what()
+          );
+        }
+      } else {
+        RMW_ZENOH_LOG_ERROR_NAMED(
+          "rmw_zenoh_cpp",
+          "Not able to get %s from the config file",
+          CONFIG_KEY_SHM_THRESHOLD_SIZE);
+      }
+
+      std::string shm_pool_size_val = config.value().get(
+        CONFIG_KEY_SHM_POOL_SIZE,
+        &result);
+      if (result == Z_OK) {
+        try {
+          shm_pool_size = std::stoull(shm_pool_size_val);
+        } catch (const std::invalid_argument & e) {
+          RMW_ZENOH_LOG_ERROR_NAMED(
+            "rmw_zenoh_cpp",
+            "Not able to get %s from the config file: invalid argument: %s",
+            CONFIG_KEY_SHM_POOL_SIZE,
+            e.what()
+          );
+        } catch (const std::out_of_range & e) {
+          RMW_ZENOH_LOG_ERROR_NAMED(
+            "rmw_zenoh_cpp",
+            "Not able to get %s from the config file: out of range: %s",
+            CONFIG_KEY_SHM_POOL_SIZE,
+            e.what()
+          );
+        }
+      } else {
+        RMW_ZENOH_LOG_ERROR_NAMED(
+          "rmw_zenoh_cpp",
+          "Not able to get %s from the config file",
+          CONFIG_KEY_SHM_POOL_SIZE);
       }
     }
 
@@ -183,12 +275,11 @@ public:
       RMW_ZENOH_LOG_DEBUG_NAMED(
         "rmw_zenoh_cpp",
         "SHM is enabled - allocated size: %d - msg size threshold: %d",
-        rmw_zenoh_cpp::zenoh_shm_alloc_size(),
-        rmw_zenoh_cpp::zenoh_shm_message_size_threshold());
+        shm_pool_size,
+        msgsize_threshold);
 
       shm_ = std::make_shared<rmw_zenoh_cpp::ShmContext>(
-        rmw_zenoh_cpp::zenoh_shm_alloc_size(),
-        rmw_zenoh_cpp::zenoh_shm_message_size_threshold()
+        msgsize_threshold
       );
     } else {
       RMW_ZENOH_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "SHM is disabled");

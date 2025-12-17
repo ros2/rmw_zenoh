@@ -57,13 +57,13 @@ public:
   // Publish a ROS message.
   rmw_ret_t publish(
     const void * ros_message,
-    const std::shared_ptr<ShmContext> shm
+    ShmContext * shm
   );
 
   // Publish a serialized ROS message.
   rmw_ret_t publish_serialized_message(
     const rmw_serialized_message_t * serialized_message,
-    const std::shared_ptr<ShmContext> shm
+    ShmContext * shm
   );
 
   // Get a copy of the gid_hash of this PublisherData's liveliness::Entity.
