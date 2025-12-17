@@ -366,33 +366,6 @@ rmw_ret_t PublisherData::publish_serialized_message(
 
       auto alloc_result = shm_provider.value().shm_provider().alloc_gc_defrag(data_length);
 
-<<<<<<< HEAD
-    if (std::holds_alternative<zenoh::ZShmMut>(alloc_result)) {
-      auto && buf = std::get<zenoh::ZShmMut>(std::move(alloc_result));
-      auto msg_bytes = reinterpret_cast<char *>(buf.data());
-      memcpy(msg_bytes, serialized_message->buffer, data_length);
-      zenoh::Bytes payload(std::move(buf));
-
-      TRACEPOINT(
-        rmw_publish, serialized_message);
-
-      pub_.put(std::move(payload), std::move(opts), &result);
-    } else {
-      // Print a warning and revert to regular allocation
-      RMW_ZENOH_LOG_DEBUG_NAMED(
-        "rmw_zenoh_cpp", "Failed to allocate a SHM buffer, fallback to non-SHM");
-
-      // TODO(yellowhatter): split the whole publish method onto shm and non-shm versions
-      std::vector<uint8_t> raw_image(
-        serialized_message->buffer,
-        serialized_message->buffer + data_length);
-      zenoh::Bytes payload(raw_image);
-
-      TRACEPOINT(
-        rmw_publish, serialized_message);
-
-      pub_.put(std::move(payload), std::move(opts), &result);
-=======
       if (std::holds_alternative<zenoh::ZShmMut>(alloc_result)) {
         auto && buf = std::get<zenoh::ZShmMut>(std::move(alloc_result));
         shm_buf = std::make_optional(std::move(buf));
@@ -405,7 +378,6 @@ rmw_ret_t PublisherData::publish_serialized_message(
       // Print a warning and revert to regular allocation
       RMW_ZENOH_LOG_DEBUG_NAMED(
         "rmw_zenoh_cpp", "SHM provider is not yet available, fallback to non-SHM");
->>>>>>> 12983ba (Use shared transport SHM provider instead of own instance of SHM provider (#857))
     }
   }
 
@@ -414,9 +386,8 @@ rmw_ret_t PublisherData::publish_serialized_message(
     memcpy(msg_bytes, serialized_message->buffer, data_length);
     zenoh::Bytes payload(std::move(*shm_buf));
 
-    TRACETOOLS_TRACEPOINT(
-      rmw_publish, static_cast<const void *>(rmw_publisher_), serialized_message,
-      source_timestamp);
+    TRACEPOINT(
+      rmw_publish, serialized_message);
 
     pub_.put(std::move(payload), std::move(opts), &result);
   } else {
@@ -425,14 +396,8 @@ rmw_ret_t PublisherData::publish_serialized_message(
       serialized_message->buffer + data_length);
     zenoh::Bytes payload(std::move(raw_image));
 
-<<<<<<< HEAD
     TRACEPOINT(
       rmw_publish, serialized_message);
-=======
-    TRACETOOLS_TRACEPOINT(
-      rmw_publish, static_cast<const void *>(rmw_publisher_), serialized_message,
-        source_timestamp);
->>>>>>> 12983ba (Use shared transport SHM provider instead of own instance of SHM provider (#857))
 
     pub_.put(std::move(payload), std::move(opts), &result);
   }

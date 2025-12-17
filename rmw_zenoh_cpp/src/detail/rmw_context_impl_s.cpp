@@ -279,12 +279,7 @@ public:
         msgsize_threshold);
 
       shm_ = std::make_shared<rmw_zenoh_cpp::ShmContext>(
-<<<<<<< HEAD
-        rmw_zenoh_cpp::zenoh_shm_alloc_size(),
-        rmw_zenoh_cpp::zenoh_shm_message_size_threshold()
-=======
           msgsize_threshold
->>>>>>> 12983ba (Use shared transport SHM provider instead of own instance of SHM provider (#857))
       );
     } else {
       RMW_ZENOH_LOG_DEBUG_NAMED("rmw_zenoh_cpp", "SHM is disabled");
