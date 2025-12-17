@@ -82,9 +82,9 @@ public:
       // Handle SHM allocation size.
       if (const auto shm_alloc_size = rmw_zenoh_cpp::zenoh_shm_alloc_size() ) {
         RMW_ZENOH_LOG_INFO_NAMED(
-            "rmw_zenoh_cpp",
-            "ZENOH_SHM_ALLOC_SIZE=%d overriding the configuration key '%s'.",
-            shm_alloc_size.value(), CONFIG_KEY_SHM_POOL_SIZE);
+          "rmw_zenoh_cpp",
+          "ZENOH_SHM_ALLOC_SIZE=%d overriding the configuration key '%s'.",
+          shm_alloc_size.value(), CONFIG_KEY_SHM_POOL_SIZE);
         config.value().insert_json5(
           CONFIG_KEY_SHM_POOL_SIZE,
           std::to_string(shm_alloc_size.value()));
@@ -93,9 +93,9 @@ public:
       // Handle SHM message size threshold.
       if (const auto shm_threshold = rmw_zenoh_cpp::zenoh_shm_message_size_threshold() ) {
         RMW_ZENOH_LOG_INFO_NAMED(
-            "rmw_zenoh_cpp",
-            "ZENOH_SHM_MESSAGE_SIZE_THRESHOLD=%d overriding the configuration key '%s'.",
-            shm_threshold.value(), CONFIG_KEY_SHM_THRESHOLD_SIZE);
+          "rmw_zenoh_cpp",
+          "ZENOH_SHM_MESSAGE_SIZE_THRESHOLD=%d overriding the configuration key '%s'.",
+          shm_threshold.value(), CONFIG_KEY_SHM_THRESHOLD_SIZE);
         config.value().insert_json5(
           CONFIG_KEY_SHM_THRESHOLD_SIZE,
           std::to_string(shm_threshold.value()));
