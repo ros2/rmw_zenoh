@@ -129,10 +129,19 @@ bool Payload::empty() const
 // Create Layout for provider's memory
 // Provider's alignment is 1 (=2^0) bytes as we are going to make only 1-byte aligned allocations
 // TODO(yellowhatter): use zenoh_shm_message_size_threshold as base for alignment
-ShmContext::ShmContext(size_t alloc_size, size_t msgsize_threshold)
-: shm_provider(zenoh::PosixShmProvider(alloc_size)),
-  msgsize_threshold(msgsize_threshold)
+ShmContext::ShmContext(size_t msgsize_threshold)
+: msgsize_threshold(msgsize_threshold)
 {}
+
+std::optional<zenoh::SharedShmProvider> ShmContext::get_shm_provider(zenoh::Session & session)
+{
+  auto maybe_provider = session.obtain_shm_provider();
+  if (std::holds_alternative<zenoh::SharedShmProvider>(maybe_provider)) {
+    return std::get<zenoh::SharedShmProvider>(std::move(maybe_provider));
+  }
+  return std::nullopt;
+}
+
 
 ///=============================================================================
 BufferPool::BufferPool()
