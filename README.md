@@ -261,15 +261,10 @@ export ZENOH_CONFIG_OVERRIDE='transport/shared_memory/enabled=true'
 Each Node allocates at startup a SHM segment where it will write the data to send. The size of this segment can be configured via the `transport/shared_memory/transport_optimization/pool_size` Zenoh config key. The default value is 50331648 bytes (48 MiB).
 You can also override this value with the `ZENOH_SHM_ALLOC_SIZE` environment variable. This environment variable exists for backward compatibility reason. It will be deprecated and eventually removed in a future release.
 
-<<<<<<< HEAD
-- `ZENOH_SHM_ALLOC_SIZE`: size (in bytes) of memory to allocate as shared memory arena. Must be a multiple of 4. The default value is 48 MiB.
-- `ZENOH_SHM_MESSAGE_SIZE_THRESHOLD`: threshold (in bytes) for ROS message wire size to be sent as SHM buffer. Must be a multiple of 4. The default value is 512. Note that depending on your hardware caracteristics (CPU, memory) it could be counter-productive for the latency of small messages to lower this threashold.
-=======
 Each Node will write the data that exceed a configurable threashold in this segment. Smaller data will be send via the network, as there is no benefit to use SHM for small data. This threshold can be configured via the `transport/shared_memory/transport_optimization/message_size_threshold` Zenoh config key. The default value is 512 bytes. Note that depending on your hardware characteristics (CPU, memory) it could be counter-productive for the latency of small messages to lower this threshold.
 You can also override this value with the `ZENOH_SHM_MESSAGE_SIZE_THRESHOLD` environment variable. This environment variable exists for backward compatibility reason. It will be deprecated and eventually removed in a future release.
 
 Zenoh automatically handles garbage collection of data in shared memory once all recipients have read it. It also defragments the shared memory segment to maintain space for large payloads. If writing to shared memory fails (for instance if a recipient didn't yet read the previous data) Zenoh seamlessly falls back to network transport. This ensures publishers are never blocked and data is always delivered.
->>>>>>> 12983ba (Use shared transport SHM provider instead of own instance of SHM provider (#857))
 
 > [!IMPORTANT]
 > Make sure that the host's shared memory space (`/dev/shm` on Linux) is large enough for all the processes you run to allocate the configured amount of memory. As `rmw_zenoh` is pre-commiting the memory on startup, a process will fail if the shared memory is not available.
@@ -289,7 +284,7 @@ Zenoh automatically handles garbage collection of data in shared memory once all
 ### Interoperability
 
 - SHM-enabled nodes are fully interoperable with remote (non-localhost) nodes and localhost non-SHM-enabled nodes on transparent basis.
-- SHM subsystem is fully transparent and interoperable with any oter RMW-compatible Zenoh software like bridges etc.
+- SHM subsystem is fully transparent and interoperable with any other RMW-compatible Zenoh software like bridges etc.
 - Zenoh SHM works intra- and inter- containers if container's POSIX SHM is configured properly.
 
 ## Security
