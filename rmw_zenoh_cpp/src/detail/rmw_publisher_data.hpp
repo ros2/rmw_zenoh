@@ -62,7 +62,7 @@ public:
 
   // Publish a serialized ROS message.
   rmw_ret_t publish_serialized_message(
-    const rmw_serialized_message_t *serialized_message,
+    const rmw_serialized_message_t * serialized_message,
     ShmContext * shm
   );
 
