@@ -15,7 +15,7 @@
   <depend>rmw</depend>
   <depend>rmw_security_common</depend>
   <depend>tinyxml2</depend>
-  <depend>zenoh_cpp_vendor</depend>
+  <depend version_gte="0.10.2">zenoh_cpp_vendor</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
