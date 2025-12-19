@@ -70,7 +70,7 @@ std::optional<zenoh::Config> _get_z_config(
   configured_uri = envar_uri[0] != '\0' ? envar_uri_p : default_uri;
   // Try to read the configuration
   zenoh::ZResult result;
-  zenoh::Config config = zenoh::Config::from_file(configured_uri.c_str(), &result);
+  zenoh::Config config = zenoh::Config::from_file(configured_uri.string(), &result);
   if (result != Z_OK) {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
