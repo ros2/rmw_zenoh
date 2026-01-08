@@ -79,7 +79,7 @@ int main(int argc, char ** argv)
     zenoh::Session::SessionOptions::create_default(),
     &result);
   if (result != Z_OK) {
-    std::cout << "Error opening Session!" << "\\n";
+    std::cout << "Error opening Session!" << std::endl;
     return 1;
   }
 
