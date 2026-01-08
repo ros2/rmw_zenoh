@@ -33,7 +33,7 @@ jobs:
       run: sudo apt update && sudo apt upgrade -y && sudo apt install -y python3-colcon-coveragepy-result python3-colcon-lcov-result lcov
     - name: Build and run tests
       id: action-ros-ci
-      uses: ros-tooling/action-ros-ci@v0.3
+      uses: ros-tooling/action-ros-ci@v0.4
       with:
         package-name: |
           rmw_zenoh_cpp
