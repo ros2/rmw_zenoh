@@ -329,7 +329,8 @@ On any system without IPv6 support (either because it has been disabled or becau
 ```
 WARN ThreadId(03) zenoh::net::runtime::orchestrator: Unable to open listener tcp/[::]:7447: Can not create a new TCP listener bound to tcp/[::]:7447: [Os { code: 97, kind: Uncategorized, message: "Address family not supported by protocol" }] at /home/buildfarm/.cargo/git/checkouts/zenoh-cc237f2570fab813/9640d22/io/zenoh-links/zenoh-link-tcp/src/unicast.rs:326.
 ERROR ThreadId(03) zenohc::session: Error opening session: Can not create a new TCP listener bound to tcp/[::]:7447: [Os { code: 97, kind: Uncategorized, message: "Address family not supported by protocol" }] at /home/buildfarm/.cargo/git/checkouts/zenoh-cc237f2570fab813/9640d22/io/zenoh-links/zenoh-link-tcp/src/unicast.rs:326.
-Error opening Session!\n[ros2run]: Process exited with failure 1
+Error opening Session!
+[ros2run]: Process exited with failure 1
 ```
 
 </details>
