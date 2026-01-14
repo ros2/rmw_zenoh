@@ -58,7 +58,7 @@
 
 #include "tracetools/tracetools.h"
 
-#include "rmw_zenoh_cpp/rmw_zenoh.h"
+#include "rmw_zenoh_cpp/rmw_zenoh.hpp"
 
 namespace
 {

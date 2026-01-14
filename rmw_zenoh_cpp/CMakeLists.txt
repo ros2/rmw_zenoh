@@ -26,10 +26,6 @@ find_package(rmw_test_fixture REQUIRED)
 find_package(tracetools REQUIRED)
 find_package(zenoh_cpp_vendor REQUIRED)
 
-if(BUILD_TESTING)
-  find_package(rclcpp REQUIRED)
-endif()
-
 add_library(rmw_zenoh_cpp SHARED
   src/detail/attachment_helpers.cpp
   src/detail/cdr.cpp
@@ -124,12 +120,25 @@ if(BUILD_TESTING)
   find_package(ament_cmake_lint_cmake REQUIRED)
   find_package(ament_cmake_uncrustify REQUIRED)
   find_package(ament_cmake_xmllint REQUIRED)
+  find_package(ament_cmake_gtest REQUIRED)
 
   ament_copyright(EXCLUDE src/detail/simplified_xxhash3.cpp src/detail/simplified_xxhash3.hpp)
   ament_cpplint()
   ament_lint_cmake()
   ament_uncrustify()
   ament_xmllint()
+
+  ament_add_gtest(test_rmw_zenoh_session test/test_rmw_zenoh_session.cpp)
+  target_include_directories(test_rmw_zenoh_session
+    PRIVATE
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  )
+  target_link_libraries(test_rmw_zenoh_session
+    rmw_zenoh_cpp
+    rmw::rmw
+    rcutils::rcutils
+    zenohcxx::zenohc
+  )
 endif()
 
 install(
@@ -172,20 +181,5 @@ install(
   TARGETS rmw_zenohd
   DESTINATION lib/${PROJECT_NAME}
 )
-
-if(BUILD_TESTING)
-  find_package(ament_cmake_gtest REQUIRED)
-
-  ament_add_gtest(test_rmw_zenoh_session test/test_rmw_zenoh_session.cpp)
-  target_include_directories(test_rmw_zenoh_session
-    PRIVATE
-      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  )
-  target_link_libraries(test_rmw_zenoh_session
-    rmw_zenoh_cpp
-    rclcpp::rclcpp
-    zenohcxx::zenohc
-  )
-endif()
 
 ament_package()

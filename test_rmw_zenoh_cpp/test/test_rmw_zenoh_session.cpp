@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <gtest/gtest.h>
-
 #include <unistd.h>
+
+#include <gtest/gtest.h>
 
 #include <chrono>
 #include <memory>
@@ -24,7 +24,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <zenoh.hxx>
 
-#include <rmw_zenoh_cpp/rmw_zenoh.h>
+#include "rmw_zenoh_cpp/rmw_zenoh.hpp"
 
 class TestRmwZenohSession : public ::testing::Test
 {

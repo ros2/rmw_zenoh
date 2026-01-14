@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef RMW_ZENOH_CPP__RMW_ZENOH_H_
-#define RMW_ZENOH_CPP__RMW_ZENOH_H_
+#ifndef RMW_ZENOH_CPP__RMW_ZENOH_HPP_
+#define RMW_ZENOH_CPP__RMW_ZENOH_HPP_
 
 #include <memory>
 
@@ -28,9 +28,9 @@
 /// \param[in] context The RMW context.
 /// \return A shared pointer to the Zenoh session, or nullptr if invalid.
 RMW_PUBLIC
-const std::shared_ptr < zenoh::Session >
+const std::shared_ptr<zenoh::Session>
 rmw_zenoh_get_session(const rmw_context_t * context);
 
 #endif  // __cplusplus
 
-#endif  // RMW_ZENOH_CPP__RMW_ZENOH_H_
+#endif  // RMW_ZENOH_CPP__RMW_ZENOH_HPP_
