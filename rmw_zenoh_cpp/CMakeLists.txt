@@ -120,15 +120,12 @@ if(BUILD_TESTING)
   find_package(ament_cmake_lint_cmake REQUIRED)
   find_package(ament_cmake_uncrustify REQUIRED)
   find_package(ament_cmake_xmllint REQUIRED)
-  find_package(ament_cmake_gtest REQUIRED)
 
   ament_copyright(EXCLUDE src/detail/simplified_xxhash3.cpp src/detail/simplified_xxhash3.hpp)
   ament_cpplint()
   ament_lint_cmake()
   ament_uncrustify()
   ament_xmllint()
-
-
 endif()
 
 install(
