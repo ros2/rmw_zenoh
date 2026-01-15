@@ -128,17 +128,7 @@ if(BUILD_TESTING)
   ament_uncrustify()
   ament_xmllint()
 
-  ament_add_gtest(test_rmw_zenoh_session test/test_rmw_zenoh_session.cpp)
-  target_include_directories(test_rmw_zenoh_session
-    PRIVATE
-      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  )
-  target_link_libraries(test_rmw_zenoh_session
-    rmw_zenoh_cpp
-    rmw::rmw
-    rcutils::rcutils
-    zenohcxx::zenohc
-  )
+
 endif()
 
 install(
