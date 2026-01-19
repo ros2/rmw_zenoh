@@ -31,8 +31,6 @@ class TestRmwZenohSession : public ::testing::Test
 public:
   static void SetUpTestCase()
   {
-    // Skip Zenoh router check to avoid warnings during testing
-    setenv("ZENOH_ROUTER_CHECK_ATTEMPTS", "-1", 1);
     rclcpp::init(0, nullptr);
   }
 
