@@ -12,14 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <unistd.h>
-
 #include <gtest/gtest.h>
 
 #include <chrono>
+#include <cstdlib>
 #include <memory>
 #include <string>
 #include <thread>
+
+// setenv() requires unistd.h on POSIX systems
+#ifndef _WIN32
+#include <unistd.h>
+#endif
 
 #include <rclcpp/rclcpp.hpp>
 #include <zenoh.hxx>
@@ -32,7 +36,11 @@ public:
   static void SetUpTestCase()
   {
     // Skip Zenoh router check to avoid warnings during testing
+#ifdef _WIN32
+    _putenv_s("ZENOH_ROUTER_CHECK_ATTEMPTS", "-1");
+#else
     setenv("ZENOH_ROUTER_CHECK_ATTEMPTS", "-1", 1);
+#endif
     rclcpp::init(0, nullptr);
   }
 
@@ -82,7 +90,7 @@ TEST_F(TestRmwZenohSession, ZenohSessionDirectAccess)
   (void)zid;  // Suppress unused variable warning
 
   // Create a simple keyexpr to test session functionality
-  const std::string test_key = "test/rmw_zenoh/session/" + std::to_string(getpid());
+  const std::string test_key = "test/rmw_zenoh/session";
   zenoh::KeyExpr keyexpr(test_key);
 
   // Test creating a publisher using the session directly
