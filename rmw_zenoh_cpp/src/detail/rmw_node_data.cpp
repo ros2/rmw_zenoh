@@ -218,10 +218,11 @@ bool NodeData::create_sub_data(
   for (const auto & [_, sub_data] : subs_) {
     const auto & topic_info = sub_data->topic_info();
     if (topic_info.name_ == topic_name && topic_info.type_ == type_name) {
-      RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
-        "A subscription for topic '%s' with type '%s' already exists in this node",
+      RMW_ZENOH_LOG_WARN_NAMED(
+        "rmw_zenoh_cpp",
+        "Creating duplicate subscription for topic '%s' with type '%s' in this node",
         topic_name.c_str(), type_name);
-      return false;
+      break;
     }
   }
 
