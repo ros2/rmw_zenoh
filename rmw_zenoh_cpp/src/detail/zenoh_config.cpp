@@ -64,7 +64,7 @@ std::optional<zenoh::Config> _get_z_config(
       "rmw_zenoh_cpp", "Envar %s cannot be read.", envar_name);
     return std::nullopt;
   }
-  std::filesystem::path envar_uri_p(envar_name);
+  std::filesystem::path envar_uri_p(envar_uri);
   // If the environment variable is set, try to read the configuration from the file,
   // if the environment variable is not set use internal configuration
   configured_uri = envar_uri[0] != '\0' ? envar_uri_p : default_uri;
