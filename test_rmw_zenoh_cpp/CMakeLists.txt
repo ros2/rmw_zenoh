@@ -24,7 +24,9 @@ if(BUILD_TESTING)
 
   ament_lint_auto_find_test_dependencies()
 
-  ament_add_ros_isolated_gtest(test_rmw_zenoh_session test/test_rmw_zenoh_session.cpp)
+  ament_add_ros_isolated_gtest(test_rmw_zenoh_session
+    test/test_rmw_zenoh_session.cpp
+    ENV RMW_IMPLEMENTATION=rmw_zenoh_cpp)
   target_link_libraries(test_rmw_zenoh_session
     rclcpp::rclcpp
     rmw_zenoh_cpp::rmw_zenoh_cpp
