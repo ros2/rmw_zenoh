@@ -159,7 +159,9 @@ static const std::unordered_map<std::string,
     RMW_QOS_POLICY_RELIABILITY_SYSTEM_DEFAULT},
   {std::to_string(RMW_QOS_POLICY_RELIABILITY_RELIABLE), RMW_QOS_POLICY_RELIABILITY_RELIABLE},
   {std::to_string(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT), RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT},
-  {std::to_string(RMW_QOS_POLICY_RELIABILITY_UNKNOWN), RMW_QOS_POLICY_RELIABILITY_UNKNOWN}
+  {std::to_string(RMW_QOS_POLICY_RELIABILITY_UNKNOWN), RMW_QOS_POLICY_RELIABILITY_UNKNOWN},
+  {std::to_string(RMW_QOS_POLICY_RELIABILITY_BEST_AVAILABLE),
+    RMW_QOS_POLICY_RELIABILITY_BEST_AVAILABLE}
 };
 
 static const std::unordered_map<std::string, rmw_qos_durability_policy_e> str_to_qos_durability = {
@@ -168,7 +170,9 @@ static const std::unordered_map<std::string, rmw_qos_durability_policy_e> str_to
   {std::to_string(RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL),
     RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL},
   {std::to_string(RMW_QOS_POLICY_DURABILITY_VOLATILE), RMW_QOS_POLICY_DURABILITY_VOLATILE},
-  {std::to_string(RMW_QOS_POLICY_DURABILITY_UNKNOWN), RMW_QOS_POLICY_DURABILITY_UNKNOWN}
+  {std::to_string(RMW_QOS_POLICY_DURABILITY_UNKNOWN), RMW_QOS_POLICY_DURABILITY_UNKNOWN},
+  {std::to_string(RMW_QOS_POLICY_DURABILITY_BEST_AVAILABLE),
+    RMW_QOS_POLICY_DURABILITY_BEST_AVAILABLE}
 };
 
 static const std::unordered_map<std::string, rmw_qos_liveliness_policy_e> str_to_qos_liveliness = {
@@ -196,7 +200,9 @@ static const std::unordered_map<rmw_qos_reliability_policy_e, std::string> qos_r
     std::to_string(RMW_QOS_POLICY_RELIABILITY_SYSTEM_DEFAULT)},
   {RMW_QOS_POLICY_RELIABILITY_RELIABLE, std::to_string(RMW_QOS_POLICY_RELIABILITY_RELIABLE)},
   {RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT, std::to_string(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT)},
-  {RMW_QOS_POLICY_RELIABILITY_UNKNOWN, std::to_string(RMW_QOS_POLICY_RELIABILITY_UNKNOWN)}
+  {RMW_QOS_POLICY_RELIABILITY_UNKNOWN, std::to_string(RMW_QOS_POLICY_RELIABILITY_UNKNOWN)},
+  {RMW_QOS_POLICY_RELIABILITY_BEST_AVAILABLE,
+    std::to_string(RMW_QOS_POLICY_RELIABILITY_BEST_AVAILABLE)}
 };
 
 static const std::unordered_map<rmw_qos_durability_policy_e, std::string> qos_durability_to_str = {
@@ -205,7 +211,9 @@ static const std::unordered_map<rmw_qos_durability_policy_e, std::string> qos_du
   {RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL,
     std::to_string(RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL)},
   {RMW_QOS_POLICY_DURABILITY_VOLATILE, std::to_string(RMW_QOS_POLICY_DURABILITY_VOLATILE)},
-  {RMW_QOS_POLICY_DURABILITY_UNKNOWN, std::to_string(RMW_QOS_POLICY_DURABILITY_UNKNOWN)}
+  {RMW_QOS_POLICY_DURABILITY_UNKNOWN, std::to_string(RMW_QOS_POLICY_DURABILITY_UNKNOWN)},
+  {RMW_QOS_POLICY_DURABILITY_BEST_AVAILABLE,
+    std::to_string(RMW_QOS_POLICY_DURABILITY_BEST_AVAILABLE)}
 };
 
 static const std::unordered_map<rmw_qos_liveliness_policy_e, std::string> qos_liveliness_to_str = {
