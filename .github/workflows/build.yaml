@@ -39,5 +39,6 @@ jobs:
           rmw_zenoh_cpp
           zenoh_cpp_vendor
           zenoh_security_tools
+          test_rmw_zenoh_cpp
         target-ros2-distro: ${{ matrix.ROS_DISTRO }}
         vcs-repo-file-url: ${{ matrix.BUILD_TYPE == 'source' && env.ROS2_REPOS_FILE_URL || '' }}
