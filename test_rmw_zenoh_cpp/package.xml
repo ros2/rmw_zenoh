@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>test_rmw_zenoh_cpp</name>
+  <version>0.10.2</version>
+  <description>Test package for rmw_zenoh_cpp that uses rclcpp</description>
+  <maintainer email="yu-yuan.yuan@zettascale.tech">Yuyuan</maintainer>
+
+  <license>Apache License 2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <test_depend>ament_cmake_ros</test_depend>
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+  <test_depend>rclcpp</test_depend>
+  <test_depend>rmw_zenoh_cpp</test_depend>
+  <test_depend>zenoh_cpp_vendor</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
