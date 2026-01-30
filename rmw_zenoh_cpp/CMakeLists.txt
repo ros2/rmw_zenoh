@@ -77,6 +77,11 @@ target_link_libraries(rmw_zenoh_cpp
 
 configure_rmw_library(rmw_zenoh_cpp)
 
+target_include_directories(rmw_zenoh_cpp PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+
 target_compile_definitions(rmw_zenoh_cpp
   PRIVATE
     RMW_VERSION_MAJOR=${rmw_VERSION_MAJOR}
@@ -134,6 +139,11 @@ install(
 install(
   DIRECTORY config
   DESTINATION share/${PROJECT_NAME}
+)
+
+install(
+  DIRECTORY include/
+  DESTINATION include
 )
 
 add_executable(rmw_zenohd
