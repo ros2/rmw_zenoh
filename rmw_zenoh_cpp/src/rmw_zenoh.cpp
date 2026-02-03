@@ -932,8 +932,6 @@ rmw_create_subscription(
     return nullptr;
   }
 
-  // TODO(yadunund): Check if a duplicate entry for the same topic name + topic type
-  // is present in node_data->subscriptions and if so return error;
   RMW_CHECK_FOR_NULL_WITH_MSG(
     node->context,
     "expected initialized context",
@@ -1685,7 +1683,6 @@ rmw_create_service(
   RMW_CHECK_ARGUMENT_FOR_NULL(qos_profile, nullptr);
   if (!qos_profile->avoid_ros_namespace_conventions) {
     int validation_result = RMW_TOPIC_VALID;
-    // TODO(francocipollone): Verify if this is the right way to validate the service name.
     rmw_ret_t ret = rmw_validate_full_topic_name(service_name, &validation_result, nullptr);
     if (RMW_RET_OK != ret) {
       return nullptr;
