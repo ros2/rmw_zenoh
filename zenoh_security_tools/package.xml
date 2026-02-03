@@ -14,7 +14,7 @@
   <depend>rcutils</depend>
   <depend>rmw_dds_common</depend>
   <depend>tinyxml2_vendor</depend>
-=======
+  <depend>zenoh_cpp_vendor</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
