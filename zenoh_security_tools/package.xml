@@ -12,14 +12,8 @@
 
   <depend>rcpputils</depend>
   <depend>rcutils</depend>
-<<<<<<< HEAD
-  <depend>rmw</depend>
   <depend>rmw_dds_common</depend>
   <depend>tinyxml2_vendor</depend>
-=======
-  <depend>rmw_security_common</depend>
-  <depend>tinyxml2</depend>
->>>>>>> 4dcd184 (finish some TODOs. (#896))
   <depend>zenoh_cpp_vendor</depend>
 
   <test_depend>ament_lint_auto</test_depend>
