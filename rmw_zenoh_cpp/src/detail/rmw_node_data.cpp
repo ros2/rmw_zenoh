@@ -21,8 +21,11 @@
 #include <utility>
 
 #include "logging_macros.hpp"
+#include "message_type_support.hpp"
 
 #include "rcpputils/scope_exit.hpp"
+
+#include "rmw/error_handling.h"
 
 namespace rmw_zenoh_cpp
 {
