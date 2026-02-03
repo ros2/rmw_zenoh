@@ -211,21 +211,6 @@ bool NodeData::create_sub_data(
     return false;
   }
 
-  // Check for duplicate subscription with the same topic name and type.
-  auto callbacks = static_cast<const message_type_support_callbacks_t *>(type_support->data);
-  MessageTypeSupport type_support_helper(callbacks);
-  const char * type_name = type_support_helper.get_name();
-  for (const auto & [_, sub_data] : subs_) {
-    const auto & topic_info = sub_data->topic_info();
-    if (topic_info.name_ == topic_name && topic_info.type_ == type_name) {
-      RMW_ZENOH_LOG_WARN_NAMED(
-        "rmw_zenoh_cpp",
-        "Creating duplicate subscription for topic '%s' with type '%s' in this node",
-        topic_name.c_str(), type_name);
-      break;
-    }
-  }
-
   auto sub_data = SubscriptionData::make(
     session,
     std::move(graph_cache),
