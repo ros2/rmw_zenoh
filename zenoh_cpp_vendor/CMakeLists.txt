@@ -10,6 +10,9 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_vendor_package REQUIRED)
 
+find_package(zenohc QUIET)
+find_package(zenohcxx QUIET)
+
 # Add a set of usefull features that are not enabled by default in zenoh-c.
 # For a complete list of features see: https://github.com/eclipse-zenoh/zenoh/blob/main/zenoh/Cargo.toml
 # Note: the list of features are separated with whitespaces.
@@ -29,6 +32,7 @@ set(ZENOHC_CARGO_FLAGS "--features=shared-memory zenoh/transport_serial")
 # * Metrics per key (requires to add "zenoh/stats" feature to ZENOHC_CARGO_FLAGS for build)
 #   - https://github.com/eclipse-zenoh/zenoh/pull/2284
 ament_vendor(zenoh_c_vendor
+  SATISFIED ${zenohc_FOUND}
   VCS_URL https://github.com/eclipse-zenoh/zenoh-c.git
   VCS_VERSION 73e7a0bdcf78b8263a02b7aee453ee6de8187589
   CMAKE_ARGS
@@ -41,13 +45,16 @@ ament_vendor(zenoh_c_vendor
 ament_export_dependencies(zenohc)
 
 ament_vendor(zenoh_cpp_vendor
+  SATISFIED ${zenohcxx_FOUND}
   VCS_URL https://github.com/eclipse-zenoh/zenoh-cpp
   VCS_VERSION 47a80d345d74ebef16f3783423bf3bbd89cd6c30
   CMAKE_ARGS
     -DZENOHCXX_ZENOHC=OFF
 )
 
-externalproject_add_stepdependencies(zenoh_cpp_vendor configure zenoh_c_vendor)
+if(NOT zenohcxx_FOUND)
+  externalproject_add_stepdependencies(zenoh_cpp_vendor configure zenoh_c_vendor)
+endif()
 
 ament_export_dependencies(zenohcxx)
 
