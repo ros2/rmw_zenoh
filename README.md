@@ -39,6 +39,8 @@ sudo apt update && sudo apt install ros-<DISTRO>-rmw-zenoh-cpp # replace <DISTRO
 > [!NOTE]
 > By default, we vendor and compile `zenoh-cpp` with a subset of `zenoh` features.
 The `ZENOHC_CARGO_FLAGS` CMake argument may be overwritten with other features included if required.
+The `USE_SYSTEM_ZENOH` CMake argument can be used to use non-vendored system libraries instead.
+The user must ensure that the non-vendored libraries are found by CMake and provide the necessary features (e.g., shared-memory support).
 See [zenoh_cpp_vendor/CMakeLists.txt](./zenoh_cpp_vendor/CMakeLists.txt) for more details.
 
 ```bash
