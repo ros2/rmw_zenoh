@@ -25,7 +25,7 @@
 
 #include "logging_macros.hpp"
 
-#include <ament_index_cpp/get_package_share_directory.hpp>
+#include <ament_index_cpp/get_package_share_path.hpp>
 #include <rmw/impl/cpp/macros.hpp>
 
 ///=============================================================================
@@ -120,9 +120,8 @@ std::optional<zenoh::Config> get_z_config(const ConfigurableEntity & entity)
     return std::nullopt;
   }
   // Get the absolute path to the default configuration file.
-  std::filesystem::path path_to_config_folder;
-  ament_index_cpp::get_package_share_directory("rmw_zenoh_cpp", path_to_config_folder);
-  path_to_config_folder /= "config";
+  std::filesystem::path path_to_config_folder =
+    ament_index_cpp::get_package_share_path("rmw_zenoh_cpp") / "config";
 
   const std::filesystem::path default_config_path =
     path_to_config_folder / envar_map_it->second.second;
