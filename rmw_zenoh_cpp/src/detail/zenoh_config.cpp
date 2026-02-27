@@ -120,7 +120,7 @@ std::optional<zenoh::Config> get_z_config(const ConfigurableEntity & entity)
       "rmw_zenoh_cpp", "get_z_config called with invalid ConfigurableEntity.");
     return std::nullopt;
   }
-  
+
   std::filesystem::path default_config_path;
 
   try {
@@ -129,9 +129,9 @@ std::optional<zenoh::Config> get_z_config(const ConfigurableEntity & entity)
       ament_index_cpp::get_package_share_path("rmw_zenoh_cpp") / "config";
 
     default_config_path = path_to_config_folder / envar_map_it->second.second;
-  } catch (const ament_index_cpp::PackageNotFoundError& e) {
+  } catch (const ament_index_cpp::PackageNotFoundError & e) {
     RMW_ZENOH_LOG_WARN_NAMED(
-      "rmw_zenoh_cpp", 
+      "rmw_zenoh_cpp",
       "Failed to find rmw_zenoh_cpp package in ament_index (%s). "
       "Relying on 'ZENOH_*_CONFIG_URI' ENV vars.", e.what());
   }
