@@ -252,11 +252,14 @@ void ServiceData::add_new_query(std::unique_ptr<ZenohQuery> query)
   if (adapted_qos_profile.history != RMW_QOS_POLICY_HISTORY_KEEP_ALL &&
     query_queue_.size() >= adapted_qos_profile.depth)
   {
-    // Log warning if message is discarded due to hitting the queue depth
+    // Log warning if message is discarded due to hitting the queue depth.
+    // When a query is discarded here, its corresponding client will never receive a response
+    // because the query is dropped before being stored in sequence_to_query_map_. This causes
+    // the client to wait until the query times out.
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Query queue depth of %ld reached, discarding oldest Query "
-      "for service '%s'",
+      "for service '%s'. The client for the discarded query will not receive a response.",
       adapted_qos_profile.depth,
       entity_->topic_info().value().name_.c_str());
     query_queue_.pop_front();
@@ -391,14 +394,22 @@ rmw_ret_t ServiceData::send_response(
   const size_t hash = hash_gid(writer_guid);
   std::unordered_map<size_t, SequenceToQuery>::iterator it = sequence_to_query_map_.find(hash);
   if (it == sequence_to_query_map_.end()) {
-    // If there is no data associated with this request, the higher layers of
-    // ROS 2 seem to expect that we just silently return with no work.
+    RMW_ZENOH_LOG_WARN_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to send response for service '%s': no query data found for client GID hash %zu. "
+      "This may indicate that the query was discarded due to the query queue being full.",
+      entity_->topic_info().value().name_.c_str(),
+      hash);
     return RMW_RET_OK;
   }
   SequenceToQuery::iterator query_it = it->second.find(request_id->sequence_number);
   if (query_it == it->second.end()) {
-    // If there is no data associated with this request, the higher layers of
-    // ROS 2 seem to expect that we just silently return with no work.
+    RMW_ZENOH_LOG_WARN_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to send response for service '%s': no query data found for sequence number %ld. "
+      "This may indicate that the query was discarded due to the query queue being full.",
+      entity_->topic_info().value().name_.c_str(),
+      request_id->sequence_number);
     return RMW_RET_OK;
   }
   std::unique_ptr<ZenohQuery> query = std::move(query_it->second);
