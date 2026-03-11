@@ -151,6 +151,7 @@ SubscriptionData::SubscriptionData(
   type_support_(std::move(type_support)),
   sub_options_(std::move(sub_options)),
   last_known_published_msg_({}),
+  reception_sn_(0),
   wait_set_data_(nullptr),
   is_shutdown_(false),
   initialized_(false)
@@ -422,8 +423,8 @@ rmw_ret_t SubscriptionData::take_one_message(
     message_info->source_timestamp = msg_data->attachment.source_timestamp();
     message_info->received_timestamp = msg_data->recv_timestamp;
     message_info->publication_sequence_number = msg_data->attachment.sequence_number();
-    // TODO(clalancette): fill in reception_sequence_number
-    message_info->reception_sequence_number = 0;
+    message_info->reception_sequence_number =
+      reception_sn_.fetch_add(1, std::memory_order_relaxed);
     message_info->publisher_gid.implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
     memcpy(
       message_info->publisher_gid.data,
@@ -479,8 +480,8 @@ rmw_ret_t SubscriptionData::take_serialized_message(
     message_info->source_timestamp = msg_data->attachment.source_timestamp();
     message_info->received_timestamp = msg_data->recv_timestamp;
     message_info->publication_sequence_number = msg_data->attachment.sequence_number();
-    // TODO(clalancette): fill in reception_sequence_number
-    message_info->reception_sequence_number = 0;
+    message_info->reception_sequence_number =
+      reception_sn_.fetch_add(1, std::memory_order_relaxed);
     message_info->publisher_gid.implementation_identifier = rmw_zenoh_cpp::rmw_zenoh_identifier;
     memcpy(
       message_info->publisher_gid.data,
