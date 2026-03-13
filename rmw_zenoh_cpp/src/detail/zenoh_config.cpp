@@ -26,6 +26,7 @@
 #include "logging_macros.hpp"
 
 #include <ament_index_cpp/get_package_share_path.hpp>
+#include <ament_index_cpp/get_package_prefix.hpp> /* for PackageNotFoundError */
 #include <rmw/impl/cpp/macros.hpp>
 
 ///=============================================================================
@@ -119,12 +120,21 @@ std::optional<zenoh::Config> get_z_config(const ConfigurableEntity & entity)
       "rmw_zenoh_cpp", "get_z_config called with invalid ConfigurableEntity.");
     return std::nullopt;
   }
-  // Get the absolute path to the default configuration file.
-  std::filesystem::path path_to_config_folder =
-    ament_index_cpp::get_package_share_path("rmw_zenoh_cpp") / "config";
 
-  const std::filesystem::path default_config_path =
-    path_to_config_folder / envar_map_it->second.second;
+  std::filesystem::path default_config_path;
+
+  try {
+    // Get the absolute path to the default configuration file.
+    std::filesystem::path path_to_config_folder =
+      ament_index_cpp::get_package_share_path("rmw_zenoh_cpp") / "config";
+
+    default_config_path = path_to_config_folder / envar_map_it->second.second;
+  } catch (const ament_index_cpp::PackageNotFoundError & e) {
+    RMW_ZENOH_LOG_WARN_NAMED(
+      "rmw_zenoh_cpp",
+      "Failed to find rmw_zenoh_cpp package in ament_index (%s). "
+      "Relying on 'ZENOH_*_CONFIG_URI' ENV vars.", e.what());
+  }
 
   return _get_z_config(envar_map_it->second.first, default_config_path);
 }
