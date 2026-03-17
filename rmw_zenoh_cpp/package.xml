@@ -22,6 +22,7 @@
   <depend>fastcdr</depend>
   <depend>rcpputils</depend>
   <depend>rcutils</depend>
+  <depend>rosidl_buffer_backend_registry</depend>
   <depend>rosidl_typesupport_fastrtps_c</depend>
   <depend>rosidl_typesupport_fastrtps_cpp</depend>
   <depend>rmw</depend>
