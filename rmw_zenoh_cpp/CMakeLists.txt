@@ -19,6 +19,7 @@ find_package(fastcdr CONFIG REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(rcpputils REQUIRED)
 find_package(rcutils REQUIRED)
+find_package(rosidl_buffer_backend_registry REQUIRED)
 find_package(rosidl_typesupport_fastrtps_c REQUIRED)
 find_package(rosidl_typesupport_fastrtps_cpp REQUIRED)
 find_package(rmw REQUIRED)
@@ -68,6 +69,7 @@ target_link_libraries(rmw_zenoh_cpp
     fastcdr
     rcpputils::rcpputils
     rcutils::rcutils
+    rosidl_buffer_backend_registry::rosidl_buffer_backend_registry
     rosidl_typesupport_fastrtps_c::rosidl_typesupport_fastrtps_c
     rosidl_typesupport_fastrtps_cpp::rosidl_typesupport_fastrtps_cpp
     rmw::rmw
@@ -76,6 +78,11 @@ target_link_libraries(rmw_zenoh_cpp
 )
 
 configure_rmw_library(rmw_zenoh_cpp)
+
+target_include_directories(rmw_zenoh_cpp
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
 
 target_include_directories(rmw_zenoh_cpp PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
