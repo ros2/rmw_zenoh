@@ -105,6 +105,10 @@ public:
   ///   event is detected.
   using GraphCacheEventCallback = std::function<void (int32_t change)>;
 
+  /// @brief Signature for a function that will be invoked when an entity is discovered.
+  ///   Used for Buffer-aware publishers/subscribers to dynamically create endpoints.
+  using EntityDiscoveryCallback = std::function<void (const liveliness::Entity &)>;
+
   /// @brief Constructor
   /// @param id The id of the zenoh session that is building the graph cache.
   ///   This is used to infer which entities originated from the current session
@@ -190,6 +194,28 @@ public:
 
   /// Remove all qos event callbacks for an entity.
   void remove_qos_event_callbacks(std::size_t entity_gid_hash);
+
+  /// Register a callback for when a subscriber is discovered on a topic (for Buffer-aware publishers).
+  /// @param topic_name The topic name to monitor
+  /// @param publisher_gid_hash The gid hash of the publisher registering the callback
+  /// @param callback The callback function to invoke when a subscriber is discovered
+  void register_subscriber_discovery_callback(
+    const std::string & topic_name,
+    std::size_t publisher_gid_hash,
+    EntityDiscoveryCallback callback);
+
+  /// Register a callback for when a publisher is discovered on a topic (for Buffer-aware subscribers).
+  /// @param topic_name The topic name to monitor
+  /// @param subscriber_gid_hash The gid hash of the subscriber registering the callback
+  /// @param callback The callback function to invoke when a publisher is discovered
+  void register_publisher_discovery_callback(
+    const std::string & topic_name,
+    std::size_t subscriber_gid_hash,
+    EntityDiscoveryCallback callback);
+
+  /// Unregister all discovery callbacks for an entity.
+  /// @param gid_hash The gid hash of the entity
+  void unregister_discovery_callbacks(std::size_t gid_hash);
 
   /// Returns true if the entity is a publisher or client. False otherwise.
   static bool is_entity_pub(const liveliness::Entity & entity);
@@ -291,6 +317,15 @@ private:
   std::unordered_map<std::size_t,
     std::unordered_map<rmw_zenoh_event_type_t, int32_t>> unregistered_event_changes_;
   std::mutex events_mutex_;
+
+  // Discovery callbacks for Buffer-aware endpoints
+  // Map: (topic_name, publisher_gid_hash) -> callback for subscriber discovery
+  std::unordered_map<std::string,
+    std::unordered_map<std::size_t, EntityDiscoveryCallback>> subscriber_discovery_callbacks_;
+  // Map: (topic_name, subscriber_gid_hash) -> callback for publisher discovery
+  std::unordered_map<std::string,
+    std::unordered_map<std::size_t, EntityDiscoveryCallback>> publisher_discovery_callbacks_;
+  std::mutex discovery_mutex_;
 
   // Mutex to lock before modifying the members above.
   mutable std::mutex graph_mutex_;
