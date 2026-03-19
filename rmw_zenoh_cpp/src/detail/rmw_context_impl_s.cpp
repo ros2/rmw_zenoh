@@ -91,6 +91,8 @@ public:
       return RMW_RET_ERROR;
     }
 
+    rmw_zenoh_cpp::shutdown_buffer_backends();
+
     // Explicitly close the session before releasing our shared_ptr reference.
     // This calls wait_callbacks() internally (since zenoh commit e5db0ce), which waits
     // for all in-flight callbacks to finish. We call close() here while node-level entities
