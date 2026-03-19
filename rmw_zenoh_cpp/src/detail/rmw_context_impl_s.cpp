@@ -91,6 +91,8 @@ public:
       return RMW_RET_ERROR;
     }
 
+    rmw_zenoh_cpp::shutdown_buffer_backends();
+
     return RMW_RET_OK;
   }
 

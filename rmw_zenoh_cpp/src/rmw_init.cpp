@@ -33,7 +33,7 @@
 
 #include "rcpputils/scope_exit.hpp"
 
-#include "rosidl_buffer_backend_registry/buffer_backend_loader.hpp"
+#include "detail/buffer_backend_loader.hpp"
 
 extern "C"
 {
@@ -118,7 +118,7 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
   // Initialize buffer backends for serialization
   // This loads and registers all available buffer backends (CPU, CUDA, etc.)
   try {
-    rosidl_buffer_backend_registry::initialize_buffer_backends();
+    rmw_zenoh_cpp::initialize_buffer_backends();
   } catch (const std::exception & e) {
     // Non-fatal: buffer backends are optional for basic RMW functionality
     // If no buffer backends are available, Buffer fields will trigger to_cpu() conversion
