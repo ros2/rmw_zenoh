@@ -526,7 +526,7 @@ Entity::Entity(
     keyexpr_parts[KeyexprIndex::TopicType] = mangle_name(topic_info.type_);
     keyexpr_parts[KeyexprIndex::TopicTypeHash] = mangle_name(topic_info.type_hash_);
     keyexpr_parts[KeyexprIndex::TopicQoS] = qos_to_keyexpr(topic_info.qos_);
-    
+
     // Add backend aux info if present (only for Buffer message types)
     if (topic_info.backend_aux_info_.has_value() && !topic_info.backend_aux_info_.value().empty()) {
       std::vector<std::string> backend_names;
@@ -683,12 +683,13 @@ std::shared_ptr<Entity> Entity::make(const std::string & keyexpr)
         "Received liveliness token with invalid qos keyexpr");
       return nullptr;
     }
-    
+
     // Parse optional backends field (only present for Buffer message types)
     std::optional<std::unordered_map<std::string, std::string>> backend_aux_info = std::nullopt;
     if (parts.size() > KeyexprIndex::TopicQoS + 1 &&
-        !parts[KeyexprIndex::Backends].empty() &&
-        parts[KeyexprIndex::Backends].rfind("backends:", 0) == 0) {
+      !parts[KeyexprIndex::Backends].empty() &&
+      parts[KeyexprIndex::Backends].rfind("backends:", 0) == 0)
+    {
       // Parse backend list: "backends:cuda:aux;cpu:" -> map
       std::string backends_str = parts[KeyexprIndex::Backends].substr(9);  // Skip "backends:"
       if (!backends_str.empty()) {
@@ -718,7 +719,7 @@ std::shared_ptr<Entity> Entity::make(const std::string & keyexpr)
         }
       }
     }
-    
+
     topic_info = TopicInfo{
       domain_id,
       demangle_name(std::move(parts[KeyexprIndex::TopicName])),

@@ -451,7 +451,8 @@ bool SubscriptionData::init()
     // Buffer-aware: subscriptions will be created dynamically in on_publisher_discovered
     RMW_ZENOH_LOG_DEBUG_NAMED(
       "rmw_zenoh_cpp",
-      "Buffer-aware subscription initialized without base subscription, waiting for publisher discovery");
+      "Buffer-aware subscription initialized without base subscription, "
+      "waiting for publisher discovery");
   }
 
   // Publish to the graph that a new subscription is in town.
@@ -472,7 +473,8 @@ bool SubscriptionData::init()
   if (is_buffer_aware_) {
     RMW_ZENOH_LOG_INFO_NAMED(
       "rmw_zenoh_cpp",
-      "[Subscription] Initialized buffer-aware subscription, base key: '%s' (endpoints created dynamically)",
+      "[Subscription] Initialized buffer-aware subscription, "
+      "base key: '%s' (endpoints created dynamically)",
       entity_->topic_info()->topic_keyexpr_.c_str());
   } else {
     RMW_ZENOH_LOG_INFO_NAMED(
@@ -922,8 +924,9 @@ rmw_ret_t SubscriptionData::take_one_message(
   // Object that manages the raw buffer
   // FastCDR needs extra space for internal operations during deserialization
   // Allocate a larger buffer and copy the payload data
-  // TODO(): Use the actual serialized size of the message instead of a conservative estimate
-  size_t buffer_size = payload_data.size() * 4 + 65536;  // 4x + 64KB safety margin (very conservative)
+  // TODO(wjwwood): Use actual serialized message size instead of conservative estimate
+  size_t buffer_size =
+    payload_data.size() * 4 + 65536;  // 4x + 64KB safety margin
   rcutils_allocator_t * allocator = &rmw_node_->context->options.allocator;
   void * buffer_data = allocator->allocate(buffer_size, allocator->state);
   if (buffer_data == nullptr) {
