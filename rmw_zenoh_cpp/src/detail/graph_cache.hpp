@@ -195,7 +195,8 @@ public:
   /// Remove all qos event callbacks for an entity.
   void remove_qos_event_callbacks(std::size_t entity_gid_hash);
 
-  /// Register a callback for when a subscriber is discovered on a topic (for Buffer-aware publishers).
+  /// Register a callback for when a subscriber is discovered on a topic
+  /// (for Buffer-aware publishers).
   /// @param topic_name The topic name to monitor
   /// @param publisher_gid_hash The gid hash of the publisher registering the callback
   /// @param callback The callback function to invoke when a subscriber is discovered
@@ -204,7 +205,8 @@ public:
     std::size_t publisher_gid_hash,
     EntityDiscoveryCallback callback);
 
-  /// Register a callback for when a publisher is discovered on a topic (for Buffer-aware subscribers).
+  /// Register a callback for when a publisher is discovered on a topic
+  /// (for Buffer-aware subscribers).
   /// @param topic_name The topic name to monitor
   /// @param subscriber_gid_hash The gid hash of the subscriber registering the callback
   /// @param callback The callback function to invoke when a publisher is discovered

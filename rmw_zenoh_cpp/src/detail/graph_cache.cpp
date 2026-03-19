@@ -217,7 +217,8 @@ void GraphCache::update_topic_map_for_put(
       // New subscriber added - trigger subscriber discovery callbacks (notify publishers)
       RMW_ZENOH_LOG_INFO_NAMED(
         "rmw_zenoh_cpp",
-        "[GraphCache] New subscriber added for topic '%s', triggering subscriber discovery callbacks",
+        "[GraphCache] New subscriber added for topic '%s', "
+        "triggering subscriber discovery callbacks",
         graph_topic_data->info_.name_.c_str());
       if (subscriber_discovery_callbacks_.count(graph_topic_data->info_.name_)) {
         for (const auto & [gid_hash,
@@ -1416,7 +1417,8 @@ void GraphCache::register_subscriber_discovery_callback(
             if (subscriber_discovery_callbacks_[topic_name].count(publisher_gid_hash)) {
               RMW_ZENOH_LOG_INFO_NAMED(
                 "rmw_zenoh_cpp",
-                "[GraphCache] Triggering callback for existing subscriber #%d type=%d node='%s' ns='%s' keyexpr='%s'",
+                "[GraphCache] Triggering callback for existing "
+                "subscriber #%d type=%d node='%s' ns='%s' keyexpr='%s'",
                 existing_subs_count,
                 static_cast<int>(entity_ptr->type()),
                 entity_ptr->node_name().c_str(),
