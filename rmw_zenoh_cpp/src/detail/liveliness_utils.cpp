@@ -80,12 +80,12 @@ TopicInfo::TopicInfo(
   std::string type,
   std::string type_hash,
   rmw_qos_profile_t qos,
-  std::optional<std::unordered_map<std::string, std::string>> backend_aux_info)
+  std::optional<std::unordered_map<std::string, std::string>> backend_metadata)
 : name_(std::move(name)),
   type_(std::move(type)),
   type_hash_(std::move(type_hash)),
   qos_(std::move(qos)),
-  backend_aux_info_(std::move(backend_aux_info))
+  backend_metadata_(std::move(backend_metadata))
 {
   topic_keyexpr_ = std::to_string(domain_id);
   topic_keyexpr_ += "/";
@@ -527,11 +527,11 @@ Entity::Entity(
     keyexpr_parts[KeyexprIndex::TopicTypeHash] = mangle_name(topic_info.type_hash_);
     keyexpr_parts[KeyexprIndex::TopicQoS] = qos_to_keyexpr(topic_info.qos_);
 
-    // Add backend aux info if present (only for Buffer message types)
-    if (topic_info.backend_aux_info_.has_value() && !topic_info.backend_aux_info_.value().empty()) {
+    // Add backend metadata if present (only for Buffer message types)
+    if (topic_info.backend_metadata_.has_value() && !topic_info.backend_metadata_.value().empty()) {
       std::vector<std::string> backend_names;
-      backend_names.reserve(topic_info.backend_aux_info_->size());
-      for (const auto & pair : topic_info.backend_aux_info_.value()) {
+      backend_names.reserve(topic_info.backend_metadata_->size());
+      for (const auto & pair : topic_info.backend_metadata_.value()) {
         backend_names.push_back(pair.first);
       }
       std::sort(backend_names.begin(), backend_names.end());
@@ -539,10 +539,10 @@ Entity::Entity(
       std::string backends_str = "backends:";
       for (size_t i = 0; i < backend_names.size(); ++i) {
         const auto & name = backend_names[i];
-        const auto & aux = topic_info.backend_aux_info_.value().at(name);
+        const auto & metadata = topic_info.backend_metadata_.value().at(name);
         backends_str += escape_backend_field(name);
         backends_str += ":";
-        backends_str += escape_backend_field(aux);
+        backends_str += escape_backend_field(metadata);
         if (i + 1 < backend_names.size()) {
           backends_str += ";";
         }
@@ -685,12 +685,12 @@ std::shared_ptr<Entity> Entity::make(const std::string & keyexpr)
     }
 
     // Parse optional backends field (only present for Buffer message types)
-    std::optional<std::unordered_map<std::string, std::string>> backend_aux_info = std::nullopt;
+    std::optional<std::unordered_map<std::string, std::string>> backend_metadata = std::nullopt;
     if (parts.size() > KeyexprIndex::TopicQoS + 1 &&
       !parts[KeyexprIndex::Backends].empty() &&
       parts[KeyexprIndex::Backends].rfind("backends:", 0) == 0)
     {
-      // Parse backend list: "backends:cuda:aux;cpu:" -> map
+      // Parse backend list: "backends:cuda:metadata;cpu:" -> map
       std::string backends_str = parts[KeyexprIndex::Backends].substr(9);  // Skip "backends:"
       if (!backends_str.empty()) {
         std::unordered_map<std::string, std::string> parsed;
@@ -702,11 +702,11 @@ std::shared_ptr<Entity> Entity::make(const std::string & keyexpr)
           if (!entry.empty()) {
             size_t colon = entry.find(':');
             std::string name = entry.substr(0, colon);
-            std::string aux = (colon == std::string::npos) ? "" : entry.substr(colon + 1);
+            std::string metadata = (colon == std::string::npos) ? "" : entry.substr(colon + 1);
             name = unescape_backend_field(name);
-            aux = unescape_backend_field(aux);
+            metadata = unescape_backend_field(metadata);
             if (!name.empty()) {
-              parsed[name] = aux;
+              parsed[name] = metadata;
             }
           }
           if (sep == std::string::npos) {
@@ -715,7 +715,7 @@ std::shared_ptr<Entity> Entity::make(const std::string & keyexpr)
           start = sep + 1;
         }
         if (!parsed.empty()) {
-          backend_aux_info = std::move(parsed);
+          backend_metadata = std::move(parsed);
         }
       }
     }
@@ -726,7 +726,7 @@ std::shared_ptr<Entity> Entity::make(const std::string & keyexpr)
       demangle_name(std::move(parts[KeyexprIndex::TopicType])),
       demangle_name(std::move(parts[KeyexprIndex::TopicTypeHash])),
       std::move(qos.value()),
-      std::move(backend_aux_info)
+      std::move(backend_metadata)
     };
   }
 
