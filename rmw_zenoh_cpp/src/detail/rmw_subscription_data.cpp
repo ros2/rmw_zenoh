@@ -143,7 +143,7 @@ std::shared_ptr<SubscriptionData> SubscriptionData::make(
   if (is_buffer_aware) {
     auto & backend_registry = rosidl_buffer_backend_registry::BufferBackendRegistry::get_instance();
     auto all_installed = backend_registry.get_backend_types();
-    auto all_aux_info = backend_registry.get_all_aux_info();
+    auto all_backend_metadata = backend_registry.get_all_backend_metadata();
 
     const char * requested = sub_options.acceptable_buffer_backends;
 
@@ -177,7 +177,7 @@ std::shared_ptr<SubscriptionData> SubscriptionData::make(
 
     if (use_all) {
       my_backend_types = all_installed;
-      backend_types = all_aux_info;
+      backend_types = all_backend_metadata;
 
       RMW_ZENOH_LOG_DEBUG_NAMED(
         "rmw_zenoh_cpp",
@@ -217,19 +217,19 @@ std::shared_ptr<SubscriptionData> SubscriptionData::make(
         }
       }
 
-      // Filter: only include requested backends and collect their aux info
-      std::unordered_map<std::string, std::string> filtered_aux_info;
+      // Filter: only include requested backends and collect their backend metadata
+      std::unordered_map<std::string, std::string> filtered_backend_metadata;
       for (const auto & name : requested_list) {
         if (name == "cpu") {
           continue;
         }
         my_backend_types.push_back(name);
-        auto aux_it = all_aux_info.find(name);
-        if (aux_it != all_aux_info.end()) {
-          filtered_aux_info[name] = aux_it->second;
+        auto meta_it = all_backend_metadata.find(name);
+        if (meta_it != all_backend_metadata.end()) {
+          filtered_backend_metadata[name] = meta_it->second;
         }
       }
-      backend_types = filtered_aux_info;
+      backend_types = filtered_backend_metadata;
 
       RMW_ZENOH_LOG_DEBUG_NAMED(
         "rmw_zenoh_cpp",
@@ -555,12 +555,12 @@ void SubscriptionData::on_publisher_discovered(const liveliness::Entity & entity
     return;
   }
 
-  std::unordered_map<std::string, std::string> pub_backend_aux_info;
+  std::unordered_map<std::string, std::string> pub_backend_metadata;
   std::vector<std::string> pub_backends;
-  if (topic_info->backend_aux_info_.has_value() && !topic_info->backend_aux_info_->empty()) {
-    pub_backend_aux_info = topic_info->backend_aux_info_.value();
-    pub_backends.reserve(pub_backend_aux_info.size() + 1);
-    for (const auto & pair : pub_backend_aux_info) {
+  if (topic_info->backend_metadata_.has_value() && !topic_info->backend_metadata_->empty()) {
+    pub_backend_metadata = topic_info->backend_metadata_.value();
+    pub_backends.reserve(pub_backend_metadata.size() + 1);
+    for (const auto & pair : pub_backend_metadata) {
       pub_backends.push_back(pair.first);
     }
   }
@@ -641,7 +641,7 @@ void SubscriptionData::on_publisher_discovered(const liveliness::Entity & entity
   std::unordered_map<std::string, std::vector<std::set<uint32_t>>> backend_groups;
   rosidl_buffer_backend_registry::BufferBackendRegistry::get_instance().notify_endpoint_discovered(
     pub_endpoint_info.info, existing_endpoints, backend_endpoint_groups,
-    pub_backend_aux_info);
+    pub_backend_metadata);
 
   std::shared_ptr<SubscriptionEndpoint> new_endpoint;
   if (need_create_endpoint) {
@@ -665,7 +665,7 @@ void SubscriptionData::on_publisher_discovered(const liveliness::Entity & entity
     pub_info.gid = pub_gid;
     pub_info.endpoint_key = full_key;
     pub_info.endpoint_info = std::move(pub_endpoint_info);
-    pub_info.backend_aux_info = pub_backend_aux_info;
+    pub_info.backend_metadata = pub_backend_metadata;
     pub_info.backend_groups = std::move(backend_groups);
     discovered_publishers_.push_back(std::move(pub_info));
   }

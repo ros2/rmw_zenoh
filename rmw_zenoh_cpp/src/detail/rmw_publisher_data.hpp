@@ -102,7 +102,7 @@ private:
     rmw_gid_t gid;
     std::string endpoint_key;
     EndpointInfoStorage endpoint_info;
-    std::unordered_map<std::string, std::string> backend_aux_info;
+    std::unordered_map<std::string, std::string> backend_metadata;
     std::unordered_map<std::string, std::vector<std::set<uint32_t>>> backend_groups;
   };
 
@@ -125,7 +125,7 @@ private:
     const void * type_support_impl,
     std::unique_ptr<MessageTypeSupport> type_support,
     bool is_buffer_aware,
-    std::unordered_map<std::string, std::string> backend_aux_info);
+    std::unordered_map<std::string, std::string> backend_metadata);
 
   // Discovery callback for Buffer-aware publishers
   void on_subscriber_discovered(const liveliness::Entity & entity);
@@ -167,7 +167,7 @@ private:
 
   // Buffer-aware publisher fields
   bool is_buffer_aware_;
-  std::unordered_map<std::string, std::string> backend_aux_info_;
+  std::unordered_map<std::string, std::string> backend_metadata_;
   // For simple publishers: endpoints_ contains only base endpoint
   // For buffer-aware: multiple endpoints based on discovered subscribers
   std::unordered_map<std::string, std::shared_ptr<PublisherEndpoint>> endpoints_;

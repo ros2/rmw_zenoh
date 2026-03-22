@@ -130,14 +130,14 @@ std::shared_ptr<PublisherData> PublisherData::make(
     "type name '%s', has_buffer_fields: '%d'",
     topic_name.c_str(), message_type_support->get_name(), has_buffer_fields);
 
-  // Get installed backends info if message type has Buffer fields
-  std::unordered_map<std::string, std::string> backend_aux_info;
+  // Get installed backends metadata if message type has Buffer fields
+  std::unordered_map<std::string, std::string> backend_metadata;
   if (has_buffer_fields) {
-    backend_aux_info =
-      rosidl_buffer_backend_registry::BufferBackendRegistry::get_instance().get_all_aux_info();
+    backend_metadata =
+      rosidl_buffer_backend_registry::BufferBackendRegistry::get_instance().get_all_backend_metadata();
     // CPU serialization is always implicitly supported by buffer-aware publishers.
-    if (backend_aux_info.find("cpu") == backend_aux_info.end()) {
-      backend_aux_info["cpu"] = "";
+    if (backend_metadata.find("cpu") == backend_metadata.end()) {
+      backend_metadata["cpu"] = "";
     }
   }
 
@@ -170,7 +170,7 @@ std::shared_ptr<PublisherData> PublisherData::make(
       message_type_support->get_name(),
       type_hash_c_str,
       adapted_qos_profile,
-      has_buffer_fields ? std::make_optional(backend_aux_info) : std::nullopt}
+      has_buffer_fields ? std::make_optional(backend_metadata) : std::nullopt}
   );
   if (entity == nullptr) {
     RMW_ZENOH_LOG_ERROR_NAMED(
@@ -250,7 +250,7 @@ std::shared_ptr<PublisherData> PublisherData::make(
       type_support->data,
       std::move(message_type_support),
       has_buffer_fields,
-      backend_aux_info
+      backend_metadata
     });
 
   if (has_buffer_fields) {
@@ -298,7 +298,7 @@ PublisherData::PublisherData(
   const void * type_support_impl,
   std::unique_ptr<MessageTypeSupport> type_support,
   bool is_buffer_aware,
-  std::unordered_map<std::string, std::string> backend_aux_info)
+  std::unordered_map<std::string, std::string> backend_metadata)
 : rmw_publisher_(rmw_publisher),
   rmw_node_(rmw_node),
   entity_(std::move(entity)),
@@ -310,7 +310,7 @@ PublisherData::PublisherData(
   sequence_number_(1),
   is_shutdown_(false),
   is_buffer_aware_(is_buffer_aware),
-  backend_aux_info_(std::move(backend_aux_info))
+  backend_metadata_(std::move(backend_metadata))
 {
   events_mgr_ = std::make_shared<EventsManager>();
 
@@ -764,9 +764,9 @@ void PublisherData::on_subscriber_discovered(const liveliness::Entity & entity)
     return;
   }
 
-  std::unordered_map<std::string, std::string> sub_backend_aux_info;
-  if (topic_info_opt->backend_aux_info_.has_value()) {
-    sub_backend_aux_info = topic_info_opt->backend_aux_info_.value();
+  std::unordered_map<std::string, std::string> sub_backend_metadata;
+  if (topic_info_opt->backend_metadata_.has_value()) {
+    sub_backend_metadata = topic_info_opt->backend_metadata_.value();
   }
 
   auto gid = entity_gid_to_rmw_gid(entity, rmw_zenoh_identifier);
@@ -830,7 +830,7 @@ void PublisherData::on_subscriber_discovered(const liveliness::Entity & entity)
   std::unordered_map<std::string, std::vector<std::set<uint32_t>>> backend_groups;
   rosidl_buffer_backend_registry::BufferBackendRegistry::get_instance().notify_endpoint_discovered(
     sub_endpoint_info.info, existing_endpoints, backend_endpoint_groups,
-    sub_backend_aux_info);
+    sub_backend_metadata);
 
   std::shared_ptr<PublisherEndpoint> new_endpoint;
   if (need_create_endpoint) {
@@ -854,7 +854,7 @@ void PublisherData::on_subscriber_discovered(const liveliness::Entity & entity)
     sub_info.gid = gid;
     sub_info.endpoint_key = full_key;
     sub_info.endpoint_info = std::move(sub_endpoint_info);
-    sub_info.backend_aux_info = sub_backend_aux_info;
+    sub_info.backend_metadata = sub_backend_metadata;
     sub_info.backend_groups = std::move(backend_groups);
     discovered_subscribers_.push_back(std::move(sub_info));
 
