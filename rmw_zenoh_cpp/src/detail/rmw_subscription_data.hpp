@@ -15,6 +15,7 @@
 #ifndef DETAIL__RMW_SUBSCRIPTION_DATA_HPP_
 #define DETAIL__RMW_SUBSCRIPTION_DATA_HPP_
 
+#include <atomic>
 #include <condition_variable>
 #include <cstddef>
 #include <cstdint>
@@ -152,6 +153,8 @@ private:
   std::deque<std::unique_ptr<Message>> message_queue_;
   // Map GID of a subscription to the sequence number of the message it published.
   std::unordered_map<size_t, int64_t> last_known_published_msg_;
+  // Per-subscriber reception sequence number counter, incremented on every take.
+  std::atomic<uint64_t> reception_sn_;
   // Wait set data.
   rmw_wait_set_data_t * wait_set_data_;
   // Callback managers.
