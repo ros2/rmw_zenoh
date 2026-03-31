@@ -1001,6 +1001,7 @@ rmw_create_subscription(
   rmw_subscription->options = *subscription_options;
   rmw_subscription->can_loan_messages = false;
   rmw_subscription->is_cft_enabled = false;
+  rmw_subscription->is_cft_supported = false;
   rmw_subscription->topic_name = rcutils_strdup(topic_name, *allocator);
   RMW_CHECK_FOR_NULL_WITH_MSG(
     rmw_subscription->topic_name,
