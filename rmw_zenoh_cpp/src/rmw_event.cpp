@@ -73,11 +73,13 @@ rmw_publisher_event_init(
   rmw_event->data = pub_data->events_mgr().get();
   rmw_event->event_type = event_type;
 
-  // Publisher events without a graph-level trigger don't need graph cache registration.
+  // Deadline and liveliness are not yet implemented in Zenoh; signal UNSUPPORTED so that
+  // callers (e.g. rcl tests) that guard on the init return value skip gracefully.
   if (zenoh_event_type == rmw_zenoh_cpp::ZENOH_EVENT_LIVELINESS_LOST ||
     zenoh_event_type == rmw_zenoh_cpp::ZENOH_EVENT_OFFERED_DEADLINE_MISSED)
   {
-    return RMW_RET_OK;
+    RMW_SET_ERROR_MSG("deadline and liveliness events are not yet implemented in rmw_zenoh_cpp");
+    return RMW_RET_UNSUPPORTED;
   }
 
   // Register the event with graph cache.
