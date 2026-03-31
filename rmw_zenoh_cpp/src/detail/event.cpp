@@ -249,11 +249,16 @@ void EventsManager::notify_event(rmw_zenoh_event_type_t event_id)
     return;
   }
 
-  std::lock_guard<std::mutex> lock(event_condition_mutex_);
-  if (wait_set_data_[event_id] != nullptr) {
-    std::lock_guard<std::mutex> wait_set_lock(wait_set_data_[event_id]->condition_mutex);
-    wait_set_data_[event_id]->triggered = true;
-    wait_set_data_[event_id]->condition_variable.notify_one();
+  // Make sure to not lock both event_mutex_ and event_condition_mutex_ at the same time to avoid deadlocks. We can
+  rmw_wait_set_data_t* wait_set_data = nullptr;
+  {
+    std::lock_guard<std::mutex> lock(event_condition_mutex_);
+    wait_set_data = wait_set_data_[event_id];
+  }
+  if (wait_set_data != nullptr) {
+    std::lock_guard<std::mutex> wait_set_lock(wait_set_data->condition_mutex);
+    wait_set_data->triggered = true;
+    wait_set_data->condition_variable.notify_one();
   }
 }
 }  // namespace rmw_zenoh_cpp
