@@ -417,9 +417,14 @@ bool SubscriptionData::init()
     }
   }
 
-  // SIMPLE PATH: Create base subscription immediately (non-Buffer messages)
-  // COMPLEX PATH: Wait for publisher discovery before creating subscriptions (Buffer messages)
-  if (!is_buffer_aware_) {
+  // Always create the base key subscription.  For non-buffer-aware messages
+  // this is the only subscription.  For buffer-aware messages this acts as a
+  // fallback so the subscriber can still receive standard-serialized data from
+  // legacy publishers or when the publisher detects mixed (legacy + buffer)
+  // subscribers and falls back to base-key-only publishing.
+  // Additional per-publisher endpoint subscriptions for buffer-aware messages
+  // are created dynamically in on_publisher_discovered().
+  {
     std::weak_ptr<SubscriptionData> data_wp = shared_from_this();
     auto on_sample = [data_wp](const zenoh::Sample & sample) {
         auto sub_data = data_wp.lock();
@@ -459,12 +464,6 @@ bool SubscriptionData::init()
       RMW_SET_ERROR_MSG("unable to create zenoh subscription");
       return false;
     }
-  } else {
-    // Buffer-aware: subscriptions will be created dynamically in on_publisher_discovered
-    RMW_ZENOH_LOG_DEBUG_NAMED(
-      "rmw_zenoh_cpp",
-      "Buffer-aware subscription initialized without base subscription, "
-      "waiting for publisher discovery");
   }
 
   // Publish to the graph that a new subscription is in town.
@@ -971,17 +970,9 @@ rmw_ret_t SubscriptionData::take_one_message(
   bool deserialize_success = false;
 
   try {
-    if (is_buffer_aware_) {
-      // Use endpoint-aware deserialization for Buffer-aware subscriptions
-      RMW_ZENOH_LOG_INFO_NAMED(
-        "rmw_zenoh_cpp",
-        "[Subscription] Using endpoint-aware deserialization for buffer-aware message");
-
-      const rmw_topic_endpoint_info_t empty_endpoint_info =
-        rmw_get_zero_initialized_topic_endpoint_info();
-      const rmw_topic_endpoint_info_t & endpoint_info =
-        msg_data->endpoint_info.has_value() ? msg_data->endpoint_info->info : empty_endpoint_info;
-
+    if (msg_data->endpoint_info.has_value()) {
+      // Message arrived on a per-publisher endpoint key -- use endpoint-aware
+      // deserialization so vendor-backed buffer descriptors are resolved.
       rmw_context_impl_t * ctx_impl =
         static_cast<rmw_context_impl_t *>(rmw_node_->context->impl);
       auto * backend_ctx = ctx_impl->buffer_backend_context();
@@ -993,10 +984,10 @@ rmw_ret_t SubscriptionData::take_one_message(
         deser.get_cdr(),
         ros_message,
         type_support_impl_,
-        endpoint_info,
+        msg_data->endpoint_info->info,
         backend_ctx->serialization_context);
     } else {
-      // Simple path: standard deserialization
+      // Message arrived on the base key (legacy / standard serialization).
       deserialize_success = type_support_->deserialize_ros_message(
         deser.get_cdr(),
         ros_message,
