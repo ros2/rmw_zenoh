@@ -480,29 +480,25 @@ rmw_ret_t PublisherData::publish(
     return RMW_RET_ERROR;
   }
 
-  // Buffer-aware publishers: send endpoint-aware messages to per-subscriber
-  // endpoints, then conditionally fall through to the standard path to also
-  // publish on the base key.  Buffer-aware subscribers only listen on
-  // per-publisher key expressions, so the base publication only reaches
-  // non-buffer-aware subscribers (no duplicates).
-  //
-  // We only fall through when the total matched subscription count exceeds
-  // the number of discovered buffer-aware subscribers, meaning at least one
-  // non-buffer-aware subscriber exists.  This avoids an unnecessary CPU
-  // conversion (to_vector()) of vendor-backed buffer data on every publish.
+  // Buffer-aware publishing strategy (mirrors rmw_fastrtps):
+  //   - If ALL matched subscribers are buffer-aware, publish only to
+  //     per-subscriber endpoint keys (accelerated path).
+  //   - If ANY legacy (non-buffer-aware) subscriber exists, skip buffer
+  //     channels entirely and fall through to the standard base-key publish.
+  //     Buffer-aware subscribers also have a base-key subscription so they
+  //     will still receive the message via standard deserialization.
   if (is_buffer_aware_) {
-    rmw_ret_t buf_ret = publish_buffer_aware(ros_message, shm);
-    if (buf_ret != RMW_RET_OK) {
-      return buf_ret;
-    }
     size_t total_matched = 0;
     if (graph_cache_) {
       graph_cache_->publisher_count_matched_subscriptions(
         entity_->topic_info().value(), &total_matched);
     }
     if (total_matched <= discovered_subscribers_.size()) {
-      return RMW_RET_OK;
+      return publish_buffer_aware(ros_message, shm);
     }
+    // Legacy subscribers present -- fall through to standard serialization
+    // on the base key so every subscriber (buffer-aware and legacy) receives
+    // the message.
   }
 
   // Serialize data.
