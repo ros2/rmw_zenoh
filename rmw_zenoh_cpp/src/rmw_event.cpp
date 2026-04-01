@@ -194,8 +194,6 @@ rmw_event_set_callback(
 }
 
 ///=============================================================================
-<<<<<<< HEAD
-=======
 bool
 rmw_event_type_is_supported(rmw_event_type_t rmw_event_type)
 {
@@ -217,7 +215,6 @@ rmw_event_type_is_supported(rmw_event_type_t rmw_event_type)
 }
 
 ///=============================================================================
->>>>>>> aa7c17f (fix(event): add deadline/liveliness QoS events to rmw_zenoh_cpp (#934))
 rmw_ret_t
 rmw_take_event(
   const rmw_event_t * event_handle,
@@ -277,9 +274,6 @@ rmw_take_event(
         *taken = true;
         return RMW_RET_OK;
       }
-<<<<<<< HEAD
-    default: {
-=======
     case rmw_zenoh_cpp::ZENOH_EVENT_REQUESTED_DEADLINE_MISSED: {
         auto ei = static_cast<rmw_requested_deadline_missed_status_t *>(event_info);
         RMW_CHECK_ARGUMENT_FOR_NULL(ei, RMW_RET_INVALID_ARGUMENT);
@@ -315,7 +309,6 @@ rmw_take_event(
         return RMW_RET_OK;
       }
     case rmw_zenoh_cpp::ZENOH_EVENT_INVALID: {
->>>>>>> aa7c17f (fix(event): add deadline/liveliness QoS events to rmw_zenoh_cpp (#934))
         return RMW_RET_INVALID_ARGUMENT;
       }
   }

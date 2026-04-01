@@ -33,9 +33,6 @@ static const std::unordered_map<rmw_event_type_t, rmw_zenoh_cpp::rmw_zenoh_event
   {RMW_EVENT_REQUESTED_QOS_INCOMPATIBLE, rmw_zenoh_cpp::ZENOH_EVENT_REQUESTED_QOS_INCOMPATIBLE},
   {RMW_EVENT_OFFERED_QOS_INCOMPATIBLE, rmw_zenoh_cpp::ZENOH_EVENT_OFFERED_QOS_INCOMPATIBLE},
   {RMW_EVENT_MESSAGE_LOST, rmw_zenoh_cpp::ZENOH_EVENT_MESSAGE_LOST},
-<<<<<<< HEAD
-  // TODO(clalancette): Implement remaining events
-=======
   {RMW_EVENT_SUBSCRIPTION_MATCHED, rmw_zenoh_cpp::ZENOH_EVENT_SUBSCRIPTION_MATCHED},
   {RMW_EVENT_PUBLICATION_MATCHED, rmw_zenoh_cpp::ZENOH_EVENT_PUBLICATION_MATCHED},
   {RMW_EVENT_SUBSCRIPTION_INCOMPATIBLE_TYPE,
@@ -45,7 +42,6 @@ static const std::unordered_map<rmw_event_type_t, rmw_zenoh_cpp::rmw_zenoh_event
   {RMW_EVENT_LIVELINESS_LOST, rmw_zenoh_cpp::ZENOH_EVENT_LIVELINESS_LOST},
   {RMW_EVENT_REQUESTED_DEADLINE_MISSED, rmw_zenoh_cpp::ZENOH_EVENT_REQUESTED_DEADLINE_MISSED},
   {RMW_EVENT_OFFERED_DEADLINE_MISSED, rmw_zenoh_cpp::ZENOH_EVENT_OFFERED_DEADLINE_MISSED},
->>>>>>> aa7c17f (fix(event): add deadline/liveliness QoS events to rmw_zenoh_cpp (#934))
 };
 }  // namespace
 
