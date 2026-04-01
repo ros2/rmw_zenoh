@@ -114,7 +114,6 @@ NodeData::~NodeData()
 ///=============================================================================
 std::size_t NodeData::id() const
 {
-  std::lock_guard<std::recursive_mutex> lock(mutex_);
   return id_;
 }
 
@@ -127,8 +126,8 @@ bool NodeData::create_pub_data(
   const rosidl_message_type_support_t * type_support,
   const rmw_qos_profile_t * qos_profile)
 {
-  std::lock_guard<std::recursive_mutex> lock_guard(mutex_);
-  if (is_shutdown_) {
+  std::lock_guard<std::mutex> lock_guard(mutex_);
+  if (is_shutdown_.load(std::memory_order_acquire)) {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to create PublisherData as the NodeData has been shutdown.");
@@ -169,7 +168,7 @@ bool NodeData::create_pub_data(
 ///=============================================================================
 PublisherDataPtr NodeData::get_pub_data(const rmw_publisher_t * const publisher)
 {
-  std::lock_guard<std::recursive_mutex> lock_guard(mutex_);
+  std::lock_guard<std::mutex> lock_guard(mutex_);
   auto it = pubs_.find(publisher);
   if (it == pubs_.end()) {
     return nullptr;
@@ -181,7 +180,7 @@ PublisherDataPtr NodeData::get_pub_data(const rmw_publisher_t * const publisher)
 ///=============================================================================
 void NodeData::delete_pub_data(const rmw_publisher_t * const publisher)
 {
-  std::lock_guard<std::recursive_mutex> lock_guard(mutex_);
+  std::lock_guard<std::mutex> lock_guard(mutex_);
   pubs_.erase(publisher);
 }
 
@@ -196,8 +195,8 @@ bool NodeData::create_sub_data(
   const rmw_qos_profile_t * qos_profile,
   const rmw_subscription_options_t & sub_options)
 {
-  std::lock_guard<std::recursive_mutex> lock_guard(mutex_);
-  if (is_shutdown_) {
+  std::lock_guard<std::mutex> lock_guard(mutex_);
+  if (is_shutdown_.load(std::memory_order_acquire)) {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to create SubscriptionData as the NodeData has been shutdown.");
@@ -239,7 +238,7 @@ bool NodeData::create_sub_data(
 ///=============================================================================
 SubscriptionDataPtr NodeData::get_sub_data(const rmw_subscription_t * const subscription)
 {
-  std::lock_guard<std::recursive_mutex> lock_guard(mutex_);
+  std::lock_guard<std::mutex> lock_guard(mutex_);
   auto it = subs_.find(subscription);
   if (it == subs_.end()) {
     return nullptr;
@@ -251,7 +250,7 @@ SubscriptionDataPtr NodeData::get_sub_data(const rmw_subscription_t * const subs
 ///=============================================================================
 void NodeData::delete_sub_data(const rmw_subscription_t * const subscription)
 {
-  std::lock_guard<std::recursive_mutex> lock_guard(mutex_);
+  std::lock_guard<std::mutex> lock_guard(mutex_);
   subs_.erase(subscription);
 }
 
@@ -264,8 +263,8 @@ bool NodeData::create_service_data(
   const rosidl_service_type_support_t * type_supports,
   const rmw_qos_profile_t * qos_profile)
 {
-  std::lock_guard<std::recursive_mutex> lock_guard(mutex_);
-  if (is_shutdown_) {
+  std::lock_guard<std::mutex> lock_guard(mutex_);
+  if (is_shutdown_.load(std::memory_order_acquire)) {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to create ServiceData as the NodeData has been shutdown.");
@@ -306,7 +305,7 @@ bool NodeData::create_service_data(
 ///=============================================================================
 ServiceDataPtr NodeData::get_service_data(const rmw_service_t * const service)
 {
-  std::lock_guard<std::recursive_mutex> lock_guard(mutex_);
+  std::lock_guard<std::mutex> lock_guard(mutex_);
   auto it = services_.find(service);
   if (it == services_.end()) {
     return nullptr;
@@ -318,7 +317,7 @@ ServiceDataPtr NodeData::get_service_data(const rmw_service_t * const service)
 ///=============================================================================
 void NodeData::delete_service_data(const rmw_service_t * const service)
 {
-  std::lock_guard<std::recursive_mutex> lock_guard(mutex_);
+  std::lock_guard<std::mutex> lock_guard(mutex_);
   services_.erase(service);
 }
 
@@ -332,8 +331,8 @@ bool NodeData::create_client_data(
   const rosidl_service_type_support_t * type_supports,
   const rmw_qos_profile_t * qos_profile)
 {
-  std::lock_guard<std::recursive_mutex> lock_guard(mutex_);
-  if (is_shutdown_) {
+  std::lock_guard<std::mutex> lock_guard(mutex_);
+  if (is_shutdown_.load(std::memory_order_acquire)) {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to create ClientData as the NodeData has been shutdown.");
@@ -374,7 +373,7 @@ bool NodeData::create_client_data(
 ///=============================================================================
 ClientDataPtr NodeData::get_client_data(const rmw_client_t * const client)
 {
-  std::lock_guard<std::recursive_mutex> lock_guard(mutex_);
+  std::lock_guard<std::mutex> lock_guard(mutex_);
   auto it = clients_.find(client);
   if (it == clients_.end()) {
     return nullptr;
@@ -386,16 +385,18 @@ ClientDataPtr NodeData::get_client_data(const rmw_client_t * const client)
 ///=============================================================================
 void NodeData::delete_client_data(const rmw_client_t * const client)
 {
-  std::lock_guard<std::recursive_mutex> lock_guard(mutex_);
+  std::lock_guard<std::mutex> lock_guard(mutex_);
   clients_.erase(client);
 }
 
 ///=============================================================================
 rmw_ret_t NodeData::shutdown()
 {
-  std::lock_guard<std::recursive_mutex> lock(mutex_);
   rmw_ret_t ret = RMW_RET_OK;
-  if (is_shutdown_) {
+  bool expected = false;
+  if (!is_shutdown_.compare_exchange_strong(expected, true, std::memory_order_acq_rel,
+      std::memory_order_relaxed))
+  {
     return ret;
   }
 
@@ -409,7 +410,6 @@ rmw_ret_t NodeData::shutdown()
     return RMW_RET_ERROR;
   }
 
-  is_shutdown_ = true;
   return ret;
 }
 
@@ -417,8 +417,7 @@ rmw_ret_t NodeData::shutdown()
 // Check if the Node is shutdown.
 bool NodeData::is_shutdown() const
 {
-  std::lock_guard<std::recursive_mutex> lock(mutex_);
-  return is_shutdown_;
+  return is_shutdown_.load(std::memory_order_acquire);
 }
 
 }  // namespace rmw_zenoh_cpp
