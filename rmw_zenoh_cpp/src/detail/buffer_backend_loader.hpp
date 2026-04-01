@@ -15,19 +15,18 @@
 #ifndef DETAIL__BUFFER_BACKEND_LOADER_HPP_
 #define DETAIL__BUFFER_BACKEND_LOADER_HPP_
 
+#include "buffer_backend_context.hpp"
+
 namespace rmw_zenoh_cpp
 {
 
 /// Load buffer backend plugins and register them with FastCDR serialization.
-/// Populates the global BackendDescriptorOps and DescriptorSerializers maps
-/// in rosidl_typesupport_fastrtps_cpp so that buffer-aware message types can
-/// serialize/deserialize vendor-specific descriptors.
-void initialize_buffer_backends();
+/// Populates an RMW-context-local serialization map so multiple contexts in the
+/// same process do not share mutable global descriptor state.
+void initialize_buffer_backends(BufferBackendContext & context);
 
-/// Clear global serialization maps to release plugin references before unloading.
-/// Must be called before BufferBackendRegistry singleton is destroyed to prevent
-/// ClassLoader from trying to unload while objects still exist.
-void shutdown_buffer_backends();
+/// Clear context-local serialization maps.
+void shutdown_buffer_backends(BufferBackendContext & context);
 
 }  // namespace rmw_zenoh_cpp
 

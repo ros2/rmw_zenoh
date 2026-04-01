@@ -146,28 +146,26 @@ bool TypeSupport::serialize_ros_message_with_endpoint(
   const void * ros_message,
   eprosima::fastcdr::Cdr & ser,
   const void * impl,
-  const rmw_topic_endpoint_info_t & endpoint_info) const
+  const rmw_topic_endpoint_info_t & endpoint_info,
+  const rosidl_typesupport_fastrtps_cpp::BufferSerializationContext &
+  serialization_context) const
 {
   assert(ros_message);
   assert(impl);
 
-  // Serialize encapsulation
   ser.serialize_encapsulation();
 
-  // If type is not empty, serialize message
   if (has_data_) {
     auto callbacks = static_cast<const message_type_support_callbacks_t *>(impl);
 
-    // Use endpoint-aware serialization if available (for messages with Buffer fields)
     if (callbacks->cdr_serialize_with_endpoint) {
-      return callbacks->cdr_serialize_with_endpoint(ros_message, ser, endpoint_info);
+      return callbacks->cdr_serialize_with_endpoint(
+        ros_message, ser, endpoint_info, serialization_context);
     } else {
-      // Fall back to regular serialization for messages without Buffer fields
       return callbacks->cdr_serialize(ros_message, ser);
     }
   }
 
-  // Otherwise, add a dummy byte
   ser << (uint8_t)0;
   return true;
 }
@@ -177,29 +175,27 @@ bool TypeSupport::deserialize_ros_message_with_endpoint(
   eprosima::fastcdr::Cdr & deser,
   void * ros_message,
   const void * impl,
-  const rmw_topic_endpoint_info_t & endpoint_info) const
+  const rmw_topic_endpoint_info_t & endpoint_info,
+  const rosidl_typesupport_fastrtps_cpp::BufferSerializationContext &
+  serialization_context) const
 {
   assert(ros_message);
   assert(impl);
 
   try {
-    // Deserialize encapsulation.
     deser.read_encapsulation();
 
-    // If type is not empty, deserialize message
     if (has_data_) {
       auto callbacks = static_cast<const message_type_support_callbacks_t *>(impl);
 
-      // Use endpoint-aware deserialization if available (for messages with Buffer fields)
       if (callbacks->cdr_deserialize_with_endpoint) {
-        return callbacks->cdr_deserialize_with_endpoint(deser, ros_message, endpoint_info);
+        return callbacks->cdr_deserialize_with_endpoint(
+          deser, ros_message, endpoint_info, serialization_context);
       } else {
-        // Fall back to regular deserialization for messages without Buffer fields
         return callbacks->cdr_deserialize(deser, ros_message);
       }
     }
 
-    // Otherwise, consume dummy byte
     uint8_t dump = 0;
     deser >> dump;
     (void)dump;

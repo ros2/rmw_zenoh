@@ -31,7 +31,8 @@
 #include "attachment_helpers.hpp"
 #include "cdr.hpp"
 
-#include "rosidl_buffer_backend_registry/buffer_backend_registry.hpp"
+#include "rosidl_buffer_backend_registry/backend_utils.hpp"
+#include "buffer_backend_context.hpp"
 #include "identifier.hpp"
 #include "rmw_context_impl_s.hpp"
 #include "message_type_support.hpp"
@@ -138,12 +139,20 @@ std::shared_ptr<SubscriptionData> SubscriptionData::make(
     topic_name.c_str(), has_buffer_fields, is_buffer_aware);
 
   // Query and filter installed backends based on acceptable_buffer_backends option
+  rmw_context_impl_t * context_impl = static_cast<rmw_context_impl_t *>(node->context->impl);
   std::optional<std::unordered_map<std::string, std::string>> backend_types = std::nullopt;
   std::vector<std::string> my_backend_types;
   if (is_buffer_aware) {
-    auto & backend_registry = rosidl_buffer_backend_registry::BufferBackendRegistry::get_instance();
-    auto all_installed = backend_registry.get_backend_types();
-    auto all_backend_metadata = backend_registry.get_all_backend_metadata();
+    auto * backend_ctx = context_impl->buffer_backend_context();
+    std::vector<std::string> all_installed;
+    std::unordered_map<std::string, std::string> all_backend_metadata;
+    if (backend_ctx) {
+      for (const auto & [name, _] : backend_ctx->backend_instances) {
+        all_installed.push_back(name);
+      }
+      all_backend_metadata = rosidl_buffer_backend_registry::get_all_backend_metadata(
+        backend_ctx->backend_instances);
+    }
 
     const char * requested = sub_options.acceptable_buffer_backends;
 
@@ -296,8 +305,11 @@ std::shared_ptr<SubscriptionData> SubscriptionData::make(
     sub_data->local_endpoint_info_ =
       build_endpoint_info_from_entity(*sub_data->entity_, RMW_ENDPOINT_SUBSCRIPTION);
 
-    rosidl_buffer_backend_registry::BufferBackendRegistry::get_instance().notify_endpoint_created(
-      sub_data->local_endpoint_info_.info);
+    auto * backend_ctx = context_impl->buffer_backend_context();
+    if (backend_ctx) {
+      rosidl_buffer_backend_registry::notify_endpoint_created(
+        backend_ctx->backend_instances, sub_data->local_endpoint_info_.info);
+    }
   }
 
   if (!sub_data->init()) {
@@ -567,7 +579,7 @@ void SubscriptionData::on_publisher_discovered(const liveliness::Entity & entity
   // CPU serialization is always implicitly supported by all buffer-aware publishers
   pub_backends.push_back("cpu");
 
-  if (!rosidl_buffer_backend_registry::BufferBackendRegistry::backends_compatible(
+  if (!rosidl_buffer_backend_registry::backends_compatible(
       my_backend_types_, pub_backends))
   {
     RMW_ZENOH_ROSIDL_BUFFER_LOG_INFO_NAMED(
@@ -639,9 +651,16 @@ void SubscriptionData::on_publisher_discovered(const liveliness::Entity & entity
 
   // Phase 2: external operations without lock
   std::unordered_map<std::string, std::vector<std::set<uint32_t>>> backend_groups;
-  rosidl_buffer_backend_registry::BufferBackendRegistry::get_instance().notify_endpoint_discovered(
-    pub_endpoint_info.info, existing_endpoints, backend_endpoint_groups,
-    pub_backend_metadata);
+  {
+    rmw_context_impl_t * ctx_impl = static_cast<rmw_context_impl_t *>(rmw_node_->context->impl);
+    auto * backend_ctx = ctx_impl->buffer_backend_context();
+    if (backend_ctx) {
+      (void)rosidl_buffer_backend_registry::notify_endpoint_discovered(
+        backend_ctx->backend_instances,
+        pub_endpoint_info.info, existing_endpoints, backend_endpoint_groups,
+        pub_backend_metadata);
+    }
+  }
 
   std::shared_ptr<SubscriptionEndpoint> new_endpoint;
   if (need_create_endpoint) {
@@ -963,11 +982,19 @@ rmw_ret_t SubscriptionData::take_one_message(
       const rmw_topic_endpoint_info_t & endpoint_info =
         msg_data->endpoint_info.has_value() ? msg_data->endpoint_info->info : empty_endpoint_info;
 
+      rmw_context_impl_t * ctx_impl =
+        static_cast<rmw_context_impl_t *>(rmw_node_->context->impl);
+      auto * backend_ctx = ctx_impl->buffer_backend_context();
+      if (!backend_ctx) {
+        RMW_SET_ERROR_MSG("Buffer-aware deserialize missing buffer backend context");
+        return RMW_RET_ERROR;
+      }
       deserialize_success = type_support_->deserialize_ros_message_with_endpoint(
         deser.get_cdr(),
         ros_message,
         type_support_impl_,
-        endpoint_info);
+        endpoint_info,
+        backend_ctx->serialization_context);
     } else {
       // Simple path: standard deserialization
       deserialize_success = type_support_->deserialize_ros_message(
