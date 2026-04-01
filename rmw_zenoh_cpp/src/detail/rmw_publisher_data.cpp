@@ -32,7 +32,8 @@
 
 #include "cdr.hpp"
 
-#include "rosidl_buffer_backend_registry/buffer_backend_registry.hpp"
+#include "rosidl_buffer_backend_registry/backend_utils.hpp"
+#include "buffer_backend_context.hpp"
 #include "identifier.hpp"
 #include "rmw_context_impl_s.hpp"
 #include "message_type_support.hpp"
@@ -131,10 +132,14 @@ std::shared_ptr<PublisherData> PublisherData::make(
     topic_name.c_str(), message_type_support->get_name(), has_buffer_fields);
 
   // Get installed backends metadata if message type has Buffer fields
+  rmw_context_impl_t * context_impl = static_cast<rmw_context_impl_t *>(node->context->impl);
   std::unordered_map<std::string, std::string> backend_metadata;
   if (has_buffer_fields) {
-    backend_metadata =
-      rosidl_buffer_backend_registry::BufferBackendRegistry::get_instance().get_all_backend_metadata();
+    auto * backend_ctx = context_impl->buffer_backend_context();
+    if (backend_ctx) {
+      backend_metadata = rosidl_buffer_backend_registry::get_all_backend_metadata(
+        backend_ctx->backend_instances);
+    }
     // CPU serialization is always implicitly supported by buffer-aware publishers.
     if (backend_metadata.find("cpu") == backend_metadata.end()) {
       backend_metadata["cpu"] = "";
@@ -257,12 +262,12 @@ std::shared_ptr<PublisherData> PublisherData::make(
     pub_data->local_endpoint_info_ =
       build_endpoint_info_from_entity(*pub_data->entity_, RMW_ENDPOINT_PUBLISHER);
 
-    // Inform backends AFTER the GID is properly set
-    rosidl_buffer_backend_registry::BufferBackendRegistry::get_instance().notify_endpoint_created(
-      pub_data->local_endpoint_info_.info);
+    auto * backend_ctx = context_impl->buffer_backend_context();
+    if (backend_ctx) {
+      rosidl_buffer_backend_registry::notify_endpoint_created(
+        backend_ctx->backend_instances, pub_data->local_endpoint_info_.info);
+    }
   }
-
-  rmw_context_impl_t * context_impl = static_cast<rmw_context_impl_t *>(node->context->impl);
 
   // Register discovery callback for Buffer-aware publishers
   if (has_buffer_fields) {
@@ -332,6 +337,13 @@ rmw_ret_t PublisherData::publish_buffer_aware(
 {
   (void)shm;  // SHM not currently used for buffer-aware publishing
 
+  rmw_context_impl_t * ctx_impl = static_cast<rmw_context_impl_t *>(rmw_node_->context->impl);
+  auto * backend_ctx = ctx_impl->buffer_backend_context();
+  if (!backend_ctx) {
+    RMW_SET_ERROR_MSG("Buffer-aware publish missing buffer backend context");
+    return RMW_RET_ERROR;
+  }
+
   RMW_ZENOH_ROSIDL_BUFFER_LOG_INFO_NAMED(
     "rmw_zenoh_cpp",
     "[Publisher] Publishing buffer-aware message for topic '%s' (message type: %s)",
@@ -388,7 +400,8 @@ rmw_ret_t PublisherData::publish_buffer_aware(
     rmw_zenoh_cpp::Cdr ser(fastbuffer);
 
     bool ok = type_support_->serialize_ros_message_with_endpoint(
-      ros_message, ser.get_cdr(), type_support_impl_, sub.endpoint_info.info);
+      ros_message, ser.get_cdr(), type_support_impl_, sub.endpoint_info.info,
+      backend_ctx->serialization_context);
     if (!ok) {
       RMW_SET_ERROR_MSG("could not serialize ROS message with endpoint awareness");
       return RMW_RET_ERROR;
@@ -828,9 +841,16 @@ void PublisherData::on_subscriber_discovered(const liveliness::Entity & entity)
 
   // Phase 2: external operations without lock
   std::unordered_map<std::string, std::vector<std::set<uint32_t>>> backend_groups;
-  rosidl_buffer_backend_registry::BufferBackendRegistry::get_instance().notify_endpoint_discovered(
-    sub_endpoint_info.info, existing_endpoints, backend_endpoint_groups,
-    sub_backend_metadata);
+  {
+    rmw_context_impl_t * ctx_impl = static_cast<rmw_context_impl_t *>(rmw_node_->context->impl);
+    auto * backend_ctx = ctx_impl->buffer_backend_context();
+    if (backend_ctx) {
+      (void)rosidl_buffer_backend_registry::notify_endpoint_discovered(
+        backend_ctx->backend_instances,
+        sub_endpoint_info.info, existing_endpoints, backend_endpoint_groups,
+        sub_backend_metadata);
+    }
+  }
 
   std::shared_ptr<PublisherEndpoint> new_endpoint;
   if (need_create_endpoint) {
