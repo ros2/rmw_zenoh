@@ -74,8 +74,9 @@ public:
   {
     rmw_ret_t ret = RMW_RET_OK;
     bool expected = false;
-    if (!is_shutdown_.compare_exchange_strong(expected, true, std::memory_order_acq_rel,
-      std::memory_order_relaxed))
+    if (!is_shutdown_.compare_exchange_strong(
+        expected, true, std::memory_order_acq_rel,
+        std::memory_order_relaxed))
     {
       return ret;
     }
