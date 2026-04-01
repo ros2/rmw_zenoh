@@ -25,7 +25,7 @@ else()
   # latter is a list separater in cmake and hence the string will be split into two when expanded.
   set(ZENOHC_CARGO_FLAGS "--features=shared-memory zenoh/transport_serial")
 
-  # Set VCS_VERSION to 1.7.1 commits of zenoh/zenoh-c/zenoh-cpp to benefit from:
+  # Set VCS_VERSION to 1.8.0 commits of zenoh/zenoh-c/zenoh-cpp to benefit from:
   # * Query cancellation
   #   - https://github.com/eclipse-zenoh/zenoh/pull/2223
   #   - https://github.com/eclipse-zenoh/zenoh-c/pull/1134
@@ -36,19 +36,30 @@ else()
   #   - https://github.com/eclipse-zenoh/zenoh-cpp/pull/654
   # * Metrics per key (requires to add "zenoh/stats" feature to ZENOHC_CARGO_FLAGS for build)
   #   - https://github.com/eclipse-zenoh/zenoh/pull/2284
+  # * Add support for TOML configuration files:
+  #   - https://github.com/eclipse-zenoh/zenoh/pull/2364
+  # * Fix handling wrapping of sequence numbers in advanced pub/sub
+  #   - https://github.com/eclipse-zenoh/zenoh/pull/2318
+  # * Fix bugs in gossip scouting:
+  #   - https://github.com/eclipse-zenoh/zenoh/pull/2347
+  # * Fix liveliness token memory leak:
+  #   - https://github.com/eclipse-zenoh/zenoh/pull/2357
+  # * Fixes for TLS:
+  #   - https://github.com/eclipse-zenoh/zenoh/pull/2401
+  #   - https://github.com/eclipse-zenoh/zenoh/pull/2432
   ament_vendor(zenoh_c_vendor
     VCS_URL https://github.com/eclipse-zenoh/zenoh-c.git
-    VCS_VERSION 73e7a0bdcf78b8263a02b7aee453ee6de8187589
+    VCS_VERSION c1a477d3f5efc3abc0f0cf95e0773225d00dea3b
     CMAKE_ARGS
       "-DZENOHC_CARGO_FLAGS=${ZENOHC_CARGO_FLAGS}"
       "-DZENOHC_BUILD_WITH_UNSTABLE_API=TRUE"
       "-DZENOHC_CUSTOM_TARGET=${ZENOHC_CUSTOM_TARGET}"
-    PATCHES ${CMAKE_CURRENT_SOURCE_DIR}/pin-rust-1.75.0.patch
+      "-DZENOHC_MSRV_1_75=TRUE"
   )
 
   ament_vendor(zenoh_cpp_vendor
     VCS_URL https://github.com/eclipse-zenoh/zenoh-cpp
-    VCS_VERSION 47a80d345d74ebef16f3783423bf3bbd89cd6c30
+    VCS_VERSION 776c59651a61dc53689dd68beace147e67a83a27
     CMAKE_ARGS
       -DZENOHCXX_ZENOHC=OFF
   )
