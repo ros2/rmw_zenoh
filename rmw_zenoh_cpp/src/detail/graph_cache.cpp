@@ -185,78 +185,42 @@ void GraphCache::update_topic_map_for_put(
     // First time this qos is added.
     // Update cache.
     topic_type_map_it->second.insert(std::make_pair(qos_str, graph_topic_data));
-
-    // Trigger discovery callbacks for the newly added entity
-    std::lock_guard<std::mutex> disc_lock(discovery_mutex_);
-    if (is_pub) {
-      // New publisher added - trigger publisher discovery callbacks (notify subscribers)
-      RMW_ZENOH_LOG_INFO_NAMED(
-        "rmw_zenoh_cpp",
-        "[GraphCache] New publisher added for topic '%s', triggering publisher discovery callbacks",
-        graph_topic_data->info_.name_.c_str());
-      if (publisher_discovery_callbacks_.count(graph_topic_data->info_.name_)) {
-        RMW_ZENOH_LOG_INFO_NAMED(
-          "rmw_zenoh_cpp",
-          "[GraphCache] Found %zu publisher discovery callback(s) to trigger",
-          publisher_discovery_callbacks_[graph_topic_data->info_.name_].size());
-        for (const auto & [gid_hash,
-          callback] : publisher_discovery_callbacks_[graph_topic_data->info_.name_])
-        {
-          RMW_ZENOH_LOG_INFO_NAMED(
-            "rmw_zenoh_cpp",
-            "[GraphCache] Triggering publisher discovery callback");
-          callback(*entity);
-        }
-      } else {
-        RMW_ZENOH_LOG_WARN_NAMED(
-          "rmw_zenoh_cpp",
-          "[GraphCache] No publisher discovery callbacks found for topic '%s'",
-          graph_topic_data->info_.name_.c_str());
-      }
-    } else {
-      // New subscriber added - trigger subscriber discovery callbacks (notify publishers)
-      RMW_ZENOH_LOG_INFO_NAMED(
-        "rmw_zenoh_cpp",
-        "[GraphCache] New subscriber added for topic '%s', "
-        "triggering subscriber discovery callbacks",
-        graph_topic_data->info_.name_.c_str());
-      if (subscriber_discovery_callbacks_.count(graph_topic_data->info_.name_)) {
-        for (const auto & [gid_hash,
-          callback] : subscriber_discovery_callbacks_[graph_topic_data->info_.name_])
-        {
-          callback(*entity);
-        }
-      }
-    }
   } else {
     // We have another instance of a pub/sub over the same topic,
     // type and qos so we increment the counters.
     TopicDataPtr & existing_graph_topic = topic_qos_map_it->second;
     if (is_pub) {
       existing_graph_topic->pubs_.insert(entity);
+    } else {
+      existing_graph_topic->subs_.insert(entity);
+    }
+  }
 
-      // Trigger publisher discovery callbacks (notify subscribers about this publisher)
-      std::lock_guard<std::mutex> disc_lock(discovery_mutex_);
-      if (publisher_discovery_callbacks_.count(graph_topic_data->info_.name_)) {
-        for (const auto & [gid_hash,
-          callback] : publisher_discovery_callbacks_[graph_topic_data->info_.name_])
-        {
-          callback(*entity);
+  // Collect discovery callbacks under discovery_mutex_, then invoke them
+  // after releasing the lock to avoid ABBA deadlock with graph_mutex_.
+  // (graph_mutex_ is already held by parse_put; register_*_discovery_callback
+  // acquires graph_mutex_ → discovery_mutex_ in that order.)
+  std::vector<EntityDiscoveryCallback> callbacks_to_invoke;
+  {
+    std::lock_guard<std::mutex> disc_lock(discovery_mutex_);
+    const std::string & topic_name = graph_topic_data->info_.name_;
+    if (is_pub) {
+      if (publisher_discovery_callbacks_.count(topic_name)) {
+        for (const auto & [gid_hash, cb] : publisher_discovery_callbacks_[topic_name]) {
+          callbacks_to_invoke.push_back(cb);
         }
       }
     } else {
-      existing_graph_topic->subs_.insert(entity);
-
-      // Trigger subscriber discovery callbacks (notify publishers about this subscriber)
-      std::lock_guard<std::mutex> disc_lock(discovery_mutex_);
-      if (subscriber_discovery_callbacks_.count(graph_topic_data->info_.name_)) {
-        for (const auto & [gid_hash,
-          callback] : subscriber_discovery_callbacks_[graph_topic_data->info_.name_])
-        {
-          callback(*entity);
+      if (subscriber_discovery_callbacks_.count(topic_name)) {
+        for (const auto & [gid_hash, cb] : subscriber_discovery_callbacks_[topic_name]) {
+          callbacks_to_invoke.push_back(cb);
         }
       }
     }
+  }
+
+  for (const auto & cb : callbacks_to_invoke) {
+    cb(*entity);
   }
 }
 
@@ -1396,46 +1360,41 @@ void GraphCache::register_subscriber_discovery_callback(
   std::size_t publisher_gid_hash,
   EntityDiscoveryCallback callback)
 {
-  std::lock_guard<std::mutex> lock(discovery_mutex_);
-  subscriber_discovery_callbacks_[topic_name][publisher_gid_hash] = std::move(callback);
+  // Collect existing entities under lock, then invoke callbacks outside
+  // to avoid ABBA deadlock between graph_mutex_ and discovery_mutex_.
+  // Lock ordering: graph_mutex_ first, then discovery_mutex_ (matches parse_put).
+  std::vector<liveliness::ConstEntityPtr> entities_to_notify;
+  {
+    std::lock_guard<std::mutex> graph_lock(graph_mutex_);
+    std::lock_guard<std::mutex> disc_lock(discovery_mutex_);
+    subscriber_discovery_callbacks_[topic_name][publisher_gid_hash] = callback;
 
-  RMW_ZENOH_LOG_INFO_NAMED(
-    "rmw_zenoh_cpp",
-    "[GraphCache] Registered subscriber discovery callback for publisher on topic: '%s'",
-    topic_name.c_str());
+    RMW_ZENOH_LOG_INFO_NAMED(
+      "rmw_zenoh_cpp",
+      "[GraphCache] Registered subscriber discovery callback for publisher on topic: '%s'",
+      topic_name.c_str());
 
-  // Immediately invoke callback for any existing subscribers on this topic
-  std::lock_guard<std::mutex> graph_lock(graph_mutex_);
-  int existing_subs_count = 0;
-  for (const auto & [topic, type_map] : graph_topics_) {
-    if (topic == topic_name) {
-      for (const auto & [type, qos_map] : type_map) {
-        for (const auto & [qos, topic_data] : qos_map) {
-          for (const auto & entity_ptr : topic_data->subs_) {
-            existing_subs_count++;
-            // Invoke callback for existing subscribers
-            if (subscriber_discovery_callbacks_[topic_name].count(publisher_gid_hash)) {
-              RMW_ZENOH_LOG_INFO_NAMED(
-                "rmw_zenoh_cpp",
-                "[GraphCache] Triggering callback for existing "
-                "subscriber #%d type=%d node='%s' ns='%s' keyexpr='%s'",
-                existing_subs_count,
-                static_cast<int>(entity_ptr->type()),
-                entity_ptr->node_name().c_str(),
-                entity_ptr->node_namespace().c_str(),
-                entity_ptr->liveliness_keyexpr().c_str());
-              subscriber_discovery_callbacks_[topic_name][publisher_gid_hash](*entity_ptr);
+    for (const auto & [topic, type_map] : graph_topics_) {
+      if (topic == topic_name) {
+        for (const auto & [type, qos_map] : type_map) {
+          for (const auto & [qos, topic_data] : qos_map) {
+            for (const auto & entity_ptr : topic_data->subs_) {
+              entities_to_notify.push_back(entity_ptr);
             }
           }
         }
       }
     }
+
+    RMW_ZENOH_LOG_INFO_NAMED(
+      "rmw_zenoh_cpp",
+      "[GraphCache] Found %zu existing subscriber(s) for topic '%s'",
+      entities_to_notify.size(), topic_name.c_str());
   }
 
-  RMW_ZENOH_LOG_INFO_NAMED(
-    "rmw_zenoh_cpp",
-    "[GraphCache] Found %d existing subscriber(s) for topic '%s'",
-    existing_subs_count, topic_name.c_str());
+  for (const auto & entity_ptr : entities_to_notify) {
+    callback(*entity_ptr);
+  }
 }
 
 ///=============================================================================
@@ -1444,24 +1403,28 @@ void GraphCache::register_publisher_discovery_callback(
   std::size_t subscriber_gid_hash,
   EntityDiscoveryCallback callback)
 {
-  std::lock_guard<std::mutex> lock(discovery_mutex_);
-  publisher_discovery_callbacks_[topic_name][subscriber_gid_hash] = std::move(callback);
+  // Same collect-then-invoke pattern as register_subscriber_discovery_callback.
+  std::vector<liveliness::ConstEntityPtr> entities_to_notify;
+  {
+    std::lock_guard<std::mutex> graph_lock(graph_mutex_);
+    std::lock_guard<std::mutex> disc_lock(discovery_mutex_);
+    publisher_discovery_callbacks_[topic_name][subscriber_gid_hash] = callback;
 
-  // Immediately invoke callback for any existing publishers on this topic
-  std::lock_guard<std::mutex> graph_lock(graph_mutex_);
-  for (const auto & [topic, type_map] : graph_topics_) {
-    if (topic == topic_name) {
-      for (const auto & [type, qos_map] : type_map) {
-        for (const auto & [qos, topic_data] : qos_map) {
-          for (const auto & entity_ptr : topic_data->pubs_) {
-            // Invoke callback for existing publishers
-            if (publisher_discovery_callbacks_[topic_name].count(subscriber_gid_hash)) {
-              publisher_discovery_callbacks_[topic_name][subscriber_gid_hash](*entity_ptr);
+    for (const auto & [topic, type_map] : graph_topics_) {
+      if (topic == topic_name) {
+        for (const auto & [type, qos_map] : type_map) {
+          for (const auto & [qos, topic_data] : qos_map) {
+            for (const auto & entity_ptr : topic_data->pubs_) {
+              entities_to_notify.push_back(entity_ptr);
             }
           }
         }
       }
     }
+  }
+
+  for (const auto & entity_ptr : entities_to_notify) {
+    callback(*entity_ptr);
   }
 }
 

@@ -71,6 +71,16 @@ std::string gid_array_to_hex(const std::array<uint8_t, RMW_GID_STORAGE_SIZE> & g
   return out.str();
 }
 
+bool is_cpu_only_backend_types(const std::vector<std::string> & backend_types)
+{
+  return backend_types.size() == 1 && backend_types.front() == "cpu";
+}
+
+std::string make_cpu_group_key(const std::string & base_key, const rmw_gid_t & publisher_gid)
+{
+  return base_key + "/_cpu/" + gid_to_hex(publisher_gid);
+}
+
 const char * entity_type_to_string(rmw_zenoh_cpp::liveliness::EntityType type)
 {
   switch (type) {
@@ -591,6 +601,7 @@ void SubscriptionData::on_publisher_discovered(const liveliness::Entity & entity
       rmw_zenoh_cpp::rmw_zenoh_identifier);
 
   auto pub_endpoint_info = build_endpoint_info_from_entity(entity, RMW_ENDPOINT_PUBLISHER);
+  const bool use_cpu_group = is_cpu_only_backend_types(my_backend_types_);
 
   // Phase 1: collect state under lock, check duplicates, mark pending
   std::string full_key;
@@ -620,11 +631,14 @@ void SubscriptionData::on_publisher_discovered(const liveliness::Entity & entity
         existing.backend_groups.end());
     }
 
-    rmw_gid_t local_gid = rmw_zenoh_cpp::entity_gid_to_rmw_gid(
-      *entity_, rmw_zenoh_cpp::rmw_zenoh_identifier);
-
     const std::string base_key = entity_->topic_info()->topic_keyexpr_;
-    full_key = base_key + "/" + entity.zid() + "/" + gid_to_hex(local_gid);
+    if (use_cpu_group) {
+      full_key = make_cpu_group_key(base_key, pub_gid);
+    } else {
+      rmw_gid_t local_gid = rmw_zenoh_cpp::entity_gid_to_rmw_gid(
+        *entity_, rmw_zenoh_cpp::rmw_zenoh_identifier);
+      full_key = base_key + "/" + entity.zid() + "/" + gid_to_hex(local_gid);
+    }
 
     need_create_endpoint = (sub_endpoints_.find(full_key) == sub_endpoints_.end());
     if (need_create_endpoint) {
@@ -651,19 +665,23 @@ void SubscriptionData::on_publisher_discovered(const liveliness::Entity & entity
   // Phase 2: external operations without lock
   std::unordered_map<std::string, std::vector<std::set<uint32_t>>> backend_groups;
   {
-    rmw_context_impl_t * ctx_impl = static_cast<rmw_context_impl_t *>(rmw_node_->context->impl);
-    auto * backend_ctx = ctx_impl->buffer_backend_context();
-    if (backend_ctx) {
-      (void)rosidl_buffer_backend_registry::notify_endpoint_discovered(
-        backend_ctx->backend_instances,
-        pub_endpoint_info.info, existing_endpoints, backend_endpoint_groups,
-        pub_backend_metadata);
+    if (!use_cpu_group) {
+      rmw_context_impl_t * ctx_impl = static_cast<rmw_context_impl_t *>(rmw_node_->context->impl);
+      auto * backend_ctx = ctx_impl->buffer_backend_context();
+      if (backend_ctx) {
+        (void)rosidl_buffer_backend_registry::notify_endpoint_discovered(
+          backend_ctx->backend_instances,
+          pub_endpoint_info.info, existing_endpoints, backend_endpoint_groups,
+          pub_backend_metadata);
+      }
     }
   }
 
   std::shared_ptr<SubscriptionEndpoint> new_endpoint;
   if (need_create_endpoint) {
-    new_endpoint = create_subscription_endpoint(full_key, pub_endpoint_info);
+    new_endpoint = create_subscription_endpoint(
+      full_key,
+      use_cpu_group ? std::nullopt : std::make_optional(pub_endpoint_info));
     if (!new_endpoint) {
       std::lock_guard<std::mutex> lock(mutex_);
       pending_sub_endpoints_.erase(full_key);
@@ -692,7 +710,7 @@ void SubscriptionData::on_publisher_discovered(const liveliness::Entity & entity
 ///=============================================================================
 void SubscriptionData::create_subscription_for_key(
   const std::string & key,
-  const EndpointInfoStorage & publisher_info)
+  std::optional<EndpointInfoStorage> publisher_info)
 {
   auto endpoint = create_subscription_endpoint(key, publisher_info);
   if (endpoint) {
@@ -704,7 +722,7 @@ void SubscriptionData::create_subscription_for_key(
 std::shared_ptr<SubscriptionData::SubscriptionEndpoint>
 SubscriptionData::create_subscription_endpoint(
   const std::string & key,
-  const EndpointInfoStorage & publisher_info)
+  std::optional<EndpointInfoStorage> publisher_info)
 {
   zenoh::ZResult result;
   zenoh::KeyExpr sub_ke(key, true, &result);
@@ -737,17 +755,24 @@ SubscriptionData::create_subscription_endpoint(
     }
   }
 
-  rmw_gid_t publisher_gid = {};
-  std::memcpy(publisher_gid.data, publisher_info.info.endpoint_gid, RMW_GID_STORAGE_SIZE);
-  RMW_ZENOH_ROSIDL_BUFFER_LOG_INFO_NAMED(
-    "rmw_zenoh_cpp",
-    "[Subscription] Creating endpoint for key='%s' (publisher gid=%s)",
-    key.c_str(),
-    gid_to_hex(publisher_gid).c_str());
+  if (publisher_info.has_value()) {
+    rmw_gid_t publisher_gid = {};
+    std::memcpy(publisher_gid.data, publisher_info->info.endpoint_gid, RMW_GID_STORAGE_SIZE);
+    RMW_ZENOH_ROSIDL_BUFFER_LOG_INFO_NAMED(
+      "rmw_zenoh_cpp",
+      "[Subscription] Creating endpoint-aware subscription for key='%s' (publisher gid=%s)",
+      key.c_str(),
+      gid_to_hex(publisher_gid).c_str());
+  } else {
+    RMW_ZENOH_ROSIDL_BUFFER_LOG_INFO_NAMED(
+      "rmw_zenoh_cpp",
+      "[Subscription] Creating CPU-group subscription for key='%s'",
+      key.c_str());
+  }
 
   auto endpoint = std::make_shared<SubscriptionEndpoint>();
   endpoint->key = key;
-  endpoint->publisher_info = publisher_info;
+  endpoint->publisher_info = std::move(publisher_info);
 
   std::weak_ptr<SubscriptionData> data_wp = shared_from_this();
   auto ep = endpoint;

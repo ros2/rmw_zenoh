@@ -102,6 +102,7 @@ private:
     rmw_gid_t gid;
     std::string endpoint_key;
     EndpointInfoStorage endpoint_info;
+    bool uses_cpu_group{false};
     std::unordered_map<std::string, std::string> backend_metadata;
     std::unordered_map<std::string, std::vector<std::set<uint32_t>>> backend_groups;
   };

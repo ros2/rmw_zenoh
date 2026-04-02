@@ -74,6 +74,16 @@ std::string gid_array_to_hex(const std::array<uint8_t, RMW_GID_STORAGE_SIZE> & g
   return out.str();
 }
 
+bool is_cpu_only_backend_metadata(const std::unordered_map<std::string, std::string> & backend_metadata)
+{
+  return backend_metadata.size() == 1 && backend_metadata.count("cpu") == 1;
+}
+
+std::string make_cpu_group_key(const std::string & base_key, const rmw_gid_t & publisher_gid)
+{
+  return base_key + "/_cpu/" + gid_to_hex(publisher_gid);
+}
+
 const char * entity_type_to_string(rmw_zenoh_cpp::liveliness::EntityType type)
 {
   switch (type) {
@@ -360,10 +370,85 @@ rmw_ret_t PublisherData::publish_buffer_aware(
     ep->cached_message.reset();
   }
 
+  rmw_gid_t local_pub_gid = {};
+  std::memcpy(
+    local_pub_gid.data,
+    local_endpoint_info_.info.endpoint_gid,
+    RMW_GID_STORAGE_SIZE);
+  const std::string cpu_group_key =
+    make_cpu_group_key(entity_->topic_info()->topic_keyexpr_, local_pub_gid);
+
   // Serialize and publish to each endpoint
   rmw_ret_t ret = RMW_RET_OK;
+
+  auto cpu_endpoint_it = endpoints_.find(cpu_group_key);
+  if (cpu_endpoint_it != endpoints_.end() &&
+    cpu_endpoint_it->second &&
+    !cpu_endpoint_it->second->target_subscribers.empty())
+  {
+    auto cpu_endpoint = cpu_endpoint_it->second;
+    const size_t max_data_length = type_support_->get_estimated_serialized_size(
+      ros_message, type_support_impl_);
+
+    rcutils_allocator_t * allocator = &rmw_node_->context->options.allocator;
+    void * data = allocator->allocate(max_data_length, allocator->state);
+    if (!data) {
+      RMW_SET_ERROR_MSG("failed to allocate CPU-group serialization buffer");
+      return RMW_RET_BAD_ALLOC;
+    }
+
+    auto always_free_data = rcpputils::make_scope_exit(
+      [data, allocator]() {
+        allocator->deallocate(data, allocator->state);
+      });
+
+    uint8_t * msg_bytes = static_cast<uint8_t *>(data);
+    eprosima::fastcdr::FastBuffer fastbuffer(reinterpret_cast<char *>(msg_bytes), max_data_length);
+    rmw_zenoh_cpp::Cdr ser(fastbuffer);
+    if (!type_support_->serialize_ros_message(
+        ros_message,
+        ser.get_cdr(),
+        type_support_impl_))
+    {
+      RMW_SET_ERROR_MSG("could not serialize ROS message for CPU-group publish");
+      return RMW_RET_ERROR;
+    }
+
+    const size_t data_length = ser.get_serialized_data_length();
+    auto deleter = [data, allocator](uint8_t *) {
+        allocator->deallocate(data, allocator->state);
+      };
+    auto payload = zenoh::Bytes(msg_bytes, data_length, deleter);
+    always_free_data.cancel();
+
+    int64_t source_timestamp = rmw_zenoh_cpp::get_system_time_in_ns();
+    auto gid = entity_->copy_gid();
+    auto attachment_data = rmw_zenoh_cpp::AttachmentData(
+      sequence_number_++, source_timestamp, gid);
+    auto attachment_bytes = attachment_data.serialize_to_zbytes();
+
+    zenoh::ext::AdvancedPublisher::PutOptions options =
+      zenoh::ext::AdvancedPublisher::PutOptions::create_default();
+    options.put_options.attachment = std::move(attachment_bytes);
+
+    zenoh::ZResult result;
+    if (cpu_endpoint->pub.has_value()) {
+      cpu_endpoint->pub.value().put(std::move(payload), std::move(options), &result);
+      if (result != Z_OK) {
+        RMW_ZENOH_ROSIDL_BUFFER_LOG_ERROR_NAMED(
+          "rmw_zenoh_cpp",
+          "Failed to publish to CPU-group endpoint '%s'", cpu_group_key.c_str());
+        ret = RMW_RET_ERROR;
+      }
+    }
+  }
+
   size_t iteration = 0;
   for (auto & sub : discovered_subscribers_) {
+    if (sub.uses_cpu_group) {
+      continue;
+    }
+
     iteration++;
     RMW_ZENOH_ROSIDL_BUFFER_LOG_INFO_NAMED(
       "rmw_zenoh_cpp",
@@ -777,6 +862,7 @@ void PublisherData::on_subscriber_discovered(const liveliness::Entity & entity)
   if (topic_info_opt->backend_metadata_.has_value()) {
     sub_backend_metadata = topic_info_opt->backend_metadata_.value();
   }
+  const bool use_cpu_group = is_cpu_only_backend_metadata(sub_backend_metadata);
 
   auto gid = entity_gid_to_rmw_gid(entity, rmw_zenoh_identifier);
   const auto entity_gid_array = entity.copy_gid();
@@ -801,6 +887,7 @@ void PublisherData::on_subscriber_discovered(const liveliness::Entity & entity)
   std::vector<rmw_topic_endpoint_info_t> existing_endpoints;
   std::unordered_map<std::string, std::vector<std::set<uint32_t>>> backend_endpoint_groups;
   bool need_create_endpoint = false;
+  rmw_gid_t local_pub_gid = {};
   {
     std::lock_guard<std::mutex> lock(mutex_);
     if (!is_buffer_aware_ || is_shutdown_) {
@@ -824,8 +911,13 @@ void PublisherData::on_subscriber_discovered(const liveliness::Entity & entity)
         existing.backend_groups.end());
     }
 
-    full_key = entity_->topic_info()->topic_keyexpr_ + "/" +
-      entity_->zid() + "/" + gid_to_hex(gid);
+    std::memcpy(
+      local_pub_gid.data,
+      local_endpoint_info_.info.endpoint_gid,
+      RMW_GID_STORAGE_SIZE);
+    full_key = use_cpu_group ?
+      make_cpu_group_key(entity_->topic_info()->topic_keyexpr_, local_pub_gid) :
+      entity_->topic_info()->topic_keyexpr_ + "/" + entity_->zid() + "/" + gid_to_hex(gid);
 
     need_create_endpoint = (endpoints_.find(full_key) == endpoints_.end());
     if (need_create_endpoint) {
@@ -838,13 +930,15 @@ void PublisherData::on_subscriber_discovered(const liveliness::Entity & entity)
   // Phase 2: external operations without lock
   std::unordered_map<std::string, std::vector<std::set<uint32_t>>> backend_groups;
   {
-    rmw_context_impl_t * ctx_impl = static_cast<rmw_context_impl_t *>(rmw_node_->context->impl);
-    auto * backend_ctx = ctx_impl->buffer_backend_context();
-    if (backend_ctx) {
-      (void)rosidl_buffer_backend_registry::notify_endpoint_discovered(
-        backend_ctx->backend_instances,
-        sub_endpoint_info.info, existing_endpoints, backend_endpoint_groups,
-        sub_backend_metadata);
+    if (!use_cpu_group) {
+      rmw_context_impl_t * ctx_impl = static_cast<rmw_context_impl_t *>(rmw_node_->context->impl);
+      auto * backend_ctx = ctx_impl->buffer_backend_context();
+      if (backend_ctx) {
+        (void)rosidl_buffer_backend_registry::notify_endpoint_discovered(
+          backend_ctx->backend_instances,
+          sub_endpoint_info.info, existing_endpoints, backend_endpoint_groups,
+          sub_backend_metadata);
+      }
     }
   }
 
@@ -870,6 +964,7 @@ void PublisherData::on_subscriber_discovered(const liveliness::Entity & entity)
     sub_info.gid = gid;
     sub_info.endpoint_key = full_key;
     sub_info.endpoint_info = std::move(sub_endpoint_info);
+    sub_info.uses_cpu_group = use_cpu_group;
     sub_info.backend_metadata = sub_backend_metadata;
     sub_info.backend_groups = std::move(backend_groups);
     discovered_subscribers_.push_back(std::move(sub_info));
