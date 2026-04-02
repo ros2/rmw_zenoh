@@ -249,7 +249,8 @@ void EventsManager::notify_event(rmw_zenoh_event_type_t event_id)
     return;
   }
 
-  // Make sure to not lock both event_mutex_ and event_condition_mutex_ at the same time to avoid deadlocks
+  /* Make sure to not lock both event_mutex_ and event_condition_mutex_ at the same time to avoid
+   * deadlocks with rmw_wait */
   rmw_wait_set_data_t * wait_set_data = nullptr;
   {
     std::lock_guard<std::mutex> lock(event_condition_mutex_);
