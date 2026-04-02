@@ -25,6 +25,9 @@ else()
   # latter is a list separater in cmake and hence the string will be split into two when expanded.
   set(ZENOHC_CARGO_FLAGS "--features=shared-memory zenoh/transport_serial")
 
+  include(get_flags_for_rust_version.cmake)
+  get_flags_for_rust_version()
+
   # Set VCS_VERSION to 1.8.0 commits of zenoh/zenoh-c/zenoh-cpp to benefit from:
   # * Query cancellation
   #   - https://github.com/eclipse-zenoh/zenoh/pull/2223
@@ -54,6 +57,7 @@ else()
       "-DZENOHC_CARGO_FLAGS=${ZENOHC_CARGO_FLAGS}"
       "-DZENOHC_BUILD_WITH_UNSTABLE_API=TRUE"
       "-DZENOHC_CUSTOM_TARGET=${ZENOHC_CUSTOM_TARGET}"
+      ${FLAGS_FOR_RUST_VERSION}
   )
 
   ament_vendor(zenoh_cpp_vendor
