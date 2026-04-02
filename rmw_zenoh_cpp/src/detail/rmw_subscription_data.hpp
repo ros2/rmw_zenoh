@@ -140,7 +140,7 @@ private:
   struct SubscriptionEndpoint
   {
     std::string key;
-    EndpointInfoStorage publisher_info;
+    std::optional<EndpointInfoStorage> publisher_info;
     std::optional<zenoh::ext::AdvancedSubscriber<void>> sub;
   };
 
@@ -165,12 +165,12 @@ private:
   // Create a subscription endpoint for a specific key (caller must hold mutex_).
   void create_subscription_for_key(
     const std::string & key,
-    const EndpointInfoStorage & publisher_info);
+    std::optional<EndpointInfoStorage> publisher_info);
 
   // Create a Zenoh subscription endpoint (does not require mutex_).
   std::shared_ptr<SubscriptionEndpoint> create_subscription_endpoint(
     const std::string & key,
-    const EndpointInfoStorage & publisher_info);
+    std::optional<EndpointInfoStorage> publisher_info);
 
   // Internal mutex.
   mutable std::mutex mutex_;
