@@ -42,7 +42,6 @@ else()
       "-DZENOHC_CARGO_FLAGS=${ZENOHC_CARGO_FLAGS}"
       "-DZENOHC_BUILD_WITH_UNSTABLE_API=TRUE"
       "-DZENOHC_CUSTOM_TARGET=${ZENOHC_CUSTOM_TARGET}"
-      ${FLAGS_FOR_CARGO_VERSION}
   )
 
   ament_vendor(zenoh_cpp_vendor
