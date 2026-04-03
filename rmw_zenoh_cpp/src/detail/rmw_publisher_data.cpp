@@ -79,9 +79,9 @@ bool is_cpu_only_backend_metadata(const std::unordered_map<std::string, std::str
   return backend_metadata.size() == 1 && backend_metadata.count("cpu") == 1;
 }
 
-std::string make_cpu_group_key(const std::string & base_key, const rmw_gid_t & publisher_gid)
+std::string make_cpu_group_key(const std::string & base_key)
 {
-  return base_key + "/_cpu/" + gid_to_hex(publisher_gid);
+  return base_key + "/_buf_cpu";
 }
 
 const char * entity_type_to_string(rmw_zenoh_cpp::liveliness::EntityType type)
@@ -370,13 +370,8 @@ rmw_ret_t PublisherData::publish_buffer_aware(
     ep->cached_message.reset();
   }
 
-  rmw_gid_t local_pub_gid = {};
-  std::memcpy(
-    local_pub_gid.data,
-    local_endpoint_info_.info.endpoint_gid,
-    RMW_GID_STORAGE_SIZE);
   const std::string cpu_group_key =
-    make_cpu_group_key(entity_->topic_info()->topic_keyexpr_, local_pub_gid);
+    make_cpu_group_key(entity_->topic_info()->topic_keyexpr_);
 
   // Serialize and publish to each endpoint
   rmw_ret_t ret = RMW_RET_OK;
@@ -887,7 +882,6 @@ void PublisherData::on_subscriber_discovered(const liveliness::Entity & entity)
   std::vector<rmw_topic_endpoint_info_t> existing_endpoints;
   std::unordered_map<std::string, std::vector<std::set<uint32_t>>> backend_endpoint_groups;
   bool need_create_endpoint = false;
-  rmw_gid_t local_pub_gid = {};
   {
     std::lock_guard<std::mutex> lock(mutex_);
     if (!is_buffer_aware_ || is_shutdown_) {
@@ -911,12 +905,8 @@ void PublisherData::on_subscriber_discovered(const liveliness::Entity & entity)
         existing.backend_groups.end());
     }
 
-    std::memcpy(
-      local_pub_gid.data,
-      local_endpoint_info_.info.endpoint_gid,
-      RMW_GID_STORAGE_SIZE);
     full_key = use_cpu_group ?
-      make_cpu_group_key(entity_->topic_info()->topic_keyexpr_, local_pub_gid) :
+      make_cpu_group_key(entity_->topic_info()->topic_keyexpr_) :
       entity_->topic_info()->topic_keyexpr_ + "/" + entity_->zid() + "/" + gid_to_hex(gid);
 
     need_create_endpoint = (endpoints_.find(full_key) == endpoints_.end());

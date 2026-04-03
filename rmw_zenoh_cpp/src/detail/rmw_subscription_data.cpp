@@ -76,9 +76,9 @@ bool is_cpu_only_backend_types(const std::vector<std::string> & backend_types)
   return backend_types.size() == 1 && backend_types.front() == "cpu";
 }
 
-std::string make_cpu_group_key(const std::string & base_key, const rmw_gid_t & publisher_gid)
+std::string make_cpu_group_key(const std::string & base_key)
 {
-  return base_key + "/_cpu/" + gid_to_hex(publisher_gid);
+  return base_key + "/_buf_cpu";
 }
 
 const char * entity_type_to_string(rmw_zenoh_cpp::liveliness::EntityType type)
@@ -330,14 +330,16 @@ std::shared_ptr<SubscriptionData> SubscriptionData::make(
   // Register discovery callback for Buffer-aware subscribers
   if (is_buffer_aware && graph_cache != nullptr) {
     std::weak_ptr<SubscriptionData> weak_sub_data = sub_data;
-    graph_cache->register_publisher_discovery_callback(
-      topic_name,
-      sub_data->gid_hash(),
-      [weak_sub_data](const liveliness::Entity & entity) {
-        if (auto sd = weak_sub_data.lock()) {
-          sd->on_publisher_discovered(entity);
-        }
-      });
+    if (!is_cpu_only_backend_types(my_backend_types)) {
+      graph_cache->register_publisher_discovery_callback(
+        topic_name,
+        sub_data->gid_hash(),
+        [weak_sub_data](const liveliness::Entity & entity) {
+          if (auto sd = weak_sub_data.lock()) {
+            sd->on_publisher_discovered(entity);
+          }
+        });
+    }
 
     // Manually add this local subscriber to the graph cache so local publishers can discover it
     // Liveliness events from the same session don't trigger graph updates automatically
@@ -432,8 +434,9 @@ bool SubscriptionData::init()
   // fallback so the subscriber can still receive standard-serialized data from
   // legacy publishers or when the publisher detects mixed (legacy + buffer)
   // subscribers and falls back to base-key-only publishing.
-  // Additional per-publisher endpoint subscriptions for buffer-aware messages
-  // are created dynamically in on_publisher_discovered().
+  // Additional buffer-aware subscriptions are either created dynamically in
+  // on_publisher_discovered() for non-CPU backends or bound to the shared
+  // CPU channel below for CPU-only subscriptions.
   {
     std::weak_ptr<SubscriptionData> data_wp = shared_from_this();
     auto on_sample = [data_wp](const zenoh::Sample & sample) {
@@ -476,6 +479,17 @@ bool SubscriptionData::init()
     }
   }
 
+  if (is_buffer_aware_ && is_cpu_only_backend_types(my_backend_types_)) {
+    auto cpu_endpoint = create_subscription_endpoint(
+      make_cpu_group_key(entity_->topic_info()->topic_keyexpr_),
+      std::nullopt);
+    if (!cpu_endpoint) {
+      RMW_SET_ERROR_MSG("unable to create zenoh CPU subscription");
+      return false;
+    }
+    sub_endpoints_[cpu_endpoint->key] = cpu_endpoint;
+  }
+
   // Publish to the graph that a new subscription is in town.
   std::string liveliness_keyexpr = entity_->liveliness_keyexpr();
   token_ = context_impl->session()->liveliness_declare_token(
@@ -495,7 +509,7 @@ bool SubscriptionData::init()
     RMW_ZENOH_LOG_INFO_NAMED(
       "rmw_zenoh_cpp",
       "[Subscription] Initialized buffer-aware subscription, "
-      "base key: '%s' (endpoints created dynamically)",
+      "base key: '%s'",
       entity_->topic_info()->topic_keyexpr_.c_str());
   } else {
     RMW_ZENOH_LOG_INFO_NAMED(
@@ -601,7 +615,9 @@ void SubscriptionData::on_publisher_discovered(const liveliness::Entity & entity
       rmw_zenoh_cpp::rmw_zenoh_identifier);
 
   auto pub_endpoint_info = build_endpoint_info_from_entity(entity, RMW_ENDPOINT_PUBLISHER);
-  const bool use_cpu_group = is_cpu_only_backend_types(my_backend_types_);
+  if (is_cpu_only_backend_types(my_backend_types_)) {
+    return;
+  }
 
   // Phase 1: collect state under lock, check duplicates, mark pending
   std::string full_key;
@@ -632,13 +648,9 @@ void SubscriptionData::on_publisher_discovered(const liveliness::Entity & entity
     }
 
     const std::string base_key = entity_->topic_info()->topic_keyexpr_;
-    if (use_cpu_group) {
-      full_key = make_cpu_group_key(base_key, pub_gid);
-    } else {
-      rmw_gid_t local_gid = rmw_zenoh_cpp::entity_gid_to_rmw_gid(
-        *entity_, rmw_zenoh_cpp::rmw_zenoh_identifier);
-      full_key = base_key + "/" + entity.zid() + "/" + gid_to_hex(local_gid);
-    }
+    rmw_gid_t local_gid = rmw_zenoh_cpp::entity_gid_to_rmw_gid(
+      *entity_, rmw_zenoh_cpp::rmw_zenoh_identifier);
+    full_key = base_key + "/" + entity.zid() + "/" + gid_to_hex(local_gid);
 
     need_create_endpoint = (sub_endpoints_.find(full_key) == sub_endpoints_.end());
     if (need_create_endpoint) {
@@ -665,15 +677,13 @@ void SubscriptionData::on_publisher_discovered(const liveliness::Entity & entity
   // Phase 2: external operations without lock
   std::unordered_map<std::string, std::vector<std::set<uint32_t>>> backend_groups;
   {
-    if (!use_cpu_group) {
-      rmw_context_impl_t * ctx_impl = static_cast<rmw_context_impl_t *>(rmw_node_->context->impl);
-      auto * backend_ctx = ctx_impl->buffer_backend_context();
-      if (backend_ctx) {
-        (void)rosidl_buffer_backend_registry::notify_endpoint_discovered(
-          backend_ctx->backend_instances,
-          pub_endpoint_info.info, existing_endpoints, backend_endpoint_groups,
-          pub_backend_metadata);
-      }
+    rmw_context_impl_t * ctx_impl = static_cast<rmw_context_impl_t *>(rmw_node_->context->impl);
+    auto * backend_ctx = ctx_impl->buffer_backend_context();
+    if (backend_ctx) {
+      (void)rosidl_buffer_backend_registry::notify_endpoint_discovered(
+        backend_ctx->backend_instances,
+        pub_endpoint_info.info, existing_endpoints, backend_endpoint_groups,
+        pub_backend_metadata);
     }
   }
 
@@ -681,7 +691,7 @@ void SubscriptionData::on_publisher_discovered(const liveliness::Entity & entity
   if (need_create_endpoint) {
     new_endpoint = create_subscription_endpoint(
       full_key,
-      use_cpu_group ? std::nullopt : std::make_optional(pub_endpoint_info));
+      std::make_optional(pub_endpoint_info));
     if (!new_endpoint) {
       std::lock_guard<std::mutex> lock(mutex_);
       pending_sub_endpoints_.erase(full_key);
