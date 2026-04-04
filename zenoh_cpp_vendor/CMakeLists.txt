@@ -28,9 +28,9 @@ else()
   include(get_cargo_version.cmake)
   get_cargo_version()
 
-  # By default, use zenoh-c 1.8.0
+  # By default, use zenoh-c 1.8.0 with MSRV=1.88
   set(zenoh_c_commit c1a477d3f5efc3abc0f0cf95e0773225d00dea3b)
-  if(CARGO_VERSION VERSION_GREATER_EQUAL "1.75" AND CARGO_VERSION VERSION_LESS "1.76")
+  if(CARGO_VERSION VERSION_GREATER_EQUAL "1.75" AND CARGO_VERSION VERSION_LESS "1.88")
     # Use ROS/rust-1.75 branch of zenoh-c
     set(zenoh_c_commit 0e3ec084142382096d09f7fc2ad59385998b92e6)
   endif()
