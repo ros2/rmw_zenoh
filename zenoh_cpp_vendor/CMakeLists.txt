@@ -25,36 +25,28 @@ else()
   # latter is a list separater in cmake and hence the string will be split into two when expanded.
   set(ZENOHC_CARGO_FLAGS "--features=shared-memory zenoh/transport_serial")
 
-  # Set VCS_VERSION to 1.8.0 commits of zenoh/zenoh-c/zenoh-cpp to benefit from:
-  # * Query cancellation
-  #   - https://github.com/eclipse-zenoh/zenoh/pull/2223
-  #   - https://github.com/eclipse-zenoh/zenoh-c/pull/1134
-  #   - https://github.com/eclipse-zenoh/zenoh-cpp/pull/663
-  # * Access to transport optimization SHM provider
-  #   - https://github.com/eclipse-zenoh/zenoh/pull/2221
-  #   - https://github.com/eclipse-zenoh/zenoh-c/pull/1132
-  #   - https://github.com/eclipse-zenoh/zenoh-cpp/pull/654
-  # * Metrics per key (requires to add "zenoh/stats" feature to ZENOHC_CARGO_FLAGS for build)
-  #   - https://github.com/eclipse-zenoh/zenoh/pull/2284
-  # * Add support for TOML configuration files:
-  #   - https://github.com/eclipse-zenoh/zenoh/pull/2364
-  # * Fix handling wrapping of sequence numbers in advanced pub/sub
-  #   - https://github.com/eclipse-zenoh/zenoh/pull/2318
-  # * Fix bugs in gossip scouting:
-  #   - https://github.com/eclipse-zenoh/zenoh/pull/2347
-  # * Fix liveliness token memory leak:
-  #   - https://github.com/eclipse-zenoh/zenoh/pull/2357
-  # * Fixes for TLS:
-  #   - https://github.com/eclipse-zenoh/zenoh/pull/2401
-  #   - https://github.com/eclipse-zenoh/zenoh/pull/2432
+  include(get_cargo_version.cmake)
+  get_cargo_version()
+
+  # By default, use commit id corresponding to zenoh-c 1.8.0 + https://github.com/eclipse-zenoh/zenoh/pull/2493
+  # See https://github.com/eclipse-zenoh/zenoh-c/blob/c1a477d3f5efc3abc0f0cf95e0773225d00dea3b/Cargo.lock#L4229
+  # pointing to zenoh https://github.com/eclipse-zenoh/zenoh/commit/69b410e705e94531902a41a51b74d0c7b098264c
+  set(zenoh_c_commit c1a477d3f5efc3abc0f0cf95e0773225d00dea3b)
+
+  # If Rust version below Zenoh MSRV (currently 1.88), use equivalent commit from branch ROS/rust-1.75
+  # See https://github.com/eclipse-zenoh/zenoh-c/blob/0e3ec084142382096d09f7fc2ad59385998b92e6/Cargo.lock#L4237
+  # pointing to zenoh https://github.com/eclipse-zenoh/zenoh/commit/f27282e78c6e42e04249349049fa68cfbc941369
+  if(CARGO_VERSION VERSION_GREATER_EQUAL "1.75" AND CARGO_VERSION VERSION_LESS "1.88")
+    set(zenoh_c_commit 0e3ec084142382096d09f7fc2ad59385998b92e6)
+  endif()
+
   ament_vendor(zenoh_c_vendor
     VCS_URL https://github.com/eclipse-zenoh/zenoh-c.git
-    VCS_VERSION c1a477d3f5efc3abc0f0cf95e0773225d00dea3b
+    VCS_VERSION ${zenoh_c_commit}
     CMAKE_ARGS
       "-DZENOHC_CARGO_FLAGS=${ZENOHC_CARGO_FLAGS}"
       "-DZENOHC_BUILD_WITH_UNSTABLE_API=TRUE"
       "-DZENOHC_CUSTOM_TARGET=${ZENOHC_CUSTOM_TARGET}"
-      "-DZENOHC_MSRV_1_75=TRUE"
   )
 
   ament_vendor(zenoh_cpp_vendor
