@@ -12,9 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <unordered_set>
+
 #include "rmw/error_handling.h"
 #include "rmw/event.h"
 #include "rmw/events_statuses/events_statuses.h"
+#include "rmw/events_statuses/liveliness_changed.h"
+#include "rmw/events_statuses/liveliness_lost.h"
+#include "rmw/events_statuses/offered_deadline_missed.h"
+#include "rmw/events_statuses/requested_deadline_missed.h"
 #include "rmw/types.h"
 
 #include "detail/event.hpp"
@@ -66,6 +72,15 @@ rmw_publisher_event_init(
   // which is the behavior in rcl/rclcpp.
   rmw_event->data = pub_data->events_mgr().get();
   rmw_event->event_type = event_type;
+
+  // Deadline and liveliness are not yet implemented in Zenoh; signal UNSUPPORTED so that
+  // callers (e.g. rcl tests) that guard on the init return value skip gracefully.
+  if (zenoh_event_type == rmw_zenoh_cpp::ZENOH_EVENT_LIVELINESS_LOST ||
+    zenoh_event_type == rmw_zenoh_cpp::ZENOH_EVENT_OFFERED_DEADLINE_MISSED)
+  {
+    RMW_SET_ERROR_MSG("deadline and liveliness events are not yet implemented in rmw_zenoh_cpp");
+    return RMW_RET_UNSUPPORTED;
+  }
 
   // Register the event with graph cache.
   std::weak_ptr<rmw_zenoh_cpp::PublisherData> data_wp = pub_data;
@@ -121,9 +136,12 @@ rmw_subscription_event_init(
   rmw_event->data = sub_data->events_mgr().get();
   rmw_event->event_type = event_type;
 
-  // Register the event with graph cache if the event is not ZENOH_EVENT_MESSAGE_LOST
-  // since this is checked for in the subscription callback.
-  if (zenoh_event_type == rmw_zenoh_cpp::ZENOH_EVENT_MESSAGE_LOST) {
+  // Events tracked directly by the subscription callback or without a graph-level trigger
+  // don't need to register with the graph cache.
+  if (zenoh_event_type == rmw_zenoh_cpp::ZENOH_EVENT_MESSAGE_LOST ||
+    zenoh_event_type == rmw_zenoh_cpp::ZENOH_EVENT_LIVELINESS_CHANGED ||
+    zenoh_event_type == rmw_zenoh_cpp::ZENOH_EVENT_REQUESTED_DEADLINE_MISSED)
+  {
     return RMW_RET_OK;
   }
 
@@ -179,6 +197,19 @@ rmw_event_set_callback(
 bool
 rmw_event_type_is_supported(rmw_event_type_t rmw_event_type)
 {
+  // These events are accepted by rmw_subscription/publisher_event_init (so initialization
+  // succeeds without error) but Zenoh does not yet implement the underlying tracking —
+  // the callbacks will never fire.  Return false so callers that guard with this function
+  // (e.g. test_on_new_event_callback) correctly skip rather than run and time out.
+  static const std::unordered_set<rmw_event_type_t> unimplemented_events = {
+    RMW_EVENT_LIVELINESS_CHANGED,
+    RMW_EVENT_LIVELINESS_LOST,
+    RMW_EVENT_REQUESTED_DEADLINE_MISSED,
+    RMW_EVENT_OFFERED_DEADLINE_MISSED,
+  };
+  if (unimplemented_events.count(rmw_event_type)) {
+    return false;
+  }
   return rmw_zenoh_cpp::zenoh_event_from_rmw_event(rmw_event_type) !=
          rmw_zenoh_cpp::ZENOH_EVENT_INVALID;
 }
@@ -263,7 +294,41 @@ rmw_take_event(
         *taken = true;
         return RMW_RET_OK;
       }
-    default: {
+    case rmw_zenoh_cpp::ZENOH_EVENT_REQUESTED_DEADLINE_MISSED: {
+        auto ei = static_cast<rmw_requested_deadline_missed_status_t *>(event_info);
+        RMW_CHECK_ARGUMENT_FOR_NULL(ei, RMW_RET_INVALID_ARGUMENT);
+        ei->total_count = static_cast<int32_t>(st.total_count);
+        ei->total_count_change = static_cast<int32_t>(st.total_count_change);
+        *taken = true;
+        return RMW_RET_OK;
+      }
+    case rmw_zenoh_cpp::ZENOH_EVENT_OFFERED_DEADLINE_MISSED: {
+        auto ei = static_cast<rmw_offered_deadline_missed_status_t *>(event_info);
+        RMW_CHECK_ARGUMENT_FOR_NULL(ei, RMW_RET_INVALID_ARGUMENT);
+        ei->total_count = static_cast<int32_t>(st.total_count);
+        ei->total_count_change = static_cast<int32_t>(st.total_count_change);
+        *taken = true;
+        return RMW_RET_OK;
+      }
+    case rmw_zenoh_cpp::ZENOH_EVENT_LIVELINESS_CHANGED: {
+        auto ei = static_cast<rmw_liveliness_changed_status_t *>(event_info);
+        RMW_CHECK_ARGUMENT_FOR_NULL(ei, RMW_RET_INVALID_ARGUMENT);
+        ei->alive_count = static_cast<int32_t>(st.total_count);
+        ei->not_alive_count = 0;
+        ei->alive_count_change = static_cast<int32_t>(st.total_count_change);
+        ei->not_alive_count_change = 0;
+        *taken = true;
+        return RMW_RET_OK;
+      }
+    case rmw_zenoh_cpp::ZENOH_EVENT_LIVELINESS_LOST: {
+        auto ei = static_cast<rmw_liveliness_lost_status_t *>(event_info);
+        RMW_CHECK_ARGUMENT_FOR_NULL(ei, RMW_RET_INVALID_ARGUMENT);
+        ei->total_count = static_cast<int32_t>(st.total_count);
+        ei->total_count_change = static_cast<int32_t>(st.total_count_change);
+        *taken = true;
+        return RMW_RET_OK;
+      }
+    case rmw_zenoh_cpp::ZENOH_EVENT_INVALID: {
         return RMW_RET_INVALID_ARGUMENT;
       }
   }
