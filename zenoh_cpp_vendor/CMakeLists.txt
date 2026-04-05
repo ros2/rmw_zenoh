@@ -49,7 +49,7 @@ else()
   #   - https://github.com/eclipse-zenoh/zenoh/pull/2432
   ament_vendor(zenoh_c_vendor
     VCS_URL https://github.com/eclipse-zenoh/zenoh-c.git
-    VCS_VERSION c42f86e1f3e5af7b05ceb1227ff0f92fb9a1c4c0
+    VCS_VERSION 7b8478618861972b9f0115da75e694c9f0a2af5a
     CMAKE_ARGS
       "-DZENOHC_CARGO_FLAGS=${ZENOHC_CARGO_FLAGS}"
       "-DZENOHC_BUILD_WITH_UNSTABLE_API=TRUE"
