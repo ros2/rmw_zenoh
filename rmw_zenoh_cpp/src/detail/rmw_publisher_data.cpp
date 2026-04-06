@@ -74,7 +74,9 @@ std::string gid_array_to_hex(const std::array<uint8_t, RMW_GID_STORAGE_SIZE> & g
   return out.str();
 }
 
-bool is_cpu_only_backend_metadata(const std::unordered_map<std::string, std::string> & backend_metadata)
+bool is_cpu_only_backend_metadata(
+  const std::unordered_map<std::string,
+  std::string> & backend_metadata)
 {
   return backend_metadata.size() == 1 && backend_metadata.count("cpu") == 1;
 }
