@@ -228,11 +228,16 @@ private:
   std::shared_ptr<GraphNode> make_graph_node(const liveliness::Entity & entity) const;
 
   // Helper function to update TopicMap within the node the cache for the entire graph.
-  void update_topic_maps_for_put(
+  // Returns any discovery callbacks that should be invoked by the caller
+  // *outside* graph_mutex_ to prevent re-entrant deadlock.
+  std::vector<EntityDiscoveryCallback> update_topic_maps_for_put(
     GraphNodePtr graph_node,
     liveliness::ConstEntityPtr entity);
 
-  void update_topic_map_for_put(
+  // Returns discovery callbacks to invoke; never invokes them directly.
+  // Callers must hold graph_mutex_ when calling, and must invoke the returned
+  // callbacks *after* releasing graph_mutex_.
+  std::vector<EntityDiscoveryCallback> update_topic_map_for_put(
     GraphNode::TopicMap & topic_map,
     liveliness::ConstEntityPtr entity,
     bool report_events = false);
