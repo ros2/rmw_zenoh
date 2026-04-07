@@ -28,18 +28,16 @@ else()
   include(get_cargo_version.cmake)
   get_cargo_version()
 
-  # By default, use commit id corresponding to zenoh-c 1.8.0 + https://github.com/eclipse-zenoh/zenoh/pull/2493
-  # See https://github.com/eclipse-zenoh/zenoh-c/blob/c1a477d3f5efc3abc0f0cf95e0773225d00dea3b/Cargo.lock#L4229
-  # pointing to zenoh https://github.com/eclipse-zenoh/zenoh/commit/69b410e705e94531902a41a51b74d0c7b098264c
-  set(zenoh_c_commit c1a477d3f5efc3abc0f0cf95e0773225d00dea3b)
-  set(zenoh_c_patches patches-c1a477d3)
+  # By default, use commit id corresponding to zenoh-c 1.8.0 + https://github.com/eclipse-zenoh/zenoh/pull/2528
+  # See https://github.com/eclipse-zenoh/zenoh-c/blob/c3da71fd621035adc5e198173e33cddd4eebedba/Cargo.lock#L4229
+  # pointing to zenoh https://github.com/eclipse-zenoh/zenoh/commit/e5db0ce8a52ddcd95c7449508434518db2f6fbec
+  set(zenoh_c_commit c3da71fd621035adc5e198173e33cddd4eebedba)
 
   # If Rust version below Zenoh MSRV (currently 1.88), use equivalent commit from branch ROS/rust-1.75
-  # See https://github.com/eclipse-zenoh/zenoh-c/blob/0e3ec084142382096d09f7fc2ad59385998b92e6/Cargo.lock#L4237
-  # pointing to zenoh https://github.com/eclipse-zenoh/zenoh/commit/f27282e78c6e42e04249349049fa68cfbc941369
+  # See https://github.com/eclipse-zenoh/zenoh-c/blob/90930bbf5ee05f121d3c0db47ff58c0d7c864d29/Cargo.lock#L4237
+  # pointing to zenoh https://github.com/eclipse-zenoh/zenoh/commit/e5db0ce8a52ddcd95c7449508434518db2f6fbec
   if(CARGO_VERSION VERSION_GREATER_EQUAL "1.75" AND CARGO_VERSION VERSION_LESS "1.88")
-    set(zenoh_c_commit 0e3ec084142382096d09f7fc2ad59385998b92e6)
-    set(zenoh_c_patches patches-0e3ec084)
+    set(zenoh_c_commit 90930bbf5ee05f121d3c0db47ff58c0d7c864d29)
   endif()
 
   ament_vendor(zenoh_c_vendor
@@ -49,7 +47,6 @@ else()
       "-DZENOHC_CARGO_FLAGS=${ZENOHC_CARGO_FLAGS}"
       "-DZENOHC_BUILD_WITH_UNSTABLE_API=TRUE"
       "-DZENOHC_CUSTOM_TARGET=${ZENOHC_CUSTOM_TARGET}"
-    PATCHES "${zenoh_c_patches}"
   )
 
   ament_vendor(zenoh_cpp_vendor
