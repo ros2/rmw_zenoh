@@ -46,7 +46,7 @@ BOOL WINAPI quit(DWORD ctrl_type)
 #else
 void quit(int sig)
 {
-  std::cout <<  "=== TMP DEBUG LOG === rmw_zenohd received signal to quit" << std::endl;
+  std::cout << "=== TMP DEBUG LOG === rmw_zenohd received signal to quit" << std::endl;
 
   (void)sig;
   running = false;
