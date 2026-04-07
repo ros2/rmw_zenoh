@@ -80,6 +80,10 @@ public:
       return ret;
     }
 
+    RMW_ZENOH_LOG_WARN_NAMED(
+      "rmw_zenoh_cpp",
+      "=== TMP DEBUG LOG === rmw_context_impl_s::shutdown()");
+
     zenoh::ZResult result;
     // no synchronization is needed here since undeclare will block
     // until inflight callbacks are finished
@@ -87,10 +91,13 @@ public:
     if (result != Z_OK) {
       RMW_ZENOH_LOG_ERROR_NAMED(
         "rmw_zenoh_cpp",
-        "Unable to undeclare the liveliness token");
+        "Unable to undeclare the liveliness token subscriber");
       return RMW_RET_ERROR;
     }
 
+    RMW_ZENOH_LOG_WARN_NAMED(
+      "rmw_zenoh_cpp",
+      "=== TMP DEBUG LOG === rmw_context_impl_s::shutdown() done");
     return RMW_RET_OK;
   }
 

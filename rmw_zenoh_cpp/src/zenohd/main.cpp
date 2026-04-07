@@ -46,6 +46,8 @@ BOOL WINAPI quit(DWORD ctrl_type)
 #else
 void quit(int sig)
 {
+  std::cout <<  "=== TMP DEBUG LOG === rmw_zenohd received signal to quit" << std::endl;
+
   (void)sig;
   running = false;
   run_cv.notify_one();
@@ -97,6 +99,8 @@ int main(int argc, char ** argv)
   // Wait until it's time to exit.
   std::unique_lock lock(run_mutex);
   run_cv.wait(lock, [] {return !running;});
+
+  std::cout << "=== TMP DEBUG LOG === rmw_zenohd return 0" << std::endl;
 
   return 0;
 }
