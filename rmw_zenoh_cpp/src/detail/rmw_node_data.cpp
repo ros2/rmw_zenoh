@@ -392,15 +392,7 @@ rmw_ret_t NodeData::shutdown()
 {
   std::lock_guard<std::recursive_mutex> lock(mutex_);
   rmw_ret_t ret = RMW_RET_OK;
-<<<<<<< HEAD
-  bool expected = false;
-  if (!is_shutdown_.compare_exchange_strong(
-      expected, true, std::memory_order_acq_rel,
-      std::memory_order_relaxed))
-  {
-=======
   if (is_shutdown_) {
->>>>>>> 0c8fec6 (Revert 1.8.0 (#960))
     return ret;
   }
 

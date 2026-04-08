@@ -489,16 +489,8 @@ bool ClientData::detach_condition_and_queue_is_empty()
 ///=============================================================================
 rmw_ret_t ClientData::shutdown()
 {
-<<<<<<< HEAD
-  bool expected = false;
-  if (!is_shutdown_.compare_exchange_strong(
-      expected, true, std::memory_order_acq_rel,
-      std::memory_order_relaxed))
-  {
-=======
   std::lock_guard<std::recursive_mutex> lock(mutex_);
   if (is_shutdown_) {
->>>>>>> 0c8fec6 (Revert 1.8.0 (#960))
     return RMW_RET_OK;
   }
 

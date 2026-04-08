@@ -496,16 +496,8 @@ bool ServiceData::detach_condition_and_queue_is_empty()
 rmw_ret_t ServiceData::shutdown()
 {
   rmw_ret_t ret = RMW_RET_OK;
-<<<<<<< HEAD
-  bool expected = false;
-  if (!is_shutdown_.compare_exchange_strong(
-      expected, true, std::memory_order_acq_rel,
-      std::memory_order_relaxed))
-  {
-=======
   std::lock_guard<std::mutex> lock(mutex_);
   if (is_shutdown_) {
->>>>>>> 0c8fec6 (Revert 1.8.0 (#960))
     return ret;
   }
 
