@@ -1,0 +1,8 @@
+diff --git a/rust-toolchain.toml b/rust-toolchain.toml
+index c1bc0a69..7897a24d 100644
+--- a/rust-toolchain.toml
++++ b/rust-toolchain.toml
+@@ -1,2 +1,2 @@
+ [toolchain]
+-channel = "1.85.0"
++channel = "1.75.0"
