@@ -25,33 +25,30 @@ else()
   # latter is a list separater in cmake and hence the string will be split into two when expanded.
   set(ZENOHC_CARGO_FLAGS "--features=shared-memory zenoh/transport_serial")
 
-  include(get_cargo_version.cmake)
-  get_cargo_version()
-
-  # By default, use commit id corresponding to zenoh-c 1.8.0 + https://github.com/eclipse-zenoh/zenoh/pull/2493
-  # See https://github.com/eclipse-zenoh/zenoh-c/blob/c1a477d3f5efc3abc0f0cf95e0773225d00dea3b/Cargo.lock#L4229
-  # pointing to zenoh https://github.com/eclipse-zenoh/zenoh/commit/69b410e705e94531902a41a51b74d0c7b098264c
-  set(zenoh_c_commit c1a477d3f5efc3abc0f0cf95e0773225d00dea3b)
-
-  # If Rust version below Zenoh MSRV (currently 1.88), use equivalent commit from branch ROS/rust-1.75
-  # See https://github.com/eclipse-zenoh/zenoh-c/blob/0e3ec084142382096d09f7fc2ad59385998b92e6/Cargo.lock#L4237
-  # pointing to zenoh https://github.com/eclipse-zenoh/zenoh/commit/f27282e78c6e42e04249349049fa68cfbc941369
-  if(CARGO_VERSION VERSION_GREATER_EQUAL "1.75" AND CARGO_VERSION VERSION_LESS "1.88")
-    set(zenoh_c_commit 0e3ec084142382096d09f7fc2ad59385998b92e6)
-  endif()
-
+  # Set VCS_VERSION to 1.7.1 commits of zenoh/zenoh-c/zenoh-cpp to benefit from:
+  # * Query cancellation
+  #   - https://github.com/eclipse-zenoh/zenoh/pull/2223
+  #   - https://github.com/eclipse-zenoh/zenoh-c/pull/1134
+  #   - https://github.com/eclipse-zenoh/zenoh-cpp/pull/663
+  # * Access to transport optimization SHM provider
+  #   - https://github.com/eclipse-zenoh/zenoh/pull/2221
+  #   - https://github.com/eclipse-zenoh/zenoh-c/pull/1132
+  #   - https://github.com/eclipse-zenoh/zenoh-cpp/pull/654
+  # * Metrics per key (requires to add "zenoh/stats" feature to ZENOHC_CARGO_FLAGS for build)
+  #   - https://github.com/eclipse-zenoh/zenoh/pull/2284
   ament_vendor(zenoh_c_vendor
     VCS_URL https://github.com/eclipse-zenoh/zenoh-c.git
-    VCS_VERSION ${zenoh_c_commit}
+    VCS_VERSION 73e7a0bdcf78b8263a02b7aee453ee6de8187589
     CMAKE_ARGS
       "-DZENOHC_CARGO_FLAGS=${ZENOHC_CARGO_FLAGS}"
       "-DZENOHC_BUILD_WITH_UNSTABLE_API=TRUE"
       "-DZENOHC_CUSTOM_TARGET=${ZENOHC_CUSTOM_TARGET}"
+    PATCHES ${CMAKE_CURRENT_SOURCE_DIR}/pin-rust-1.75.0.patch
   )
 
   ament_vendor(zenoh_cpp_vendor
     VCS_URL https://github.com/eclipse-zenoh/zenoh-cpp
-    VCS_VERSION 776c59651a61dc53689dd68beace147e67a83a27
+    VCS_VERSION 47a80d345d74ebef16f3783423bf3bbd89cd6c30
     CMAKE_ARGS
       -DZENOHCXX_ZENOHC=OFF
   )
