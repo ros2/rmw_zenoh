@@ -16,7 +16,6 @@
 #define DETAIL__RMW_CLIENT_DATA_HPP_
 
 #include <array>
-#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <deque>
@@ -94,6 +93,9 @@ public:
   // Detach any attached wait set condition variable, and return whether there is data in the queue.
   bool detach_condition_and_queue_is_empty();
 
+  // Shutdown this ClientData.
+  rmw_ret_t shutdown();
+
   // Check if this ClientData is shutdown.
   bool is_shutdown() const;
 
@@ -113,11 +115,8 @@ private:
     std::shared_ptr<RequestTypeSupport> request_type_support,
     std::shared_ptr<ResponseTypeSupport> response_type_support);
 
-  // Shutdown this ClientData.
-  rmw_ret_t shutdown();
-
   // Internal mutex.
-  mutable std::mutex mutex_;
+  mutable std::recursive_mutex mutex_;
   // The parent node.
   const rmw_node_t * rmw_node_;
   // The rmw client.
@@ -144,7 +143,7 @@ private:
   // Sequence number for queries.
   size_t sequence_number_;
   // Shutdown flag.
-  std::atomic<bool> is_shutdown_;
+  bool is_shutdown_;
   // Whether the object has ever successfully been initialized.
   bool initialized_;
 };
