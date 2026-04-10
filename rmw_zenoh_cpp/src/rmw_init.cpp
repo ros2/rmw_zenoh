@@ -89,6 +89,14 @@ rmw_init(const rmw_init_options_t * options, rmw_context_t * context)
     return RMW_RET_ERROR;
   }
 
+  // Disable ANSI color codes in Zenoh log output so they don't contaminate
+  // captured command output (e.g. YAML parsing in ros2param tests). Only set
+  // if the caller has not already overridden RUST_LOG_STYLE.
+  if (!rcutils_set_env_overwrite("RUST_LOG_STYLE", "never", 0)) {
+    RMW_SET_ERROR_MSG("Error configuring Zenoh logging style.");
+    return RMW_RET_ERROR;
+  }
+
   // Enable the zenoh built-in logger
   zc_try_init_log_from_env();
 
