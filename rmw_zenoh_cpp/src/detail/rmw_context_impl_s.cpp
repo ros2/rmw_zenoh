@@ -351,7 +351,16 @@ public:
       // to avoid an AB/BA deadlock if shutdown is racing with graph_sub_data_handler().
     }
 
-    // Drop the shared session.
+    // Explicitly close the session before releasing our shared_ptr reference.
+    // This calls wait_callbacks() internally (since zenoh commit e5db0ce), which waits
+    // for all in-flight callbacks to finish. We call close() here while node-level entities
+    // (subscriptions, publishers, etc.) are still alive — at shutdown time, the spin loop
+    // has already exited so there are no active callbacks, and wait_callbacks() returns
+    // immediately. The session is then marked as closed, so when the shared_ptr refcount
+    // eventually reaches zero (after rcl destroys each handle in the normal teardown order),
+    // the session destructor finds is_closed()==true and skips the blocking close() call.
+    session_->close();
+
     session_.reset();
 
     return RMW_RET_OK;
