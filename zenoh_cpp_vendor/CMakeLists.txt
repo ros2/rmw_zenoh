@@ -25,12 +25,8 @@ else()
   # latter is a list separater in cmake and hence the string will be split into two when expanded.
   set(ZENOHC_CARGO_FLAGS "--features=shared-memory zenoh/transport_serial")
 
-  execute_process(
-    COMMAND cargo --version
-    OUTPUT_VARIABLE CARGO_VERSION_OUTPUT
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-  )
-  string(REGEX MATCH "[0-9]+\\.[0-9]+\\.[0-9]+" CARGO_VERSION "${CARGO_VERSION_OUTPUT}")
+  include(get_cargo_version.cmake)
+  get_cargo_version()
 
   # By default, use zenoh-c main (requires Rust >= 1.88)
   set(zenoh_c_commit 102df1a32516fc8ddcf0f1d50cdac70433f38a56)
