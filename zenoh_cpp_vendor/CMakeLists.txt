@@ -25,30 +25,33 @@ else()
   # latter is a list separater in cmake and hence the string will be split into two when expanded.
   set(ZENOHC_CARGO_FLAGS "--features=shared-memory zenoh/transport_serial")
 
-  # Set VCS_VERSION to 1.7.1 commits of zenoh/zenoh-c/zenoh-cpp to benefit from:
-  # * Query cancellation
-  #   - https://github.com/eclipse-zenoh/zenoh/pull/2223
-  #   - https://github.com/eclipse-zenoh/zenoh-c/pull/1134
-  #   - https://github.com/eclipse-zenoh/zenoh-cpp/pull/663
-  # * Access to transport optimization SHM provider
-  #   - https://github.com/eclipse-zenoh/zenoh/pull/2221
-  #   - https://github.com/eclipse-zenoh/zenoh-c/pull/1132
-  #   - https://github.com/eclipse-zenoh/zenoh-cpp/pull/654
-  # * Metrics per key (requires to add "zenoh/stats" feature to ZENOHC_CARGO_FLAGS for build)
-  #   - https://github.com/eclipse-zenoh/zenoh/pull/2284
+  execute_process(
+    COMMAND cargo --version
+    OUTPUT_VARIABLE CARGO_VERSION_OUTPUT
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  string(REGEX MATCH "[0-9]+\\.[0-9]+\\.[0-9]+" CARGO_VERSION "${CARGO_VERSION_OUTPUT}")
+
+  # By default, use zenoh-c main (requires Rust >= 1.88)
+  set(zenoh_c_commit 102df1a32516fc8ddcf0f1d50cdac70433f38a56)
+
+  # If Rust version below Zenoh MSRV (currently 1.88), use equivalent commit from branch ROS/rust-1.75
+  if(CARGO_VERSION VERSION_GREATER_EQUAL "1.75" AND CARGO_VERSION VERSION_LESS "1.88")
+    set(zenoh_c_commit 0193595c4d75bfd93b1cf7ec1b27c7132512b325)
+  endif()
+
   ament_vendor(zenoh_c_vendor
     VCS_URL https://github.com/eclipse-zenoh/zenoh-c.git
-    VCS_VERSION 73e7a0bdcf78b8263a02b7aee453ee6de8187589
+    VCS_VERSION ${zenoh_c_commit}
     CMAKE_ARGS
       "-DZENOHC_CARGO_FLAGS=${ZENOHC_CARGO_FLAGS}"
       "-DZENOHC_BUILD_WITH_UNSTABLE_API=TRUE"
       "-DZENOHC_CUSTOM_TARGET=${ZENOHC_CUSTOM_TARGET}"
-    PATCHES ${CMAKE_CURRENT_SOURCE_DIR}/pin-rust-1.75.0.patch
   )
 
   ament_vendor(zenoh_cpp_vendor
     VCS_URL https://github.com/eclipse-zenoh/zenoh-cpp
-    VCS_VERSION 47a80d345d74ebef16f3783423bf3bbd89cd6c30
+    VCS_VERSION af381b420cc8837ac7da42c9984594ef8f110e90
     CMAKE_ARGS
       -DZENOHCXX_ZENOHC=OFF
   )
