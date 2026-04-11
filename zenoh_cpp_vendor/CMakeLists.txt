@@ -28,10 +28,14 @@ else()
   include(get_cargo_version.cmake)
   get_cargo_version()
 
-  # By default, use zenoh-c main (requires Rust >= 1.88)
-  set(zenoh_c_commit 102df1a32516fc8ddcf0f1d50cdac70433f38a56)
+  # By default, use commit id corresponding to zenoh-c 1.8.0 + https://github.com/eclipse-zenoh/zenoh/pull/2493
+  # See https://github.com/eclipse-zenoh/zenoh-c/blob/c1a477d3f5efc3abc0f0cf95e0773225d00dea3b/Cargo.lock#L4229
+  # pointing to zenoh https://github.com/eclipse-zenoh/zenoh/commit/69b410e705e94531902a41a51b74d0c7b098264c
+  set(zenoh_c_commit c1a477d3f5efc3abc0f0cf95e0773225d00dea3b)
 
   # If Rust version below Zenoh MSRV (currently 1.88), use equivalent commit from branch ROS/rust-1.75
+  # See https://github.com/eclipse-zenoh/zenoh-c/blob/0e3ec084142382096d09f7fc2ad59385998b92e6/Cargo.lock#L4237
+  # pointing to zenoh https://github.com/eclipse-zenoh/zenoh/commit/f27282e78c6e42e04249349049fa68cfbc941369
   if(CARGO_VERSION VERSION_GREATER_EQUAL "1.75" AND CARGO_VERSION VERSION_LESS "1.88")
     set(zenoh_c_commit 0193595c4d75bfd93b1cf7ec1b27c7132512b325)
   endif()
