@@ -222,25 +222,23 @@ ServiceData::ServiceData(
 ///=============================================================================
 liveliness::TopicInfo ServiceData::topic_info() const
 {
-  std::lock_guard<std::mutex> lock(mutex_);
   return entity_->topic_info().value();
 }
 
 ///=============================================================================
 bool ServiceData::liveliness_is_valid() const
 {
-  std::lock_guard<std::mutex> lock(mutex_);
   // The z_check function is now internal in zenoh-1.0.0 so we assume
   // the liveliness token is still initialized as long as this entity has
   // not been shutdown.
-  return !is_shutdown_;
+  return !is_shutdown_.load(std::memory_order_acquire);
 }
 
 ///=============================================================================
 void ServiceData::add_new_query(std::unique_ptr<ZenohQuery> query)
 {
   std::lock_guard<std::mutex> lock(mutex_);
-  if (is_shutdown_) {
+  if (is_shutdown_.load(std::memory_order_acquire)) {
     RMW_ZENOH_LOG_DEBUG_NAMED(
       "rmw_zenoh_cpp",
       "Request from client will be ignored since the service is shutdown."
@@ -281,7 +279,7 @@ rmw_ret_t ServiceData::take_request(
   std::lock_guard<std::mutex> lock(mutex_);
   *taken = false;
 
-  if (is_shutdown_ || query_queue_.empty()) {
+  if (is_shutdown_.load(std::memory_order_acquire) || query_queue_.empty()) {
     // This tells rcl that the check for a new message was done, but no messages have come in yet.
     return RMW_RET_OK;
   }
@@ -376,7 +374,7 @@ rmw_ret_t ServiceData::send_response(
   void * ros_response)
 {
   std::lock_guard<std::mutex> lock(mutex_);
-  if (is_shutdown_) {
+  if (is_shutdown_.load(std::memory_order_acquire)) {
     RMW_ZENOH_LOG_DEBUG_NAMED(
       "rmw_zenoh_cpp",
       "Unable to send response as the service is shutdown."
@@ -519,8 +517,10 @@ bool ServiceData::detach_condition_and_queue_is_empty()
 rmw_ret_t ServiceData::shutdown()
 {
   rmw_ret_t ret = RMW_RET_OK;
-  std::lock_guard<std::mutex> lock(mutex_);
-  if (is_shutdown_) {
+  bool expected = false;
+  if (!is_shutdown_.compare_exchange_strong(expected, true, std::memory_order_acq_rel,
+      std::memory_order_relaxed))
+  {
     return ret;
   }
 
@@ -544,15 +544,12 @@ rmw_ret_t ServiceData::shutdown()
     }
   }
 
-  sess_.reset();
-  is_shutdown_ = true;
   return RMW_RET_OK;
 }
 
 ///=============================================================================
 bool ServiceData::is_shutdown() const
 {
-  std::lock_guard<std::mutex> lock(mutex_);
-  return is_shutdown_;
+  return is_shutdown_.load(std::memory_order_acquire);
 }
 }  // namespace rmw_zenoh_cpp
