@@ -210,18 +210,16 @@ ClientData::ClientData(
 ///=============================================================================
 liveliness::TopicInfo ClientData::topic_info() const
 {
-  std::lock_guard<std::recursive_mutex> lock(mutex_);
   return entity_->topic_info().value();
 }
 
 ///=============================================================================
 bool ClientData::liveliness_is_valid() const
 {
-  std::lock_guard<std::recursive_mutex> lock(mutex_);
   // The z_check function is now internal in zenoh-1.0.0 so we assume
   // the liveliness token is still initialized as long as this entity has
   // not been shutdown.
-  return !is_shutdown_;
+  return !is_shutdown_.load(std::memory_order_acquire);
 }
 
 ///=============================================================================
@@ -233,7 +231,7 @@ std::array<uint8_t, RMW_GID_STORAGE_SIZE> ClientData::copy_gid() const
 ///=============================================================================
 void ClientData::add_new_reply(std::unique_ptr<ZenohReply> reply)
 {
-  std::lock_guard<std::recursive_mutex> lock(mutex_);
+  std::lock_guard<std::mutex> lock(mutex_);
   const rmw_qos_profile_t adapted_qos_profile =
     entity_->topic_info().value().qos_;
   if (adapted_qos_profile.history != RMW_QOS_POLICY_HISTORY_KEEP_ALL &&
@@ -265,10 +263,10 @@ rmw_ret_t ClientData::take_response(
   void * ros_response,
   bool * taken)
 {
-  std::lock_guard<std::recursive_mutex> lock(mutex_);
+  std::lock_guard<std::mutex> lock(mutex_);
   *taken = false;
 
-  if (is_shutdown_ || reply_queue_.empty()) {
+  if (this->is_shutdown() || reply_queue_.empty()) {
     // This tells rcl that the check for a new message was done, but no messages have come in yet.
     return RMW_RET_OK;
   }
@@ -342,8 +340,8 @@ rmw_ret_t ClientData::send_request(
   const void * ros_request,
   int64_t * sequence_id)
 {
-  std::unique_lock<std::recursive_mutex> lock(mutex_);
-  if (is_shutdown_) {
+  std::unique_lock<std::mutex> lock(mutex_);
+  if (this->is_shutdown()) {
     return RMW_RET_OK;
   }
 
@@ -482,7 +480,7 @@ void ClientData::set_on_new_response_callback(
   rmw_event_callback_t callback,
   const void * user_data)
 {
-  std::lock_guard<std::recursive_mutex> lock(mutex_);
+  std::lock_guard<std::mutex> lock(mutex_);
   data_callback_mgr_.set_callback(user_data, std::move(callback));
 }
 
@@ -490,7 +488,7 @@ void ClientData::set_on_new_response_callback(
 bool ClientData::queue_has_data_and_attach_condition_if_not(
   rmw_wait_set_data_t * wait_set_data)
 {
-  std::lock_guard<std::recursive_mutex> lock(mutex_);
+  std::lock_guard<std::mutex> lock(mutex_);
   if (!reply_queue_.empty()) {
     return true;
   }
@@ -502,7 +500,7 @@ bool ClientData::queue_has_data_and_attach_condition_if_not(
 ///=============================================================================
 bool ClientData::detach_condition_and_queue_is_empty()
 {
-  std::lock_guard<std::recursive_mutex> lock(mutex_);
+  std::lock_guard<std::mutex> lock(mutex_);
   wait_set_data_ = nullptr;
 
   return reply_queue_.empty();
@@ -511,8 +509,10 @@ bool ClientData::detach_condition_and_queue_is_empty()
 ///=============================================================================
 rmw_ret_t ClientData::shutdown()
 {
-  std::lock_guard<std::recursive_mutex> lock(mutex_);
-  if (is_shutdown_) {
+  bool expected = false;
+  if (!is_shutdown_.compare_exchange_strong(expected, true, std::memory_order_acq_rel,
+      std::memory_order_relaxed))
+  {
     return RMW_RET_OK;
   }
 
@@ -536,16 +536,12 @@ rmw_ret_t ClientData::shutdown()
     return RMW_RET_ERROR;
   }
 
-  sess_.reset();
-  is_shutdown_ = true;
-
   return RMW_RET_OK;
 }
 
 ///=============================================================================
 bool ClientData::is_shutdown() const
 {
-  std::lock_guard<std::recursive_mutex> lock(mutex_);
-  return is_shutdown_;
+  return is_shutdown_.load(std::memory_order_acquire);
 }
 }  // namespace rmw_zenoh_cpp
