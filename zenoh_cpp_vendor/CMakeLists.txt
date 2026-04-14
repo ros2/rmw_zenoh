@@ -52,7 +52,7 @@ else()
 
   ament_vendor(zenoh_cpp_vendor
     VCS_URL https://github.com/eclipse-zenoh/zenoh-cpp
-    VCS_VERSION af381b420cc8837ac7da42c9984594ef8f110e90
+    VCS_VERSION a3cd1a2d05a65f575086af209a71a8c211ccd896
     CMAKE_ARGS
       -DZENOHCXX_ZENOHC=OFF
   )
