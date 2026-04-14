@@ -2,6 +2,30 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.10.3 (2026-04-14)
+-------------------
+
+* Bump Zenoh to 1.8.0, fix Windows shutdown hang, and resolve synchronization with ``undeclare`` (`#964 <https://github.com/ros2/rmw_zenoh/issues/964>`_)
+* Revert changes to build against rust >= 1.75 and bump zenoh to 1.8.0 (`#960 <https://github.com/ros2/rmw_zenoh/issues/960>`_)
+* Prevent deadlock by not holding both locks when processing event data (`#937 <https://github.com/ros2/rmw_zenoh/issues/937>`_)
+* Bump zenoh to 1.8.0 (`#935 <https://github.com/ros2/rmw_zenoh/issues/935>`_)
+* Explicitly set `false` for the content filtering feature (`#938 <https://github.com/ros2/rmw_zenoh/issues/938>`_)
+* Add deadline/liveliness QoS events to ``rmw_zenoh_cpp`` (`#934 <https://github.com/ros2/rmw_zenoh/issues/934>`_)
+* Catch ``PackageNotFoundError`` during default config URI loading to prevent crash (`#915 <https://github.com/ros2/rmw_zenoh/issues/915>`_)
+* Populate ``reception_sequence_number`` and ``advertise_sequence_number`` features (`#920 <https://github.com/ros2/rmw_zenoh/issues/920>`_)
+* Use ``get_package_share_path`` (`#913 <https://github.com/ros2/rmw_zenoh/issues/913>`_)
+* Address outstanding TODO items (`#896 <https://github.com/ros2/rmw_zenoh/issues/896>`_)
+* Expose zenoh session (`#865 <https://github.com/ros2/rmw_zenoh/issues/865>`_)
+* Fix config loading with incorrect path variable (`#898 <https://github.com/ros2/rmw_zenoh/issues/898>`_)
+* Fix build binary workflow (`#895 <https://github.com/ros2/rmw_zenoh/issues/895>`_)
+* Fix line ending in session open error message (`#888 <https://github.com/ros2/rmw_zenoh/issues/888>`_)
+* Update deprecated ``ament_index_cpp`` API (`#879 <https://github.com/ros2/rmw_zenoh/issues/879>`_)
+* Remove ``default`` from switch with enum to enable compiler warnings (`#871 <https://github.com/ros2/rmw_zenoh/issues/871>`_)
+* Use shared SHM transport provider instead of creating a new instance (`#857 <https://github.com/ros2/rmw_zenoh/issues/857>`_)
+* Bump ``zenoh`` to 1.7.1 (`#870 <https://github.com/ros2/rmw_zenoh/issues/870>`_)
+
+* Contributors: Alejandro Hernández Cordero, Hervé Audren, Julien Enoch, Nikola Banović, Shane Loretz, Skyler Medeiros, Tomoya Fujita, Yuyuan Yuan, jordanburklund, yellowhatter
+
 0.10.2 (2025-11-18)
 -------------------
 * Add rmw_get_clients_info_by_service and rmw_get_servers_info_by_service (`#679 <https://github.com/ros2/rmw_zenoh/issues/679>`_)

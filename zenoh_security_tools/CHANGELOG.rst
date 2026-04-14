@@ -2,6 +2,13 @@
 Changelog for package zenoh_security_tools
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.10.3 (2026-04-14)
+-------------------
+
+* Address outstanding TODO items (`#896 <https://github.com/ros2/rmw_zenoh/issues/896>`_)
+
+* Contributors: Tomoya Fujita
+
 0.10.2 (2025-11-18)
 -------------------
 

@@ -2,6 +2,20 @@
 Changelog for package zenoh_cpp_vendor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.10.3 (2026-04-14)
+-------------------
+
+* Bump Zenoh to 1.8.0, fix Windows shutdown hang, and resolve synchronization with ``undeclare`` (`#964 <https://github.com/ros2/rmw_zenoh/issues/964>`_)
+* Revert changes to build against rust >= 1.75 and bump zenoh to 1.8.0 (`#960 <https://github.com/ros2/rmw_zenoh/issues/960>`_)
+* Revert patch of Cargo.lock with new Zenoh commit due to Windows test failures (`#959 <https://github.com/ros2/rmw_zenoh/issues/959>`_)
+* Update Cargo.lock with new Zenoh commit (`#957 <https://github.com/ros2/rmw_zenoh/issues/957>`_)
+* Build against ``rust >= 1.75`` for ROS Lyrical (`#945 <https://github.com/ros2/rmw_zenoh/issues/945>`_)
+* Bump zenoh to 1.8.0 (`#935 <https://github.com/ros2/rmw_zenoh/issues/935>`_)
+* Allow use of non-vendored Zenoh if present (`#908 <https://github.com/ros2/rmw_zenoh/issues/908>`_)
+* Bump ``zenoh`` to 1.7.1 (`#870 <https://github.com/ros2/rmw_zenoh/issues/870>`_)
+
+* Contributors: Julien Enoch, Shane Loretz, Yuyuan Yuan, Øystein Sture
+
 0.10.2 (2025-11-18)
 -------------------
 * Fix REP url locations (`#858 <https://github.com/ros2/rmw_zenoh/issues/858>`_)
