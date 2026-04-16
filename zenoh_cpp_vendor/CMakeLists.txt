@@ -52,7 +52,7 @@ else()
 
   ament_vendor(zenoh_cpp_vendor
     VCS_URL https://github.com/ZettaScaleLabs/zenoh-cpp
-    VCS_VERSION bbd24084e578e353ec858fed2ca616358edcf2fb
+    VCS_VERSION 93d5ba88f77719b3d10b13e548c1cdadfcc0ef1c
     CMAKE_ARGS
       -DZENOHCXX_ZENOHC=OFF
   )
