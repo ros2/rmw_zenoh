@@ -81,6 +81,17 @@ std::string make_cpu_group_key(const std::string & base_key)
   return base_key + "/_buf_cpu";
 }
 
+// Per-subscriber accelerated buffer key: a single shared channel keyed by
+// the local subscriber's GID. Every buffer-aware publisher that matches
+// this subscriber writes to this key, so each subscriber only needs one
+// accelerated zenoh subscriber.
+std::string make_accelerated_key(
+  const std::string & base_key,
+  const std::string & sub_gid_hex)
+{
+  return base_key + "/_buf/" + sub_gid_hex;
+}
+
 const char * entity_type_to_string(rmw_zenoh_cpp::liveliness::EntityType type)
 {
   switch (type) {
@@ -479,15 +490,35 @@ bool SubscriptionData::init()
     }
   }
 
-  if (is_buffer_aware_ && is_cpu_only_backend_types(my_backend_types_)) {
-    auto cpu_endpoint = create_subscription_endpoint(
-      make_cpu_group_key(entity_->topic_info()->topic_keyexpr_),
-      std::nullopt);
-    if (!cpu_endpoint) {
-      RMW_SET_ERROR_MSG("unable to create zenoh CPU subscription");
-      return false;
+  if (is_buffer_aware_) {
+    if (is_cpu_only_backend_types(my_backend_types_)) {
+      auto cpu_endpoint = create_subscription_endpoint(
+        make_cpu_group_key(entity_->topic_info()->topic_keyexpr_),
+        std::nullopt,
+        false);
+      if (!cpu_endpoint) {
+        RMW_SET_ERROR_MSG("unable to create zenoh CPU subscription");
+        return false;
+      }
+      sub_endpoints_[cpu_endpoint->key] = cpu_endpoint;
+    } else {
+      // Eagerly create a single shared accelerated channel keyed by this
+      // subscriber's GID. All buffer-aware publishers that match this
+      // subscriber publish to this key, so one zenoh subscriber serves all
+      // of them.  Mirrors rmw_fastrtps_cpp's "single shared accelerated
+      // DataReader per subscriber" design.
+      rmw_gid_t local_gid = rmw_zenoh_cpp::entity_gid_to_rmw_gid(
+        *entity_, rmw_zenoh_cpp::rmw_zenoh_identifier);
+      const std::string accel_key = make_accelerated_key(
+        entity_->topic_info()->topic_keyexpr_, gid_to_hex(local_gid));
+      auto accel_endpoint = create_subscription_endpoint(
+        accel_key, std::nullopt, true);
+      if (!accel_endpoint) {
+        RMW_SET_ERROR_MSG("unable to create zenoh accelerated subscription");
+        return false;
+      }
+      sub_endpoints_[accel_endpoint->key] = accel_endpoint;
     }
-    sub_endpoints_[cpu_endpoint->key] = cpu_endpoint;
   }
 
   // Publish to the graph that a new subscription is in town.
@@ -619,11 +650,13 @@ void SubscriptionData::on_publisher_discovered(const liveliness::Entity & entity
     return;
   }
 
-  // Phase 1: collect state under lock, check duplicates, mark pending
-  std::string full_key;
+  // Phase 1: collect state under lock, check duplicates.
+  // A single shared accelerated endpoint was already created in init();
+  // here we only need to register the discovered publisher's metadata so
+  // take_one_message / the accelerated channel callback can resolve the
+  // sending publisher's endpoint_info by GID lookup.
   std::vector<rmw_topic_endpoint_info_t> existing_endpoints;
   std::unordered_map<std::string, std::vector<std::set<uint32_t>>> backend_endpoint_groups;
-  bool need_create_endpoint = false;
   {
     std::lock_guard<std::mutex> lock(mutex_);
     if (!is_buffer_aware_ || is_shutdown_) {
@@ -646,18 +679,6 @@ void SubscriptionData::on_publisher_discovered(const liveliness::Entity & entity
       backend_endpoint_groups.insert(existing.backend_groups.begin(),
         existing.backend_groups.end());
     }
-
-    const std::string base_key = entity_->topic_info()->topic_keyexpr_;
-    rmw_gid_t local_gid = rmw_zenoh_cpp::entity_gid_to_rmw_gid(
-      *entity_, rmw_zenoh_cpp::rmw_zenoh_identifier);
-    full_key = base_key + "/" + entity.zid() + "/" + gid_to_hex(local_gid);
-
-    need_create_endpoint = (sub_endpoints_.find(full_key) == sub_endpoints_.end());
-    if (need_create_endpoint) {
-      if (!pending_sub_endpoints_.insert(full_key).second) {
-        return;
-      }
-    }
   }
 
   RMW_ZENOH_ROSIDL_BUFFER_LOG_INFO_NAMED(
@@ -674,7 +695,7 @@ void SubscriptionData::on_publisher_discovered(const liveliness::Entity & entity
     gid_to_hex(pub_gid).c_str(),
     gid_array_to_hex(entity.copy_gid()).c_str());
 
-  // Phase 2: external operations without lock
+  // Phase 2: notify backend of the discovered publisher without holding the lock.
   std::unordered_map<std::string, std::vector<std::set<uint32_t>>> backend_groups;
   {
     rmw_context_impl_t * ctx_impl = static_cast<rmw_context_impl_t *>(rmw_node_->context->impl);
@@ -687,29 +708,15 @@ void SubscriptionData::on_publisher_discovered(const liveliness::Entity & entity
     }
   }
 
-  std::shared_ptr<SubscriptionEndpoint> new_endpoint;
-  if (need_create_endpoint) {
-    new_endpoint = create_subscription_endpoint(
-      full_key,
-      std::make_optional(pub_endpoint_info));
-    if (!new_endpoint) {
-      std::lock_guard<std::mutex> lock(mutex_);
-      pending_sub_endpoints_.erase(full_key);
-      return;
-    }
-  }
-
-  // Phase 3: store results under lock
+  // Phase 3: record the publisher's metadata under the lock.  The shared
+  // accelerated endpoint (created in init()) already receives messages from
+  // any buffer-aware publisher that matches this subscriber; we do not
+  // need to create a per-publisher zenoh subscription here.
   {
     std::lock_guard<std::mutex> lock(mutex_);
-    if (new_endpoint) {
-      sub_endpoints_[full_key] = new_endpoint;
-      pending_sub_endpoints_.erase(full_key);
-    }
-
     PublisherInfo pub_info;
     pub_info.gid = pub_gid;
-    pub_info.endpoint_key = full_key;
+    pub_info.endpoint_key.clear();
     pub_info.endpoint_info = std::move(pub_endpoint_info);
     pub_info.backend_metadata = pub_backend_metadata;
     pub_info.backend_groups = std::move(backend_groups);
@@ -718,11 +725,24 @@ void SubscriptionData::on_publisher_discovered(const liveliness::Entity & entity
 }
 
 ///=============================================================================
+std::optional<EndpointInfoStorage> SubscriptionData::lookup_publisher_endpoint_info(
+  const std::array<uint8_t, RMW_GID_STORAGE_SIZE> & publisher_gid) const
+{
+  std::lock_guard<std::mutex> lock(mutex_);
+  for (const auto & pub_info : discovered_publishers_) {
+    if (std::memcmp(pub_info.gid.data, publisher_gid.data(), RMW_GID_STORAGE_SIZE) == 0) {
+      return pub_info.endpoint_info;
+    }
+  }
+  return std::nullopt;
+}
+
+///=============================================================================
 void SubscriptionData::create_subscription_for_key(
   const std::string & key,
   std::optional<EndpointInfoStorage> publisher_info)
 {
-  auto endpoint = create_subscription_endpoint(key, publisher_info);
+  auto endpoint = create_subscription_endpoint(key, publisher_info, false);
   if (endpoint) {
     sub_endpoints_[key] = endpoint;
   }
@@ -732,7 +752,8 @@ void SubscriptionData::create_subscription_for_key(
 std::shared_ptr<SubscriptionData::SubscriptionEndpoint>
 SubscriptionData::create_subscription_endpoint(
   const std::string & key,
-  std::optional<EndpointInfoStorage> publisher_info)
+  std::optional<EndpointInfoStorage> publisher_info,
+  bool is_accelerated)
 {
   zenoh::ZResult result;
   zenoh::KeyExpr sub_ke(key, true, &result);
@@ -783,6 +804,7 @@ SubscriptionData::create_subscription_endpoint(
   auto endpoint = std::make_shared<SubscriptionEndpoint>();
   endpoint->key = key;
   endpoint->publisher_info = std::move(publisher_info);
+  endpoint->is_accelerated = is_accelerated;
 
   std::weak_ptr<SubscriptionData> data_wp = shared_from_this();
   auto ep = endpoint;
@@ -809,12 +831,35 @@ SubscriptionData::create_subscription_endpoint(
 
       AttachmentData attachment_data(attachment.value());
 
+      // For the shared accelerated channel, resolve the sending publisher's
+      // endpoint info by looking up its GID from the attachment.  This lets
+      // take_one_message use endpoint-aware deserialization without needing
+      // a per-publisher zenoh subscriber.
+      std::optional<EndpointInfoStorage> resolved_endpoint_info = ep->publisher_info;
+      if (ep->is_accelerated) {
+        resolved_endpoint_info = sub_data->lookup_publisher_endpoint_info(
+          attachment_data.copy_gid());
+        if (!resolved_endpoint_info.has_value()) {
+          // Publisher liveliness discovery may not have caught up yet.  Fall
+          // back to a minimal endpoint_info populated with only the GID so
+          // endpoint-aware deserialization still runs (matches the behavior
+          // of rmw_fastrtps_cpp's buffer-aware take path).
+          EndpointInfoStorage minimal;
+          minimal.info = rmw_get_zero_initialized_topic_endpoint_info();
+          minimal.info.endpoint_type = RMW_ENDPOINT_PUBLISHER;
+          const auto gid_bytes = attachment_data.copy_gid();
+          std::memcpy(
+            minimal.info.endpoint_gid, gid_bytes.data(), RMW_GID_STORAGE_SIZE);
+          resolved_endpoint_info = std::move(minimal);
+        }
+      }
+
       sub_data->add_new_message(
         std::make_unique<SubscriptionData::Message>(
           sample.get_payload(),
           get_system_time_in_ns(),
           std::move(attachment_data),
-          ep->publisher_info),
+          std::move(resolved_endpoint_info)),
         std::string(sample.get_keyexpr().as_string_view()));
     };
 

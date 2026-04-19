@@ -279,6 +279,22 @@ std::shared_ptr<PublisherData> PublisherData::make(
       rosidl_buffer_backend_registry::notify_endpoint_created(
         backend_ctx->backend_instances, pub_data->local_endpoint_info_.info);
     }
+
+    // Eagerly create the CPU-group publisher endpoint.  All CPU-only
+    // subscribers share this single channel instead of requiring individual
+    // peer-to-peer endpoints -- mirrors rmw_fastrtps_cpp's eager CPU
+    // DataWriter creation.
+    const std::string cpu_group_key = make_cpu_group_key(
+      pub_data->entity_->topic_info()->topic_keyexpr_);
+    auto cpu_endpoint = pub_data->create_publisher_endpoint(cpu_group_key);
+    if (!cpu_endpoint) {
+      RMW_ZENOH_ROSIDL_BUFFER_LOG_ERROR_NAMED(
+        "rmw_zenoh_cpp",
+        "Failed to eagerly create CPU-group publisher endpoint for topic '%s'",
+        topic_name.c_str());
+      return nullptr;
+    }
+    pub_data->endpoints_[cpu_group_key] = std::move(cpu_endpoint);
   }
 
   // Register discovery callback for Buffer-aware publishers
@@ -909,7 +925,7 @@ void PublisherData::on_subscriber_discovered(const liveliness::Entity & entity)
 
     full_key = use_cpu_group ?
       make_cpu_group_key(entity_->topic_info()->topic_keyexpr_) :
-      entity_->topic_info()->topic_keyexpr_ + "/" + entity_->zid() + "/" + gid_to_hex(gid);
+      entity_->topic_info()->topic_keyexpr_ + "/_buf/" + gid_to_hex(gid);
 
     need_create_endpoint = (endpoints_.find(full_key) == endpoints_.end());
     if (need_create_endpoint) {

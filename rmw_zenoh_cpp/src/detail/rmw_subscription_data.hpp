@@ -28,6 +28,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include <array>
+
 #include <zenoh.hxx>
 
 #include "attachment_helpers.hpp"
@@ -142,6 +144,11 @@ private:
     std::string key;
     std::optional<EndpointInfoStorage> publisher_info;
     std::optional<zenoh::ext::AdvancedSubscriber<void>> sub;
+    // When true, this endpoint is a shared accelerated channel keyed by the
+    // local subscriber's GID; any buffer-aware publisher matched to this
+    // subscriber writes to it. The message callback must resolve the sending
+    // publisher's endpoint_info by GID lookup against discovered_publishers_.
+    bool is_accelerated{false};
   };
 
   // Constructor.
@@ -170,7 +177,14 @@ private:
   // Create a Zenoh subscription endpoint (does not require mutex_).
   std::shared_ptr<SubscriptionEndpoint> create_subscription_endpoint(
     const std::string & key,
-    std::optional<EndpointInfoStorage> publisher_info);
+    std::optional<EndpointInfoStorage> publisher_info,
+    bool is_accelerated);
+
+  // Look up a discovered publisher's endpoint info by GID.  Used by the
+  // shared accelerated channel to attach endpoint-aware context to each
+  // received message.  Thread-safe: acquires mutex_ internally.
+  std::optional<EndpointInfoStorage> lookup_publisher_endpoint_info(
+    const std::array<uint8_t, RMW_GID_STORAGE_SIZE> & publisher_gid) const;
 
   // Internal mutex.
   mutable std::mutex mutex_;
