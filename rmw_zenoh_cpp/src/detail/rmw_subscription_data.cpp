@@ -33,6 +33,7 @@
 
 #include "rosidl_buffer_backend_registry/backend_utils.hpp"
 #include "buffer_backend_context.hpp"
+#include "buffer_endpoint_helpers.hpp"
 #include "identifier.hpp"
 #include "rmw_context_impl_s.hpp"
 #include "message_type_support.hpp"
@@ -49,70 +50,15 @@
 
 #include "rosidl_typesupport_fastrtps_cpp/message_type_support.h"
 
-namespace
-{
-std::string gid_to_hex(const rmw_gid_t & gid)
-{
-  std::ostringstream out;
-  out << std::hex << std::setfill('0');
-  for (size_t i = 0; i < RMW_GID_STORAGE_SIZE; ++i) {
-    out << std::setw(2) << static_cast<int>(gid.data[i]);
-  }
-  return out.str();
-}
-
-std::string gid_array_to_hex(const std::array<uint8_t, RMW_GID_STORAGE_SIZE> & gid_array)
-{
-  std::ostringstream out;
-  out << std::hex << std::setfill('0');
-  for (size_t i = 0; i < gid_array.size(); ++i) {
-    out << std::setw(2) << static_cast<int>(gid_array[i]);
-  }
-  return out.str();
-}
-
-bool is_cpu_only_backend_types(const std::vector<std::string> & backend_types)
-{
-  return backend_types.size() == 1 && backend_types.front() == "cpu";
-}
-
-std::string make_cpu_group_key(const std::string & base_key)
-{
-  return base_key + "/_buf_cpu";
-}
-
-// Per-subscriber accelerated buffer key: a single shared channel keyed by
-// the local subscriber's GID. Every buffer-aware publisher that matches
-// this subscriber writes to this key, so each subscriber only needs one
-// accelerated zenoh subscriber.
-std::string make_accelerated_key(
-  const std::string & base_key,
-  const std::string & sub_gid_hex)
-{
-  return base_key + "/_buf/" + sub_gid_hex;
-}
-
-const char * entity_type_to_string(rmw_zenoh_cpp::liveliness::EntityType type)
-{
-  switch (type) {
-    case rmw_zenoh_cpp::liveliness::EntityType::Node:
-      return "Node";
-    case rmw_zenoh_cpp::liveliness::EntityType::Publisher:
-      return "Publisher";
-    case rmw_zenoh_cpp::liveliness::EntityType::Subscription:
-      return "Subscription";
-    case rmw_zenoh_cpp::liveliness::EntityType::Service:
-      return "Service";
-    case rmw_zenoh_cpp::liveliness::EntityType::Client:
-      return "Client";
-    default:
-      return "Unknown";
-  }
-}
-}  // namespace
-
 namespace rmw_zenoh_cpp
 {
+
+using buffer_endpoint_helpers::entity_type_to_string;
+using buffer_endpoint_helpers::gid_array_to_hex;
+using buffer_endpoint_helpers::gid_to_hex;
+using buffer_endpoint_helpers::is_cpu_only_backend_types;
+using buffer_endpoint_helpers::make_accelerated_key;
+using buffer_endpoint_helpers::make_cpu_group_key;
 ///=============================================================================
 SubscriptionData::Message::Message(
   const zenoh::Bytes & p,

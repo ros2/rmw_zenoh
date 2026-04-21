@@ -34,6 +34,7 @@
 
 #include "rosidl_buffer_backend_registry/backend_utils.hpp"
 #include "buffer_backend_context.hpp"
+#include "buffer_endpoint_helpers.hpp"
 #include "identifier.hpp"
 #include "rmw_context_impl_s.hpp"
 #include "message_type_support.hpp"
@@ -52,61 +53,16 @@
 
 #include "tracetools/tracetools.h"
 
-namespace
-{
-std::string gid_to_hex(const rmw_gid_t & gid)
-{
-  std::ostringstream out;
-  out << std::hex << std::setfill('0');
-  for (size_t i = 0; i < RMW_GID_STORAGE_SIZE; ++i) {
-    out << std::setw(2) << static_cast<int>(gid.data[i]);
-  }
-  return out.str();
-}
-
-std::string gid_array_to_hex(const std::array<uint8_t, RMW_GID_STORAGE_SIZE> & gid_array)
-{
-  std::ostringstream out;
-  out << std::hex << std::setfill('0');
-  for (size_t i = 0; i < gid_array.size(); ++i) {
-    out << std::setw(2) << static_cast<int>(gid_array[i]);
-  }
-  return out.str();
-}
-
-bool is_cpu_only_backend_metadata(
-  const std::unordered_map<std::string,
-  std::string> & backend_metadata)
-{
-  return backend_metadata.size() == 1 && backend_metadata.count("cpu") == 1;
-}
-
-std::string make_cpu_group_key(const std::string & base_key)
-{
-  return base_key + "/_buf_cpu";
-}
-
-const char * entity_type_to_string(rmw_zenoh_cpp::liveliness::EntityType type)
-{
-  switch (type) {
-    case rmw_zenoh_cpp::liveliness::EntityType::Node:
-      return "Node";
-    case rmw_zenoh_cpp::liveliness::EntityType::Publisher:
-      return "Publisher";
-    case rmw_zenoh_cpp::liveliness::EntityType::Subscription:
-      return "Subscription";
-    case rmw_zenoh_cpp::liveliness::EntityType::Service:
-      return "Service";
-    case rmw_zenoh_cpp::liveliness::EntityType::Client:
-      return "Client";
-    default:
-      return "Unknown";
-  }
-}
-}  // namespace
-
 namespace rmw_zenoh_cpp
 {
+
+using buffer_endpoint_helpers::entity_type_to_string;
+using buffer_endpoint_helpers::gid_array_to_hex;
+using buffer_endpoint_helpers::gid_to_hex;
+using buffer_endpoint_helpers::is_cpu_only_backend_metadata;
+using buffer_endpoint_helpers::make_accelerated_key;
+using buffer_endpoint_helpers::make_cpu_group_key;
+
 // Period (ms) of heartbeats sent for detection of lost samples
 // by a RELIABLE + TRANSIENT_LOCAL Publisher
 #define SAMPLE_MISS_DETECTION_HEARTBEAT_PERIOD 500
@@ -474,12 +430,19 @@ rmw_ret_t PublisherData::publish_buffer_aware(
     }
     auto endpoint = endpoint_it->second;
 
-    size_t max_data_length = type_support_->get_estimated_serialized_size(
+    // Endpoint-aware serialization writes a backend descriptor in place of
+    // the original Buffer payload.  A descriptor is intentionally bounded by
+    // each backend (typically a few hundred bytes -- handle, length, dtype,
+    // device id, etc.), so it is always smaller than the equivalent CPU
+    // serialization estimate.  We add a fixed `kDescriptorHeadroomBytes`
+    // pad to cover any backend that adds a small fixed overhead beyond
+    // the original payload size, and fall back to RMW_RET_ERROR if a
+    // backend ever exceeds it (caught by the overflow check below).  This
+    // mirrors the per-message buffer sizing used by `rmw_fastrtps_cpp`.
+    constexpr size_t kDescriptorHeadroomBytes = 16 * 1024;
+    const size_t cpu_estimate = type_support_->get_estimated_serialized_size(
       ros_message, type_support_impl_);
-
-    // Quadruple the buffer size for safety (endpoint-aware serialization needs more space)
-    // TODO(native-buffer): Fix the size estimation in buffer_serialization.hpp to be more accurate
-    max_data_length = max_data_length * 4 + 16384;
+    const size_t max_data_length = cpu_estimate + kDescriptorHeadroomBytes;
 
     rcutils_allocator_t * allocator = &rmw_node_->context->options.allocator;
     void * data = allocator->allocate(max_data_length, allocator->state);
@@ -925,7 +888,7 @@ void PublisherData::on_subscriber_discovered(const liveliness::Entity & entity)
 
     full_key = use_cpu_group ?
       make_cpu_group_key(entity_->topic_info()->topic_keyexpr_) :
-      entity_->topic_info()->topic_keyexpr_ + "/_buf/" + gid_to_hex(gid);
+      make_accelerated_key(entity_->topic_info()->topic_keyexpr_, gid);
 
     need_create_endpoint = (endpoints_.find(full_key) == endpoints_.end());
     if (need_create_endpoint) {

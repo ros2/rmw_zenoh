@@ -176,6 +176,11 @@ enum KeyexprIndex
 
 // Every keyexpression will have components upto node name.
 #define KEYEXPR_INDEX_MIN KeyexprIndex::NodeName
+// Last mandatory key index for a non-Node entity.  Anything past this index
+// (currently just `Backends`) is optional and may legitimately be missing
+// from a liveliness token.  Bump this when promoting a field from optional
+// to mandatory.
+#define MANDATORY_KEYEXPR_INDEX_MAX KeyexprIndex::TopicQoS
 #define KEYEXPR_INDEX_MAX KeyexprIndex::Backends
 
 /// The admin space used to prefix the liveliness tokens.
@@ -529,9 +534,10 @@ Entity::Entity(
 
     // Add backend metadata if present (only for Buffer message types)
     if (topic_info.backend_metadata_.has_value() && !topic_info.backend_metadata_.value().empty()) {
+      const auto & backend_metadata = topic_info.backend_metadata_.value();
       std::vector<std::string> backend_names;
-      backend_names.reserve(topic_info.backend_metadata_->size());
-      for (const auto & pair : topic_info.backend_metadata_.value()) {
+      backend_names.reserve(backend_metadata.size());
+      for (const auto & pair : backend_metadata) {
         backend_names.push_back(pair.first);
       }
       std::sort(backend_names.begin(), backend_names.end());
@@ -539,7 +545,7 @@ Entity::Entity(
       std::string backends_str = "backends:";
       for (size_t i = 0; i < backend_names.size(); ++i) {
         const auto & name = backend_names[i];
-        const auto & metadata = topic_info.backend_metadata_.value().at(name);
+        const auto & metadata = backend_metadata.at(name);
         backends_str += escape_backend_field(name);
         backends_str += ":";
         backends_str += escape_backend_field(metadata);
@@ -669,8 +675,12 @@ std::shared_ptr<Entity> Entity::make(const std::string & keyexpr)
 
   // Populate topic_info if we have a token for an entity other than a node.
   if (entity_type != EntityType::Node) {
-    // Minimum required: up to TopicQoS (backends is optional)
-    if (parts.size() < KeyexprIndex::TopicQoS + 1) {
+    // Mandatory key-expression components for non-Node entities run from
+    // index 0 through MANDATORY_KEYEXPR_INDEX_MAX (= TopicQoS).  Anything
+    // beyond that (currently just the optional Backends component) may
+    // legitimately be missing, so we validate against the mandatory bound
+    // only.
+    if (parts.size() < MANDATORY_KEYEXPR_INDEX_MAX + 1) {
       RMW_ZENOH_LOG_ERROR_NAMED(
         "rmw_zenoh_cpp",
         "Received liveliness token for non-node entity without required parameters.");
