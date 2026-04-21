@@ -19,6 +19,7 @@
 #include <string>
 #include <stdexcept>
 #include <utility>
+#include <vector>
 
 #include "rcutils/error_handling.h"
 #include "rcutils/logging_macros.h"
@@ -40,12 +41,13 @@ void initialize_buffer_backends(BufferBackendContext & context)
 
   auto & backend_ops = context.serialization_context.descriptor_ops;
   auto & serializers = context.serialization_context.descriptor_serializers;
-  auto backend_names = registry.get_backend_names();
+  std::vector<std::string> backend_names = registry.get_backend_names();
   RCUTILS_LOG_DEBUG_NAMED(
     kLoggerName, "Buffer backends: found %zu backend(s)", backend_names.size());
 
-  for (const auto & backend_name : backend_names) {
-    auto backend = registry.create_backend_instance(backend_name);
+  for (const std::string & backend_name : backend_names) {
+    std::shared_ptr<rosidl::BufferBackend> backend =
+      registry.create_backend_instance(backend_name);
     if (!backend) {
       RCUTILS_LOG_ERROR_NAMED(
         kLoggerName, "Backend '%s' pointer is null", backend_name.c_str());
@@ -61,17 +63,34 @@ void initialize_buffer_backends(BufferBackendContext & context)
 
     rosidl::BufferDescriptorOps ops;
 
-    auto backend_ptr = backend;
-    ops.create_descriptor_with_endpoint = [backend_ptr](
+    // Capture a weak_ptr so the lambdas (which live inside
+    // descriptor_ops/descriptor_serializers) do not extend the backend's
+    // lifetime past shutdown_buffer_backends().  The backend's only
+    // owning reference is held in context.backend_instances and is
+    // released explicitly during shutdown.
+    std::weak_ptr<rosidl::BufferBackend> backend_wp = backend;
+    ops.create_descriptor_with_endpoint = [backend_wp](
       const void * impl,
       const rmw_topic_endpoint_info_t & endpoint_info) -> std::shared_ptr<void> {
-        return backend_ptr->create_descriptor_with_endpoint(impl, endpoint_info);
+        std::shared_ptr<rosidl::BufferBackend> backend_sp = backend_wp.lock();
+        if (!backend_sp) {
+          throw std::runtime_error(
+                  "Buffer backend instance has been destroyed; "
+                  "create_descriptor_with_endpoint called after shutdown");
+        }
+        return backend_sp->create_descriptor_with_endpoint(impl, endpoint_info);
       };
-    ops.from_descriptor_with_endpoint = [backend_ptr](
+    ops.from_descriptor_with_endpoint = [backend_wp](
       const void * descriptor,
       const rmw_topic_endpoint_info_t & endpoint_info)
       -> std::unique_ptr<void, void (*)(void *)> {
-        return backend_ptr->from_descriptor_with_endpoint(descriptor, endpoint_info);
+        std::shared_ptr<rosidl::BufferBackend> backend_sp = backend_wp.lock();
+        if (!backend_sp) {
+          throw std::runtime_error(
+                  "Buffer backend instance has been destroyed; "
+                  "from_descriptor_with_endpoint called after shutdown");
+        }
+        return backend_sp->from_descriptor_with_endpoint(descriptor, endpoint_info);
       };
 
     backend_ops[backend_type] = ops;
@@ -108,7 +127,6 @@ void initialize_buffer_backends(BufferBackendContext & context)
     }
 
     rosidl_typesupport_fastrtps_cpp::BufferDescriptorSerializers desc_ser;
-    auto backend_ptr_for_desc = backend;
     desc_ser.serialize = [callbacks](
       eprosima::fastcdr::Cdr & cdr,
       const std::shared_ptr<void> & desc_ptr,
@@ -125,13 +143,19 @@ void initialize_buffer_backends(BufferBackendContext & context)
           callbacks->cdr_serialize(desc_ptr.get(), cdr);
         }
       };
-    desc_ser.deserialize = [callbacks, backend_ptr_for_desc](
+    desc_ser.deserialize = [callbacks, backend_wp](
       eprosima::fastcdr::Cdr & cdr,
       const rmw_topic_endpoint_info_t & endpoint_info,
       const rosidl_typesupport_fastrtps_cpp::BufferSerializationContext & serialization_context)
       -> std::shared_ptr<void>
       {
-        auto desc = backend_ptr_for_desc->create_empty_descriptor();
+        std::shared_ptr<rosidl::BufferBackend> backend_sp = backend_wp.lock();
+        if (!backend_sp) {
+          throw std::runtime_error(
+                  "Buffer backend instance has been destroyed; "
+                  "descriptor deserialize called after shutdown");
+        }
+        std::shared_ptr<void> desc = backend_sp->create_empty_descriptor();
         if (!desc) {
           throw std::runtime_error("Backend returned null descriptor instance");
         }
