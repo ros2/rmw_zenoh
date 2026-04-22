@@ -114,6 +114,9 @@ std::string escape_backend_field(const std::string & input)
       case ':':
         out += "%3A";
         break;
+      case '/':
+        out += "%2F";
+        break;
       default:
         out += c;
         break;
