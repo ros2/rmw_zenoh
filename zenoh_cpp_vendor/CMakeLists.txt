@@ -33,12 +33,12 @@ else()
   # with zenoh pinned to https://github.com/BOURBONCASK/zenoh/commit/7f47053f537bc358c2aed600484fe978956f14a1
   # which is based on https://github.com/eclipse-zenoh/zenoh/commit/2687c51352121f006e3a603ce07925a8ad0b295c
   # plus the declare-final deadlock fix.
-  set(zenoh_c_commit 43752173957a56deb6dcf5e7d14642869ee3c191)
+  set(zenoh_c_commit 814c924447f9f4df9656f08a127f3b86032482c0)
 
   # If Rust version below Zenoh MSRV (currently 1.88), use equivalent commit from branch
   # ROS/rust-1.75-zenoh-2687c5135 with the same zenoh deadlock fix pin.
   if(CARGO_VERSION VERSION_GREATER_EQUAL "1.75" AND CARGO_VERSION VERSION_LESS "1.88")
-    set(zenoh_c_commit 84a82f6dc8da81f866bdd2ae126e4d4ce120e117)
+    set(zenoh_c_commit 3e3bdfc0623cbf1e1186938faa0487f98391d328)
   endif()
 
   ament_vendor(zenoh_c_vendor
