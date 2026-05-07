@@ -2,6 +2,11 @@
 Changelog for package zenoh_cpp_vendor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Use zenoh-cpp 481b71b fixing build with MSVC 2022 in C++20 mode (`#969 <https://github.com/ros2/rmw_zenoh/issues/969>`_)
+* Contributors: Julien Enoch
+
 0.10.3 (2026-04-14)
 -------------------
 
