@@ -16,6 +16,7 @@
 #define DETAIL__GRAPH_CACHE_HPP_
 
 #include <cstddef>
+#include <deque>
 #include <functional>
 #include <map>
 #include <memory>
@@ -187,6 +188,13 @@ public:
   static bool is_entity_pub(const liveliness::Entity & entity);
 
 private:
+  struct PendingGraphEvent
+  {
+    GraphCacheEventCallback callback;
+    int32_t change;
+  };
+  using PendingGraphEvents = std::vector<PendingGraphEvent>;
+
   // Helper function to convert an Entity into a GraphNode.
   // Note: this will update bookkeeping variables in GraphCache.
   std::shared_ptr<GraphNode> make_graph_node(const liveliness::Entity & entity) const;
@@ -194,41 +202,53 @@ private:
   // Helper function to update TopicMap within the node the cache for the entire graph.
   void update_topic_maps_for_put(
     GraphNodePtr graph_node,
-    liveliness::ConstEntityPtr entity);
+    liveliness::ConstEntityPtr entity,
+    PendingGraphEvents & pending_events);
 
   void update_topic_map_for_put(
     GraphNode::TopicMap & topic_map,
     liveliness::ConstEntityPtr entity,
+    PendingGraphEvents & pending_events,
     bool report_events = false);
 
   void update_topic_maps_for_del(
     GraphNodePtr graph_node,
-    liveliness::ConstEntityPtr entity);
+    liveliness::ConstEntityPtr entity,
+    PendingGraphEvents & pending_events);
 
   void update_topic_map_for_del(
     GraphNode::TopicMap & topic_map,
     liveliness::ConstEntityPtr entity,
+    PendingGraphEvents & pending_events,
     bool report_events = false);
 
   void remove_topic_map_from_cache(
     const GraphNode::TopicMap & to_remove,
-    GraphNode::TopicMap & from_cache);
+    GraphNode::TopicMap & from_cache,
+    PendingGraphEvents & pending_events);
 
   /// Returns true if the entity was created within the same context / zenoh session.
   bool is_entity_local(const liveliness::Entity & entity) const;
 
-  void update_event_counters(
+  void queue_event_counter_update(
     liveliness::ConstEntityPtr entity,
     const rmw_zenoh_event_type_t event_id,
-    int32_t change);
+    int32_t change,
+    PendingGraphEvents & pending_events);
+
+  void enqueue_pending_events(PendingGraphEvents && pending_events);
+
+  void drain_pending_events();
 
   void handle_matched_events_for_put(
     liveliness::ConstEntityPtr entity,
-    const GraphNode::TopicQoSMap & topic_qos_map);
+    const GraphNode::TopicQoSMap & topic_qos_map,
+    PendingGraphEvents & pending_events);
 
   void handle_matched_events_for_del(
     liveliness::ConstEntityPtr entity,
-    const GraphNode::TopicQoSMap & topic_qos_map);
+    const GraphNode::TopicQoSMap & topic_qos_map,
+    PendingGraphEvents & pending_events);
 
   std::string zid_str_;
   /*
@@ -283,6 +303,10 @@ private:
   std::unordered_map<std::size_t,
     std::unordered_map<rmw_zenoh_event_type_t, int32_t>> unregistered_event_changes_;
   std::mutex events_mutex_;
+
+  std::deque<PendingGraphEvent> dispatch_queue_;
+  bool dispatching_{false};
+  std::mutex dispatch_mutex_;
 
   // Mutex to lock before modifying the members above.
   mutable std::mutex graph_mutex_;

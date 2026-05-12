@@ -68,19 +68,31 @@ rmw_zenoh_event_status_t::rmw_zenoh_event_status_t()
 void DataCallbackManager::set_callback(
   const void * user_data, rmw_event_callback_t callback)
 {
-  std::lock_guard<std::mutex> lock_mutex(event_mutex_);
+  rmw_event_callback_t pending_callback = nullptr;
+  const void * pending_user_data = nullptr;
+  size_t pending_unread_count = 0;
 
-  if (callback) {
-    // Push events arrived before setting the the executor callback.
-    if (unread_count_) {
-      callback(user_data, unread_count_);
-      unread_count_ = 0;
+  {
+    std::lock_guard<std::mutex> lock_mutex(event_mutex_);
+
+    if (callback) {
+      // Push events arrived before setting the the executor callback.
+      if (unread_count_) {
+        pending_callback = callback;
+        pending_user_data = user_data;
+        pending_unread_count = unread_count_;
+        unread_count_ = 0;
+      }
+      user_data_ = user_data;
+      callback_ = callback;
+    } else {
+      user_data_ = nullptr;
+      callback_ = nullptr;
     }
-    user_data_ = user_data;
-    callback_ = callback;
-  } else {
-    user_data_ = nullptr;
-    callback_ = nullptr;
+  }
+
+  if (pending_callback != nullptr) {
+    pending_callback(pending_user_data, pending_unread_count);
   }
 }
 
@@ -88,11 +100,21 @@ void DataCallbackManager::set_callback(
 void DataCallbackManager::trigger_callback()
 {
   // Trigger the user provided event callback if available.
-  std::lock_guard<std::mutex> lock_mutex(event_mutex_);
-  if (callback_ != nullptr) {
-    callback_(user_data_, 1);
-  } else {
-    ++unread_count_;
+  rmw_event_callback_t callback = nullptr;
+  const void * user_data = nullptr;
+
+  {
+    std::lock_guard<std::mutex> lock_mutex(event_mutex_);
+    if (callback_ != nullptr) {
+      callback = callback_;
+      user_data = user_data_;
+    } else {
+      ++unread_count_;
+    }
+  }
+
+  if (callback != nullptr) {
+    callback(user_data, 1);
   }
 }
 
@@ -110,16 +132,28 @@ void EventsManager::event_set_callback(
     return;
   }
 
-  std::lock_guard<std::mutex> lock(event_mutex_);
+  rmw_event_callback_t pending_callback = nullptr;
+  const void * pending_user_data = nullptr;
+  size_t pending_unread_count = 0;
 
-  // Set the user callback data
-  event_callback_[event_id] = callback;
-  event_data_[event_id] = user_data;
+  {
+    std::lock_guard<std::mutex> lock(event_mutex_);
 
-  if (callback && event_unread_count_[event_id]) {
-    // Push events happened before having assigned a callback
-    callback(user_data, event_unread_count_[event_id]);
-    event_unread_count_[event_id] = 0;
+    // Set the user callback data
+    event_callback_[event_id] = callback;
+    event_data_[event_id] = user_data;
+
+    if (callback && event_unread_count_[event_id]) {
+      // Push events happened before having assigned a callback
+      pending_callback = callback;
+      pending_user_data = user_data;
+      pending_unread_count = event_unread_count_[event_id];
+      event_unread_count_[event_id] = 0;
+    }
+  }
+
+  if (pending_callback != nullptr) {
+    pending_callback(pending_user_data, pending_unread_count);
   }
   return;
 }
@@ -135,12 +169,22 @@ void EventsManager::trigger_event_callback(rmw_zenoh_event_type_t event_id)
     return;
   }
 
-  std::lock_guard<std::mutex> lock(event_mutex_);
+  rmw_event_callback_t callback = nullptr;
+  const void * user_data = nullptr;
 
-  if (event_callback_[event_id] != nullptr) {
-    event_callback_[event_id](event_data_[event_id], 1);
-  } else {
-    ++event_unread_count_[event_id];
+  {
+    std::lock_guard<std::mutex> lock(event_mutex_);
+
+    if (event_callback_[event_id] != nullptr) {
+      callback = event_callback_[event_id];
+      user_data = event_data_[event_id];
+    } else {
+      ++event_unread_count_[event_id];
+    }
+  }
+
+  if (callback != nullptr) {
+    callback(user_data, 1);
   }
   return;
 }

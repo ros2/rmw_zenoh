@@ -145,13 +145,14 @@ rmw_subscription_event_init(
     return RMW_RET_OK;
   }
 
-  // std::weak_ptr<rmw_zenoh_cpp::SubscriptionData> data_wp = sub_data;
+  std::weak_ptr<rmw_zenoh_cpp::SubscriptionData> data_wp = sub_data->shared_from_this();
   sub_data->graph_cache()->set_qos_event_callback(
     sub_data->gid_hash(),
     zenoh_event_type,
-    [sub_data,
+    [data_wp,
     zenoh_event_type](int32_t change)
     {
+      auto sub_data = data_wp.lock();
       if (sub_data == nullptr) {
         return;
       }
