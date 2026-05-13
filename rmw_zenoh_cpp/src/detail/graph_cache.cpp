@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstring>
 #include <functional>
 #include <limits>
 #include <memory>
@@ -752,6 +753,50 @@ _demangle_if_ros_type(const std::string & dds_type_string)
   return type_namespace + type_name;
 }
 
+bool
+_type_hashes_equal(const rosidl_type_hash_t & lhs, const rosidl_type_hash_t & rhs)
+{
+  if (lhs.version != rhs.version) {
+    return false;
+  }
+  return 0 == std::memcmp(lhs.value, rhs.value, ROSIDL_TYPE_HASH_SIZE);
+}
+
+rosidl_type_hash_t
+_resolve_type_hash_for_type(
+  const GraphNode::TopicQoSMap & qos_map,
+  const std::string & topic_name,
+  const std::string & type_name)
+{
+  rosidl_type_hash_t selected_hash = rosidl_get_zero_initialized_type_hash();
+  bool has_valid_hash = false;
+
+  for (const auto & [_, topic_data] : qos_map) {
+    rosidl_type_hash_t parsed_hash = rosidl_get_zero_initialized_type_hash();
+    rcutils_ret_t rc_ret = rosidl_parse_type_hash_string(
+      topic_data->info_.type_hash_.c_str(),
+      &parsed_hash);
+    if (RCUTILS_RET_OK != rc_ret) {
+      continue;
+    }
+    if (!has_valid_hash) {
+      selected_hash = parsed_hash;
+      has_valid_hash = true;
+      continue;
+    }
+    if (!_type_hashes_equal(selected_hash, parsed_hash)) {
+      RMW_ZENOH_LOG_WARN_NAMED(
+        "rmw_zenoh_cpp",
+        "Conflicting type hashes for topic '%s', type '%s'; storing zero hash",
+        topic_name.c_str(),
+        type_name.c_str());
+      return rosidl_get_zero_initialized_type_hash();
+    }
+  }
+
+  return has_valid_hash ? selected_hash : rosidl_get_zero_initialized_type_hash();
+}
+
 rmw_ret_t fill_names_and_types(
   const GraphNode::TopicMap & entity_map,
   rcutils_allocator_t * allocator,
@@ -786,6 +831,19 @@ rmw_ret_t fill_names_and_types(
       return RMW_RET_BAD_ALLOC;
     }
 
+    if (item.second.size() > 0) {
+      names_and_types->type_hashes[index] = static_cast<rosidl_type_hash_t *>(
+        allocator->allocate(
+          item.second.size() * sizeof(rosidl_type_hash_t),
+          allocator->state));
+      if (!names_and_types->type_hashes[index]) {
+        RMW_SET_ERROR_MSG("failed to allocate memory for type hashes");
+        return RMW_RET_BAD_ALLOC;
+      }
+    } else {
+      names_and_types->type_hashes[index] = nullptr;
+    }
+
     size_t type_index = 0;
     for (const std::pair<const std::string, GraphNode::TopicQoSMap> & type : item.second) {
       char * type_name = rcutils_strdup(_demangle_if_ros_type(type.first).c_str(), *allocator);
@@ -794,6 +852,10 @@ rmw_ret_t fill_names_and_types(
         return RMW_RET_BAD_ALLOC;
       }
       names_and_types->types[index].data[type_index] = type_name;
+      names_and_types->type_hashes[index][type_index] = _resolve_type_hash_for_type(
+        type.second,
+        item.first,
+        type.first);
       ++type_index;
     }
     ++index;

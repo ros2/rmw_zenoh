@@ -19,7 +19,10 @@ if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   find_package(ament_lint_common REQUIRED)
   find_package(rclcpp REQUIRED)
+  find_package(rmw REQUIRED)
   find_package(rmw_zenoh_cpp REQUIRED)
+  find_package(example_interfaces REQUIRED)
+  find_package(std_msgs REQUIRED)
   find_package(zenoh_cpp_vendor REQUIRED)
 
   ament_lint_auto_find_test_dependencies()
@@ -27,10 +30,16 @@ if(BUILD_TESTING)
   ament_add_ros_isolated_gtest(test_rmw_zenoh_session
     test/test_rmw_zenoh_session.cpp
     ENV RMW_IMPLEMENTATION=rmw_zenoh_cpp)
+  # Ensure the locally built rmw headers (with type_hashes) take precedence over
+  # the system rmw headers that rclcpp pulls in transitively.
+  target_include_directories(test_rmw_zenoh_session BEFORE PRIVATE ${rmw_INCLUDE_DIRS})
   target_link_libraries(test_rmw_zenoh_session
     rclcpp::rclcpp
+    rmw::rmw
     rmw_zenoh_cpp::rmw_zenoh_cpp
     zenohcxx::zenohc
+    ${example_interfaces_TARGETS}
+    ${std_msgs_TARGETS}
   )
 endif()
 

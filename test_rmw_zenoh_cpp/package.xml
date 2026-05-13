@@ -14,7 +14,10 @@
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
   <test_depend>rclcpp</test_depend>
+  <test_depend>rmw</test_depend>
   <test_depend>rmw_zenoh_cpp</test_depend>
+  <test_depend>example_interfaces</test_depend>
+  <test_depend>std_msgs</test_depend>
   <test_depend>zenoh_cpp_vendor</test_depend>
 
   <export>
