@@ -1388,7 +1388,7 @@ void GraphCache::register_subscriber_discovery_callback(
     std::lock_guard<std::mutex> disc_lock(discovery_mutex_);
     subscriber_discovery_callbacks_[topic_name][publisher_gid_hash] = callback;
 
-    RMW_ZENOH_LOG_INFO_NAMED(
+    RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
       "rmw_zenoh_cpp",
       "[GraphCache] Registered subscriber discovery callback for publisher on topic: '%s'",
       topic_name.c_str());
@@ -1405,7 +1405,7 @@ void GraphCache::register_subscriber_discovery_callback(
       }
     }
 
-    RMW_ZENOH_LOG_INFO_NAMED(
+    RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
       "rmw_zenoh_cpp",
       "[GraphCache] Found %zu existing subscriber(s) for topic '%s'",
       entities_to_notify.size(), topic_name.c_str());

@@ -94,7 +94,7 @@ std::shared_ptr<PublisherData> PublisherData::make(
 
   bool has_buffer_fields = callbacks->has_buffer_fields;
 
-  RMW_ZENOH_ROSIDL_BUFFER_LOG_INFO_NAMED("rmw_zenoh_cpp",
+  RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED("rmw_zenoh_cpp",
     "[PublisherData::make] Creating publisher for topic '%s', "
     "type name '%s', has_buffer_fields: '%d'",
     topic_name.c_str(), message_type_support->get_name(), has_buffer_fields);
@@ -328,7 +328,7 @@ rmw_ret_t PublisherData::publish_buffer_aware(
     return RMW_RET_ERROR;
   }
 
-  RMW_ZENOH_ROSIDL_BUFFER_LOG_INFO_NAMED(
+  RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
     "rmw_zenoh_cpp",
     "[Publisher] Publishing buffer-aware message for topic '%s' (message type: %s)",
     entity_->topic_info()->name_.c_str(), entity_->topic_info()->type_.c_str());
@@ -419,7 +419,7 @@ rmw_ret_t PublisherData::publish_buffer_aware(
     }
 
     iteration++;
-    RMW_ZENOH_ROSIDL_BUFFER_LOG_INFO_NAMED(
+    RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
       "rmw_zenoh_cpp",
       "[Publisher] Processing message for subscriber endpoint %zu/%zu with key='%s'",
       iteration, discovered_subscribers_.size(), sub.endpoint_key.c_str());
@@ -461,7 +461,7 @@ rmw_ret_t PublisherData::publish_buffer_aware(
 
     size_t data_length = ser.get_serialized_data_length();
 
-    RMW_ZENOH_ROSIDL_BUFFER_LOG_INFO_NAMED(
+    RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
       "rmw_zenoh_cpp",
       "[Publisher] Serialization complete, actual size: %zu bytes (allocated: %zu, usage: %.1f%%)",
       data_length, max_data_length, (data_length * 100.0) / max_data_length);
@@ -484,7 +484,7 @@ rmw_ret_t PublisherData::publish_buffer_aware(
     always_free_data.cancel();  // Zenoh now owns the memory
 
     // Create attachment AFTER serialization
-    RMW_ZENOH_ROSIDL_BUFFER_LOG_INFO_NAMED(
+    RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
       "rmw_zenoh_cpp",
       "[Publisher] Creating message attachment data");
 
@@ -503,7 +503,7 @@ rmw_ret_t PublisherData::publish_buffer_aware(
 
     zenoh::ZResult result;
     if (endpoint->pub.has_value()) {
-      RMW_ZENOH_ROSIDL_BUFFER_LOG_INFO_NAMED(
+      RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
         "rmw_zenoh_cpp",
         "[Publisher] Calling Zenoh put");
 
@@ -808,7 +808,7 @@ std::shared_ptr<EventsManager> PublisherData::events_mgr() const
 void PublisherData::on_subscriber_discovered(const liveliness::Entity & entity)
 {
   if (entity.type() != liveliness::EntityType::Subscription) {
-    RMW_ZENOH_ROSIDL_BUFFER_LOG_INFO_NAMED(
+    RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
       "rmw_zenoh_cpp",
       "[Publisher] Ignoring discovered entity type=%s node='%s' ns='%s'",
       entity_type_to_string(entity.type()),
@@ -833,7 +833,7 @@ void PublisherData::on_subscriber_discovered(const liveliness::Entity & entity)
 
   auto gid = entity_gid_to_rmw_gid(entity, rmw_zenoh_identifier);
   const auto entity_gid_array = entity.copy_gid();
-  RMW_ZENOH_ROSIDL_BUFFER_LOG_INFO_NAMED(
+  RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
     "rmw_zenoh_cpp",
     "[Publisher] Discovered subscriber entity keyexpr='%s', "
     "topic='%s', entity.type='%s', node='%s', ns='%s', "

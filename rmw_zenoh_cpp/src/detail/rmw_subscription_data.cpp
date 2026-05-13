@@ -301,7 +301,7 @@ std::shared_ptr<SubscriptionData> SubscriptionData::make(
     // Manually add this local subscriber to the graph cache so local publishers can discover it
     // Liveliness events from the same session don't trigger graph updates automatically
     graph_cache->parse_put(sub_data->entity_->liveliness_keyexpr(), false);
-    RMW_ZENOH_LOG_INFO_NAMED(
+    RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
       "rmw_zenoh_cpp",
       "[Subscription] Manually added local subscriber to graph cache for discovery");
   }
@@ -483,13 +483,13 @@ bool SubscriptionData::init()
   initialized_ = true;
 
   if (is_buffer_aware_) {
-    RMW_ZENOH_LOG_INFO_NAMED(
+    RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
       "rmw_zenoh_cpp",
       "[Subscription] Initialized buffer-aware subscription, "
       "base key: '%s'",
       entity_->topic_info()->topic_keyexpr_.c_str());
   } else {
-    RMW_ZENOH_LOG_INFO_NAMED(
+    RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
       "rmw_zenoh_cpp",
       "[Subscription] Initialized simple subscription on key: '%s'",
       entity_->topic_info()->topic_keyexpr_.c_str());
@@ -545,12 +545,12 @@ SubscriptionData::~SubscriptionData()
 ///=============================================================================
 void SubscriptionData::on_publisher_discovered(const liveliness::Entity & entity)
 {
-  RMW_ZENOH_ROSIDL_BUFFER_LOG_INFO_NAMED(
+  RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
     "rmw_zenoh_cpp",
     "[Subscription] on_publisher_discovered callback triggered!");
 
   if (entity.type() != liveliness::EntityType::Publisher) {
-    RMW_ZENOH_ROSIDL_BUFFER_LOG_INFO_NAMED(
+    RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
       "rmw_zenoh_cpp",
       "[Subscription] Ignoring discovered entity type=%s node='%s' ns='%s'",
       entity_type_to_string(entity.type()),
@@ -582,7 +582,7 @@ void SubscriptionData::on_publisher_discovered(const liveliness::Entity & entity
   if (!rosidl_buffer_backend_registry::backends_compatible(
       my_backend_types_, pub_backends))
   {
-    RMW_ZENOH_ROSIDL_BUFFER_LOG_INFO_NAMED(
+    RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
       "rmw_zenoh_cpp",
       "Discovered publisher with incompatible backends, skipping");
     return;
@@ -627,7 +627,7 @@ void SubscriptionData::on_publisher_discovered(const liveliness::Entity & entity
     }
   }
 
-  RMW_ZENOH_ROSIDL_BUFFER_LOG_INFO_NAMED(
+  RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
     "rmw_zenoh_cpp",
     "[Subscription] Discovered publisher entity keyexpr='%s', "
     "topic='%s', entity.type='%s', node='%s', ns='%s', "
@@ -735,13 +735,13 @@ SubscriptionData::create_subscription_endpoint(
   if (publisher_info.has_value()) {
     rmw_gid_t publisher_gid = {};
     std::memcpy(publisher_gid.data, publisher_info->info.endpoint_gid, RMW_GID_STORAGE_SIZE);
-    RMW_ZENOH_ROSIDL_BUFFER_LOG_INFO_NAMED(
+    RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
       "rmw_zenoh_cpp",
       "[Subscription] Creating endpoint-aware subscription for key='%s' (publisher gid=%s)",
       key.c_str(),
       gid_to_hex(publisher_gid).c_str());
   } else {
-    RMW_ZENOH_ROSIDL_BUFFER_LOG_INFO_NAMED(
+    RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
       "rmw_zenoh_cpp",
       "[Subscription] Creating CPU-group subscription for key='%s'",
       key.c_str());
@@ -760,7 +760,7 @@ SubscriptionData::create_subscription_endpoint(
         return;
       }
 
-      RMW_ZENOH_ROSIDL_BUFFER_LOG_INFO_NAMED(
+      RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
         "rmw_zenoh_cpp",
         "[Subscription] Received sample on key='%s' (sample key='%s')",
         key.c_str(),
@@ -825,7 +825,7 @@ SubscriptionData::create_subscription_endpoint(
 
   endpoint->sub = std::optional<zenoh::ext::AdvancedSubscriber<void>>(std::move(sub));
 
-  RMW_ZENOH_ROSIDL_BUFFER_LOG_INFO_NAMED(
+  RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
     "rmw_zenoh_cpp",
     "[Subscription] Created buffer-aware subscription for key: '%s'",
     key.c_str());
@@ -942,7 +942,7 @@ rmw_ret_t SubscriptionData::take_one_message(
 
   std::lock_guard<std::mutex> lock(mutex_);
   if (entity_ && entity_->topic_info().has_value()) {
-    RMW_ZENOH_LOG_INFO_NAMED(
+    RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
       "rmw_zenoh_cpp",
       "[Subscription] take_one_message topic='%s' is_buffer_aware=%d queue_size=%zu",
       entity_->topic_info().value().name_.c_str(),
@@ -1115,7 +1115,7 @@ void SubscriptionData::add_new_message(
   if (is_shutdown_) {
     return;
   }
-  RMW_ZENOH_LOG_INFO_NAMED(
+  RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
     "rmw_zenoh_cpp",
     "[Subscription] add_new_message topic='%s' is_buffer_aware=%d payload_size=%zu",
     topic_name.c_str(),
