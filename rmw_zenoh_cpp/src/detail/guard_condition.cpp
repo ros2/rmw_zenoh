@@ -30,17 +30,26 @@ GuardCondition::GuardCondition()
 ///=============================================================================
 void GuardCondition::trigger()
 {
-  std::lock_guard<std::mutex> lock(internal_mutex_);
+  // Hold internal_mutex_ only long enough to update has_triggered_ and snapshot
+  // wait_set_data_, then release it before taking the wait_set's condition_mutex.
+  // rmw_wait locks the wait_set's condition_mutex first and then calls
+  // check_and_attach_condition_if_not() which takes internal_mutex_; holding
+  // both at the same time here would create an ABBA deadlock.
+  rmw_wait_set_data_t * local_wait_set_data = nullptr;
+  {
+    std::lock_guard<std::mutex> lock(internal_mutex_);
 
-  // the change to hasTriggered_ needs to be mutually exclusive with
-  // rmw_wait() which checks hasTriggered() and decides if wait() needs to
-  // be called
-  has_triggered_ = true;
+    // the change to hasTriggered_ needs to be mutually exclusive with
+    // rmw_wait() which checks hasTriggered() and decides if wait() needs to
+    // be called
+    has_triggered_ = true;
+    local_wait_set_data = wait_set_data_;
+  }
 
-  if (wait_set_data_ != nullptr) {
-    std::lock_guard<std::mutex> wait_set_lock(wait_set_data_->condition_mutex);
-    wait_set_data_->triggered = true;
-    wait_set_data_->condition_variable.notify_one();
+  if (local_wait_set_data != nullptr) {
+    std::lock_guard<std::mutex> wait_set_lock(local_wait_set_data->condition_mutex);
+    local_wait_set_data->triggered = true;
+    local_wait_set_data->condition_variable.notify_one();
   }
 }
 

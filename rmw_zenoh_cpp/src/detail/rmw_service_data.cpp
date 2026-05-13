@@ -221,36 +221,44 @@ bool ServiceData::liveliness_is_valid() const
 ///=============================================================================
 void ServiceData::add_new_query(std::unique_ptr<ZenohQuery> query)
 {
-  std::lock_guard<std::mutex> lock(mutex_);
-  if (is_shutdown_.load(std::memory_order_acquire)) {
-    RMW_ZENOH_LOG_DEBUG_NAMED(
-      "rmw_zenoh_cpp",
-      "Request from client will be ignored since the service is shutdown."
-    );
-    return;
-  }
-  const rmw_qos_profile_t adapted_qos_profile =
-    entity_->topic_info().value().qos_;
-  if (adapted_qos_profile.history != RMW_QOS_POLICY_HISTORY_KEEP_ALL &&
-    query_queue_.size() >= adapted_qos_profile.depth)
+  // See SubscriptionData::add_new_message for the deadlock rationale: never hold
+  // mutex_ while taking the wait_set's condition_mutex (rmw_wait locks them in the
+  // opposite order).
+  rmw_wait_set_data_t * local_wait_set_data = nullptr;
   {
-    // Log warning if message is discarded due to hitting the queue depth
-    RMW_ZENOH_LOG_ERROR_NAMED(
-      "rmw_zenoh_cpp",
-      "Query queue depth of %ld reached, discarding oldest Query "
-      "for service '%s'",
-      adapted_qos_profile.depth,
-      entity_->topic_info().value().name_.c_str());
-    query_queue_.pop_front();
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (is_shutdown_.load(std::memory_order_acquire)) {
+      RMW_ZENOH_LOG_DEBUG_NAMED(
+        "rmw_zenoh_cpp",
+        "Request from client will be ignored since the service is shutdown."
+      );
+      return;
+    }
+    const rmw_qos_profile_t adapted_qos_profile =
+      entity_->topic_info().value().qos_;
+    if (adapted_qos_profile.history != RMW_QOS_POLICY_HISTORY_KEEP_ALL &&
+      query_queue_.size() >= adapted_qos_profile.depth)
+    {
+      // Log warning if message is discarded due to hitting the queue depth
+      RMW_ZENOH_LOG_ERROR_NAMED(
+        "rmw_zenoh_cpp",
+        "Query queue depth of %ld reached, discarding oldest Query "
+        "for service '%s'",
+        adapted_qos_profile.depth,
+        entity_->topic_info().value().name_.c_str());
+      query_queue_.pop_front();
+    }
+    query_queue_.emplace_back(std::move(query));
+
+    local_wait_set_data = wait_set_data_;
   }
-  query_queue_.emplace_back(std::move(query));
 
   // Since we added new data, trigger user callback and guard condition if they are available
   data_callback_mgr_.trigger_callback();
-  if (wait_set_data_ != nullptr) {
-    std::lock_guard<std::mutex> wait_set_lock(wait_set_data_->condition_mutex);
-    wait_set_data_->triggered = true;
-    wait_set_data_->condition_variable.notify_one();
+  if (local_wait_set_data != nullptr) {
+    std::lock_guard<std::mutex> wait_set_lock(local_wait_set_data->condition_mutex);
+    local_wait_set_data->triggered = true;
+    local_wait_set_data->condition_variable.notify_one();
   }
 }
 
