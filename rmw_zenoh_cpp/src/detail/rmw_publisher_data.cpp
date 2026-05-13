@@ -430,19 +430,10 @@ rmw_ret_t PublisherData::publish_buffer_aware(
     }
     auto endpoint = endpoint_it->second;
 
-    // Endpoint-aware serialization writes a backend descriptor in place of
-    // the original Buffer payload.  A descriptor is intentionally bounded by
-    // each backend (typically a few hundred bytes -- handle, length, dtype,
-    // device id, etc.), so it is always smaller than the equivalent CPU
-    // serialization estimate.  We add a fixed `kDescriptorHeadroomBytes`
-    // pad to cover any backend that adds a small fixed overhead beyond
-    // the original payload size, and fall back to RMW_RET_ERROR if a
-    // backend ever exceeds it (caught by the overflow check below).  This
-    // mirrors the per-message buffer sizing used by `rmw_fastrtps_cpp`.
-    constexpr size_t kDescriptorHeadroomBytes = 16 * 1024;
-    const size_t cpu_estimate = type_support_->get_estimated_serialized_size(
+    // The generated typesupport estimate includes the CDR encapsulation and
+    // the bounded descriptor size used by endpoint-aware Buffer serialization.
+    const size_t max_data_length = type_support_->get_estimated_serialized_size(
       ros_message, type_support_impl_);
-    const size_t max_data_length = cpu_estimate + kDescriptorHeadroomBytes;
 
     rcutils_allocator_t * allocator = &rmw_node_->context->options.allocator;
     void * data = allocator->allocate(max_data_length, allocator->state);
