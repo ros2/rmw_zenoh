@@ -74,9 +74,8 @@ TEST_F(TestRmwZenohSession, ZenohSessionDirectAccess)
   ASSERT_NE(session, nullptr);
 
   // Verify we can get the ZID (Zenoh ID) from the session
-  auto zid = session->get_zid();
+  [[maybe_unused]] auto zid = session->get_zid();
   // ZID is a 16-byte array, just verify it exists
-  (void)zid;  // Suppress unused variable warning
 
   // Create a simple keyexpr to test session functionality
   const std::string test_key = "test/rmw_zenoh/session";
