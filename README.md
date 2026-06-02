@@ -5,9 +5,9 @@
 
 | Package | Status |
 | ------- | ------ |
-| rmw_zenoh_cpp | [![Build Status](https://build.ros2.org/view/Rbin_uN64/job/Rbin_uN64__rmw_zenoh_cpp__ubuntu_noble_amd64__binary/badge/icon)](https://build.ros2.org/view/Rbin_uN64/job/Rbin_uN64__rmw_zenoh_cpp__ubuntu_noble_amd64__binary/) |
-| zenoh_cpp_vendor | [![Build Status](https://build.ros2.org/view/Rbin_uN64/job/Rbin_uN64__zenoh_cpp_vendor__ubuntu_noble_amd64__binary/badge/icon)](https://build.ros2.org/view/Rbin_uN64/job/Rbin_uN64__zenoh_cpp_vendor__ubuntu_noble_amd64__binary/) |
-| zenoh_security_tools | [![Build Status](https://build.ros2.org/view/Rbin_uN64/job/Rbin_uN64__zenoh_security_tools__ubuntu_noble_amd64__binary/badge/icon)](https://build.ros2.org/view/Rbin_uN64/job/Rbin_uN64__zenoh_security_tools__ubuntu_noble_amd64__binary/) |
+| rmw_zenoh_cpp | [![Build Status](https://build.ros2.org/view/Rbin_uR64/job/Rbin_uR64__rmw_zenoh_cpp__ubuntu_resolute_amd64__binary/badge/icon)](https://build.ros2.org/view/Rbin_uR64/job/Rbin_uR64__rmw_zenoh_cpp__ubuntu_resolute_amd64__binary/) |
+| zenoh_cpp_vendor | [![Build Status](https://build.ros2.org/view/Rbin_uR64/job/Rbin_uR64__zenoh_cpp_vendor__ubuntu_resolute_amd64__binary/badge/icon)](https://build.ros2.org/view/Rbin_uR64/job/Rbin_uR64__zenoh_cpp_vendor__ubuntu_resolute_amd64__binary/) |
+| zenoh_security_tools | [![Build Status](https://build.ros2.org/view/Rbin_uR64/job/Rbin_uR64__zenoh_security_tools__ubuntu_resolute_amd64__binary/badge/icon)](https://build.ros2.org/view/Rbin_uR64/job/Rbin_uR64__zenoh_security_tools__ubuntu_resolute_amd64__binary/) |
 
 A ROS 2 RMW implementation based on Zenoh that is written using the zenoh-cpp bindings.
 
