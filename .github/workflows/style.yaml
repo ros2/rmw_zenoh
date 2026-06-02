@@ -2,7 +2,7 @@ name: style
 on:
   pull_request:
   push:
-    branches: [ rolling ]
+    branches: [ lyrical ]
 defaults:
   run:
     shell: bash
@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        distro: ['rolling']
+        distro: ['lyrical']
     container:
       image: ros:${{ matrix.distro }}-ros-base
     timeout-minutes: 30

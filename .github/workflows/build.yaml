@@ -2,7 +2,7 @@ name: build
 on:
   pull_request:
   push:
-    branches: [ rolling ]
+    branches: [ lyrical ]
   workflow_dispatch:
   schedule:
     # Run every morning to detect flakiness and broken dependencies
@@ -17,17 +17,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Rolling (source)
-          - ROS_DISTRO: rolling
-            BUILD_TYPE: source
-          # Rolling (binary)
-          - ROS_DISTRO: rolling
+          # Lyrical (binary)
+          - ROS_DISTRO: lyrical
             BUILD_TYPE: binary
     env:
       ROS2_REPOS_FILE_URL: 'https://raw.githubusercontent.com/ros2/ros2/${{ matrix.ROS_DISTRO }}/ros2.repos'
     runs-on: ubuntu-latest
     container:
-      image: ${{ matrix.BUILD_TYPE == 'binary' && format('ros:{0}-ros-base', matrix.ROS_DISTRO) || 'ubuntu:noble' }}
+      image: ${{ matrix.BUILD_TYPE == 'binary' && format('ros:{0}-ros-base', matrix.ROS_DISTRO) || 'ubuntu:resolute' }}
     steps:
     - uses: ros-tooling/setup-ros@v0.7
       if: ${{ matrix.BUILD_TYPE == 'source' }}
