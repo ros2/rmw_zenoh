@@ -2,7 +2,7 @@ name: build
 on:
   pull_request:
   push:
-    branches: [ rolling ]
+    branches: [ kilted ]
   workflow_dispatch:
   schedule:
     # Run every morning to detect flakiness and broken dependencies
@@ -17,11 +17,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Rolling (source)
-          - ROS_DISTRO: rolling
-            BUILD_TYPE: source
-          # Rolling (binary)
-          - ROS_DISTRO: rolling
+          # Kilted (binary)
+          - ROS_DISTRO: kilted
             BUILD_TYPE: binary
     env:
       ROS2_REPOS_FILE_URL: 'https://raw.githubusercontent.com/ros2/ros2/${{ matrix.ROS_DISTRO }}/ros2.repos'
