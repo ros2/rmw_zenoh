@@ -1,13 +1,39 @@
-# Ensure that PR diff does not include RCUTILS_LOG_* macros as these induce deadlocks.
+# Ensure that a PR does not introduce rcutils logging macros, as these log over
+# /rosout and can deadlock rmw_zenoh under concurrent graph callbacks.
 # See https://github.com/ros2/rmw_zenoh/issues/182 for more details.
+#
+# Forbidden in added source lines:
+#   - the RCUTILS_LOG_<severity>[...] call macros (DEBUG/INFO/WARN/ERROR/FATAL),
+#   - the rcutils/logging_macros.h include, and
+#   - direct rcutils_log(...) calls.
+# Allowed: the RCUTILS_LOG_SEVERITY_* enum, which rmw_zenoh_cpp's own console-only
+# RMW_ZENOH_LOG_* wrappers are built on.
+#
+# The scan is restricted to C/C++ source files, so this workflow never inspects
+# its own definition and the forbidden patterns can live here without self-flagging.
 name: "Check logging macros"
 on: [pull_request]
 jobs:
   check_logging:
     runs-on: ubuntu-latest
     steps:
-    - name: Check logging macros
-      uses: JJ/github-pr-contains-action@releases/v14.1
+    - uses: actions/checkout@v4
       with:
-        github-token: ${{github.token}}
-        diffDoesNotContain: "RCUTILS_LOG_|rcutils/logging_macros.h"
+        fetch-depth: 0
+    - name: Check logging macros
+      env:
+        BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      run: |
+        added=$(git diff --unified=0 "$BASE_SHA" "$HEAD_SHA" -- \
+                  '*.c' '*.cpp' '*.cc' '*.h' '*.hpp' '*.hh' \
+                | grep -E '^\+' | grep -vE '^\+\+\+' || true)
+        hits=$(printf '%s\n' "$added" \
+                | grep -nE 'rcutils/logging_macros\.h|RCUTILS_LOG_(DEBUG|INFO|WARN|ERROR|FATAL)|[^A-Za-z_]rcutils_log[[:space:]]*\(' \
+                || true)
+        if [ -n "$hits" ]; then
+          echo "$hits"
+          echo "::error::Use rmw_zenoh_cpp's RMW_ZENOH_LOG_* wrappers, not rcutils logging (see issue #182)."
+          exit 1
+        fi
+        echo "OK: no forbidden rcutils logging macros introduced."
