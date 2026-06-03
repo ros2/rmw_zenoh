@@ -14,20 +14,20 @@
 
 #include "buffer_backend_loader.hpp"
 
-#include <memory>
 #include <cstring>
-#include <string>
+#include <memory>
 #include <stdexcept>
+#include <string>
 #include <utility>
 #include <vector>
 
+#include "logging_macros.hpp"
 #include "rcutils/error_handling.h"
-#include "rcutils/logging_macros.h"
 #include "rosidl_buffer_backend_registry/buffer_backend_registry.hpp"
+#include "rosidl_runtime_c/message_type_support_struct.h"
+#include "rosidl_typesupport_fastrtps_cpp/buffer_serialization.hpp"
 #include "rosidl_typesupport_fastrtps_cpp/identifier.hpp"
 #include "rosidl_typesupport_fastrtps_cpp/message_type_support_decl.hpp"
-#include "rosidl_typesupport_fastrtps_cpp/buffer_serialization.hpp"
-#include "rosidl_runtime_c/message_type_support_struct.h"
 
 namespace rmw_zenoh_cpp
 {
@@ -42,20 +42,20 @@ void initialize_buffer_backends(BufferBackendContext & context)
   auto & backend_ops = context.serialization_context.descriptor_ops;
   auto & serializers = context.serialization_context.descriptor_serializers;
   std::vector<std::string> backend_names = registry.get_backend_names();
-  RCUTILS_LOG_DEBUG_NAMED(
+  RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
     kLoggerName, "Buffer backends: found %zu backend(s)", backend_names.size());
 
   for (const std::string & backend_name : backend_names) {
     std::shared_ptr<rosidl::BufferBackend> backend =
       registry.create_backend_instance(backend_name);
     if (!backend) {
-      RCUTILS_LOG_ERROR_NAMED(
+      RMW_ZENOH_ROSIDL_BUFFER_LOG_ERROR_NAMED(
         kLoggerName, "Backend '%s' pointer is null", backend_name.c_str());
       continue;
     }
 
     std::string backend_type = backend->get_backend_type();
-    RCUTILS_LOG_DEBUG_NAMED(
+    RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
       kLoggerName, "Processing backend '%s' (type: %s)",
       backend_name.c_str(), backend_type.c_str());
 
@@ -98,7 +98,7 @@ void initialize_buffer_backends(BufferBackendContext & context)
     const rosidl_message_type_support_t * descriptor_ts =
       backend->get_descriptor_type_support();
     if (!descriptor_ts) {
-      RCUTILS_LOG_ERROR_NAMED(
+      RMW_ZENOH_ROSIDL_BUFFER_LOG_ERROR_NAMED(
         kLoggerName,
         "  Backend '%s' returned null descriptor type support",
         backend_type.c_str());
@@ -107,7 +107,7 @@ void initialize_buffer_backends(BufferBackendContext & context)
     const rosidl_message_type_support_t * fastrtps_descriptor_ts = get_message_typesupport_handle(
       descriptor_ts, rosidl_typesupport_fastrtps_cpp::typesupport_identifier);
     if (!fastrtps_descriptor_ts) {
-      RCUTILS_LOG_ERROR_NAMED(
+      RMW_ZENOH_ROSIDL_BUFFER_LOG_ERROR_NAMED(
         kLoggerName,
         "  Backend '%s' descriptor type support could not be resolved to "
         "rosidl_typesupport_fastrtps_cpp",
@@ -119,7 +119,7 @@ void initialize_buffer_backends(BufferBackendContext & context)
     const auto * callbacks = static_cast<const message_type_support_callbacks_t *>(
       fastrtps_descriptor_ts->data);
     if (!callbacks) {
-      RCUTILS_LOG_ERROR_NAMED(
+      RMW_ZENOH_ROSIDL_BUFFER_LOG_ERROR_NAMED(
         kLoggerName,
         "  Backend '%s' descriptor callbacks are null",
         backend_type.c_str());
@@ -169,7 +169,7 @@ void initialize_buffer_backends(BufferBackendContext & context)
       };
     serializers[backend_type] = std::move(desc_ser);
 
-    RCUTILS_LOG_DEBUG_NAMED(
+    RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
       kLoggerName, "  FastCDR descriptor serializers registered for '%s'",
       backend_type.c_str());
   }
@@ -183,7 +183,7 @@ void shutdown_buffer_backends(BufferBackendContext & context)
     context.backend_instances.clear();
     context.registry.reset();
   } catch (const std::exception & e) {
-    RCUTILS_LOG_ERROR_NAMED(
+    RMW_ZENOH_ROSIDL_BUFFER_LOG_ERROR_NAMED(
       kLoggerName, "Error during buffer backend shutdown: %s", e.what());
   }
 }
