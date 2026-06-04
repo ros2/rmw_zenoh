@@ -33,5 +33,10 @@
       RCUTILS_LOG_SEVERITY_INFO, __func__, __FILE__, __LINE__, __VA_ARGS__);}
 #define RMW_ZENOH_LOG_WARN_NAMED(...) {rmw_zenoh_cpp::Logger::get().log_named( \
       RCUTILS_LOG_SEVERITY_WARN, __func__, __FILE__, __LINE__, __VA_ARGS__);}
+// For added rosidl_buffer relevant logging, to be removed when rosidl_buffer is finalized
+#define RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(...) {rmw_zenoh_cpp::Logger::get().log_named( \
+      RCUTILS_LOG_SEVERITY_DEBUG, __func__, __FILE__, __LINE__, __VA_ARGS__);}
+#define RMW_ZENOH_ROSIDL_BUFFER_LOG_ERROR_NAMED(...) {rmw_zenoh_cpp::Logger::get().log_named( \
+      RCUTILS_LOG_SEVERITY_ERROR, __func__, __FILE__, __LINE__, __VA_ARGS__);}
 
 #endif   // DETAIL__LOGGING_MACROS_HPP_

@@ -21,11 +21,16 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <set>
 #include <string>
+#include <unordered_map>
+#include <vector>
 
 #include <zenoh.hxx>
 
+#include "endpoint_info.hpp"
 #include "event.hpp"
+#include "graph_cache.hpp"
 #include "liveliness_utils.hpp"
 #include "message_type_support.hpp"
 #include "type_support_common.hpp"
@@ -91,6 +96,25 @@ public:
   ~PublisherData();
 
 private:
+  // Structures for Buffer-aware publishers
+  struct SubscriberInfo
+  {
+    rmw_gid_t gid;
+    std::string endpoint_key;
+    EndpointInfoStorage endpoint_info;
+    bool uses_cpu_group{false};
+    std::unordered_map<std::string, std::string> backend_metadata;
+    std::unordered_map<std::string, std::vector<std::set<uint32_t>>> backend_groups;
+  };
+
+  struct PublisherEndpoint
+  {
+    std::string key;
+    std::optional<zenoh::ext::AdvancedPublisher> pub;
+    std::vector<rmw_gid_t> target_subscribers;
+    std::optional<std::vector<uint8_t>> cached_message;
+  };
+
   // Constructor.
   PublisherData(
     const rmw_publisher_t * const rmw_publisher,
@@ -100,7 +124,25 @@ private:
     zenoh::ext::AdvancedPublisher pub,
     zenoh::LivelinessToken token,
     const void * type_support_impl,
-    std::unique_ptr<MessageTypeSupport> type_support);
+    std::unique_ptr<MessageTypeSupport> type_support,
+    bool is_buffer_aware,
+    std::unordered_map<std::string, std::string> backend_metadata);
+
+  // Discovery callback for Buffer-aware publishers
+  void on_subscriber_discovered(const liveliness::Entity & entity);
+
+  // Get or create an endpoint for a specific full key (caller must hold mutex_)
+  std::shared_ptr<PublisherEndpoint> get_or_create_endpoint(
+    const std::string & full_key);
+
+  // Create a Zenoh publisher endpoint (does not require mutex_)
+  std::shared_ptr<PublisherEndpoint> create_publisher_endpoint(
+    const std::string & full_key);
+
+  // Buffer-aware publish helper
+  rmw_ret_t publish_buffer_aware(
+    const void * ros_message,
+    ShmContext * shm);
 
   // Internal mutex.
   mutable std::mutex mutex_;
@@ -112,7 +154,7 @@ private:
   std::shared_ptr<liveliness::Entity> entity_;
   // A shared session.
   std::shared_ptr<zenoh::Session> sess_;
-  // An owned AdvancedPublisher.
+  // An owned AdvancedPublisher (for simple publishers, this is the only one).
   zenoh::ext::AdvancedPublisher pub_;
   // Liveliness token for the publisher.
   std::optional<zenoh::LivelinessToken> token_;
@@ -123,6 +165,17 @@ private:
   size_t sequence_number_;
   // Shutdown flag.
   bool is_shutdown_;
+
+  // Buffer-aware publisher fields
+  bool is_buffer_aware_;
+  std::unordered_map<std::string, std::string> backend_metadata_;
+  // For simple publishers: endpoints_ contains only base endpoint
+  // For buffer-aware: multiple endpoints based on discovered subscribers
+  std::unordered_map<std::string, std::shared_ptr<PublisherEndpoint>> endpoints_;
+  std::set<std::string> pending_endpoints_;
+  std::vector<SubscriberInfo> discovered_subscribers_;
+  EndpointInfoStorage local_endpoint_info_;
+  std::shared_ptr<GraphCache> graph_cache_;
 };
 using PublisherDataPtr = std::shared_ptr<PublisherData>;
 using PublisherDataConstPtr = std::shared_ptr<const PublisherData>;

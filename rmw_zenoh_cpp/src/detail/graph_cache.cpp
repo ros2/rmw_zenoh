@@ -91,16 +91,18 @@ std::shared_ptr<GraphNode> GraphCache::make_graph_node(const Entity & entity) co
 }
 
 ///=============================================================================
-void GraphCache::update_topic_maps_for_put(
+std::vector<GraphCache::EntityDiscoveryCallback>
+GraphCache::update_topic_maps_for_put(
   GraphNodePtr graph_node,
   liveliness::ConstEntityPtr entity)
 {
   if (entity->type() == EntityType::Node) {
     // Nothing to update for a node entity.
-    return;
+    return {};
   }
 
   // First update the topic map within the node.
+  // These calls never fire discovery callbacks (report_events = false).
   if (entity->type() == EntityType::Publisher) {
     update_topic_map_for_put(graph_node->pubs_, entity);
   } else if (entity->type() == EntityType::Subscription) {
@@ -112,19 +114,20 @@ void GraphCache::update_topic_maps_for_put(
   }
 
   // Then update the variables tracking topics across the graph.
-  // We invoke update_topic_map_for_put() with report_events set to true for
-  // pub/sub.
+  // Only pub/sub calls collect discovery callbacks (report_events = true);
+  // return them to the caller for invocation outside graph_mutex_.
   if (entity->type() == EntityType::Publisher ||
     entity->type() == EntityType::Subscription)
   {
-    update_topic_map_for_put(this->graph_topics_, entity, true);
-  } else {
-    update_topic_map_for_put(this->graph_services_, entity);
+    return update_topic_map_for_put(this->graph_topics_, entity, true);
   }
+  update_topic_map_for_put(this->graph_services_, entity);
+  return {};
 }
 
 ///=============================================================================
-void GraphCache::update_topic_map_for_put(
+std::vector<GraphCache::EntityDiscoveryCallback>
+GraphCache::update_topic_map_for_put(
   GraphNode::TopicMap & topic_map,
   liveliness::ConstEntityPtr entity,
   bool report_events)
@@ -136,7 +139,7 @@ void GraphCache::update_topic_map_for_put(
       "rmw_zenoh_cpp",
       "update_topic_map_for_put() called for non-node entity without valid TopicInfo. "
       "Report this.");
-    return;
+    return {};
   }
 
   // For the sake of reusing data structures and lookup functions, we treat publishers and
@@ -155,7 +158,7 @@ void GraphCache::update_topic_map_for_put(
     topic_map.insert(std::make_pair(graph_topic_data->info_.name_, std::move(topic_data_map)));
     // We do not need to check for events since this is the first time and entiry for this topic
     // was added to the topic map.
-    return;
+    return {};
   }
   // The topic exists in the topic_map so we check if the type also exists.
   GraphNode::TopicTypeMap::iterator topic_type_map_it = topic_map_it->second.find(
@@ -167,7 +170,7 @@ void GraphCache::update_topic_map_for_put(
         graph_topic_data->info_.type_,
         std::move(topic_qos_map)));
     // TODO(Yadunund) Check for and report an *_INCOMPATIBLE_TYPE events.
-    return;
+    return {};
   }
   // The topic type already exists.
   if (report_events) {
@@ -195,6 +198,38 @@ void GraphCache::update_topic_map_for_put(
       existing_graph_topic->subs_.insert(entity);
     }
   }
+
+  // Collect discovery callbacks under discovery_mutex_ and return them to the
+  // caller for invocation *outside* graph_mutex_.
+  //
+  // Lock ordering invariant: graph_mutex_ → discovery_mutex_.
+  // parse_put holds graph_mutex_ for its entire body; register_*_callback
+  // also acquires graph_mutex_ before discovery_mutex_, so the order is
+  // consistent and ABBA-free.
+  //
+  // Callbacks must NOT be invoked while graph_mutex_ is held: any callback
+  // that re-enters a GraphCache method would deadlock (std::mutex is
+  // non-recursive).  Callers are responsible for invoking the returned
+  // callbacks only after releasing graph_mutex_.
+  std::vector<EntityDiscoveryCallback> callbacks_to_invoke;
+  {
+    std::lock_guard<std::mutex> disc_lock(discovery_mutex_);
+    const std::string & topic_name = graph_topic_data->info_.name_;
+    if (is_pub) {
+      if (publisher_discovery_callbacks_.count(topic_name)) {
+        for (const auto & [gid_hash, cb] : publisher_discovery_callbacks_[topic_name]) {
+          callbacks_to_invoke.push_back(cb);
+        }
+      }
+    } else {
+      if (subscriber_discovery_callbacks_.count(topic_name)) {
+        for (const auto & [gid_hash, cb] : subscriber_discovery_callbacks_[topic_name]) {
+          callbacks_to_invoke.push_back(cb);
+        }
+      }
+    }
+  }
+  return callbacks_to_invoke;
 }
 
 ///=============================================================================
@@ -327,8 +362,11 @@ void GraphCache::parse_put(
     return;
   }
 
-  // Lock the graph mutex before accessing the graph.
-  std::lock_guard<std::mutex> lock(graph_mutex_);
+  // Use unique_lock so we can release graph_mutex_ before invoking discovery
+  // callbacks; callbacks must not run under graph_mutex_ (non-recursive mutex).
+  std::unique_lock<std::mutex> lock(graph_mutex_);
+
+  std::vector<EntityDiscoveryCallback> pending_callbacks;
 
   // If the namespace did not exist, create it and add the node to the graph and return.
   NamespaceMap::iterator ns_it = graph_.find(entity->node_namespace());
@@ -341,50 +379,58 @@ void GraphCache::parse_put(
     NodeMap node_map = {
       {entity->node_name(), node}};
     graph_.emplace(std::make_pair(entity->node_namespace(), std::move(node_map)));
-    update_topic_maps_for_put(node, entity);
+    pending_callbacks = update_topic_maps_for_put(node, entity);
     total_nodes_in_graph_ += 1;
-    return;
+  } else {
+    // Add the node to the namespace if it did not exist and return.
+    // Case 1: First time a node with this name is added to the namespace.
+    // Case 2: There are one or more nodes with the same name but the entity could
+    // represent a node with the same name but a unique id which would make it a
+    // new addition to the graph.
+    std::pair<NodeMap::iterator, NodeMap::iterator> range = ns_it->second.equal_range(
+      entity->node_name());
+    NodeMap::iterator node_it = std::find_if(
+      range.first, range.second,
+      [entity](const std::pair<std::string, GraphNodePtr> & node_it)
+      {
+        // Match nodes if their zenoh session and node ids match.
+        return entity->zid() == node_it.second->zid_ && entity->nid() == node_it.second->nid_;
+      });
+    if (node_it == range.second) {
+      // Either the first time a node with this name is added or with an existing
+      // name but unique id.
+      GraphNodePtr node = make_graph_node(*entity);
+      if (node == nullptr) {
+        // Error handled.
+        return;
+      }
+      NodeMap::iterator insertion_it =
+        ns_it->second.insert(std::make_pair(entity->node_name(), node));
+      pending_callbacks = update_topic_maps_for_put(node, entity);
+      total_nodes_in_graph_ += 1;
+      if (insertion_it == ns_it->second.end()) {
+        RMW_ZENOH_LOG_ERROR_NAMED(
+          "rmw_zenoh_cpp",
+          "Unable to add a new node /%s to an "
+          "existing namespace %s in the graph. Report this bug.",
+          entity->node_name().c_str(),
+          entity->node_namespace().c_str());
+      }
+    } else {
+      // Otherwise, the entity represents a node that already exists in the graph.
+      // Update topic info if required below.
+      pending_callbacks = update_topic_maps_for_put(node_it->second, entity);
+    }
   }
 
-  // Add the node to the namespace if it did not exist and return.
-  // Case 1: First time a node with this name is added to the namespace.
-  // Case 2: There are one or more nodes with the same name but the entity could
-  // represent a node with the same name but a unique id which would make it a
-  // new addition to the graph.
-  std::pair<NodeMap::iterator, NodeMap::iterator> range = ns_it->second.equal_range(
-    entity->node_name());
-  NodeMap::iterator node_it = std::find_if(
-    range.first, range.second,
-    [entity](const std::pair<std::string, GraphNodePtr> & node_it)
-    {
-      // Match nodes if their zenoh session and node ids match.
-      return entity->zid() == node_it.second->zid_ && entity->nid() == node_it.second->nid_;
-    });
-  if (node_it == range.second) {
-    // Either the first time a node with this name is added or with an existing
-    // name but unique id.
-    GraphNodePtr node = make_graph_node(*entity);
-    if (node == nullptr) {
-      // Error handled.
-      return;
-    }
-    NodeMap::iterator insertion_it =
-      ns_it->second.insert(std::make_pair(entity->node_name(), node));
-    update_topic_maps_for_put(node, entity);
-    total_nodes_in_graph_ += 1;
-    if (insertion_it == ns_it->second.end()) {
-      RMW_ZENOH_LOG_ERROR_NAMED(
-        "rmw_zenoh_cpp",
-        "Unable to add a new node /%s to an "
-        "existing namespace %s in the graph. Report this bug.",
-        entity->node_name().c_str(),
-        entity->node_namespace().c_str());
-    }
-    return;
+  // Release graph_mutex_ before invoking discovery callbacks.
+  // Callbacks may create per-endpoint Zenoh publishers/subscribers; they must
+  // not hold graph_mutex_ to avoid potential re-entrant deadlock.
+  lock.unlock();
+
+  for (const auto & cb : pending_callbacks) {
+    cb(*entity);
   }
-  // Otherwise, the entity represents a node that already exists in the graph.
-  // Update topic info if required below.
-  update_topic_maps_for_put(node_it->second, entity);
 }
 
 ///=============================================================================
@@ -1325,6 +1371,96 @@ void GraphCache::remove_qos_event_callbacks(std::size_t entity_gid_hash)
 {
   std::lock_guard<std::mutex> lock(events_mutex_);
   event_callbacks_.erase(entity_gid_hash);
+}
+
+///=============================================================================
+void GraphCache::register_subscriber_discovery_callback(
+  const std::string & topic_name,
+  std::size_t publisher_gid_hash,
+  EntityDiscoveryCallback callback)
+{
+  // Collect existing entities under lock, then invoke callbacks outside
+  // to avoid ABBA deadlock between graph_mutex_ and discovery_mutex_.
+  // Lock ordering: graph_mutex_ first, then discovery_mutex_ (matches parse_put).
+  std::vector<liveliness::ConstEntityPtr> entities_to_notify;
+  {
+    std::lock_guard<std::mutex> graph_lock(graph_mutex_);
+    std::lock_guard<std::mutex> disc_lock(discovery_mutex_);
+    subscriber_discovery_callbacks_[topic_name][publisher_gid_hash] = callback;
+
+    RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
+      "rmw_zenoh_cpp",
+      "[GraphCache] Registered subscriber discovery callback for publisher on topic: '%s'",
+      topic_name.c_str());
+
+    for (const auto & [topic, type_map] : graph_topics_) {
+      if (topic == topic_name) {
+        for (const auto & [type, qos_map] : type_map) {
+          for (const auto & [qos, topic_data] : qos_map) {
+            for (const auto & entity_ptr : topic_data->subs_) {
+              entities_to_notify.push_back(entity_ptr);
+            }
+          }
+        }
+      }
+    }
+
+    RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
+      "rmw_zenoh_cpp",
+      "[GraphCache] Found %zu existing subscriber(s) for topic '%s'",
+      entities_to_notify.size(), topic_name.c_str());
+  }
+
+  for (const auto & entity_ptr : entities_to_notify) {
+    callback(*entity_ptr);
+  }
+}
+
+///=============================================================================
+void GraphCache::register_publisher_discovery_callback(
+  const std::string & topic_name,
+  std::size_t subscriber_gid_hash,
+  EntityDiscoveryCallback callback)
+{
+  // Same collect-then-invoke pattern as register_subscriber_discovery_callback.
+  std::vector<liveliness::ConstEntityPtr> entities_to_notify;
+  {
+    std::lock_guard<std::mutex> graph_lock(graph_mutex_);
+    std::lock_guard<std::mutex> disc_lock(discovery_mutex_);
+    publisher_discovery_callbacks_[topic_name][subscriber_gid_hash] = callback;
+
+    for (const auto & [topic, type_map] : graph_topics_) {
+      if (topic == topic_name) {
+        for (const auto & [type, qos_map] : type_map) {
+          for (const auto & [qos, topic_data] : qos_map) {
+            for (const auto & entity_ptr : topic_data->pubs_) {
+              entities_to_notify.push_back(entity_ptr);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  for (const auto & entity_ptr : entities_to_notify) {
+    callback(*entity_ptr);
+  }
+}
+
+///=============================================================================
+void GraphCache::unregister_discovery_callbacks(std::size_t gid_hash)
+{
+  std::lock_guard<std::mutex> lock(discovery_mutex_);
+
+  // Remove from all topics in subscriber discovery callbacks
+  for (auto & [topic_name, callbacks] : subscriber_discovery_callbacks_) {
+    callbacks.erase(gid_hash);
+  }
+
+  // Remove from all topics in publisher discovery callbacks
+  for (auto & [topic_name, callbacks] : publisher_discovery_callbacks_) {
+    callbacks.erase(gid_hash);
+  }
 }
 
 ///=============================================================================
