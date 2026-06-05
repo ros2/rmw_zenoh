@@ -27,8 +27,11 @@
 #include "rcpputils/find_and_replace.hpp"
 #include "rcpputils/scope_exit.hpp"
 
+#include "rcutils/error_handling.h"
 #include "rcutils/strdup.h"
+#include "rcutils/types/string_map.h"
 
+#include "rmw/convert_rcutils_ret_to_rmw_ret.h"
 #include "rmw/error_handling.h"
 #include "rmw/sanity_checks.h"
 #include "rmw/validate_namespace.h"
@@ -1161,6 +1164,48 @@ rmw_ret_t GraphCache::get_entities_info_by_topic(
         ret = rmw_topic_endpoint_info_set_qos_profile(&ep, &topic_data->info_.qos_);
         if (RMW_RET_OK != ret) {
           return ret;
+        }
+
+        auto entity_topic_info = entity->topic_info();
+        if (entity_topic_info.has_value() &&
+          entity_topic_info->backend_metadata_.has_value() &&
+          !entity_topic_info->backend_metadata_->empty())
+        {
+          rcutils_string_map_t buffer_backend_metadata =
+            rcutils_get_zero_initialized_string_map();
+          rcutils_ret_t rc_ret = rcutils_string_map_init(
+            &buffer_backend_metadata,
+            entity_topic_info->backend_metadata_->size(),
+            *allocator);
+          if (RCUTILS_RET_OK != rc_ret) {
+            RMW_SET_ERROR_MSG(rcutils_get_error_string().str);
+            rcutils_reset_error();
+            return rmw_convert_rcutils_ret_to_rmw_ret(rc_ret);
+          }
+
+          for (const auto & backend_pair : entity_topic_info->backend_metadata_.value()) {
+            rc_ret = rcutils_string_map_set(
+              &buffer_backend_metadata,
+              backend_pair.first.c_str(),
+              backend_pair.second.c_str());
+            if (RCUTILS_RET_OK != rc_ret) {
+              rcutils_ret_t fini_ret = rcutils_string_map_fini(&buffer_backend_metadata);
+              (void)fini_ret;
+              RMW_SET_ERROR_MSG(rcutils_get_error_string().str);
+              rcutils_reset_error();
+              return rmw_convert_rcutils_ret_to_rmw_ret(rc_ret);
+            }
+          }
+
+          ret = rmw_topic_endpoint_info_set_buffer_backend_metadata(
+            &ep,
+            &buffer_backend_metadata,
+            allocator);
+          rcutils_ret_t fini_ret = rcutils_string_map_fini(&buffer_backend_metadata);
+          (void)fini_ret;
+          if (RMW_RET_OK != ret) {
+            return ret;
+          }
         }
 
         rosidl_type_hash_t type_hash;
