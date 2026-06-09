@@ -302,15 +302,6 @@ PublisherData::PublisherData(
   backend_metadata_(std::move(backend_metadata))
 {
   events_mgr_ = std::make_shared<EventsManager>();
-
-  // For simple publishers, create a single base endpoint
-  if (!is_buffer_aware_) {
-    auto base_endpoint = std::make_shared<PublisherEndpoint>();
-    base_endpoint->key = entity_->topic_info()->topic_keyexpr_;
-    base_endpoint->pub = std::optional<zenoh::ext::AdvancedPublisher>(std::move(pub_));
-    endpoints_[base_endpoint->key] = base_endpoint;
-  }
-  // For buffer-aware publishers, endpoints are created dynamically on subscriber discovery
 }
 
 ///=============================================================================
@@ -1054,11 +1045,6 @@ rmw_ret_t PublisherData::shutdown()
       entity_->topic_info().value().name_.c_str());
     return RMW_RET_ERROR;
   }
-
-  // For buffer-aware publishers, pub_ is the base publisher used for
-  // fallback/standard serialization and was never moved.
-  // For non-buffer-aware publishers, pub_ was moved into the base endpoint
-  // but still needs to be undeclared.
   std::move(pub_).undeclare(&result);
   if (result != Z_OK) {
     RMW_ZENOH_ROSIDL_BUFFER_LOG_ERROR_NAMED(

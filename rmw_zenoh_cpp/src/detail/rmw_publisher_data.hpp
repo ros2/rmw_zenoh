@@ -169,8 +169,7 @@ private:
   // Buffer-aware publisher fields
   bool is_buffer_aware_;
   std::unordered_map<std::string, std::string> backend_metadata_;
-  // For simple publishers: endpoints_ contains only base endpoint
-  // For buffer-aware: multiple endpoints based on discovered subscribers
+  // Additional buffer-aware publisher endpoints (based on discovered subscribers)
   std::unordered_map<std::string, std::shared_ptr<PublisherEndpoint>> endpoints_;
   std::set<std::string> pending_endpoints_;
   std::vector<SubscriberInfo> discovered_subscribers_;
