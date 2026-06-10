@@ -153,53 +153,7 @@ std::shared_ptr<PublisherData> PublisherData::make(
     return nullptr;
   }
 
-  using AdvancedPublisherOptions = zenoh::ext::SessionExt::AdvancedPublisherOptions;
-  using SampleMissDetectionOptions = AdvancedPublisherOptions::SampleMissDetectionOptions;
-  auto adv_pub_opts = AdvancedPublisherOptions::create_default();
-
-  if (adapted_qos_profile.durability == RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL) {
-    // Allow this publisher to be detected through liveliness.
-    adv_pub_opts.publisher_detection = true;
-    adv_pub_opts.cache = AdvancedPublisherOptions::CacheOptions::create_default();
-    adv_pub_opts.cache->max_samples = adapted_qos_profile.depth;
-    if (adapted_qos_profile.reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE) {
-      // If RELIABLE + TRANSIENT_LOCAL activate sample miss detection for subscriber
-      // to detect missed samples and retrieve those from the Publisher cache.
-      // HeartbeatSporadic is used to prevent excessive background traffic
-      adv_pub_opts.sample_miss_detection = SampleMissDetectionOptions{};
-      adv_pub_opts.sample_miss_detection->heartbeat =
-        SampleMissDetectionOptions::HeartbeatSporadic{
-        SAMPLE_MISS_DETECTION_HEARTBEAT_PERIOD};
-    }
-  }
-
-  zenoh::KeyExpr pub_ke(entity->topic_info()->topic_keyexpr_);
-  // Set congestion_control to BLOCK if appropriate.
-  auto pub_opts = zenoh::Session::PublisherOptions::create_default();
-  pub_opts.congestion_control = Z_CONGESTION_CONTROL_DROP;
-  if (adapted_qos_profile.reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE) {
-    pub_opts.reliability = Z_RELIABILITY_RELIABLE;
-    if (adapted_qos_profile.history == RMW_QOS_POLICY_HISTORY_KEEP_ALL) {
-      pub_opts.congestion_control = Z_CONGESTION_CONTROL_BLOCK;
-    }
-  } else {
-    pub_opts.reliability = Z_RELIABILITY_BEST_EFFORT;
-  }
-  adv_pub_opts.publisher_options = pub_opts;
-
   zenoh::ZResult result;
-  auto adv_pub = session->ext().declare_advanced_publisher(
-    pub_ke, std::move(adv_pub_opts), &result);
-  if (result != Z_OK) {
-    RMW_SET_ERROR_MSG("unable to create zenoh publisher cache");
-    return nullptr;
-  }
-
-  if (result != Z_OK) {
-    RMW_SET_ERROR_MSG("Unable to create Zenoh publisher.");
-    return nullptr;
-  }
-
   std::string liveliness_keyexpr = entity->liveliness_keyexpr();
   auto token = session->liveliness_declare_token(
     zenoh::KeyExpr(liveliness_keyexpr),
@@ -218,13 +172,23 @@ std::shared_ptr<PublisherData> PublisherData::make(
       node,
       std::move(entity),
       std::move(session),
-      std::move(adv_pub),
       std::move(token),
       type_support->data,
       std::move(message_type_support),
       has_buffer_fields,
       backend_metadata
     });
+
+  // Create the base publisher through the same path as every endpoint,
+  // stored in endpoints_ under the topic key expression.
+  const std::string base_key = pub_data->entity_->topic_info()->topic_keyexpr_;
+  auto base_endpoint = pub_data->create_publisher_endpoint(base_key, /*buffer_aware=*/false);
+  if (!base_endpoint) {
+    RMW_SET_ERROR_MSG("Unable to create Zenoh publisher.");
+    return nullptr;
+  }
+  pub_data->base_endpoint_ = base_endpoint.get();
+  pub_data->endpoints_[base_key] = std::move(base_endpoint);
 
   if (has_buffer_fields) {
     pub_data->local_endpoint_info_ =
@@ -282,7 +246,6 @@ PublisherData::PublisherData(
   const rmw_node_t * rmw_node,
   std::shared_ptr<liveliness::Entity> entity,
   std::shared_ptr<zenoh::Session> sess,
-  zenoh::ext::AdvancedPublisher pub,
   zenoh::LivelinessToken token,
   const void * type_support_impl,
   std::unique_ptr<MessageTypeSupport> type_support,
@@ -292,7 +255,6 @@ PublisherData::PublisherData(
   rmw_node_(rmw_node),
   entity_(std::move(entity)),
   sess_(std::move(sess)),
-  pub_(std::move(pub)),
   token_(std::move(token)),
   type_support_impl_(type_support_impl),
   type_support_(std::move(type_support)),
@@ -302,15 +264,6 @@ PublisherData::PublisherData(
   backend_metadata_(std::move(backend_metadata))
 {
   events_mgr_ = std::make_shared<EventsManager>();
-
-  // For simple publishers, create a single base endpoint
-  if (!is_buffer_aware_) {
-    auto base_endpoint = std::make_shared<PublisherEndpoint>();
-    base_endpoint->key = entity_->topic_info()->topic_keyexpr_;
-    base_endpoint->pub = std::optional<zenoh::ext::AdvancedPublisher>(std::move(pub_));
-    endpoints_[base_endpoint->key] = base_endpoint;
-  }
-  // For buffer-aware publishers, endpoints are created dynamically on subscriber discovery
 }
 
 ///=============================================================================
@@ -666,7 +619,7 @@ rmw_ret_t PublisherData::publish(
 
   TRACETOOLS_TRACEPOINT(
     rmw_publish, static_cast<const void *>(rmw_publisher_), ros_message, source_timestamp);
-  pub_.put(std::move(payload), std::move(opts), &result);
+  base_endpoint_->pub.value().put(std::move(payload), std::move(opts), &result);
   if (result != Z_OK) {
     if (result == Z_ESESSION_CLOSED) {
       RMW_ZENOH_LOG_WARN_NAMED(
@@ -740,7 +693,7 @@ rmw_ret_t PublisherData::publish_serialized_message(
       rmw_publish, static_cast<const void *>(rmw_publisher_), serialized_message,
       source_timestamp);
 
-    pub_.put(std::move(payload), std::move(opts), &result);
+    base_endpoint_->pub.value().put(std::move(payload), std::move(opts), &result);
   } else {
     std::vector<uint8_t> raw_image(
       serialized_message->buffer,
@@ -751,7 +704,7 @@ rmw_ret_t PublisherData::publish_serialized_message(
       rmw_publish, static_cast<const void *>(rmw_publisher_), serialized_message,
         source_timestamp);
 
-    pub_.put(std::move(payload), std::move(opts), &result);
+    base_endpoint_->pub.value().put(std::move(payload), std::move(opts), &result);
   }
 
   if (result != Z_OK) {
@@ -955,7 +908,7 @@ std::shared_ptr<PublisherData::PublisherEndpoint> PublisherData::get_or_create_e
 
 ///=============================================================================
 std::shared_ptr<PublisherData::PublisherEndpoint> PublisherData::create_publisher_endpoint(
-  const std::string & full_key)
+  const std::string & full_key, bool buffer_aware)
 {
   auto endpoint = std::make_shared<PublisherEndpoint>();
   endpoint->key = full_key;
@@ -965,12 +918,25 @@ std::shared_ptr<PublisherData::PublisherEndpoint> PublisherData::create_publishe
   auto qos_profile = entity_->topic_info()->qos_;
 
   using AdvancedPublisherOptions = zenoh::ext::SessionExt::AdvancedPublisherOptions;
+  using SampleMissDetectionOptions = AdvancedPublisherOptions::SampleMissDetectionOptions;
   auto adv_pub_opts = AdvancedPublisherOptions::create_default();
 
   if (qos_profile.durability == RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL) {
+    // Allow this publisher to be detected through liveliness.
     adv_pub_opts.publisher_detection = true;
     adv_pub_opts.cache = AdvancedPublisherOptions::CacheOptions::create_default();
     adv_pub_opts.cache->max_samples = qos_profile.depth;
+    // Sample miss detection (heartbeat) is only used on the base
+    // publisher. If RELIABLE + TRANSIENT_LOCAL it lets subscribers detect missed
+    // samples and retrieve them from the Publisher cache; HeartbeatSporadic keeps
+    // background traffic low. Per-subscriber buffer-aware endpoints are
+    // point-to-point and do not need it.
+    if (!buffer_aware && qos_profile.reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE) {
+      adv_pub_opts.sample_miss_detection = SampleMissDetectionOptions{};
+      adv_pub_opts.sample_miss_detection->heartbeat =
+        SampleMissDetectionOptions::HeartbeatSporadic{
+        SAMPLE_MISS_DETECTION_HEARTBEAT_PERIOD};
+    }
   }
 
   auto pub_opts = zenoh::Session::PublisherOptions::create_default();
@@ -992,7 +958,7 @@ std::shared_ptr<PublisherData::PublisherEndpoint> PublisherData::create_publishe
   if (result != Z_OK) {
     RMW_ZENOH_ROSIDL_BUFFER_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
-      "Failed to create dynamic endpoint for key: %s", full_key.c_str());
+      "Failed to create publisher endpoint for key: %s", full_key.c_str());
     return nullptr;
   }
 
@@ -1017,53 +983,36 @@ PublisherData::~PublisherData()
 rmw_ret_t PublisherData::shutdown()
 {
   std::unordered_map<std::string, std::shared_ptr<PublisherEndpoint>> endpoints_to_destroy;
-  bool was_buffer_aware = false;
   {
     std::lock_guard<std::mutex> lock(mutex_);
     if (is_shutdown_) {
       return RMW_RET_OK;
     }
     is_shutdown_ = true;
-    was_buffer_aware = is_buffer_aware_;
-    if (was_buffer_aware) {
-      endpoints_to_destroy = std::move(endpoints_);
-      endpoints_.clear();
-    }
+    base_endpoint_ = nullptr;
+    endpoints_to_destroy = std::move(endpoints_);
+    endpoints_.clear();
   }
 
-  if (was_buffer_aware) {
-    zenoh::ZResult result;
-    for (auto & [key, endpoint] : endpoints_to_destroy) {
-      if (endpoint->pub.has_value()) {
-        std::move(endpoint->pub.value()).undeclare(&result);
-        if (result != Z_OK) {
-          RMW_ZENOH_ROSIDL_BUFFER_LOG_ERROR_NAMED(
-            "rmw_zenoh_cpp",
+  zenoh::ZResult result;
+  // Undeclare every publisher endpoint: the base publisher plus any
+  // buffer-aware endpoints.
+  for (auto & [key, endpoint] : endpoints_to_destroy) {
+    if (endpoint->pub.has_value()) {
+      std::move(endpoint->pub.value()).undeclare(&result);
+      if (result != Z_OK) {
+        RMW_ZENOH_ROSIDL_BUFFER_LOG_ERROR_NAMED(
+          "rmw_zenoh_cpp",
           "Failed to undeclare endpoint with key '%s'", key.c_str());
-        }
       }
     }
   }
 
-  zenoh::ZResult result;
   std::move(token_).value().undeclare(&result);
   if (result != Z_OK) {
     RMW_ZENOH_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
       "Unable to undeclare the liveliness token for topic '%s'",
-      entity_->topic_info().value().name_.c_str());
-    return RMW_RET_ERROR;
-  }
-
-  // For buffer-aware publishers, pub_ is the base publisher used for
-  // fallback/standard serialization and was never moved.
-  // For non-buffer-aware publishers, pub_ was moved into the base endpoint
-  // but still needs to be undeclared.
-  std::move(pub_).undeclare(&result);
-  if (result != Z_OK) {
-    RMW_ZENOH_ROSIDL_BUFFER_LOG_ERROR_NAMED(
-      "rmw_zenoh_cpp",
-      "Unable to undeclare the publisher for topic '%s'",
       entity_->topic_info().value().name_.c_str());
     return RMW_RET_ERROR;
   }
