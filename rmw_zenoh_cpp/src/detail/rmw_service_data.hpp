@@ -87,6 +87,9 @@ public:
 
   bool detach_condition_and_queue_is_empty();
 
+  // Shutdown this ServiceData.
+  rmw_ret_t shutdown();
+
   // Check if this ServiceData is shutdown.
   bool is_shutdown() const;
 
@@ -105,9 +108,6 @@ private:
     const void * response_type_support_impl,
     std::unique_ptr<RequestTypeSupport> request_type_support,
     std::unique_ptr<ResponseTypeSupport> response_type_support);
-
-  // Shutdown this ServiceData.
-  rmw_ret_t shutdown();
 
   // Internal mutex.
   mutable std::mutex mutex_;
