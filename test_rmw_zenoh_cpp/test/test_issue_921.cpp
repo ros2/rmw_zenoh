@@ -24,8 +24,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/string.hpp>
 
-// This test references issue ticket number 921:
-// "potential deadlock between waitset condition_mutex and SubscriptionData mutex"
+// This test references issue ticket: https://github.com/ros2/rmw_zenoh/issues/921
 // It simulates heavy traffic by publishing messages concurrently with wait execution.
 class TestIssue921 : public ::testing::Test
 {
@@ -45,7 +44,7 @@ TEST_F(TestIssue921, TestDeadlockUnderHeavyTraffic)
 {
   auto node = std::make_shared<rclcpp::Node>("test_issue_921_node");
   auto publisher = node->create_publisher<std_msgs::msg::String>("test_issue_921_topic", 10);
-  
+
   std::atomic<size_t> received_count{0};
   auto subscription = node->create_subscription<std_msgs::msg::String>(
     "test_issue_921_topic", 10,
@@ -63,24 +62,24 @@ TEST_F(TestIssue921, TestDeadlockUnderHeavyTraffic)
   // Run the test in a thread so we can monitor for deadlocks with a watchdog
   std::thread test_thread([&]() {
     // Publisher thread that publishes messages as fast as possible
-    std::thread pub_thread([&]() {
-      std_msgs::msg::String msg;
-      msg.data = "hello";
-      for (size_t i = 0; i < 500 && running; ++i) {
-        publisher->publish(msg);
-        std::this_thread::sleep_for(std::chrono::microseconds(500));
-      }
-      running = false;
+      std::thread pub_thread([&]() {
+        std_msgs::msg::String msg;
+        msg.data = "hello";
+        for (size_t i = 0; i < 500 && running; ++i) {
+          publisher->publish(msg);
+          std::this_thread::sleep_for(std::chrono::microseconds(500));
+        }
+        running = false;
     });
 
     // Executor spin loop
-    while (running) {
-      executor.spin_some(std::chrono::milliseconds(5));
-    }
+      while (running) {
+        executor.spin_some(std::chrono::milliseconds(5));
+      }
 
-    pub_thread.join();
-    test_finished_promise.set_value();
-  });
+      pub_thread.join();
+      test_finished_promise.set_value();
+    });
 
   // Watchdog timeout (5 seconds)
   if (test_finished_future.wait_for(std::chrono::seconds(5)) == std::future_status::timeout) {
