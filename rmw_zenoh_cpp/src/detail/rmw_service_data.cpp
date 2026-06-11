@@ -237,36 +237,41 @@ bool ServiceData::liveliness_is_valid() const
 ///=============================================================================
 void ServiceData::add_new_query(std::unique_ptr<ZenohQuery> query)
 {
-  std::lock_guard<std::mutex> lock(mutex_);
-  if (is_shutdown_.load(std::memory_order_acquire)) {
-    RMW_ZENOH_LOG_DEBUG_NAMED(
-      "rmw_zenoh_cpp",
-      "Request from client will be ignored since the service is shutdown."
-    );
-    return;
-  }
-  const rmw_qos_profile_t adapted_qos_profile =
-    entity_->topic_info().value().qos_;
-  if (adapted_qos_profile.history != RMW_QOS_POLICY_HISTORY_KEEP_ALL &&
-    query_queue_.size() >= adapted_qos_profile.depth)
+  rmw_wait_set_data_t * wait_set_data_to_trigger = nullptr;
   {
-    // Log warning if message is discarded due to hitting the queue depth
-    RMW_ZENOH_LOG_ERROR_NAMED(
-      "rmw_zenoh_cpp",
-      "Query queue depth of %ld reached, discarding oldest Query "
-      "for service '%s'",
-      adapted_qos_profile.depth,
-      entity_->topic_info().value().name_.c_str());
-    query_queue_.pop_front();
-  }
-  query_queue_.emplace_back(std::move(query));
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (is_shutdown_.load(std::memory_order_acquire)) {
+      RMW_ZENOH_LOG_DEBUG_NAMED(
+        "rmw_zenoh_cpp",
+        "Request from client will be ignored since the service is shutdown."
+      );
+      return;
+    }
+    const rmw_qos_profile_t adapted_qos_profile =
+      entity_->topic_info().value().qos_;
+    if (adapted_qos_profile.history != RMW_QOS_POLICY_HISTORY_KEEP_ALL &&
+      query_queue_.size() >= adapted_qos_profile.depth)
+    {
+      // Log warning if message is discarded due to hitting the queue depth
+      RMW_ZENOH_LOG_ERROR_NAMED(
+        "rmw_zenoh_cpp",
+        "Query queue depth of %ld reached, discarding oldest Query "
+        "for service '%s'",
+        adapted_qos_profile.depth,
+        entity_->topic_info().value().name_.c_str());
+      query_queue_.pop_front();
+    }
+    query_queue_.emplace_back(std::move(query));
 
-  // Since we added new data, trigger user callback and guard condition if they are available
-  data_callback_mgr_.trigger_callback();
-  if (wait_set_data_ != nullptr) {
-    std::lock_guard<std::mutex> wait_set_lock(wait_set_data_->condition_mutex);
-    wait_set_data_->triggered = true;
-    wait_set_data_->condition_variable.notify_one();
+    // Since we added new data, trigger user callback and guard condition if they are available
+    data_callback_mgr_.trigger_callback();
+    wait_set_data_to_trigger = wait_set_data_;
+  }
+
+  if (wait_set_data_to_trigger != nullptr) {
+    std::lock_guard<std::mutex> wait_set_lock(wait_set_data_to_trigger->condition_mutex);
+    wait_set_data_to_trigger->triggered = true;
+    wait_set_data_to_trigger->condition_variable.notify_one();
   }
 }
 
