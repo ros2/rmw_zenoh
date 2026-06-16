@@ -525,7 +525,6 @@ bool SubscriptionData::liveliness_is_valid() const
 ///=============================================================================
 std::shared_ptr<EventsManager> SubscriptionData::events_mgr() const
 {
-  std::lock_guard<std::mutex> lock(mutex_);
   return events_mgr_;
 }
 
