@@ -19,6 +19,7 @@ if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   find_package(ament_lint_common REQUIRED)
   find_package(rclcpp REQUIRED)
+  find_package(std_msgs REQUIRED)
   find_package(rmw_zenoh_cpp REQUIRED)
   find_package(zenoh_cpp_vendor REQUIRED)
 
@@ -31,6 +32,15 @@ if(BUILD_TESTING)
     rclcpp::rclcpp
     rmw_zenoh_cpp::rmw_zenoh_cpp
     zenohcxx::zenohc
+  )
+
+  ament_add_ros_isolated_gtest(test_issue_921
+    test/test_issue_921.cpp
+    ENV RMW_IMPLEMENTATION=rmw_zenoh_cpp)
+  target_link_libraries(test_issue_921
+    rclcpp::rclcpp
+    std_msgs::std_msgs
+    rmw_zenoh_cpp::rmw_zenoh_cpp
   )
 endif()
 
