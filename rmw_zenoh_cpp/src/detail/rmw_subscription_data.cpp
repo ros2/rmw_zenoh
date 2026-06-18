@@ -475,61 +475,74 @@ rmw_ret_t SubscriptionData::take_serialized_message(
 void SubscriptionData::add_new_message(
   std::unique_ptr<SubscriptionData::Message> msg, const std::string & topic_name)
 {
-  std::lock_guard<std::mutex> lock(mutex_);
-  if (is_shutdown_) {
-    return;
-  }
-  const rmw_qos_profile_t adapted_qos_profile = entity_->topic_info().value().qos_;
-  if (adapted_qos_profile.history != RMW_QOS_POLICY_HISTORY_KEEP_ALL &&
-    message_queue_.size() >= adapted_qos_profile.depth)
+  rmw_wait_set_data_t * wait_set_data_to_trigger = nullptr;
+  bool message_lost = false;
+  int32_t num_msg_lost = 0;
+
   {
-    // Log warning if message is discarded due to hitting the queue depth
-    RMW_ZENOH_LOG_DEBUG_NAMED(
-      "rmw_zenoh_cpp",
-      "Message queue depth of %ld reached, discarding oldest message "
-      "for subscription for %s",
-      adapted_qos_profile.depth,
-      topic_name.c_str());
-
-    // If the adapted_qos_profile.depth is 0, the std::move command below will result
-    // in UB and the z_drop will segfault. We explicitly set the depth to a minimum of 1
-    // in rmw_create_subscription() but to be safe, we only attempt to discard from the
-    // queue if it is non-empty.
-    if (!message_queue_.empty()) {
-      std::unique_ptr<Message> old = std::move(message_queue_.front());
-      message_queue_.pop_front();
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (is_shutdown_) {
+      return;
     }
+    const rmw_qos_profile_t adapted_qos_profile = entity_->topic_info().value().qos_;
+    if (adapted_qos_profile.history != RMW_QOS_POLICY_HISTORY_KEEP_ALL &&
+      message_queue_.size() >= adapted_qos_profile.depth)
+    {
+      // Log warning if message is discarded due to hitting the queue depth
+      RMW_ZENOH_LOG_DEBUG_NAMED(
+        "rmw_zenoh_cpp",
+        "Message queue depth of %ld reached, discarding oldest message "
+        "for subscription for %s",
+        adapted_qos_profile.depth,
+        topic_name.c_str());
+
+      // If the adapted_qos_profile.depth is 0, the std::move command below will result
+      // in UB and the z_drop will segfault. We explicitly set the depth to a minimum of 1
+      // in rmw_create_subscription() but to be safe, we only attempt to discard from the
+      // queue if it is non-empty.
+      if (!message_queue_.empty()) {
+        std::unique_ptr<Message> old = std::move(message_queue_.front());
+        message_queue_.pop_front();
+      }
+    }
+
+    // Check for messages lost if the new sequence number is not monotonically increasing.
+    const size_t gid_hash = hash_gid(msg->attachment.copy_gid());
+    auto last_known_pub_it = last_known_published_msg_.find(gid_hash);
+    if (last_known_pub_it != last_known_published_msg_.end()) {
+      const int64_t seq_increment = std::abs(
+        msg->attachment.sequence_number() -
+        last_known_pub_it->second);
+      if (seq_increment > 1) {
+        num_msg_lost =
+          static_cast<int32_t>(std::clamp(
+            seq_increment - 1,
+            static_cast<int64_t>(std::numeric_limits<int32_t>::min()),
+            static_cast<int64_t>(std::numeric_limits<int32_t>::max())));
+        message_lost = true;
+      }
+    }
+    // Always update the last known sequence number for the publisher.
+    last_known_published_msg_[gid_hash] = msg->attachment.sequence_number();
+
+    message_queue_.emplace_back(std::move(msg));
+
+    // Since we added new data, trigger user callback and guard condition if they are available
+    data_callback_mgr_.trigger_callback();
+    wait_set_data_to_trigger = wait_set_data_;
   }
 
-  // Check for messages lost if the new sequence number is not monotonically increasing.
-  const size_t gid_hash = hash_gid(msg->attachment.copy_gid());
-  auto last_known_pub_it = last_known_published_msg_.find(gid_hash);
-  if (last_known_pub_it != last_known_published_msg_.end()) {
-    const int64_t seq_increment = std::abs(
-      msg->attachment.sequence_number() -
-      last_known_pub_it->second);
-    if (seq_increment > 1) {
-      int32_t num_msg_lost =
-        static_cast<int32_t>(std::clamp(
-          seq_increment - 1,
-          static_cast<int64_t>(std::numeric_limits<int32_t>::min()),
-          static_cast<int64_t>(std::numeric_limits<int32_t>::max())));
-      events_mgr_->update_event_status(
-        ZENOH_EVENT_MESSAGE_LOST,
-        std::move(num_msg_lost));
-    }
+  // Trigger lost message event outside the subscription mutex to avoid deadlocks.
+  if (message_lost) {
+    events_mgr_->update_event_status(
+      ZENOH_EVENT_MESSAGE_LOST,
+      std::move(num_msg_lost));
   }
-  // Always update the last known sequence number for the publisher.
-  last_known_published_msg_[gid_hash] = msg->attachment.sequence_number();
 
-  message_queue_.emplace_back(std::move(msg));
-
-  // Since we added new data, trigger user callback and guard condition if they are available
-  data_callback_mgr_.trigger_callback();
-  if (wait_set_data_ != nullptr) {
-    std::lock_guard<std::mutex> wait_set_lock(wait_set_data_->condition_mutex);
-    wait_set_data_->triggered = true;
-    wait_set_data_->condition_variable.notify_one();
+  if (wait_set_data_to_trigger != nullptr) {
+    std::lock_guard<std::mutex> wait_set_lock(wait_set_data_to_trigger->condition_mutex);
+    wait_set_data_to_trigger->triggered = true;
+    wait_set_data_to_trigger->condition_variable.notify_one();
   }
 }
 
