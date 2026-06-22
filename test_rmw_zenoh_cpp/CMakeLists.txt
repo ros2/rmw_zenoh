@@ -39,8 +39,8 @@ if(BUILD_TESTING)
     ENV RMW_IMPLEMENTATION=rmw_zenoh_cpp)
   target_link_libraries(test_issue_921
     rclcpp::rclcpp
-    std_msgs::std_msgs
     rmw_zenoh_cpp::rmw_zenoh_cpp
+    ${std_msgs_TARGETS}
   )
 endif()
 
