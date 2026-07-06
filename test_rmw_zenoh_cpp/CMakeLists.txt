@@ -1,12 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 project(test_rmw_zenoh_cpp)
 
-# Default to C++20
-if(NOT CMAKE_CXX_STANDARD)
-  set(CMAKE_CXX_STANDARD 20)
-  set(CMAKE_CXX_STANDARD_REQUIRED ON)
-endif()
-
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
@@ -16,6 +10,9 @@ find_package(ament_cmake REQUIRED)
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
+  # ament_cmake_ros_core provides the ament_ros_defaults target which sets the
+  # default C++ (C++20) and C (C17) standards for ROS packages.
+  find_package(ament_cmake_ros_core REQUIRED)
   find_package(ament_lint_auto REQUIRED)
   find_package(ament_lint_common REQUIRED)
   find_package(rclcpp REQUIRED)
@@ -32,6 +29,7 @@ if(BUILD_TESTING)
     rclcpp::rclcpp
     rmw_zenoh_cpp::rmw_zenoh_cpp
     zenohcxx::zenohc
+    ament_cmake_ros_core::ament_ros_defaults
   )
 
   ament_add_ros_isolated_gtest(test_issue_921
@@ -41,6 +39,7 @@ if(BUILD_TESTING)
     rclcpp::rclcpp
     std_msgs::std_msgs
     rmw_zenoh_cpp::rmw_zenoh_cpp
+    ament_cmake_ros_core::ament_ros_defaults
   )
 endif()
 
