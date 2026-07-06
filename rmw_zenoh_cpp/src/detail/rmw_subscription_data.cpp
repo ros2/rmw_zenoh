@@ -1186,7 +1186,6 @@ void SubscriptionData::set_on_new_message_callback(
 //==============================================================================
 std::shared_ptr<GraphCache> SubscriptionData::graph_cache() const
 {
-  std::lock_guard<std::mutex> lock(mutex_);
   return graph_cache_;
 }
 
