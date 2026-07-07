@@ -1,11 +1,9 @@
 cmake_minimum_required(VERSION 3.16)
 project(zenoh_cpp_vendor)
 
-# Default to C++17
-if(NOT CMAKE_CXX_STANDARD)
-  set(CMAKE_CXX_STANDARD 17)
-  set(CMAKE_CXX_STANDARD_REQUIRED ON)
-endif()
+# Note: this package has no compiled targets of its own; it only drives the
+# vendored zenoh-c / zenoh-cpp external projects, which set their own C++
+# standard. There is therefore no local target to apply a C++ standard to.
 
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_vendor_package REQUIRED)

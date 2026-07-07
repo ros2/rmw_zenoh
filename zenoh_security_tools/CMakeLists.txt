@@ -1,18 +1,15 @@
 cmake_minimum_required(VERSION 3.20)
 project(zenoh_security_tools)
 
-# Default to C++17
-if(NOT CMAKE_CXX_STANDARD)
-  set(CMAKE_CXX_STANDARD 17)
-  set(CMAKE_CXX_STANDARD_REQUIRED ON)
-endif()
-
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+# ament_cmake_ros_core provides the ament_ros_defaults target which sets the
+# default C++ (C++20) and C (C17) standards for ROS packages.
+find_package(ament_cmake_ros_core REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(rcpputils REQUIRED)
 find_package(rcutils REQUIRED)
@@ -31,6 +28,7 @@ target_link_libraries(generate_configs PRIVATE
   rmw_security_common::rmw_security_common_library
   tinyxml2::tinyxml2
   zenohcxx::zenohc
+  ament_cmake_ros_core::ament_ros_defaults
 )
 
 if(BUILD_TESTING)
