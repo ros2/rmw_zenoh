@@ -552,7 +552,7 @@ void ConfigGenerator::parse_topics(
                 if (permission == "ALLOW") {
                   topics_pub_allow_.insert(check_name(topic_node->GetText(), node_name));
                 } else if (permission == "DENY") {
-                  topics_pub_allow_.insert(check_name(topic_node->GetText(), node_name));
+                  topics_pub_deny_.insert(check_name(topic_node->GetText(), node_name));
                 }
               } else if (topic_type == "subscribe") {
                 if (permission == "ALLOW") {
