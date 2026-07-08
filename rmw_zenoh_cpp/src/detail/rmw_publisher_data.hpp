@@ -97,10 +97,33 @@ private:
     const rmw_node_t * rmw_node,
     std::shared_ptr<liveliness::Entity> entity,
     std::shared_ptr<zenoh::Session> session,
-    zenoh::ext::AdvancedPublisher pub,
     zenoh::LivelinessToken token,
     const void * type_support_impl,
+<<<<<<< HEAD
     std::unique_ptr<MessageTypeSupport> type_support);
+=======
+    std::unique_ptr<MessageTypeSupport> type_support,
+    bool is_buffer_aware,
+    std::unordered_map<std::string, std::string> backend_metadata);
+
+  // Discovery callback for Buffer-aware publishers
+  void on_subscriber_discovered(const liveliness::Entity & entity);
+
+  // Get or create an endpoint for a specific full key (caller must hold mutex_)
+  std::shared_ptr<PublisherEndpoint> get_or_create_endpoint(
+    const std::string & full_key);
+
+  // Create a Zenoh publisher endpoint (does not require mutex_).
+  // buffer_aware=false builds the base publisher (with sample-miss
+  // detection); buffer_aware=true builds a per-subscriber buffer-aware endpoint.
+  std::shared_ptr<PublisherEndpoint> create_publisher_endpoint(
+    const std::string & full_key, bool buffer_aware = true);
+
+  // Buffer-aware publish helper
+  rmw_ret_t publish_buffer_aware(
+    const void * ros_message,
+    ShmContext * shm);
+>>>>>>> 02ca44d (fix(publisher): unify publisher ownership to fix debug-mode crash (#990))
 
   // Internal mutex.
   mutable std::mutex mutex_;
@@ -112,8 +135,15 @@ private:
   std::shared_ptr<liveliness::Entity> entity_;
   // A shared session.
   std::shared_ptr<zenoh::Session> sess_;
+<<<<<<< HEAD
   // An owned AdvancedPublisher.
   zenoh::ext::AdvancedPublisher pub_;
+=======
+  // Non-owning cache of the base publisher, which is stored in endpoints_
+  // under the topic key expression. Lets publish() reach it without a per-message
+  // map lookup. Owned by endpoints_; cleared on shutdown.
+  PublisherEndpoint * base_endpoint_{nullptr};
+>>>>>>> 02ca44d (fix(publisher): unify publisher ownership to fix debug-mode crash (#990))
   // Liveliness token for the publisher.
   std::optional<zenoh::LivelinessToken> token_;
   // Type support fields
@@ -123,6 +153,20 @@ private:
   size_t sequence_number_;
   // Shutdown flag.
   bool is_shutdown_;
+<<<<<<< HEAD
+=======
+
+  // Buffer-aware publisher fields
+  bool is_buffer_aware_;
+  std::unordered_map<std::string, std::string> backend_metadata_;
+  // All publisher endpoints keyed by full key: the base publisher under the
+  // topic key expression, plus buffer-aware endpoints added on subscriber discovery.
+  std::unordered_map<std::string, std::shared_ptr<PublisherEndpoint>> endpoints_;
+  std::set<std::string> pending_endpoints_;
+  std::vector<SubscriberInfo> discovered_subscribers_;
+  EndpointInfoStorage local_endpoint_info_;
+  std::shared_ptr<GraphCache> graph_cache_;
+>>>>>>> 02ca44d (fix(publisher): unify publisher ownership to fix debug-mode crash (#990))
 };
 using PublisherDataPtr = std::shared_ptr<PublisherData>;
 using PublisherDataConstPtr = std::shared_ptr<const PublisherData>;

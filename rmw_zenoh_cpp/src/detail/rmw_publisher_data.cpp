@@ -111,53 +111,7 @@ std::shared_ptr<PublisherData> PublisherData::make(
     return nullptr;
   }
 
-  using AdvancedPublisherOptions = zenoh::ext::SessionExt::AdvancedPublisherOptions;
-  using SampleMissDetectionOptions = AdvancedPublisherOptions::SampleMissDetectionOptions;
-  auto adv_pub_opts = AdvancedPublisherOptions::create_default();
-
-  if (adapted_qos_profile.durability == RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL) {
-    // Allow this publisher to be detected through liveliness.
-    adv_pub_opts.publisher_detection = true;
-    adv_pub_opts.cache = AdvancedPublisherOptions::CacheOptions::create_default();
-    adv_pub_opts.cache->max_samples = adapted_qos_profile.depth;
-    if (adapted_qos_profile.reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE) {
-      // If RELIABLE + TRANSIENT_LOCAL activate sample miss detection for subscriber
-      // to detect missed samples and retrieve those from the Publisher cache.
-      // HeartbeatSporadic is used to prevent excessive background traffic
-      adv_pub_opts.sample_miss_detection = SampleMissDetectionOptions{};
-      adv_pub_opts.sample_miss_detection->heartbeat =
-        SampleMissDetectionOptions::HeartbeatSporadic{
-        SAMPLE_MISS_DETECTION_HEARTBEAT_PERIOD};
-    }
-  }
-
-  zenoh::KeyExpr pub_ke(entity->topic_info()->topic_keyexpr_);
-  // Set congestion_control to BLOCK if appropriate.
-  auto pub_opts = zenoh::Session::PublisherOptions::create_default();
-  pub_opts.congestion_control = Z_CONGESTION_CONTROL_DROP;
-  if (adapted_qos_profile.reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE) {
-    pub_opts.reliability = Z_RELIABILITY_RELIABLE;
-    if (adapted_qos_profile.history == RMW_QOS_POLICY_HISTORY_KEEP_ALL) {
-      pub_opts.congestion_control = Z_CONGESTION_CONTROL_BLOCK;
-    }
-  } else {
-    pub_opts.reliability = Z_RELIABILITY_BEST_EFFORT;
-  }
-  adv_pub_opts.publisher_options = pub_opts;
-
   zenoh::ZResult result;
-  auto adv_pub = session->ext().declare_advanced_publisher(
-    pub_ke, std::move(adv_pub_opts), &result);
-  if (result != Z_OK) {
-    RMW_SET_ERROR_MSG("unable to create zenoh publisher cache");
-    return nullptr;
-  }
-
-  if (result != Z_OK) {
-    RMW_SET_ERROR_MSG("Unable to create Zenoh publisher.");
-    return nullptr;
-  }
-
   std::string liveliness_keyexpr = entity->liveliness_keyexpr();
   auto token = session->liveliness_declare_token(
     zenoh::KeyExpr(liveliness_keyexpr),
@@ -176,11 +130,73 @@ std::shared_ptr<PublisherData> PublisherData::make(
       node,
       std::move(entity),
       std::move(session),
-      std::move(adv_pub),
       std::move(token),
       type_support->data,
       std::move(message_type_support)
     });
+<<<<<<< HEAD
+=======
+
+  // Create the base publisher through the same path as every endpoint,
+  // stored in endpoints_ under the topic key expression.
+  const std::string base_key = pub_data->entity_->topic_info()->topic_keyexpr_;
+  auto base_endpoint = pub_data->create_publisher_endpoint(base_key, /*buffer_aware=*/false);
+  if (!base_endpoint) {
+    RMW_SET_ERROR_MSG("Unable to create Zenoh publisher.");
+    return nullptr;
+  }
+  pub_data->base_endpoint_ = base_endpoint.get();
+  pub_data->endpoints_[base_key] = std::move(base_endpoint);
+
+  if (has_buffer_fields) {
+    pub_data->local_endpoint_info_ =
+      build_endpoint_info_from_entity(*pub_data->entity_, RMW_ENDPOINT_PUBLISHER);
+
+    auto * backend_ctx = context_impl->buffer_backend_context();
+    if (backend_ctx) {
+      rosidl_buffer_backend_registry::notify_endpoint_created(
+        backend_ctx->backend_instances, pub_data->local_endpoint_info_.info);
+    }
+
+    // Eagerly create the CPU-group publisher endpoint.  All CPU-only
+    // subscribers share this single channel instead of requiring individual
+    // peer-to-peer endpoints -- mirrors rmw_fastrtps_cpp's eager CPU
+    // DataWriter creation.
+    const std::string cpu_group_key = make_cpu_group_key(
+      pub_data->entity_->topic_info()->topic_keyexpr_);
+    auto cpu_endpoint = pub_data->create_publisher_endpoint(cpu_group_key);
+    if (!cpu_endpoint) {
+      RMW_ZENOH_ROSIDL_BUFFER_LOG_ERROR_NAMED(
+        "rmw_zenoh_cpp",
+        "Failed to eagerly create CPU-group publisher endpoint for topic '%s'",
+        topic_name.c_str());
+      return nullptr;
+    }
+    pub_data->endpoints_[cpu_group_key] = std::move(cpu_endpoint);
+  }
+
+  // Register discovery callback for Buffer-aware publishers
+  if (has_buffer_fields) {
+    pub_data->graph_cache_ = context_impl->graph_cache();
+    if (pub_data->graph_cache_ != nullptr) {
+      std::weak_ptr<PublisherData> weak_pub_data = pub_data;
+      pub_data->graph_cache_->register_subscriber_discovery_callback(
+        topic_name,
+        pub_data->gid_hash(),
+        [weak_pub_data](const liveliness::Entity & entity) {
+          if (auto pd = weak_pub_data.lock()) {
+            pd->on_subscriber_discovered(entity);
+          }
+        });
+
+      // Manually add this local publisher to the graph cache so local subscribers can discover it
+      // Liveliness events from the same session don't trigger graph updates automatically
+      pub_data->graph_cache_->parse_put(pub_data->entity_->liveliness_keyexpr(), false);
+    }
+  }
+
+  return pub_data;
+>>>>>>> 02ca44d (fix(publisher): unify publisher ownership to fix debug-mode crash (#990))
 }
 
 ///=============================================================================
@@ -189,7 +205,6 @@ PublisherData::PublisherData(
   const rmw_node_t * rmw_node,
   std::shared_ptr<liveliness::Entity> entity,
   std::shared_ptr<zenoh::Session> sess,
-  zenoh::ext::AdvancedPublisher pub,
   zenoh::LivelinessToken token,
   const void * type_support_impl,
   std::unique_ptr<MessageTypeSupport> type_support)
@@ -197,7 +212,6 @@ PublisherData::PublisherData(
   rmw_node_(rmw_node),
   entity_(std::move(entity)),
   sess_(std::move(sess)),
-  pub_(std::move(pub)),
   token_(std::move(token)),
   type_support_impl_(type_support_impl),
   type_support_(std::move(type_support)),
@@ -205,6 +219,217 @@ PublisherData::PublisherData(
   is_shutdown_(false)
 {
   events_mgr_ = std::make_shared<EventsManager>();
+<<<<<<< HEAD
+=======
+}
+
+///=============================================================================
+// Helper function for buffer-aware publishing
+rmw_ret_t PublisherData::publish_buffer_aware(
+  const void * ros_message,
+  ShmContext * shm)
+{
+  (void)shm;  // SHM not currently used for buffer-aware publishing
+
+  rmw_context_impl_t * ctx_impl = static_cast<rmw_context_impl_t *>(rmw_node_->context->impl);
+  auto * backend_ctx = ctx_impl->buffer_backend_context();
+  if (!backend_ctx) {
+    RMW_SET_ERROR_MSG("Buffer-aware publish missing buffer backend context");
+    return RMW_RET_ERROR;
+  }
+
+  RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
+    "rmw_zenoh_cpp",
+    "[Publisher] Publishing buffer-aware message for topic '%s' (message type: %s)",
+    entity_->topic_info()->name_.c_str(), entity_->topic_info()->type_.c_str());
+
+  // For buffer-aware publishers, route to different endpoints based on discovered subscribers
+  if (discovered_subscribers_.empty()) {
+    // No subscribers yet, skip publish
+    return RMW_RET_OK;
+  }
+
+  // Clear message caches
+  for (auto & [key, ep] : endpoints_) {
+    ep->cached_message.reset();
+  }
+
+  const std::string cpu_group_key =
+    make_cpu_group_key(entity_->topic_info()->topic_keyexpr_);
+
+  // Serialize and publish to each endpoint
+  rmw_ret_t ret = RMW_RET_OK;
+
+  auto cpu_endpoint_it = endpoints_.find(cpu_group_key);
+  if (cpu_endpoint_it != endpoints_.end() &&
+    cpu_endpoint_it->second &&
+    !cpu_endpoint_it->second->target_subscribers.empty())
+  {
+    auto cpu_endpoint = cpu_endpoint_it->second;
+    const size_t max_data_length = type_support_->get_estimated_serialized_size(
+      ros_message, type_support_impl_);
+
+    rcutils_allocator_t * allocator = &rmw_node_->context->options.allocator;
+    void * data = allocator->allocate(max_data_length, allocator->state);
+    if (!data) {
+      RMW_SET_ERROR_MSG("failed to allocate CPU-group serialization buffer");
+      return RMW_RET_BAD_ALLOC;
+    }
+
+    auto always_free_data = rcpputils::make_scope_exit(
+      [data, allocator]() {
+        allocator->deallocate(data, allocator->state);
+      });
+
+    uint8_t * msg_bytes = static_cast<uint8_t *>(data);
+    eprosima::fastcdr::FastBuffer fastbuffer(reinterpret_cast<char *>(msg_bytes), max_data_length);
+    rmw_zenoh_cpp::Cdr ser(fastbuffer);
+    if (!type_support_->serialize_ros_message(
+        ros_message,
+        ser.get_cdr(),
+        type_support_impl_))
+    {
+      RMW_SET_ERROR_MSG("could not serialize ROS message for CPU-group publish");
+      return RMW_RET_ERROR;
+    }
+
+    const size_t data_length = ser.get_serialized_data_length();
+    auto deleter = [data, allocator](uint8_t *) {
+        allocator->deallocate(data, allocator->state);
+      };
+    auto payload = zenoh::Bytes(msg_bytes, data_length, deleter);
+    always_free_data.cancel();
+
+    int64_t source_timestamp = rmw_zenoh_cpp::get_system_time_in_ns();
+    auto gid = entity_->copy_gid();
+    auto attachment_data = rmw_zenoh_cpp::AttachmentData(
+      sequence_number_++, source_timestamp, gid);
+    auto attachment_bytes = attachment_data.serialize_to_zbytes();
+
+    zenoh::ext::AdvancedPublisher::PutOptions options =
+      zenoh::ext::AdvancedPublisher::PutOptions::create_default();
+    options.put_options.attachment = std::move(attachment_bytes);
+
+    zenoh::ZResult result;
+    if (cpu_endpoint->pub.has_value()) {
+      cpu_endpoint->pub.value().put(std::move(payload), std::move(options), &result);
+      if (result != Z_OK) {
+        RMW_ZENOH_ROSIDL_BUFFER_LOG_ERROR_NAMED(
+          "rmw_zenoh_cpp",
+          "Failed to publish to CPU-group endpoint '%s'", cpu_group_key.c_str());
+        ret = RMW_RET_ERROR;
+      }
+    }
+  }
+
+  size_t iteration = 0;
+  for (auto & sub : discovered_subscribers_) {
+    if (sub.uses_cpu_group) {
+      continue;
+    }
+
+    iteration++;
+    RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
+      "rmw_zenoh_cpp",
+      "[Publisher] Processing message for subscriber endpoint %zu/%zu with key='%s'",
+      iteration, discovered_subscribers_.size(), sub.endpoint_key.c_str());
+
+    auto endpoint_it = endpoints_.find(sub.endpoint_key);
+    if (endpoint_it == endpoints_.end() || !endpoint_it->second) {
+      continue;
+    }
+    auto endpoint = endpoint_it->second;
+
+    // The generated typesupport estimate includes the CDR encapsulation and
+    // the bounded descriptor size used by endpoint-aware Buffer serialization.
+    const size_t max_data_length = type_support_->get_estimated_serialized_size(
+      ros_message, type_support_impl_);
+
+    rcutils_allocator_t * allocator = &rmw_node_->context->options.allocator;
+    void * data = allocator->allocate(max_data_length, allocator->state);
+    if (!data) {
+      RMW_SET_ERROR_MSG("failed to allocate serialization buffer");
+      return RMW_RET_BAD_ALLOC;
+    }
+
+    auto always_free_data = rcpputils::make_scope_exit(
+      [data, allocator]() {
+        allocator->deallocate(data, allocator->state);
+      });
+
+    uint8_t * msg_bytes = static_cast<uint8_t *>(data);
+    eprosima::fastcdr::FastBuffer fastbuffer(reinterpret_cast<char *>(msg_bytes), max_data_length);
+    rmw_zenoh_cpp::Cdr ser(fastbuffer);
+
+    bool ok = type_support_->serialize_ros_message_with_endpoint(
+      ros_message, ser.get_cdr(), type_support_impl_, sub.endpoint_info.info,
+      backend_ctx->serialization_context);
+    if (!ok) {
+      RMW_SET_ERROR_MSG("could not serialize ROS message with endpoint awareness");
+      return RMW_RET_ERROR;
+    }
+
+    size_t data_length = ser.get_serialized_data_length();
+
+    RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
+      "rmw_zenoh_cpp",
+      "[Publisher] Serialization complete, actual size: %zu bytes (allocated: %zu, usage: %.1f%%)",
+      data_length, max_data_length, (data_length * 100.0) / max_data_length);
+
+    // Sanity check: ensure we didn't overflow
+    if (data_length > max_data_length) {
+      RMW_ZENOH_LOG_ERROR_NAMED(
+        "rmw_zenoh_cpp",
+        "[Publisher] CRITICAL: Serialized size %zu exceeds allocated buffer %zu!",
+        data_length, max_data_length);
+      return RMW_RET_ERROR;
+    }
+
+    // Publish to this endpoint
+    // Use deleter to manage memory since Zenoh takes ownership
+    auto deleter = [data, allocator](uint8_t *) {
+        allocator->deallocate(data, allocator->state);
+      };
+    auto payload = zenoh::Bytes(msg_bytes, data_length, deleter);
+    always_free_data.cancel();  // Zenoh now owns the memory
+
+    // Create attachment AFTER serialization
+    RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
+      "rmw_zenoh_cpp",
+      "[Publisher] Creating message attachment data");
+
+    int64_t source_timestamp = rmw_zenoh_cpp::get_system_time_in_ns();
+    auto gid = entity_->copy_gid();
+
+    auto attachment_data = rmw_zenoh_cpp::AttachmentData(
+      sequence_number_++, source_timestamp, gid);
+
+    auto attachment_bytes = attachment_data.serialize_to_zbytes();
+
+    zenoh::ext::AdvancedPublisher::PutOptions options =
+      zenoh::ext::AdvancedPublisher::PutOptions::create_default();
+    // Set attachment directly without std::make_optional (same as non-buffer-aware path)
+    options.put_options.attachment = std::move(attachment_bytes);
+
+    zenoh::ZResult result;
+    if (endpoint->pub.has_value()) {
+      RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
+        "rmw_zenoh_cpp",
+        "[Publisher] Calling Zenoh put");
+
+      endpoint->pub.value().put(std::move(payload), std::move(options), &result);
+
+      if (result != Z_OK) {
+        RMW_ZENOH_ROSIDL_BUFFER_LOG_ERROR_NAMED(
+          "rmw_zenoh_cpp",
+          "Failed to publish to endpoint '%s'", sub.endpoint_key.c_str());
+        ret = RMW_RET_ERROR;
+      }
+    }
+  }
+
+  return ret;
+>>>>>>> 02ca44d (fix(publisher): unify publisher ownership to fix debug-mode crash (#990))
 }
 
 ///=============================================================================
@@ -331,7 +556,7 @@ rmw_ret_t PublisherData::publish(
 
   TRACETOOLS_TRACEPOINT(
     rmw_publish, static_cast<const void *>(rmw_publisher_), ros_message, source_timestamp);
-  pub_.put(std::move(payload), std::move(opts), &result);
+  base_endpoint_->pub.value().put(std::move(payload), std::move(opts), &result);
   if (result != Z_OK) {
     if (result == Z_ESESSION_CLOSED) {
       RMW_ZENOH_LOG_WARN_NAMED(
@@ -405,7 +630,7 @@ rmw_ret_t PublisherData::publish_serialized_message(
       rmw_publish, static_cast<const void *>(rmw_publisher_), serialized_message,
       source_timestamp);
 
-    pub_.put(std::move(payload), std::move(opts), &result);
+    base_endpoint_->pub.value().put(std::move(payload), std::move(opts), &result);
   } else {
     std::vector<uint8_t> raw_image(
       serialized_message->buffer,
@@ -416,7 +641,7 @@ rmw_ret_t PublisherData::publish_serialized_message(
       rmw_publish, static_cast<const void *>(rmw_publisher_), serialized_message,
         source_timestamp);
 
-    pub_.put(std::move(payload), std::move(opts), &result);
+    base_endpoint_->pub.value().put(std::move(payload), std::move(opts), &result);
   }
 
   if (result != Z_OK) {
@@ -470,6 +695,218 @@ std::shared_ptr<EventsManager> PublisherData::events_mgr() const
 }
 
 ///=============================================================================
+<<<<<<< HEAD
+=======
+void PublisherData::on_subscriber_discovered(const liveliness::Entity & entity)
+{
+  if (entity.type() != liveliness::EntityType::Subscription) {
+    RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
+      "rmw_zenoh_cpp",
+      "[Publisher] Ignoring discovered entity type=%s node='%s' ns='%s'",
+      entity_type_to_string(entity.type()),
+      entity.node_name().c_str(),
+      entity.node_namespace().c_str());
+    return;
+  }
+
+  auto topic_info_opt = entity.topic_info();
+  if (!topic_info_opt.has_value()) {
+    RMW_ZENOH_ROSIDL_BUFFER_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Discovered subscriber without topic info on Buffer topic");
+    return;
+  }
+
+  std::unordered_map<std::string, std::string> sub_backend_metadata;
+  if (topic_info_opt->backend_metadata_.has_value()) {
+    sub_backend_metadata = topic_info_opt->backend_metadata_.value();
+  }
+  const bool use_cpu_group = is_cpu_only_backend_metadata(sub_backend_metadata);
+
+  auto gid = entity_gid_to_rmw_gid(entity, rmw_zenoh_identifier);
+  const auto entity_gid_array = entity.copy_gid();
+  RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
+    "rmw_zenoh_cpp",
+    "[Publisher] Discovered subscriber entity keyexpr='%s', "
+    "topic='%s', entity.type='%s', node='%s', ns='%s', "
+    "zid='%s', gid='%s', entity_gid='%s'",
+    entity.liveliness_keyexpr().c_str(),
+    topic_info_opt->name_.c_str(),
+    entity_type_to_string(entity.type()),
+    entity.node_name().c_str(),
+    entity.node_namespace().c_str(),
+    entity.zid().c_str(),
+    gid_to_hex(gid).c_str(),
+    gid_array_to_hex(entity_gid_array).c_str());
+
+  auto sub_endpoint_info = build_endpoint_info_from_entity(entity, RMW_ENDPOINT_SUBSCRIPTION);
+
+  // Phase 1: collect state under lock, check duplicates, mark pending
+  std::string full_key;
+  std::vector<rmw_topic_endpoint_info_t> existing_endpoints;
+  std::unordered_map<std::string, std::vector<std::set<uint32_t>>> backend_endpoint_groups;
+  bool need_create_endpoint = false;
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (!is_buffer_aware_ || is_shutdown_) {
+      return;
+    }
+
+    for (const auto & existing : discovered_subscribers_) {
+      if (memcmp(existing.gid.data, gid.data, RMW_GID_STORAGE_SIZE) == 0) {
+        return;
+      }
+    }
+
+    existing_endpoints.reserve(1 + discovered_subscribers_.size());
+    existing_endpoints.push_back(local_endpoint_info_.info);
+    for (const auto & existing : discovered_subscribers_) {
+      existing_endpoints.push_back(existing.endpoint_info.info);
+    }
+
+    for (const auto & existing : discovered_subscribers_) {
+      backend_endpoint_groups.insert(existing.backend_groups.begin(),
+        existing.backend_groups.end());
+    }
+
+    full_key = use_cpu_group ?
+      make_cpu_group_key(entity_->topic_info()->topic_keyexpr_) :
+      make_accelerated_key(entity_->topic_info()->topic_keyexpr_, gid);
+
+    need_create_endpoint = (endpoints_.find(full_key) == endpoints_.end());
+    if (need_create_endpoint) {
+      if (!pending_endpoints_.insert(full_key).second) {
+        return;
+      }
+    }
+  }
+
+  // Phase 2: external operations without lock
+  std::unordered_map<std::string, std::vector<std::set<uint32_t>>> backend_groups;
+  {
+    if (!use_cpu_group) {
+      rmw_context_impl_t * ctx_impl = static_cast<rmw_context_impl_t *>(rmw_node_->context->impl);
+      auto * backend_ctx = ctx_impl->buffer_backend_context();
+      if (backend_ctx) {
+        (void)rosidl_buffer_backend_registry::notify_endpoint_discovered(
+          backend_ctx->backend_instances,
+          sub_endpoint_info.info, existing_endpoints, backend_endpoint_groups,
+          sub_backend_metadata);
+      }
+    }
+  }
+
+  std::shared_ptr<PublisherEndpoint> new_endpoint;
+  if (need_create_endpoint) {
+    new_endpoint = create_publisher_endpoint(full_key);
+    if (!new_endpoint) {
+      std::lock_guard<std::mutex> lock(mutex_);
+      pending_endpoints_.erase(full_key);
+      return;
+    }
+  }
+
+  // Phase 3: store results under lock
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (new_endpoint) {
+      endpoints_[full_key] = new_endpoint;
+      pending_endpoints_.erase(full_key);
+    }
+
+    SubscriberInfo sub_info;
+    sub_info.gid = gid;
+    sub_info.endpoint_key = full_key;
+    sub_info.endpoint_info = std::move(sub_endpoint_info);
+    sub_info.uses_cpu_group = use_cpu_group;
+    sub_info.backend_metadata = sub_backend_metadata;
+    sub_info.backend_groups = std::move(backend_groups);
+    discovered_subscribers_.push_back(std::move(sub_info));
+
+    if (endpoints_.count(full_key)) {
+      endpoints_[full_key]->target_subscribers.push_back(gid);
+    }
+  }
+}
+
+///=============================================================================
+std::shared_ptr<PublisherData::PublisherEndpoint> PublisherData::get_or_create_endpoint(
+  const std::string & full_key)
+{
+  auto it = endpoints_.find(full_key);
+  if (it != endpoints_.end()) {
+    return it->second;
+  }
+
+  auto endpoint = create_publisher_endpoint(full_key);
+  if (endpoint) {
+    endpoints_[full_key] = endpoint;
+  }
+  return endpoint;
+}
+
+///=============================================================================
+std::shared_ptr<PublisherData::PublisherEndpoint> PublisherData::create_publisher_endpoint(
+  const std::string & full_key, bool buffer_aware)
+{
+  auto endpoint = std::make_shared<PublisherEndpoint>();
+  endpoint->key = full_key;
+
+  zenoh::KeyExpr pub_ke(full_key);
+
+  auto qos_profile = entity_->topic_info()->qos_;
+
+  using AdvancedPublisherOptions = zenoh::ext::SessionExt::AdvancedPublisherOptions;
+  using SampleMissDetectionOptions = AdvancedPublisherOptions::SampleMissDetectionOptions;
+  auto adv_pub_opts = AdvancedPublisherOptions::create_default();
+
+  if (qos_profile.durability == RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL) {
+    // Allow this publisher to be detected through liveliness.
+    adv_pub_opts.publisher_detection = true;
+    adv_pub_opts.cache = AdvancedPublisherOptions::CacheOptions::create_default();
+    adv_pub_opts.cache->max_samples = qos_profile.depth;
+    // Sample miss detection (heartbeat) is only used on the base
+    // publisher. If RELIABLE + TRANSIENT_LOCAL it lets subscribers detect missed
+    // samples and retrieve them from the Publisher cache; HeartbeatSporadic keeps
+    // background traffic low. Per-subscriber buffer-aware endpoints are
+    // point-to-point and do not need it.
+    if (!buffer_aware && qos_profile.reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE) {
+      adv_pub_opts.sample_miss_detection = SampleMissDetectionOptions{};
+      adv_pub_opts.sample_miss_detection->heartbeat =
+        SampleMissDetectionOptions::HeartbeatSporadic{
+        SAMPLE_MISS_DETECTION_HEARTBEAT_PERIOD};
+    }
+  }
+
+  auto pub_opts = zenoh::Session::PublisherOptions::create_default();
+  pub_opts.congestion_control = Z_CONGESTION_CONTROL_DROP;
+  if (qos_profile.reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE) {
+    pub_opts.reliability = Z_RELIABILITY_RELIABLE;
+    if (qos_profile.history == RMW_QOS_POLICY_HISTORY_KEEP_ALL) {
+      pub_opts.congestion_control = Z_CONGESTION_CONTROL_BLOCK;
+    }
+  } else {
+    pub_opts.reliability = Z_RELIABILITY_BEST_EFFORT;
+  }
+  adv_pub_opts.publisher_options = pub_opts;
+
+  zenoh::ZResult result;
+  auto pub = sess_->ext().declare_advanced_publisher(
+      pub_ke, std::move(adv_pub_opts), &result);
+
+  if (result != Z_OK) {
+    RMW_ZENOH_ROSIDL_BUFFER_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Failed to create publisher endpoint for key: %s", full_key.c_str());
+    return nullptr;
+  }
+
+  endpoint->pub = std::optional<zenoh::ext::AdvancedPublisher>(std::move(pub));
+  return endpoint;
+}
+
+///=============================================================================
+>>>>>>> 02ca44d (fix(publisher): unify publisher ownership to fix debug-mode crash (#990))
 PublisherData::~PublisherData()
 {
   const rmw_ret_t ret = this->shutdown();
@@ -485,6 +922,7 @@ PublisherData::~PublisherData()
 ///=============================================================================
 rmw_ret_t PublisherData::shutdown()
 {
+<<<<<<< HEAD
   std::lock_guard<std::mutex> lock(mutex_);
   if (is_shutdown_) {
     return RMW_RET_OK;
@@ -492,6 +930,34 @@ rmw_ret_t PublisherData::shutdown()
 
   // Unregister this publisher from the ROS graph.
   zenoh::ZResult result;
+=======
+  std::unordered_map<std::string, std::shared_ptr<PublisherEndpoint>> endpoints_to_destroy;
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (is_shutdown_) {
+      return RMW_RET_OK;
+    }
+    is_shutdown_ = true;
+    base_endpoint_ = nullptr;
+    endpoints_to_destroy = std::move(endpoints_);
+    endpoints_.clear();
+  }
+
+  zenoh::ZResult result;
+  // Undeclare every publisher endpoint: the base publisher plus any
+  // buffer-aware endpoints.
+  for (auto & [key, endpoint] : endpoints_to_destroy) {
+    if (endpoint->pub.has_value()) {
+      std::move(endpoint->pub.value()).undeclare(&result);
+      if (result != Z_OK) {
+        RMW_ZENOH_ROSIDL_BUFFER_LOG_ERROR_NAMED(
+          "rmw_zenoh_cpp",
+          "Failed to undeclare endpoint with key '%s'", key.c_str());
+      }
+    }
+  }
+
+>>>>>>> 02ca44d (fix(publisher): unify publisher ownership to fix debug-mode crash (#990))
   std::move(token_).value().undeclare(&result);
   if (result != Z_OK) {
     RMW_ZENOH_LOG_ERROR_NAMED(
@@ -500,6 +966,7 @@ rmw_ret_t PublisherData::shutdown()
       entity_->topic_info().value().name_.c_str());
     return RMW_RET_ERROR;
   }
+<<<<<<< HEAD
   std::move(pub_).undeclare(&result);
   if (result != Z_OK) {
     RMW_ZENOH_LOG_ERROR_NAMED(
@@ -508,6 +975,8 @@ rmw_ret_t PublisherData::shutdown()
       entity_->topic_info().value().name_.c_str());
     return RMW_RET_ERROR;
   }
+=======
+>>>>>>> 02ca44d (fix(publisher): unify publisher ownership to fix debug-mode crash (#990))
 
   sess_.reset();
   is_shutdown_ = true;
