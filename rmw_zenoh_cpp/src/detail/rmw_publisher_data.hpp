@@ -121,7 +121,6 @@ private:
     const rmw_node_t * rmw_node,
     std::shared_ptr<liveliness::Entity> entity,
     std::shared_ptr<zenoh::Session> session,
-    zenoh::ext::AdvancedPublisher pub,
     zenoh::LivelinessToken token,
     const void * type_support_impl,
     std::unique_ptr<MessageTypeSupport> type_support,
@@ -135,9 +134,11 @@ private:
   std::shared_ptr<PublisherEndpoint> get_or_create_endpoint(
     const std::string & full_key);
 
-  // Create a Zenoh publisher endpoint (does not require mutex_)
+  // Create a Zenoh publisher endpoint (does not require mutex_).
+  // buffer_aware=false builds the base publisher (with sample-miss
+  // detection); buffer_aware=true builds a per-subscriber buffer-aware endpoint.
   std::shared_ptr<PublisherEndpoint> create_publisher_endpoint(
-    const std::string & full_key);
+    const std::string & full_key, bool buffer_aware = true);
 
   // Buffer-aware publish helper
   rmw_ret_t publish_buffer_aware(
@@ -154,8 +155,10 @@ private:
   std::shared_ptr<liveliness::Entity> entity_;
   // A shared session.
   std::shared_ptr<zenoh::Session> sess_;
-  // An owned AdvancedPublisher (for simple publishers, this is the only one).
-  zenoh::ext::AdvancedPublisher pub_;
+  // Non-owning cache of the base publisher, which is stored in endpoints_
+  // under the topic key expression. Lets publish() reach it without a per-message
+  // map lookup. Owned by endpoints_; cleared on shutdown.
+  PublisherEndpoint * base_endpoint_{nullptr};
   // Liveliness token for the publisher.
   std::optional<zenoh::LivelinessToken> token_;
   // Type support fields
@@ -169,8 +172,8 @@ private:
   // Buffer-aware publisher fields
   bool is_buffer_aware_;
   std::unordered_map<std::string, std::string> backend_metadata_;
-  // For simple publishers: endpoints_ contains only base endpoint
-  // For buffer-aware: multiple endpoints based on discovered subscribers
+  // All publisher endpoints keyed by full key: the base publisher under the
+  // topic key expression, plus buffer-aware endpoints added on subscriber discovery.
   std::unordered_map<std::string, std::shared_ptr<PublisherEndpoint>> endpoints_;
   std::set<std::string> pending_endpoints_;
   std::vector<SubscriberInfo> discovered_subscribers_;
