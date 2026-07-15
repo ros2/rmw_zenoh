@@ -231,34 +231,29 @@ std::array<uint8_t, RMW_GID_STORAGE_SIZE> ClientData::copy_gid() const
 ///=============================================================================
 void ClientData::add_new_reply(std::unique_ptr<ZenohReply> reply)
 {
-  rmw_wait_set_data_t * wait_set_data_to_trigger = nullptr;
+  std::lock_guard<std::mutex> lock(mutex_);
+  const rmw_qos_profile_t adapted_qos_profile =
+    entity_->topic_info().value().qos_;
+  if (adapted_qos_profile.history != RMW_QOS_POLICY_HISTORY_KEEP_ALL &&
+    reply_queue_.size() >= adapted_qos_profile.depth)
   {
-    std::lock_guard<std::mutex> lock(mutex_);
-    const rmw_qos_profile_t adapted_qos_profile =
-      entity_->topic_info().value().qos_;
-    if (adapted_qos_profile.history != RMW_QOS_POLICY_HISTORY_KEEP_ALL &&
-      reply_queue_.size() >= adapted_qos_profile.depth)
-    {
-      // Log warning if message is discarded due to hitting the queue depth
-      RMW_ZENOH_LOG_ERROR_NAMED(
-        "rmw_zenoh_cpp",
-        "Query queue depth of %ld reached, discarding oldest Query "
-        "for client for %s",
-        adapted_qos_profile.depth,
-        this->entity_->topic_info().value().topic_keyexpr_.c_str());
-      reply_queue_.pop_front();
-    }
-    reply_queue_.emplace_back(std::move(reply));
-
-    // Since we added new data, trigger user callback and guard condition if they are available
-    data_callback_mgr_.trigger_callback();
-    wait_set_data_to_trigger = wait_set_data_;
+    // Log warning if message is discarded due to hitting the queue depth
+    RMW_ZENOH_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Query queue depth of %ld reached, discarding oldest Query "
+      "for client for %s",
+      adapted_qos_profile.depth,
+      this->entity_->topic_info().value().topic_keyexpr_.c_str());
+    reply_queue_.pop_front();
   }
+  reply_queue_.emplace_back(std::move(reply));
 
-  if (wait_set_data_to_trigger != nullptr) {
-    std::lock_guard<std::mutex> wait_set_lock(wait_set_data_to_trigger->condition_mutex);
-    wait_set_data_to_trigger->triggered = true;
-    wait_set_data_to_trigger->condition_variable.notify_one();
+  // Since we added new data, trigger user callback and guard condition if they are available
+  data_callback_mgr_.trigger_callback();
+  if (wait_set_data_ != nullptr) {
+    std::lock_guard<std::mutex> wait_set_lock(wait_set_data_->condition_mutex);
+    wait_set_data_->triggered = true;
+    wait_set_data_->condition_variable.notify_one();
   }
 }
 
