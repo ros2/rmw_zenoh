@@ -492,7 +492,11 @@ rmw_ret_t PublisherData::publish(
   //     channels entirely and fall through to the standard base-key publish.
   //     Buffer-aware subscribers also have a base-key subscription so they
   //     will still receive the message via standard deserialization.
-  if (is_buffer_aware_) {
+  //   - Route transient-local publishers through the base publisher below as
+  //     transient-local is not supported by buffer backends.
+  if (is_buffer_aware_ &&
+    entity_->topic_info()->qos_.durability != RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL)
+  {
     size_t total_matched = 0;
     if (graph_cache_) {
       graph_cache_->publisher_count_matched_subscriptions(
