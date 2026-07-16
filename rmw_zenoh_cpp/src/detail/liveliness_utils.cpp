@@ -14,6 +14,7 @@
 
 #include "liveliness_utils.hpp"
 
+#include <algorithm>
 #include <functional>
 #include <limits>
 #include <optional>
@@ -78,11 +79,13 @@ TopicInfo::TopicInfo(
   std::string name,
   std::string type,
   std::string type_hash,
-  rmw_qos_profile_t qos)
+  rmw_qos_profile_t qos,
+  std::optional<std::unordered_map<std::string, std::string>> backend_metadata)
 : name_(std::move(name)),
   type_(std::move(type)),
   type_hash_(std::move(type_hash)),
-  qos_(std::move(qos))
+  qos_(std::move(qos)),
+  backend_metadata_(std::move(backend_metadata))
 {
   topic_keyexpr_ = std::to_string(domain_id);
   topic_keyexpr_ += "/";
@@ -96,6 +99,65 @@ TopicInfo::TopicInfo(
 ///=============================================================================
 namespace
 {
+std::string escape_backend_field(const std::string & input)
+{
+  std::string out;
+  out.reserve(input.size());
+  for (char c : input) {
+    switch (c) {
+      case '%':
+        out += "%25";
+        break;
+      case ';':
+        out += "%3B";
+        break;
+      case ':':
+        out += "%3A";
+        break;
+      case '/':
+        out += "%2F";
+        break;
+      default:
+        out += c;
+        break;
+    }
+  }
+  return out;
+}
+
+int hex_value(char c)
+{
+  if (c >= '0' && c <= '9') {
+    return c - '0';
+  }
+  if (c >= 'A' && c <= 'F') {
+    return 10 + (c - 'A');
+  }
+  if (c >= 'a' && c <= 'f') {
+    return 10 + (c - 'a');
+  }
+  return -1;
+}
+
+std::string unescape_backend_field(const std::string & input)
+{
+  std::string out;
+  out.reserve(input.size());
+  for (size_t i = 0; i < input.size(); ++i) {
+    if (input[i] == '%' && i + 2 < input.size()) {
+      int hi = hex_value(input[i + 1]);
+      int lo = hex_value(input[i + 2]);
+      if (hi >= 0 && lo >= 0) {
+        char decoded = static_cast<char>((hi << 4) | lo);
+        out += decoded;
+        i += 2;
+        continue;
+      }
+    }
+    out += input[i];
+  }
+  return out;
+}
 /// Enum of liveliness key-expression components.
 enum KeyexprIndex
 {
@@ -111,12 +173,18 @@ enum KeyexprIndex
   TopicName,
   TopicType,
   TopicTypeHash,
-  TopicQoS
+  TopicQoS,
+  Backends  // Optional: only present for Buffer message types
 };
 
 // Every keyexpression will have components upto node name.
 #define KEYEXPR_INDEX_MIN KeyexprIndex::NodeName
-#define KEYEXPR_INDEX_MAX KeyexprIndex::TopicQoS
+// Last mandatory key index for a non-Node entity.  Anything past this index
+// (currently just `Backends`) is optional and may legitimately be missing
+// from a liveliness token.  Bump this when promoting a field from optional
+// to mandatory.
+#define MANDATORY_KEYEXPR_INDEX_MAX KeyexprIndex::TopicQoS
+#define KEYEXPR_INDEX_MAX KeyexprIndex::Backends
 
 /// The admin space used to prefix the liveliness tokens.
 static const char ADMIN_SPACE[] = "@ros2_lv";
@@ -466,6 +534,30 @@ Entity::Entity(
     keyexpr_parts[KeyexprIndex::TopicType] = mangle_name(topic_info.type_);
     keyexpr_parts[KeyexprIndex::TopicTypeHash] = mangle_name(topic_info.type_hash_);
     keyexpr_parts[KeyexprIndex::TopicQoS] = qos_to_keyexpr(topic_info.qos_);
+
+    // Add backend metadata if present (only for Buffer message types)
+    if (topic_info.backend_metadata_.has_value() && !topic_info.backend_metadata_.value().empty()) {
+      const auto & backend_metadata = topic_info.backend_metadata_.value();
+      std::vector<std::string> backend_names;
+      backend_names.reserve(backend_metadata.size());
+      for (const auto & pair : backend_metadata) {
+        backend_names.push_back(pair.first);
+      }
+      std::sort(backend_names.begin(), backend_names.end());
+
+      std::string backends_str = "backends:";
+      for (size_t i = 0; i < backend_names.size(); ++i) {
+        const auto & name = backend_names[i];
+        const auto & metadata = backend_metadata.at(name);
+        backends_str += escape_backend_field(name);
+        backends_str += ":";
+        backends_str += escape_backend_field(metadata);
+        if (i + 1 < backend_names.size()) {
+          backends_str += ";";
+        }
+      }
+      keyexpr_parts[KeyexprIndex::Backends] = backends_str;
+    }
   }
 
   for (std::size_t i = 0; i < KEYEXPR_INDEX_MAX + 1; ++i) {
@@ -586,7 +678,12 @@ std::shared_ptr<Entity> Entity::make(const std::string & keyexpr)
 
   // Populate topic_info if we have a token for an entity other than a node.
   if (entity_type != EntityType::Node) {
-    if (parts.size() < KEYEXPR_INDEX_MAX + 1) {
+    // Mandatory key-expression components for non-Node entities run from
+    // index 0 through MANDATORY_KEYEXPR_INDEX_MAX (= TopicQoS).  Anything
+    // beyond that (currently just the optional Backends component) may
+    // legitimately be missing, so we validate against the mandatory bound
+    // only.
+    if (parts.size() < MANDATORY_KEYEXPR_INDEX_MAX + 1) {
       RMW_ZENOH_LOG_ERROR_NAMED(
         "rmw_zenoh_cpp",
         "Received liveliness token for non-node entity without required parameters.");
@@ -599,12 +696,50 @@ std::shared_ptr<Entity> Entity::make(const std::string & keyexpr)
         "Received liveliness token with invalid qos keyexpr");
       return nullptr;
     }
+
+    // Parse optional backends field (only present for Buffer message types)
+    std::optional<std::unordered_map<std::string, std::string>> backend_metadata = std::nullopt;
+    if (parts.size() > KeyexprIndex::TopicQoS + 1 &&
+      !parts[KeyexprIndex::Backends].empty() &&
+      parts[KeyexprIndex::Backends].rfind("backends:", 0) == 0)
+    {
+      // Parse backend list: "backends:cuda:metadata;cpu:" -> map
+      std::string backends_str = parts[KeyexprIndex::Backends].substr(9);  // Skip "backends:"
+      if (!backends_str.empty()) {
+        std::unordered_map<std::string, std::string> parsed;
+        size_t start = 0;
+        while (start <= backends_str.size()) {
+          size_t sep = backends_str.find(';', start);
+          std::string entry = backends_str.substr(
+            start, sep == std::string::npos ? std::string::npos : sep - start);
+          if (!entry.empty()) {
+            size_t colon = entry.find(':');
+            std::string name = entry.substr(0, colon);
+            std::string metadata = (colon == std::string::npos) ? "" : entry.substr(colon + 1);
+            name = unescape_backend_field(name);
+            metadata = unescape_backend_field(metadata);
+            if (!name.empty()) {
+              parsed[name] = metadata;
+            }
+          }
+          if (sep == std::string::npos) {
+            break;
+          }
+          start = sep + 1;
+        }
+        if (!parsed.empty()) {
+          backend_metadata = std::move(parsed);
+        }
+      }
+    }
+
     topic_info = TopicInfo{
       domain_id,
       demangle_name(std::move(parts[KeyexprIndex::TopicName])),
       demangle_name(std::move(parts[KeyexprIndex::TopicType])),
       demangle_name(std::move(parts[KeyexprIndex::TopicTypeHash])),
-      std::move(qos.value())
+      std::move(qos.value()),
+      std::move(backend_metadata)
     };
   }
 
