@@ -2235,13 +2235,27 @@ rmw_wait(
   // a valid pointer.
 
   {
-    // Take the lock before the check_and_attach_condition to ensure conditions and flags
-    // are not modified while being checked by concurrent calls.
+    // reset the trigger prior to attaching any entities
     std::unique_lock<std::mutex> lock(wait_set_data->condition_mutex);
+    wait_set_data->triggered = false;
+  }
 
+  {
+    // We explicitly do not lock the condition_mutex here
+    // This is fine, as the attachment returns atomically is a signal was ready
+    // If anything triggers after that point, wait_set_data->triggered will be set
+    // to true under mutex.
+    // Note taking the mutex here leads to a deadlock.
     bool skip_wait = check_and_attach_condition(
       subscriptions, guard_conditions, services, clients, events, wait_set_data);
+
+
     if (!skip_wait) {
+      // now it is safe to take the lock
+      // if wait_set_data->triggered was set to true in between,
+      // the wait on the conditional will instantly return.
+      std::unique_lock<std::mutex> lock(wait_set_data->condition_mutex);
+
       // According to the RMW documentation, if wait_timeout is NULL that means
       // "wait forever", if it specified as 0 it means "never wait", and if it is anything else wait
       // for that amount of time.
@@ -2258,12 +2272,6 @@ rmw_wait(
             [wait_set_data]() {return wait_set_data->triggered;});
         }
       }
-
-      // It is important to reset this here while still holding the lock, otherwise every subsequent
-      // call to rmw_wait() will be immediately ready.  We could handle this another way by making
-      // "triggered" a stack variable in this function and "attaching" it during
-      // "check_and_attach_condition", but that isn't clearly better so leaving this.
-      wait_set_data->triggered = false;
     }
   }
 

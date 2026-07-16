@@ -30,21 +30,17 @@ GuardCondition::GuardCondition()
 ///=============================================================================
 void GuardCondition::trigger()
 {
-  rmw_wait_set_data_t * wait_set_data_to_trigger = nullptr;
-  {
-    std::lock_guard<std::mutex> lock(internal_mutex_);
+  std::lock_guard<std::mutex> lock(internal_mutex_);
 
-    // the change to hasTriggered_ needs to be mutually exclusive with
-    // rmw_wait() which checks hasTriggered() and decides if wait() needs to
-    // be called
-    has_triggered_ = true;
-    wait_set_data_to_trigger = wait_set_data_;
-  }
+  // the change to hasTriggered_ needs to be mutually exclusive with
+  // rmw_wait() which checks hasTriggered() and decides if wait() needs to
+  // be called
+  has_triggered_ = true;
 
-  if (wait_set_data_to_trigger != nullptr) {
-    std::lock_guard<std::mutex> wait_set_lock(wait_set_data_to_trigger->condition_mutex);
-    wait_set_data_to_trigger->triggered = true;
-    wait_set_data_to_trigger->condition_variable.notify_one();
+  if (wait_set_data_ != nullptr) {
+    std::lock_guard<std::mutex> wait_set_lock(wait_set_data_->condition_mutex);
+    wait_set_data_->triggered = true;
+    wait_set_data_->condition_variable.notify_one();
   }
 }
 
