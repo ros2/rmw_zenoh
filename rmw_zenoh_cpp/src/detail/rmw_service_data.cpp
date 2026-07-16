@@ -231,7 +231,7 @@ bool ServiceData::liveliness_is_valid() const
   // The z_check function is now internal in zenoh-1.0.0 so we assume
   // the liveliness token is still initialized as long as this entity has
   // not been shutdown.
-  return !is_shutdown_.load(std::memory_order_acquire);
+  return !is_shutdown();
 }
 
 ///=============================================================================
@@ -279,7 +279,7 @@ rmw_ret_t ServiceData::take_request(
   std::lock_guard<std::mutex> lock(mutex_);
   *taken = false;
 
-  if (is_shutdown_.load(std::memory_order_acquire) || query_queue_.empty()) {
+  if (is_shutdown() || query_queue_.empty()) {
     // This tells rcl that the check for a new message was done, but no messages have come in yet.
     return RMW_RET_OK;
   }
@@ -374,7 +374,7 @@ rmw_ret_t ServiceData::send_response(
   void * ros_response)
 {
   std::lock_guard<std::mutex> lock(mutex_);
-  if (is_shutdown_.load(std::memory_order_acquire)) {
+  if (is_shutdown()) {
     RMW_ZENOH_LOG_DEBUG_NAMED(
       "rmw_zenoh_cpp",
       "Unable to send response as the service is shutdown."
