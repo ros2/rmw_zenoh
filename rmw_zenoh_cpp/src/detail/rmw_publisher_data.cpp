@@ -92,17 +92,22 @@ std::shared_ptr<PublisherData> PublisherData::make(
   auto callbacks = static_cast<const message_type_support_callbacks_t *>(type_support->data);
   auto message_type_support = std::make_unique<MessageTypeSupport>(callbacks);
 
-  bool has_buffer_fields = callbacks->has_buffer_fields;
+  const bool has_buffer_fields = callbacks->has_buffer_fields;
+  // Buffer backends do not support transient-local durability. Those publishers
+  // use only the base Zenoh publisher, which provides the required history cache.
+  const bool use_buffer_endpoints = has_buffer_fields &&
+    adapted_qos_profile.durability != RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL;
 
   RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED("rmw_zenoh_cpp",
     "[PublisherData::make] Creating publisher for topic '%s', "
-    "type name '%s', has_buffer_fields: '%d'",
-    topic_name.c_str(), message_type_support->get_name(), has_buffer_fields);
+    "type name '%s', has_buffer_fields: '%d', use_buffer_endpoints: '%d'",
+    topic_name.c_str(), message_type_support->get_name(), has_buffer_fields,
+    use_buffer_endpoints);
 
-  // Get installed backends metadata if message type has Buffer fields
+  // Get installed backends metadata if buffer endpoints are enabled.
   rmw_context_impl_t * context_impl = static_cast<rmw_context_impl_t *>(node->context->impl);
   std::unordered_map<std::string, std::string> backend_metadata;
-  if (has_buffer_fields) {
+  if (use_buffer_endpoints) {
     auto * backend_ctx = context_impl->buffer_backend_context();
     if (backend_ctx) {
       backend_metadata = rosidl_buffer_backend_registry::get_all_backend_metadata(
@@ -143,7 +148,7 @@ std::shared_ptr<PublisherData> PublisherData::make(
       message_type_support->get_name(),
       type_hash_c_str,
       adapted_qos_profile,
-      has_buffer_fields ? std::make_optional(backend_metadata) : std::nullopt}
+      use_buffer_endpoints ? std::make_optional(backend_metadata) : std::nullopt}
   );
   if (entity == nullptr) {
     RMW_ZENOH_LOG_ERROR_NAMED(
@@ -175,7 +180,7 @@ std::shared_ptr<PublisherData> PublisherData::make(
       std::move(token),
       type_support->data,
       std::move(message_type_support),
-      has_buffer_fields,
+      use_buffer_endpoints,
       backend_metadata
     });
 
@@ -190,7 +195,7 @@ std::shared_ptr<PublisherData> PublisherData::make(
   pub_data->base_endpoint_ = base_endpoint.get();
   pub_data->endpoints_[base_key] = std::move(base_endpoint);
 
-  if (has_buffer_fields) {
+  if (use_buffer_endpoints) {
     pub_data->local_endpoint_info_ =
       build_endpoint_info_from_entity(*pub_data->entity_, RMW_ENDPOINT_PUBLISHER);
 
@@ -218,7 +223,7 @@ std::shared_ptr<PublisherData> PublisherData::make(
   }
 
   // Register discovery callback for Buffer-aware publishers
-  if (has_buffer_fields) {
+  if (use_buffer_endpoints) {
     pub_data->graph_cache_ = context_impl->graph_cache();
     if (pub_data->graph_cache_ != nullptr) {
       std::weak_ptr<PublisherData> weak_pub_data = pub_data;

@@ -96,20 +96,23 @@ std::shared_ptr<SubscriptionData> SubscriptionData::make(
   auto callbacks = static_cast<const message_type_support_callbacks_t *>(type_support->data);
   auto message_type_support = std::make_unique<MessageTypeSupport>(callbacks);
 
-  // CREATION-TIME DECISION: Check if message type has Buffer fields
-  bool has_buffer_fields = callbacks->has_buffer_fields;
-  bool is_buffer_aware = has_buffer_fields;
+  const bool has_buffer_fields = callbacks->has_buffer_fields;
+  // A transient-local subscription can only receive history through its base
+  // advanced subscriber, so its custom buffer endpoints would never provide it.
+  const bool use_buffer_endpoints = has_buffer_fields &&
+    adapted_qos_profile.durability != RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL;
 
   RMW_ZENOH_LOG_DEBUG_NAMED(
     "rmw_zenoh_cpp",
-    "[SubscriptionData::make] Topic: %s, has_buffer_fields: %d, is_buffer_aware: %d",
-    topic_name.c_str(), has_buffer_fields, is_buffer_aware);
+    "[SubscriptionData::make] Topic: %s, has_buffer_fields: %d, "
+    "use_buffer_endpoints: %d",
+    topic_name.c_str(), has_buffer_fields, use_buffer_endpoints);
 
   // Query and filter installed backends based on acceptable_buffer_backends option
   rmw_context_impl_t * context_impl = static_cast<rmw_context_impl_t *>(node->context->impl);
   std::optional<std::unordered_map<std::string, std::string>> backend_types = std::nullopt;
   std::vector<std::string> my_backend_types;
-  if (is_buffer_aware) {
+  if (use_buffer_endpoints) {
     auto * backend_ctx = context_impl->buffer_backend_context();
     std::vector<std::string> all_installed;
     std::unordered_map<std::string, std::string> all_backend_metadata;
@@ -245,7 +248,7 @@ std::shared_ptr<SubscriptionData> SubscriptionData::make(
       message_type_support->get_name(),
       type_hash_c_str,
       adapted_qos_profile,
-      backend_types}  // Include backends only if Buffer message type
+      backend_types}  // Include backends only when buffer endpoints are enabled.
   );
   if (entity == nullptr) {
     RMW_ZENOH_LOG_ERROR_NAMED(
@@ -264,11 +267,11 @@ std::shared_ptr<SubscriptionData> SubscriptionData::make(
       type_support->data,
       std::move(message_type_support),
       sub_options,
-      is_buffer_aware,
+      use_buffer_endpoints,
       my_backend_types
     });
 
-  if (is_buffer_aware) {
+  if (use_buffer_endpoints) {
     sub_data->local_endpoint_info_ =
       build_endpoint_info_from_entity(*sub_data->entity_, RMW_ENDPOINT_SUBSCRIPTION);
 
@@ -285,7 +288,7 @@ std::shared_ptr<SubscriptionData> SubscriptionData::make(
   }
 
   // Register discovery callback for Buffer-aware subscribers
-  if (is_buffer_aware && graph_cache != nullptr) {
+  if (use_buffer_endpoints && graph_cache != nullptr) {
     std::weak_ptr<SubscriptionData> weak_sub_data = sub_data;
     if (!is_cpu_only_backend_types(my_backend_types)) {
       graph_cache->register_publisher_discovery_callback(
