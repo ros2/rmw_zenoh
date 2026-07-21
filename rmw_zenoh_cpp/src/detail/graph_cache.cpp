@@ -1291,6 +1291,12 @@ rmw_ret_t GraphCache::get_entities_info_by_service(
     }
   }
 
+  // Exit early if there are no endpoints of the requested type,
+  // leaving the output array zero initialized.
+  if (endpoints.empty()) {
+    return RMW_RET_OK;
+  }
+
   rmw_ret_t ret = rmw_service_endpoint_info_array_init_with_size(
     endpoints_info, endpoints.size(), allocator);
   if (RMW_RET_OK != ret) {
@@ -1298,7 +1304,7 @@ rmw_ret_t GraphCache::get_entities_info_by_service(
   }
 
   memcpy(
-    endpoints_info->info_array, &endpoints[0],
+    endpoints_info->info_array, endpoints.data(),
     sizeof(rmw_service_endpoint_info_t) * endpoints.size());
 
   return RMW_RET_OK;
