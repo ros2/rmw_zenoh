@@ -2,8 +2,8 @@
 Changelog for package zenoh_cpp_vendor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.12.0 (2026-07-22)
+-------------------
 * use C++ 20 in default. (`#1006 <https://github.com/ros2/rmw_zenoh/issues/1006>`_)
 * Contributors: Alejandro Hernandez Cordero, Tomoya Fujita
 

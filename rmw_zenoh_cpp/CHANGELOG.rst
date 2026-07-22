@@ -2,8 +2,8 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.12.0 (2026-07-22)
+-------------------
 * return early with a zero-initialized array. (`#1012 <https://github.com/ros2/rmw_zenoh/issues/1012>`_)
 * Fix transient-local publishing for buffer-aware path (`#1009 <https://github.com/ros2/rmw_zenoh/issues/1009>`_)
 * Make use of `ServiceData::is_shutdown()` when possible (`#997 <https://github.com/ros2/rmw_zenoh/issues/997>`_)
