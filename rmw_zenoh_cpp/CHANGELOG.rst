@@ -2,6 +2,22 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* fix: Fix lock order inversion / deadlock (`#1014 <https://github.com/ros2/rmw_zenoh/issues/1014>`_)
+* Bump zenoh to 1.8.0 - 2nd attempt (`#966 <https://github.com/ros2/rmw_zenoh/issues/966>`_)
+* Revert 1.8.0 (`#962 <https://github.com/ros2/rmw_zenoh/issues/962>`_)
+* Don't hold both locks when processing event data (`#953 <https://github.com/ros2/rmw_zenoh/issues/953>`_)
+* fix(event): add deadline/liveliness QoS events to rmw_zenoh_cpp (`#943 <https://github.com/ros2/rmw_zenoh/issues/943>`_)
+* Bump zenoh to 1.8.0 (`#940 <https://github.com/ros2/rmw_zenoh/issues/940>`_)
+* fix: populate reception_sequence_number and advertise sequence number features (`#923 <https://github.com/ros2/rmw_zenoh/issues/923>`_)
+* finish some TODOs. (`#904 <https://github.com/ros2/rmw_zenoh/issues/904>`_)
+* feat: expose zenoh session (`#900 <https://github.com/ros2/rmw_zenoh/issues/900>`_)
+* Fix line ending in session open error message (`#891 <https://github.com/ros2/rmw_zenoh/issues/891>`_)
+* Use shared transport SHM provider instead of own instance of SHM provider (`#876 <https://github.com/ros2/rmw_zenoh/issues/876>`_)
+* Bump zenoh to 1.7.1 (`#873 <https://github.com/ros2/rmw_zenoh/issues/873>`_)
+* Contributors: Janosch Machowinski, Yuyuan Yuan, Julien Enoch, Shane Loretz, Hervé Audren, Denis Biryukov, Tomoya Fujita, Alejandro Hernandez Cordero, Yadunund, jordanburklund, yellowhatter, mergify[bot]
+
 0.2.9 (2025-11-12)
 ------------------
 * Fix typo in 'triggered' (`#847 <https://github.com/ros2/rmw_zenoh/issues/847>`_)
