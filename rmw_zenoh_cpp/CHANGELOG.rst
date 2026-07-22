@@ -2,8 +2,8 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.1.9 (2026-07-22)
+------------------
 * fix: Fix lock order inversion / deadlock (`#1015 <https://github.com/ros2/rmw_zenoh/issues/1015>`_)
 * Bump zenoh to 1.8.0 - 2nd attempt (`#967 <https://github.com/ros2/rmw_zenoh/issues/967>`_)
 * Revert 1.8.0 (`#963 <https://github.com/ros2/rmw_zenoh/issues/963>`_)
