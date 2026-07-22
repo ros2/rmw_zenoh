@@ -2,6 +2,18 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* return early with a zero-initialized array. (`#1012 <https://github.com/ros2/rmw_zenoh/issues/1012>`_)
+* Fix transient-local publishing for buffer-aware path (`#1009 <https://github.com/ros2/rmw_zenoh/issues/1009>`_)
+* Make use of `ServiceData::is_shutdown()` when possible (`#997 <https://github.com/ros2/rmw_zenoh/issues/997>`_)
+* Fix lock order inversion in rmw_wait (`#1005 <https://github.com/ros2/rmw_zenoh/issues/1005>`_)
+* fix(publisher): unify publisher ownership to fix debug-mode crash (`#990 <https://github.com/ros2/rmw_zenoh/issues/990>`_)
+* use C++ 20 in default. (`#1006 <https://github.com/ros2/rmw_zenoh/issues/1006>`_)
+* Fix deadlock between wait_set condition_mutex and entity-specific mutexes (`#992 <https://github.com/ros2/rmw_zenoh/issues/992>`_)
+* Add support for rosidl::Buffer-aware per-endpoint pub/sub (`#930 <https://github.com/ros2/rmw_zenoh/issues/930>`_)
+* Contributors: Alejandro Hernandez Cordero, CY Chen, Janosch Machowinski, Patrick Roncagliolo, Tomoya Fujita, Yuyuan Yuan, Yadunund
+
 0.11.0 (2026-05-07)
 -------------------
 
