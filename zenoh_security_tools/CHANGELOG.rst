@@ -2,6 +2,11 @@
 Changelog for package zenoh_security_tools
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* finish some TODOs. (`#903 <https://github.com/ros2/rmw_zenoh/issues/903>`_)
+* Contributors: Tomoya Fujita
+
 0.6.6 (2025-11-13)
 ------------------
 
