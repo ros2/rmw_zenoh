@@ -524,7 +524,8 @@ Here is an incomplete list of some of the settings and the values that they can 
 * `DEPTH` - The maximum number of samples to keep; this only comes into play when `KEEP_LAST` history is used.  If `DEPTH` is set to 0, `rmw_zenoh_cpp` will choose a depth of 42.
 * `DURABILITY`
     * `VOLATILE` - Samples will only be delivered to subscriptions that are active at the time of publishing. This is the `SYSTEM_DEFAULT` durability.
-    * `TRANSIENT_LOCAL` - "Late-joining" subscriptions will receive historical data, along with any new data.  In `rmw_zenoh_cpp`, this is implemented for publishers via the activation of a cache on the `AdvancedPublisher`. On the subscription side the `AdvancedSubscriber` is configured to query this cache to retrieve the historical data.
+    * `TRANSIENT_LOCAL` - "Late-joining" subscriptions will receive historical data, along with any new data.  In `rmw_zenoh_cpp`, this is implemented for publishers via the activation of a cache on the `AdvancedPublisher`. On the subscription side the `AdvancedSubscriber` is configured to query this cache to retrieve the historical data.  
+    **Note**: Zenoh timestamping has to be enabled by configuration in case of `TRANSIENT_LOCAL`+`BEST_EFFORT` publishers. This allows an `AdvancedSubscriber` to reorder historical data and live publications received at the same time, before delivery to the callback API. `TRANSIENT_LOCAL`+`RELIABLE` `AdvancedPublishers` are configured with `miss_sample_detection` which adds a sequence number to each publication for reordering and detection of missing samples.
 * `LIVELINESS`
     * `AUTOMATIC` - The "liveliness" of an entity of the system is managed by the RMW layer.  This is the only `LIVELINESS` that `rmw_zenoh_cpp` supports.
     * `MANUAL_BY_TOPIC` - Not supported. It is up to the application to periodically publish to a particular topic to assert liveliness.
