@@ -2,6 +2,16 @@
 Changelog for package zenoh_cpp_vendor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Bump zenoh to 1.8.0 - 2nd attempt (`#967 <https://github.com/ros2/rmw_zenoh/issues/967>`_)
+* Revert 1.8.0 (`#963 <https://github.com/ros2/rmw_zenoh/issues/963>`_)
+* Build against rust >= 1.75 for ROS Lyrical (`#950 <https://github.com/ros2/rmw_zenoh/issues/950>`_)
+* Bump zenoh to 1.8.0 (`#941 <https://github.com/ros2/rmw_zenoh/issues/941>`_)
+* Allow use of non-vendored Zenoh if present (`#911 <https://github.com/ros2/rmw_zenoh/issues/911>`_)
+* Bump zenoh to 1.7.1 (`#874 <https://github.com/ros2/rmw_zenoh/issues/874>`_)
+* Contributors: Julien Enoch, Yuyuan Yuan, Shane Loretz, Denis Biryukov, Øystein Sture
+
 0.1.8 (2025-11-12)
 ------------------
 * Bump zenoh to 1.6.2 (`#851 <https://github.com/ros2/rmw_zenoh/issues/851>`_)
