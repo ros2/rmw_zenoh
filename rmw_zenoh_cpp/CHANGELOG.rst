@@ -2,6 +2,13 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Fix transient-local publishing for buffer-aware path (`#1011 <https://github.com/ros2/rmw_zenoh/issues/1011>`_)
+* fix: Fix lock order inversion / deadlock (`#1010 <https://github.com/ros2/rmw_zenoh/issues/1010>`_)
+* Add support for rosidl::Buffer-aware per-endpoint pub/sub (`#987 <https://github.com/ros2/rmw_zenoh/issues/987>`_)
+* Contributors: CY Chen, Janosch Machowinski, Yuyuan Yuan
+
 0.10.4 (2026-04-30)
 -------------------
 
