@@ -2,8 +2,8 @@
 Changelog for package zenoh_cpp_vendor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.6.7 (2026-07-22)
+------------------
 * Bump zenoh to 1.8.0 - 2nd attempt (`#965 <https://github.com/ros2/rmw_zenoh/issues/965>`_)
 * Revert 1.8.0 (`#961 <https://github.com/ros2/rmw_zenoh/issues/961>`_)
 * Build against rust >= 1.75 for ROS Lyrical (`#948 <https://github.com/ros2/rmw_zenoh/issues/948>`_)
