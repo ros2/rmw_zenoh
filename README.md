@@ -248,29 +248,38 @@ The default value of `RMW_ZENOH_BUFFER_POOL_MAX_SIZE_BYTES` is 8 MiB; this value
 
 Zenoh-backed shared memory provides implicit SHM optimization for any messages passing through (not only those created with loaned messages API).
 
+> [!WARNING]
+> In case of high CPU usage, such as at launch time in systems with a large number of Nodes, a known issue may cause some
+> service calls or TRANSIENT_LOCAL historical publications to be silently dropped.  
+> See issue [#978](https://github.com/ros2/rmw_zenoh/issues/978).
+
 ### Configuration
 
 > [!NOTE]
 > To have Zenoh SHM working, it should be enabled on all Zenoh sessions exchanging messages. It can also be enabled on the router for lower latency between the Nodes and the router, in case a message shall be routed outside.
 
-To enable Zenoh SHM, the `transport/shared_memory/enabled` Zenoh config key should be set to `true` in the Zenoh configuration files for all the sessions and the router.
-You can also override this config with the `ZENOH_CONFIG_OVERRIDE` environment variable:
+To enable Zenoh SHM, the `transport/shared_memory/enabled` and `transport/shared_memory/transport_optimization/enabled` Zenoh config keys should be set to `true` in the Zenoh configuration files for all the sessions and the router.
+Note that if only `transport/shared_memory/enabled` is set to `true`, `rmw_zenoh_cpp` will overwrite the `transport/shared_memory/transport_optimization/enabled` configuration to force it to `true`. An INFO level log is displayed in such case.
+
+You can also enable SHM simply by setting the `ZENOH_CONFIG_OVERRIDE` environment variable as such:
 
 ```bash
 export ZENOH_CONFIG_OVERRIDE='transport/shared_memory/enabled=true'
 ```
 
-Each Node allocates at startup a SHM segment where it will write the data to send. The size of this segment can be configured via the `transport/shared_memory/transport_optimization/pool_size` Zenoh config key. The default value is 50331648 bytes (48 MiB).
+Each Node uses a SHM segment into which it writes the data to send. The size of this segment can be configured via the `transport/shared_memory/transport_optimization/pool_size` Zenoh config key. The default value is 50331648 bytes (48 MiB).
 You can also override this value with the `ZENOH_SHM_ALLOC_SIZE` environment variable. This environment variable exists for backward compatibility reason. It will be deprecated and eventually removed in a future release.
 
-Each Node will write the data that exceed a configurable threashold in this segment. Smaller data will be send via the network, as there is no benefit to use SHM for small data. This threshold can be configured via the `transport/shared_memory/transport_optimization/message_size_threshold` Zenoh config key. The default value is 512 bytes. Note that depending on your hardware characteristics (CPU, memory) it could be counter-productive for the latency of small messages to lower this threshold.
+When this segment is allocated depends on the `transport/shared_memory/mode` config key. With the default `lazy` mode, the segment is allocated the first time the Node actually sends or receives data through SHM: this minimizes startup time but adds a one-time latency on the first SHM message. With `init`, the segment is allocated when the session opens, removing that first-message latency at the cost of a slower session startup.
+
+Each Node will write the data that exceed a configurable threshold in this segment. Smaller data will be sent via the network, as there is no benefit to use SHM for small data. This threshold can be configured via the `transport/shared_memory/transport_optimization/message_size_threshold` Zenoh config key. The default value is 512 bytes. This value must be a power of two. Note that depending on your hardware characteristics (CPU, memory) it could be counter-productive for the latency of small messages to lower this threshold.
 You can also override this value with the `ZENOH_SHM_MESSAGE_SIZE_THRESHOLD` environment variable. This environment variable exists for backward compatibility reason. It will be deprecated and eventually removed in a future release.
 
 Zenoh automatically handles garbage collection of data in shared memory once all recipients have read it. It also defragments the shared memory segment to maintain space for large payloads. If writing to shared memory fails (for instance if a recipient didn't yet read the previous data) Zenoh seamlessly falls back to network transport. This ensures publishers are never blocked and data is always delivered.
 
 > [!IMPORTANT]
-> Make sure that the host's shared memory space (`/dev/shm` on Linux) is large enough for all the processes you run to allocate the configured amount of memory. As `rmw_zenoh` is pre-commiting the memory on startup, a process will fail if the shared memory is not available.
-> The default value of 48 MiB has been chosen to support out-of-the-box very large payloads such as a 4K video image (~24 MiB per image, 2 images in-flight). If this size mulitiplied by the number of ROS processes in your system exceeds the host's shared memory space, you need to reduce this size for the processes that do not need to send such large payloads. On the other hand, if a Node is sending payloads larger than 24 MiB in one or several topics, you need to consider increasing its shared memory size configuration.
+> Make sure that the host's shared memory space (`/dev/shm` on Linux) is large enough for all the processes you run to allocate the configured amount of memory. The SHM segment is allocated up to `pool_size` bytes: with the default `lazy` mode this allocation happens the first time the Node sends or receives an SHM message, so an undersized `/dev/shm` surfaces on the first large message rather than at process startup (with `mode: init` it surfaces when the session opens). If the segment cannot be allocated, Zenoh falls back to the regular network transport (as described above).
+> The default value of 48 MiB has been chosen to support out-of-the-box very large payloads such as a 4K video image (~24 MiB per image, 2 images in-flight). If this size multiplied by the number of ROS processes in your system exceeds the host's shared memory space, you need to reduce this size for the processes that do not need to send such large payloads. On the other hand, if a Node is sending payloads larger than 24 MiB in one or several topics, you need to consider increasing its shared memory size configuration.
 
 > [!TIP]
 > Shared memory can be used between Docker containers. Several solutions for this:
