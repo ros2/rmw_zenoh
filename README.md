@@ -248,6 +248,11 @@ The default value of `RMW_ZENOH_BUFFER_POOL_MAX_SIZE_BYTES` is 8 MiB; this value
 
 Zenoh-backed shared memory provides implicit SHM optimization for any messages passing through (not only those created with loaned messages API).
 
+> [!WARNING]
+> In case of high CPU usage, such as at launch time in systems with a large number of Nodes, a known issue may cause some
+> service calls or TRANSIENT_LOCAL historical publications to be silently dropped.  
+> See issue [#978](https://github.com/ros2/rmw_zenoh/issues/978).
+
 ### Configuration
 
 > [!NOTE]
