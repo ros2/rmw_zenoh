@@ -510,6 +510,134 @@ When a new service server is created, a liveliness token of type `SS` is sent ou
 * Query::reply
 * Query::ReplyOptions
 
+<<<<<<< HEAD
+=======
+## Shared memory optimization
+
+Zenoh can carry message payloads through a POSIX shared memory (SHM) segment between two processes that share the same memory domain (typically on the same host).
+This avoids serializing the payload onto a socket: the payload is written once into a shared segment and the peer reads it in place.
+SHM is only available when the underlying `zenoh-c` library is built with the `shared-memory` feature, and it is **opt-in** in configuration — it is
+disabled by default (`transport/shared_memory/enabled: false`).
+
+Zenoh exposes two mechanisms to use SHM:
+
+1. **Explicit SHM API**: the application code allocates a buffer from an SHM provider and hands it to `put()`.
+   The buffer is transported zero-copy, at any size.
+2. **Transport optimization** (`transport/shared_memory/transport_optimization`): the Zenoh runtime owns an internal SHM segment.
+   When a regular (non-SHM) payload exceeds a configurable threshold and the destination is SHM-capable, the transport transparently copies
+   it into that segment and only sends a small descriptor. This is fully implicit but costs one userspace `memcpy` on the publisher side.
+
+`rmw_zenoh_cpp` combines both: it lets `transport_optimization` create and own the SHM segment, but on the publisher path
+it drives that segment **explicitly** instead of relying on the implicit copy.
+When SHM is enabled, for each message whose estimated serialized size reaches the threshold, the publisher:
+
+1. obtains the transport's SHM provider via `session.obtain_shm_provider()`
+   (the *same* pool that `transport_optimization` created — no second segment is allocated),
+2. allocates a mutable SHM buffer (`ZShmMut`) from it,
+3. serializes the CDR message **directly into that buffer**, and
+4. publishes it zero-copy (`zenoh::Bytes(std::move(shm_buf))`).
+
+Because the message is serialized straight into shared memory, the extra `memcpy` that the implicit transport-optimization path would perform is eliminated.
+If the provider is not yet available (SHM internals are initialized lazily) or the allocation fails (pool exhausted), the publisher silently falls back
+to the regular serialization buffer and the normal network path — publishing is never blocked.
+Payloads below the threshold are also sent over the network, since SHM brings no benefit for small messages.
+
+This is why the two configuration keys are coupled in the scope of `rmw_zenoh_cpp`.
+`transport/shared_memory/enabled` announces SHM support to peers but does not by itself create any segment;
+the segment is created by `transport/shared_memory/transport_optimization/enabled`.
+Since `rmw_zenoh_cpp` reuses that very segment, it force-enables `transport_optimization` whenever SHM is enabled (logging an INFO
+message if it had to overwrite the config).
+
+Relevant Zenoh configuration keys:
+
+* `transport/shared_memory/enabled`: enable SHM support (must be `true` for any SHM usage; defaults to `false`).
+* `transport/shared_memory/transport_optimization/enabled`: create the SHM segment reused by
+  `rmw_zenoh_cpp` (force-enabled when SHM is enabled).
+* `transport/shared_memory/transport_optimization/pool_size`: size of that segment in bytes.
+* `transport/shared_memory/transport_optimization/message_size_threshold`: minimum serialized
+  payload size (bytes) that triggers SHM allocation.
+
+See the [Zenoh Shared Memory](../README.md#zenoh-shared-memory) section of the README for end-user configuration guidance
+(environment-variable overrides, `/dev/shm` sizing, and Docker setup).
+
+## Buffer-aware pub/sub
+
+`rmw_zenoh_cpp` supports messages containing [`rosidl::Buffer<T>`](https://discourse.openrobotics.org/t/working-prototype-of-native-buffers-accelerated-memory-transport/52399) fields, which describe data that may live outside of host memory (e.g. on a GPU).
+For these messages, the RMW transports a small **buffer descriptor** (a handle that identifies the underlying memory region) instead of always copying the bytes through the host, while preserving full bit-compatibility with publishers and subscribers that only know how to consume regular CPU bytes.
+
+### Backends
+
+Each `rosidl::Buffer` field is bound to a *backend* (e.g. `cpu`, `cuda`).
+At RMW context init time, `rmw_zenoh_cpp` calls `rosidl_buffer_backend_registry::initialize_buffer_backends()` to load all installed backend plugins into a per-context `BufferBackendContext`, and tears them down again on context shutdown.
+Every buffer-aware publisher always implicitly supports the `cpu` backend, so a buffer-aware publisher can always fall back to plain CPU serialization for any subscriber.
+
+Subscribers can opt in to specific backends via the `acceptable_buffer_backends` `rmw_subscription_options_t` field:
+
+* `nullptr`, empty, or `"cpu"` -- CPU-only subscriber (advertises `backends:cpu:` in its liveliness token).
+* `"any"` -- accept all installed backends.
+* A comma-separated list of backend names -- accept only the listed backends (intersected with what is installed).
+
+### Discovery
+
+When a buffer-aware publisher and subscriber appear in the graph, they discover each other through the existing graph cache plus two new discovery callbacks (`register_subscriber_discovery_callback` and `register_publisher_discovery_callback`).
+The callbacks are invoked **outside** of the graph cache mutex to avoid re-entrant deadlocks when they create per-endpoint Zenoh entities.
+
+The `<backends>` component of the liveliness token (see [Graph Cache](#graph-cache)) carries each endpoint's advertised backend set so that peers can negotiate which backend to use without any extra discovery traffic.
+
+### Topic key expressions
+
+Buffer-aware peers communicate over additional Zenoh key expressions derived from the standard topic key expression:
+
+| Suffix | Direction | Description |
+| --- | --- | --- |
+| *(none)* | both | Standard CDR-serialized payload. Always declared by every endpoint so a buffer-aware endpoint can still talk to a legacy (non-buffer) peer. |
+| `/_buf_cpu` | pub -> sub | Shared CPU-group channel. A single Zenoh publisher/subscriber pair carries serialized CPU payloads for **all** CPU-only buffer-aware subscribers on the topic. Mirrors `rmw_fastrtps_cpp`'s eager CPU `DataWriter`. |
+| `/_buf/<sub_gid_hex>` | pub -> sub | Per-subscriber accelerated channel. Each buffer-aware subscriber that advertises non-CPU backends owns a single shared accelerated Zenoh subscriber keyed by its GID. Every matching publisher writes the negotiated backend descriptor to this key. |
+
+For example, with `ROS_DOMAIN_ID=0`, a buffer-aware `chatter` topic carrying GPU images may use the following keys:
+
+```text
+0/chatter/sensor_msgs::msg::dds_::Image_/RIHS01_<hash>             # base CDR fallback
+0/chatter/sensor_msgs::msg::dds_::Image_/RIHS01_<hash>/_buf_cpu    # shared CPU-group channel
+0/chatter/sensor_msgs::msg::dds_::Image_/RIHS01_<hash>/_buf/<gid>  # per-subscriber accelerated channel
+```
+
+### Publish path
+
+`PublisherData::publish()` chooses a path based on the matched subscribers (mirroring `rmw_fastrtps_cpp`):
+
+1. **All matched subscribers are buffer-aware** -- skip the standard path and call `publish_buffer_aware()`, which:
+   * publishes a single CPU serialization to `/_buf_cpu` if there are any CPU-only buffer-aware subscribers, and
+   * publishes a per-subscriber, endpoint-aware serialization (containing only the buffer descriptor for non-CPU backends) to each `/_buf/<sub_gid_hex>` key.
+2. **At least one legacy (non-buffer-aware) subscriber is matched** -- skip the buffer channels entirely and fall through to the standard base-key publish path so every subscriber, buffer-aware or not, receives a fully serialized message via the base key.
+
+### Subscribe path
+
+`SubscriptionData` always declares a Zenoh subscriber on the base key for the legacy fallback.
+If the subscriber is buffer-aware it additionally:
+
+* declares a Zenoh subscriber on `/_buf_cpu` if it is CPU-only (so it shares the CPU channel with all other CPU-only buffer-aware subscribers on the topic), or
+* declares a single accelerated Zenoh subscriber on `/_buf/<my_gid_hex>` if it accepts at least one non-CPU backend.
+
+Incoming samples carry the originating endpoint info (via the `Message` struct's `EndpointInfoStorage`) so that the FastCDR-based deserialization layer can dispatch to the correct backend's `from_descriptor_with_endpoint()` to reconstruct the buffer in place.
+
+### Related RMW APIs
+
+* `rmw_subscription_options_t::acceptable_buffer_backends`
+* `rosidl::Buffer<T>`
+* `rosidl_buffer_backend_registry::initialize_buffer_backends`
+* `rosidl_buffer_backend_registry::shutdown_buffer_backends`
+* `PublisherData::publish_buffer_aware`
+* `SubscriptionData::on_publisher_discovered`
+* `GraphCache::register_publisher_discovery_callback`
+* `GraphCache::register_subscriber_discovery_callback`
+
+### Related Zenoh APIs
+
+* `Session::declare_advanced_publisher`
+* `Session::declare_advanced_subscriber`
+
+>>>>>>> e315985 (When SHM enabled, enable transport_optimization (#1020))
 ## Quality of Service
 
 The ROS 2 RMW layer defines quite a few Quality of Service settings that are largely derived from DDS.
