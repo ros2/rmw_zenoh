@@ -509,6 +509,54 @@ When a new service server is created, a liveliness token of type `SS` is sent ou
 * Query::reply
 * Query::ReplyOptions
 
+## Shared memory optimization
+
+Zenoh can carry message payloads through a POSIX shared memory (SHM) segment between two processes that share the same memory domain (typically on the same host).
+This avoids serializing the payload onto a socket: the payload is written once into a shared segment and the peer reads it in place.
+SHM is only available when the underlying `zenoh-c` library is built with the `shared-memory` feature, and it is **opt-in** in configuration — it is
+disabled by default (`transport/shared_memory/enabled: false`).
+
+Zenoh exposes two mechanisms to use SHM:
+
+1. **Explicit SHM API**: the application code allocates a buffer from an SHM provider and hands it to `put()`.
+   The buffer is transported zero-copy, at any size.
+2. **Transport optimization** (`transport/shared_memory/transport_optimization`): the Zenoh runtime owns an internal SHM segment.
+   When a regular (non-SHM) payload exceeds a configurable threshold and the destination is SHM-capable, the transport transparently copies
+   it into that segment and only sends a small descriptor. This is fully implicit but costs one userspace `memcpy` on the publisher side.
+
+`rmw_zenoh_cpp` combines both: it lets `transport_optimization` create and own the SHM segment, but on the publisher path
+it drives that segment **explicitly** instead of relying on the implicit copy.
+When SHM is enabled, for each message whose estimated serialized size reaches the threshold, the publisher:
+
+1. obtains the transport's SHM provider via `session.obtain_shm_provider()`
+   (the *same* pool that `transport_optimization` created — no second segment is allocated),
+2. allocates a mutable SHM buffer (`ZShmMut`) from it,
+3. serializes the CDR message **directly into that buffer**, and
+4. publishes it zero-copy (`zenoh::Bytes(std::move(shm_buf))`).
+
+Because the message is serialized straight into shared memory, the extra `memcpy` that the implicit transport-optimization path would perform is eliminated.
+If the provider is not yet available (SHM internals are initialized lazily) or the allocation fails (pool exhausted), the publisher silently falls back
+to the regular serialization buffer and the normal network path — publishing is never blocked.
+Payloads below the threshold are also sent over the network, since SHM brings no benefit for small messages.
+
+This is why the two configuration keys are coupled in the scope of `rmw_zenoh_cpp`.
+`transport/shared_memory/enabled` announces SHM support to peers but does not by itself create any segment;
+the segment is created by `transport/shared_memory/transport_optimization/enabled`.
+Since `rmw_zenoh_cpp` reuses that very segment, it force-enables `transport_optimization` whenever SHM is enabled (logging an INFO
+message if it had to overwrite the config).
+
+Relevant Zenoh configuration keys:
+
+* `transport/shared_memory/enabled`: enable SHM support (must be `true` for any SHM usage; defaults to `false`).
+* `transport/shared_memory/transport_optimization/enabled`: create the SHM segment reused by
+  `rmw_zenoh_cpp` (force-enabled when SHM is enabled).
+* `transport/shared_memory/transport_optimization/pool_size`: size of that segment in bytes.
+* `transport/shared_memory/transport_optimization/message_size_threshold`: minimum serialized
+  payload size (bytes) that triggers SHM allocation.
+
+See the [Zenoh Shared Memory](../README.md#zenoh-shared-memory) section of the README for end-user configuration guidance
+(environment-variable overrides, `/dev/shm` sizing, and Docker setup).
+
 ## Quality of Service
 
 The ROS 2 RMW layer defines quite a few Quality of Service settings that are largely derived from DDS.
