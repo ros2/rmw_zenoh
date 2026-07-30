@@ -317,10 +317,10 @@ private:
         if (result == Z_OK) {
           if (transport_optim_enabled_val != "true") {
             RMW_ZENOH_LOG_INFO_NAMED(
-                "rmw_zenoh_cpp",
-                "SHM is enabled but transport_optimization is not while required "
-                "- overwritting '%s: true' in config.",
-                CONFIG_KEY_SHM_TRANSPORT_OPTIM_ENABLED);
+              "rmw_zenoh_cpp",
+              "SHM is enabled but transport_optimization is not while required "
+              "- overwritting '%s: true' in config.",
+              CONFIG_KEY_SHM_TRANSPORT_OPTIM_ENABLED);
             config.value().insert_json5(
               CONFIG_KEY_SHM_TRANSPORT_OPTIM_ENABLED,
               "true");
