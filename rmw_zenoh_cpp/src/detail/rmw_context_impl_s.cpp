@@ -44,6 +44,12 @@
 // TODO(clalancette): Make this configurable, or get it from the configuration
 #define SHM_BUFFER_SIZE_MB 10
 
+// Zenoh config key for SHM transport optimization enabled
+// When SHM is enabled, rmw_zenoh will use the same SHM segment
+// than created for transport_optimization. Hence, it must be enabled.
+static const char * CONFIG_KEY_SHM_TRANSPORT_OPTIM_ENABLED =
+  "transport/shared_memory/transport_optimization/enabled";
+
 // Zenoh config key for SHM pool size
 static const char * CONFIG_KEY_SHM_POOL_SIZE =
   "transport/shared_memory/transport_optimization/pool_size";
@@ -290,6 +296,7 @@ private:
     std::size_t shm_pool_size = 0;
     std::size_t msgsize_threshold = 512;
     {
+      // Check is transport/shared_memory/enabled == true in Zenoh config
       std::string shm_enabled_val = config.value().get(Z_CONFIG_SHARED_MEMORY_KEY, &result);
       if (result == Z_OK) {
         shm_enabled = shm_enabled_val == "true" ? true : false;
@@ -298,6 +305,31 @@ private:
           "rmw_zenoh_cpp",
           "Not able to get %s from the config file",
           Z_CONFIG_SHARED_MEMORY_KEY);
+      }
+
+      // Check if transport/shared_memory/transport_optimization/enabled == true in Zenoh config
+      // When SHM is enabled, rmw_zenoh will use the same SHM segment than created for
+      // transport_optimization. Hence, we force transport_optimization to be enabled.
+      if (shm_enabled) {
+        std::string transport_optim_enabled_val =
+          config.value().get(CONFIG_KEY_SHM_TRANSPORT_OPTIM_ENABLED, &result);
+        if (result == Z_OK) {
+          if (transport_optim_enabled_val != "true") {
+            RMW_ZENOH_LOG_INFO_NAMED(
+                "rmw_zenoh_cpp",
+                "SHM is enabled but transport_optimization is not while required "
+                "- overwritting '%s: true' in config.",
+                CONFIG_KEY_SHM_TRANSPORT_OPTIM_ENABLED);
+            config.value().insert_json5(
+              CONFIG_KEY_SHM_TRANSPORT_OPTIM_ENABLED,
+              "true");
+          }
+        } else {
+          RMW_ZENOH_LOG_ERROR_NAMED(
+            "rmw_zenoh_cpp",
+            "Not able to get %s from the config file",
+            CONFIG_KEY_SHM_TRANSPORT_OPTIM_ENABLED);
+        }
       }
 
       std::string shm_size_threshold_val = config.value().get(
