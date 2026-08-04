@@ -1123,6 +1123,12 @@ rmw_ret_t GraphCache::get_entities_info_by_topic(
     }
   }
 
+  // Exit early if there are no endpoints of the requested type,
+  // leaving the output array zero initialized.
+  if (endpoints.empty()) {
+    return RMW_RET_OK;
+  }
+
   rmw_ret_t ret = rmw_topic_endpoint_info_array_init_with_size(
     endpoints_info, endpoints.size(), allocator);
   if (RMW_RET_OK != ret) {
