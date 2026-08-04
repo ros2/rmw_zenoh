@@ -240,7 +240,7 @@ std::optional<rmw_qos_profile_t> keyexpr_to_qos(const std::string & keyexpr);
 }  // namespace liveliness
 
 ///=============================================================================
-size_t hash_gid(const std::array<uint8_t, RMW_GID_STORAGE_SIZE> gid);
+size_t hash_gid(const std::array<uint8_t, RMW_GID_STORAGE_SIZE> & gid);
 }  // namespace rmw_zenoh_cpp
 
 ///=============================================================================
