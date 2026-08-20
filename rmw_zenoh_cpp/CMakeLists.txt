@@ -127,6 +127,7 @@ register_rmw_implementation(
 if(BUILD_TESTING)
   find_package(ament_cmake_copyright REQUIRED)
   find_package(ament_cmake_cpplint REQUIRED)
+  find_package(ament_cmake_gtest REQUIRED)
   find_package(ament_cmake_lint_cmake REQUIRED)
   find_package(ament_cmake_uncrustify REQUIRED)
   find_package(ament_cmake_xmllint REQUIRED)
@@ -136,6 +137,13 @@ if(BUILD_TESTING)
   ament_lint_cmake()
   ament_uncrustify()
   ament_xmllint()
+
+  ament_add_gtest(test_rmw_wait test/test_rmw_wait.cpp)
+  target_include_directories(test_rmw_wait PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+  target_link_libraries(test_rmw_wait
+    ament_cmake_ros_core::ament_ros_defaults
+    rmw::rmw
+  )
 endif()
 
 install(

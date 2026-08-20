@@ -36,6 +36,7 @@
 #include "detail/message_type_support.hpp"
 #include "detail/qos.hpp"
 #include "detail/rmw_context_impl_s.hpp"
+#include "detail/rmw_wait.hpp"
 #include "detail/serialization_format.hpp"
 #include "detail/type_support_common.hpp"
 #include "detail/zenoh_utils.hpp"
@@ -2185,12 +2186,7 @@ check_and_attach_condition(
     }
   }
 
-  // No conditions are available. Set the triggered flag of the wait_set to false.
-  // Note that wait_set_data->condition_mutex has been locked before calling
-  // check_and_attach_condition. So it's safe to modify the wait_set_data triggered flag.
-  wait_set_data->triggered = false;
-
-  return false;
+  return rmw_zenoh_cpp::detail::condition_attachment_scan_complete(wait_set_data);
 }
 }  // namespace
 
