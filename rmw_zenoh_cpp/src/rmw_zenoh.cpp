@@ -2111,6 +2111,9 @@ check_and_attach_condition(
   const rmw_events_t * const events,
   rmw_zenoh_cpp::rmw_wait_set_data_t * wait_set_data)
 {
+  // This function runs without wait_set_data->condition_mutex. Taking it here
+  // deadlocks against the producers, so this function must never write
+  // wait_set_data->triggered.
   if (guard_conditions) {
     for (size_t i = 0; i < guard_conditions->guard_condition_count; ++i) {
       rmw_zenoh_cpp::GuardCondition * gc =
