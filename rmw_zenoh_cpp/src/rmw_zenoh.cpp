@@ -2185,11 +2185,6 @@ check_and_attach_condition(
     }
   }
 
-  // No conditions are available. Set the triggered flag of the wait_set to false.
-  // Note that wait_set_data->condition_mutex has been locked before calling
-  // check_and_attach_condition. So it's safe to modify the wait_set_data triggered flag.
-  wait_set_data->triggered = false;
-
   return false;
 }
 }  // namespace
@@ -2242,7 +2237,7 @@ rmw_wait(
 
   {
     // We explicitly do not lock the condition_mutex here
-    // This is fine, as the attachment returns atomically is a signal was ready
+    // This is fine, as the attachment returns atomically if a signal was ready
     // If anything triggers after that point, wait_set_data->triggered will be set
     // to true under mutex.
     // Note taking the mutex here leads to a deadlock.
