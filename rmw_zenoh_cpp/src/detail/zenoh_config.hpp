@@ -15,10 +15,9 @@
 #ifndef DETAIL__ZENOH_CONFIG_HPP_
 #define DETAIL__ZENOH_CONFIG_HPP_
 
-#include <filesystem>
+#include <cstddef>
+#include <cstdint>
 #include <optional>
-#include <unordered_map>
-#include <utility>
 
 #include <zenoh.hxx>
 #include <zenoh/api/config.hxx>

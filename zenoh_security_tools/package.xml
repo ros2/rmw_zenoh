@@ -13,6 +13,7 @@
 
   <depend>rcpputils</depend>
   <depend>rcutils</depend>
+  <depend>rmw</depend>
   <depend>rmw_security_common</depend>
   <depend>tinyxml2</depend>
   <depend>zenoh_cpp_vendor</depend>

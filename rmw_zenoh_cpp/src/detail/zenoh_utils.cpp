@@ -14,14 +14,21 @@
 
 #include "zenoh_utils.hpp"
 
-#include <array>
 #include <chrono>
-#include <cinttypes>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <mutex>
+#include <optional>
 #include <utility>
+#include <variant>
 
-#include "attachment_helpers.hpp"
+#include "logging_macros.hpp"
+
 #include "rcpputils/scope_exit.hpp"
 
+#include "rcutils/allocator.h"
+#include "rcutils/env.h"
 #include "rmw/error_handling.h"
 
 namespace rmw_zenoh_cpp

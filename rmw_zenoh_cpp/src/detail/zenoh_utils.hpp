@@ -17,21 +17,13 @@
 
 #include <zenoh.hxx>
 
-#include <array>
 #include <chrono>
 #include <cstddef>
-#include <cstdlib>
-#include <functional>
+#include <cstdint>
 #include <mutex>
 #include <optional>
-#include <utility>
 #include <variant>
 #include <vector>
-
-#include "rcutils/allocator.h"
-#include "rcutils/env.h"
-#include "rmw/types.h"
-#include "logging_macros.hpp"
 
 namespace rmw_zenoh_cpp
 {

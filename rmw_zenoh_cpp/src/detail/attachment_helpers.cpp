@@ -12,19 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "attachment_helpers.hpp"
+
 #include <array>
-#include <cstdlib>
-#include <cstring>
-#include <stdexcept>
-#include <string>
+#include <cstdint>
 #include <utility>
 
 #include <zenoh.hxx>
 
 #include "rmw/types.h"
-
-#include "attachment_helpers.hpp"
-#include "liveliness_utils.hpp"
 
 namespace rmw_zenoh_cpp
 {

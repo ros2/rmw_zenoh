@@ -13,6 +13,7 @@ find_package(ament_cmake_ros_core REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(rcpputils REQUIRED)
 find_package(rcutils REQUIRED)
+find_package(rmw REQUIRED)
 find_package(rmw_security_common REQUIRED)
 find_package(TinyXML2 REQUIRED)
 find_package(zenoh_cpp_vendor REQUIRED)
@@ -25,6 +26,7 @@ target_link_libraries(generate_configs PRIVATE
   nlohmann_json::nlohmann_json
   rcpputils::rcpputils
   rcutils::rcutils
+  rmw::rmw
   rmw_security_common::rmw_security_common_library
   tinyxml2::tinyxml2
   zenohcxx::zenohc

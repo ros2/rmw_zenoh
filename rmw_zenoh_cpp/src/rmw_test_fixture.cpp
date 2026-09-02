@@ -14,13 +14,12 @@
 
 #include <rmw_test_fixture/rmw_test_fixture.h>
 
-#include <cstdlib>
 #include <iostream>
 #include <memory>
 #include <optional>
-#include <sstream>
 #include <string>
 #include <utility>
+#include <variant>
 
 #include <nlohmann/json.hpp>
 #include <rcpputils/env.hpp>

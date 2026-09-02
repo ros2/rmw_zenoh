@@ -17,6 +17,8 @@
 
 #include <rcutils/logging.h>
 
+#include <cstddef>
+
 namespace rmw_zenoh_cpp
 {
 ///=============================================================================

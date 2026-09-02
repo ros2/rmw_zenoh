@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cdr.hpp"
+
+#include <cstddef>
+
 #include "fastcdr/Cdr.h"
 #include "fastcdr/FastBuffer.h"
 #include "fastcdr/config.h"
-
-#include "cdr.hpp"
 
 namespace rmw_zenoh_cpp
 {
