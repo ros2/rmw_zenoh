@@ -17,8 +17,6 @@
   <buildtool_export_depend>ament_cmake_ros_core</buildtool_export_depend>
 
   <build_depend>nlohmann-json-dev</build_depend>
-  <build_depend>zenoh_cpp_vendor</build_depend>
-  <build_export_depend>zenoh_cpp_vendor</build_export_depend>
 
   <depend>ament_index_cpp</depend>
   <depend>fastcdr</depend>
@@ -30,6 +28,7 @@
   <depend>rmw</depend>
   <depend>rmw_test_fixture</depend>
   <depend>tracetools</depend>
+  <depend>zenoh_cpp_vendor</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
