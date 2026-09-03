@@ -27,9 +27,11 @@
 #include "rcpputils/find_and_replace.hpp"
 #include "rcpputils/scope_exit.hpp"
 
+#include "rcutils/error_handling.h"
 #include "rcutils/strdup.h"
 
 #include "rmw/error_handling.h"
+#include "rmw/impl/cpp/buffer_backend_metadata.hpp"
 #include "rmw/sanity_checks.h"
 #include "rmw/validate_namespace.h"
 #include "rmw/validate_node_name.h"
@@ -1161,6 +1163,25 @@ rmw_ret_t GraphCache::get_entities_info_by_topic(
         ret = rmw_topic_endpoint_info_set_qos_profile(&ep, &topic_data->info_.qos_);
         if (RMW_RET_OK != ret) {
           return ret;
+        }
+
+        auto entity_topic_info = entity->topic_info();
+        if (entity_topic_info.has_value() &&
+          entity_topic_info->backend_metadata_.has_value() &&
+          !entity_topic_info->backend_metadata_->empty())
+        {
+          const std::string buffer_backend_metadata =
+            rmw::impl::cpp::serialize_buffer_backend_metadata(
+              entity_topic_info->backend_metadata_.value());
+          if (!buffer_backend_metadata.empty()) {
+            ret = rmw_topic_endpoint_info_set_buffer_backend_metadata(
+              &ep,
+              buffer_backend_metadata.c_str(),
+              allocator);
+            if (RMW_RET_OK != ret) {
+              return ret;
+            }
+          }
         }
 
         rosidl_type_hash_t type_hash;
