@@ -19,7 +19,6 @@
 #include <limits>
 #include <optional>
 #include <random>
-#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <type_traits>
@@ -858,13 +857,16 @@ std::string demangle_name(const std::string & input)
 }  // namespace liveliness
 
 ///=============================================================================
-size_t hash_gid(const std::array<uint8_t, RMW_GID_STORAGE_SIZE> gid)
+size_t hash_gid(const std::array<uint8_t, RMW_GID_STORAGE_SIZE> & gid)
 {
-  std::stringstream hash_str;
-  hash_str << std::hex;
-  for (const auto & g : gid) {
-    hash_str << static_cast<int>(g);
+  // FNV-1a over the raw GID bytes: allocation-free
+  // Ref: https://datatracker.ietf.org/doc/html/draft-eastlake-fnv-17.html
+  uint64_t hash = 0xcbf29ce484222325ULL;  // FNV-1a 64-bit offset basis
+  const uint64_t kFnvPrime = 0x00000100000001b3ULL;
+  for (const uint8_t byte : gid) {
+    hash ^= byte;
+    hash *= kFnvPrime;
   }
-  return std::hash<std::string>{}(hash_str.str());
+  return static_cast<std::size_t>(hash);
 }
 }  // namespace rmw_zenoh_cpp
