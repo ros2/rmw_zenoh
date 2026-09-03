@@ -17,13 +17,15 @@ which keeps the tracing available without polluting the warning count.
 The OPAQUE_TYPES_BUILD_DIR message dates to zenoh-c 1.7.0; the two Cargo.lock
 messages arrived with sync_opaque_types_lockfile() in 1.8.0. Both are present
 upstream on main, so this patch should be dropped once an equivalent fix lands
-in eclipse-zenoh/zenoh-c.
+in eclipse-zenoh/zenoh-c (see the upstream issue below).
 
 Applies cleanly to both revisions pinned by zenoh_cpp_vendor:
   05bd370343b5161ca9269649b9a914c9c2dc4170 (ROS/zenoh-2687c5135)
   b31348fa7f94f44f1f7b049c111a710e970a2725 (ROS/rust-1.75-zenoh-2687c5135)
 
-Upstream issue: https://github.com/ros2/rmw_zenoh/issues/1037
+Tracking:
+  downstream: https://github.com/ros2/rmw_zenoh/issues/1037
+  upstream:   https://github.com/eclipse-zenoh/zenoh-c/issues/1325
 
 diff --git a/build.rs b/build.rs
 index 129ec36..37a6592 100644
