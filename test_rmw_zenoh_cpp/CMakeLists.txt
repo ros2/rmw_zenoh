@@ -17,6 +17,7 @@ if(BUILD_TESTING)
   find_package(ament_lint_common REQUIRED)
   find_package(rclcpp REQUIRED)
   find_package(rmw_zenoh_cpp REQUIRED)
+  find_package(test_msgs REQUIRED)
   find_package(zenoh_cpp_vendor REQUIRED)
 
   ament_lint_auto_find_test_dependencies()
@@ -29,6 +30,16 @@ if(BUILD_TESTING)
     rmw_zenoh_cpp::rmw_zenoh_cpp
     zenohcxx::zenohc
     ament_cmake_ros_core::ament_ros_defaults
+  )
+
+  ament_add_ros_isolated_gtest(test_client_destroy_during_reply
+    test/test_client_destroy_during_reply.cpp
+    TIMEOUT 120
+    ENV RMW_IMPLEMENTATION=rmw_zenoh_cpp)
+  target_link_libraries(test_client_destroy_during_reply
+    rclcpp::rclcpp
+    rmw_zenoh_cpp::rmw_zenoh_cpp
+    ${test_msgs_TARGETS}
   )
 endif()
 
