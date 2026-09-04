@@ -511,7 +511,6 @@ std::size_t SubscriptionData::gid_hash() const
 ///=============================================================================
 liveliness::TopicInfo SubscriptionData::topic_info() const
 {
-  std::lock_guard<std::mutex> lock(mutex_);
   return entity_->topic_info().value();
 }
 
