@@ -735,7 +735,6 @@ std::size_t PublisherData::gid_hash() const
 ///=============================================================================
 liveliness::TopicInfo PublisherData::topic_info() const
 {
-  std::lock_guard<std::mutex> lock(mutex_);
   return entity_->topic_info().value();
 }
 
