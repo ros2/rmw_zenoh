@@ -42,6 +42,8 @@ else()
   ament_vendor(zenoh_c_vendor
     VCS_URL https://github.com/eclipse-zenoh/zenoh-c.git
     VCS_VERSION ${zenoh_c_commit}
+    PATCHES
+      silence-build-script-warnings.patch
     CMAKE_ARGS
       "-DZENOHC_CARGO_FLAGS=${ZENOHC_CARGO_FLAGS}"
       "-DZENOHC_BUILD_WITH_UNSTABLE_API=TRUE"

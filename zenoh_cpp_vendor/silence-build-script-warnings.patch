@@ -1,0 +1,69 @@
+Downstream patch: demote zenoh-c build-script tracing from cargo warnings to stderr.
+
+zenoh-c's build script emits three purely informational messages via
+println!("cargo:warning=..."). Cargo has no informational channel for build
+scripts, so these surface as real compiler warnings; with the Visual Studio
+generator MSBuild re-emits them as "CUSTOMBUILD : warning : ...", which the
+ROS 2 buildfarm's warning scraper then reports on every Windows nightly:
+
+  zenoh-c@1.8.0: Copying Cargo.lock from ... to ...
+  zenoh-c@1.8.0: Successfully copied Cargo.lock
+  zenoh-c@1.8.0: OPAQUE_TYPES_BUILD_DIR = ...
+
+Nothing is actually wrong, so this switches them to eprintln!. Build-script
+stderr is captured by cargo and shown on failure or under `cargo build -vv`,
+which keeps the tracing available without polluting the warning count.
+
+The OPAQUE_TYPES_BUILD_DIR message dates to zenoh-c 1.7.0; the two Cargo.lock
+messages arrived with sync_opaque_types_lockfile() in 1.8.0. Both are present
+upstream on main, so this patch should be dropped once an equivalent fix lands
+in eclipse-zenoh/zenoh-c (see the upstream issue below).
+
+Applies cleanly to both revisions pinned by zenoh_cpp_vendor:
+  05bd370343b5161ca9269649b9a914c9c2dc4170 (ROS/zenoh-2687c5135)
+  b31348fa7f94f44f1f7b049c111a710e970a2725 (ROS/rust-1.75-zenoh-2687c5135)
+
+Tracking:
+  downstream: https://github.com/ros2/rmw_zenoh/issues/1037
+  upstream:   https://github.com/eclipse-zenoh/zenoh-c/issues/1325
+
+diff --git a/build.rs b/build.rs
+index 129ec36..37a6592 100644
+--- a/build.rs
++++ b/build.rs
+@@ -64,8 +64,8 @@ fn sync_opaque_types_lockfile() {
+     let opaque_types_dir = get_build_rs_path().join("build-resources/opaque-types");
+     let opaque_lock = opaque_types_dir.join("Cargo.lock");
+ 
+-    println!(
+-        "cargo:warning=Copying Cargo.lock from {} to {}",
++    eprintln!(
++        "Copying Cargo.lock from {} to {}",
+         root_lock.display(),
+         opaque_lock.display()
+     );
+@@ -78,7 +78,7 @@ fn sync_opaque_types_lockfile() {
+         );
+     }
+ 
+-    println!("cargo:warning=Successfully copied Cargo.lock");
++    eprintln!("Successfully copied Cargo.lock");
+ }
+ 
+ fn main() {
+diff --git a/buildrs/opaque_types_generator.rs b/buildrs/opaque_types_generator.rs
+index af48217..f752f24 100644
+--- a/buildrs/opaque_types_generator.rs
++++ b/buildrs/opaque_types_generator.rs
+@@ -145,10 +145,7 @@ fn produce_opaque_types_data() -> (String, PathBuf) {
+         .arg("--target-dir")
+         .arg(match std::env::var("OPAQUE_TYPES_BUILD_DIR") {
+             Ok(opaque_types_build_dir) => {
+-                println!(
+-                    "cargo:warning=OPAQUE_TYPES_BUILD_DIR = {}",
+-                    opaque_types_build_dir
+-                );
++                eprintln!("OPAQUE_TYPES_BUILD_DIR = {}", opaque_types_build_dir);
+                 opaque_types_build_dir.into()
+             }
+             Err(_) => get_out_rs_path().join("build_resources/opaque_types"),
