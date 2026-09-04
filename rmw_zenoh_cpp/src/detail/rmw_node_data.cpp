@@ -14,6 +14,7 @@
 
 #include "rmw_node_data.hpp"
 
+#include <atomic>
 #include <cstddef>
 #include <memory>
 #include <mutex>
@@ -21,7 +22,6 @@
 #include <utility>
 
 #include "logging_macros.hpp"
-#include "message_type_support.hpp"
 
 #include "rcpputils/scope_exit.hpp"
 

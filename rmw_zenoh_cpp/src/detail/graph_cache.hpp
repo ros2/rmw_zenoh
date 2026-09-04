@@ -16,6 +16,7 @@
 #define DETAIL__GRAPH_CACHE_HPP_
 
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <map>
 #include <memory>

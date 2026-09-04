@@ -13,13 +13,12 @@
 // limitations under the License.
 
 #include <algorithm>
-#include <array>
-#include <functional>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <limits>
 #include <memory>
 #include <mutex>
-#include <optional>
-#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>

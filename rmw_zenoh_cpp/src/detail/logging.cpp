@@ -14,6 +14,13 @@
 
 #include "logging.hpp"
 
+#include <cstdarg>
+#include <cstddef>
+
+#include "rcutils/error_handling.h"
+#include "rcutils/time.h"
+#include "rcutils/types/rcutils_ret.h"
+
 namespace rmw_zenoh_cpp
 {
 ///=============================================================================

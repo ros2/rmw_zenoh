@@ -13,6 +13,8 @@
 // limitations under the License.
 
 #include <cstdarg>
+#include <cstddef>
+#include <cstring>
 
 #include "rcutils/snprintf.h"
 

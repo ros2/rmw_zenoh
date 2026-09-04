@@ -15,8 +15,8 @@
 #ifndef DETAIL__RMW_SUBSCRIPTION_DATA_HPP_
 #define DETAIL__RMW_SUBSCRIPTION_DATA_HPP_
 
+#include <array>
 #include <atomic>
-#include <condition_variable>
 #include <cstddef>
 #include <cstdint>
 #include <deque>
@@ -28,8 +28,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include <array>
-
 #include <zenoh.hxx>
 
 #include "attachment_helpers.hpp"
@@ -38,7 +36,6 @@
 #include "graph_cache.hpp"
 #include "liveliness_utils.hpp"
 #include "message_type_support.hpp"
-#include "type_support_common.hpp"
 #include "zenoh_utils.hpp"
 
 #include "rcutils/allocator.h"

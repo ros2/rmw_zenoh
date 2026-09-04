@@ -17,12 +17,12 @@
 
 #include <chrono>
 #include <cinttypes>
+#include <cstddef>
+#include <cstdint>
 #include <cstring>
+#include <limits>
 #include <memory>
 #include <mutex>
-#include <new>
-#include <optional>
-#include <string>
 #include <utility>
 
 #include <zenoh.hxx>
@@ -32,7 +32,7 @@
 #include "detail/graph_cache.hpp"
 #include "detail/identifier.hpp"
 #include "detail/liveliness_utils.hpp"
-#include "detail/logging_macros.hpp"
+#include "detail/logging.hpp"
 #include "detail/message_type_support.hpp"
 #include "detail/qos.hpp"
 #include "detail/rmw_context_impl_s.hpp"

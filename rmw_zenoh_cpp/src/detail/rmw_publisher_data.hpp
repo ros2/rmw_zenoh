@@ -33,7 +33,6 @@
 #include "graph_cache.hpp"
 #include "liveliness_utils.hpp"
 #include "message_type_support.hpp"
-#include "type_support_common.hpp"
 #include "zenoh_utils.hpp"
 
 #include "rcutils/allocator.h"

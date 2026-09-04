@@ -24,15 +24,12 @@
 #include <mutex>
 #include <optional>
 #include <string>
-#include <unordered_map>
 
 #include <zenoh.hxx>
 
 #include "event.hpp"
 #include "liveliness_utils.hpp"
-#include "message_type_support.hpp"
 #include "service_type_support.hpp"
-#include "type_support_common.hpp"
 #include "zenoh_utils.hpp"
 
 #include "rcutils/allocator.h"

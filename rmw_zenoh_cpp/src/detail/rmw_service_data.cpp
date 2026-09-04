@@ -17,7 +17,10 @@
 #include <fastcdr/FastBuffer.h>
 
 #include <array>
-#include <cinttypes>
+#include <atomic>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -30,7 +33,6 @@
 #include "attachment_helpers.hpp"
 #include "cdr.hpp"
 #include "rmw_context_impl_s.hpp"
-#include "message_type_support.hpp"
 #include "logging_macros.hpp"
 #include "qos.hpp"
 

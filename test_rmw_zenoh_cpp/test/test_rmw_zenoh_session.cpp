@@ -15,14 +15,17 @@
 #include <gtest/gtest.h>
 
 #include <chrono>
-#include <cstdlib>
 #include <memory>
 #include <string>
 #include <thread>
 
-#include <rclcpp/rclcpp.hpp>
 #include <zenoh.hxx>
 
+#include "rcl/context.h"
+#include "rcl/node.h"
+#include "rclcpp/node.hpp"
+#include "rclcpp/node_interfaces/node_base_interface.hpp"
+#include "rclcpp/utilities.hpp"
 #include "rmw_zenoh_cpp/rmw_zenoh.hpp"
 
 class TestRmwZenohSession : public ::testing::Test

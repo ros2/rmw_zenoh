@@ -19,6 +19,8 @@
 #ifndef DETAIL__TYPE_SUPPORT_HPP_
 #define DETAIL__TYPE_SUPPORT_HPP_
 
+#include <cstddef>
+#include <cstdint>
 #include <string>
 
 #include "fastcdr/Cdr.h"

@@ -16,7 +16,6 @@
 #ifndef DETAIL__GUARD_CONDITION_HPP_
 #define DETAIL__GUARD_CONDITION_HPP_
 
-#include <condition_variable>
 #include <mutex>
 
 #include "rmw_wait_set_data.hpp"
