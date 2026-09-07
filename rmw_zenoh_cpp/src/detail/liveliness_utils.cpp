@@ -805,7 +805,7 @@ NodeInfo Entity::node_info() const
 }
 
 ///=============================================================================
-std::optional<TopicInfo> Entity::topic_info() const
+const std::optional<TopicInfo> & Entity::topic_info() const
 {
   return this->topic_info_;
 }

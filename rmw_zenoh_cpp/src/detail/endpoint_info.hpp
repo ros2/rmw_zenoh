@@ -47,7 +47,7 @@ inline EndpointInfoStorage build_endpoint_info_from_entity(
   EndpointInfoStorage storage;
   storage.node_name = entity.node_name();
   storage.node_namespace = entity.node_namespace();
-  auto topic_info = entity.topic_info();
+  const auto & topic_info = entity.topic_info();
   if (topic_info.has_value()) {
     storage.topic_type = topic_info->type_;
     storage.info.qos_profile = topic_info->qos_;

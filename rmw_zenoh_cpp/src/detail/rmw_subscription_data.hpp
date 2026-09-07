@@ -82,8 +82,8 @@ public:
   // Get a copy of the gid_hash of this SubscriptionData's liveliness::Entity.
   std::size_t gid_hash() const;
 
-  // Get a copy of the TopicInfo of this SubscriptionData.
-  liveliness::TopicInfo topic_info() const;
+  // Borrow the immutable TopicInfo owned by this SubscriptionData's Entity.
+  const liveliness::TopicInfo & topic_info() const;
 
   // Returns true if liveliness token is still valid.
   bool liveliness_is_valid() const;
