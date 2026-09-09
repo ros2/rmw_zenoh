@@ -74,8 +74,8 @@ public:
   // Get a copy of the gid_hash of this PublisherData's liveliness::Entity.
   std::size_t gid_hash() const;
 
-  // Get a copy of the TopicInfo of this PublisherData.
-  liveliness::TopicInfo topic_info() const;
+  // Borrow the immutable TopicInfo owned by this PublisherData's Entity.
+  const liveliness::TopicInfo & topic_info() const;
 
   // Return a copy of the GID of this publisher.
   std::array<uint8_t, RMW_GID_STORAGE_SIZE> copy_gid() const;

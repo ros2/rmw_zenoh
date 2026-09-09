@@ -733,7 +733,7 @@ std::size_t PublisherData::gid_hash() const
 }
 
 ///=============================================================================
-liveliness::TopicInfo PublisherData::topic_info() const
+const liveliness::TopicInfo & PublisherData::topic_info() const
 {
   return entity_->topic_info().value();
 }
@@ -774,7 +774,7 @@ void PublisherData::on_subscriber_discovered(const liveliness::Entity & entity)
     return;
   }
 
-  auto topic_info_opt = entity.topic_info();
+  const auto & topic_info_opt = entity.topic_info();
   if (!topic_info_opt.has_value()) {
     RMW_ZENOH_ROSIDL_BUFFER_LOG_ERROR_NAMED(
       "rmw_zenoh_cpp",
