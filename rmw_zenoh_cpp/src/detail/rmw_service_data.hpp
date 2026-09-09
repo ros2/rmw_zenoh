@@ -58,8 +58,8 @@ public:
     const rosidl_service_type_support_t * type_support,
     const rmw_qos_profile_t * qos_profile);
 
-  // Get a copy of the TopicInfo of this ServiceData.
-  liveliness::TopicInfo topic_info() const;
+  // Borrow the immutable TopicInfo owned by this ServiceData's Entity.
+  const liveliness::TopicInfo & topic_info() const;
 
   // Returns true if liveliness token is still valid.
   bool liveliness_is_valid() const;

@@ -423,7 +423,7 @@ std::size_t PublisherData::gid_hash() const
 }
 
 ///=============================================================================
-liveliness::TopicInfo PublisherData::topic_info() const
+const liveliness::TopicInfo & PublisherData::topic_info() const
 {
   return entity_->topic_info().value();
 }

@@ -251,7 +251,7 @@ std::size_t SubscriptionData::gid_hash() const
 }
 
 ///=============================================================================
-liveliness::TopicInfo SubscriptionData::topic_info() const
+const liveliness::TopicInfo & SubscriptionData::topic_info() const
 {
   return entity_->topic_info().value();
 }
