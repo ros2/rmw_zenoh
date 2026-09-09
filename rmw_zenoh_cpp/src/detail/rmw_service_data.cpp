@@ -204,7 +204,7 @@ ServiceData::ServiceData(
 }
 
 ///=============================================================================
-liveliness::TopicInfo ServiceData::topic_info() const
+const liveliness::TopicInfo & ServiceData::topic_info() const
 {
   return entity_->topic_info().value();
 }
