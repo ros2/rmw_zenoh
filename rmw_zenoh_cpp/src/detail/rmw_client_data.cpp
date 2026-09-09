@@ -208,7 +208,7 @@ ClientData::ClientData(
 }
 
 ///=============================================================================
-liveliness::TopicInfo ClientData::topic_info() const
+const liveliness::TopicInfo & ClientData::topic_info() const
 {
   return entity_->topic_info().value();
 }
@@ -412,7 +412,7 @@ rmw_ret_t ClientData::send_request(
         auto reply_err_str = reply.get_err().get_payload().as_string();
         auto locked_client_data = client_data.lock();
         if (locked_client_data != nullptr && locked_client_data->entity_ != nullptr) {
-          auto topic_info = locked_client_data->entity_->topic_info();
+          const auto & topic_info = locked_client_data->entity_->topic_info();
           if (topic_info.has_value()) {
             RMW_ZENOH_LOG_ERROR_NAMED(
               "rmw_zenoh_cpp",
