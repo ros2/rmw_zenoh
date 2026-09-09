@@ -440,7 +440,7 @@ std::size_t PublisherData::gid_hash() const
 }
 
 ///=============================================================================
-liveliness::TopicInfo PublisherData::topic_info() const
+const liveliness::TopicInfo & PublisherData::topic_info() const
 {
   return entity_->topic_info().value();
 }
@@ -469,6 +469,218 @@ std::shared_ptr<EventsManager> PublisherData::events_mgr() const
 }
 
 ///=============================================================================
+<<<<<<< HEAD
+=======
+void PublisherData::on_subscriber_discovered(const liveliness::Entity & entity)
+{
+  if (entity.type() != liveliness::EntityType::Subscription) {
+    RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
+      "rmw_zenoh_cpp",
+      "[Publisher] Ignoring discovered entity type=%s node='%s' ns='%s'",
+      entity_type_to_string(entity.type()),
+      entity.node_name().c_str(),
+      entity.node_namespace().c_str());
+    return;
+  }
+
+  const auto & topic_info_opt = entity.topic_info();
+  if (!topic_info_opt.has_value()) {
+    RMW_ZENOH_ROSIDL_BUFFER_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Discovered subscriber without topic info on Buffer topic");
+    return;
+  }
+
+  std::unordered_map<std::string, std::string> sub_backend_metadata;
+  if (topic_info_opt->backend_metadata_.has_value()) {
+    sub_backend_metadata = topic_info_opt->backend_metadata_.value();
+  }
+  const bool use_cpu_group = is_cpu_only_backend_metadata(sub_backend_metadata);
+
+  auto gid = entity_gid_to_rmw_gid(entity, rmw_zenoh_identifier);
+  const auto entity_gid_array = entity.copy_gid();
+  RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
+    "rmw_zenoh_cpp",
+    "[Publisher] Discovered subscriber entity keyexpr='%s', "
+    "topic='%s', entity.type='%s', node='%s', ns='%s', "
+    "zid='%s', gid='%s', entity_gid='%s'",
+    entity.liveliness_keyexpr().c_str(),
+    topic_info_opt->name_.c_str(),
+    entity_type_to_string(entity.type()),
+    entity.node_name().c_str(),
+    entity.node_namespace().c_str(),
+    entity.zid().c_str(),
+    gid_to_hex(gid).c_str(),
+    gid_array_to_hex(entity_gid_array).c_str());
+
+  auto sub_endpoint_info = build_endpoint_info_from_entity(entity, RMW_ENDPOINT_SUBSCRIPTION);
+
+  // Phase 1: collect state under lock, check duplicates, mark pending
+  std::string full_key;
+  std::vector<rmw_topic_endpoint_info_t> existing_endpoints;
+  std::unordered_map<std::string, std::vector<std::set<uint32_t>>> backend_endpoint_groups;
+  bool need_create_endpoint = false;
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (!is_buffer_aware_ || is_shutdown_) {
+      return;
+    }
+
+    for (const auto & existing : discovered_subscribers_) {
+      if (memcmp(existing.gid.data, gid.data, RMW_GID_STORAGE_SIZE) == 0) {
+        return;
+      }
+    }
+
+    existing_endpoints.reserve(1 + discovered_subscribers_.size());
+    existing_endpoints.push_back(local_endpoint_info_.info);
+    for (const auto & existing : discovered_subscribers_) {
+      existing_endpoints.push_back(existing.endpoint_info.info);
+    }
+
+    for (const auto & existing : discovered_subscribers_) {
+      backend_endpoint_groups.insert(existing.backend_groups.begin(),
+        existing.backend_groups.end());
+    }
+
+    full_key = use_cpu_group ?
+      make_cpu_group_key(entity_->topic_info()->topic_keyexpr_) :
+      make_accelerated_key(entity_->topic_info()->topic_keyexpr_, gid);
+
+    need_create_endpoint = (endpoints_.find(full_key) == endpoints_.end());
+    if (need_create_endpoint) {
+      if (!pending_endpoints_.insert(full_key).second) {
+        return;
+      }
+    }
+  }
+
+  // Phase 2: external operations without lock
+  std::unordered_map<std::string, std::vector<std::set<uint32_t>>> backend_groups;
+  {
+    if (!use_cpu_group) {
+      rmw_context_impl_t * ctx_impl = static_cast<rmw_context_impl_t *>(rmw_node_->context->impl);
+      auto * backend_ctx = ctx_impl->buffer_backend_context();
+      if (backend_ctx) {
+        (void)rosidl_buffer_backend_registry::notify_endpoint_discovered(
+          backend_ctx->backend_instances,
+          sub_endpoint_info.info, existing_endpoints, backend_endpoint_groups,
+          sub_backend_metadata);
+      }
+    }
+  }
+
+  std::shared_ptr<PublisherEndpoint> new_endpoint;
+  if (need_create_endpoint) {
+    new_endpoint = create_publisher_endpoint(full_key);
+    if (!new_endpoint) {
+      std::lock_guard<std::mutex> lock(mutex_);
+      pending_endpoints_.erase(full_key);
+      return;
+    }
+  }
+
+  // Phase 3: store results under lock
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (new_endpoint) {
+      endpoints_[full_key] = new_endpoint;
+      pending_endpoints_.erase(full_key);
+    }
+
+    SubscriberInfo sub_info;
+    sub_info.gid = gid;
+    sub_info.endpoint_key = full_key;
+    sub_info.endpoint_info = std::move(sub_endpoint_info);
+    sub_info.uses_cpu_group = use_cpu_group;
+    sub_info.backend_metadata = sub_backend_metadata;
+    sub_info.backend_groups = std::move(backend_groups);
+    discovered_subscribers_.push_back(std::move(sub_info));
+
+    if (endpoints_.count(full_key)) {
+      endpoints_[full_key]->target_subscribers.push_back(gid);
+    }
+  }
+}
+
+///=============================================================================
+std::shared_ptr<PublisherData::PublisherEndpoint> PublisherData::get_or_create_endpoint(
+  const std::string & full_key)
+{
+  auto it = endpoints_.find(full_key);
+  if (it != endpoints_.end()) {
+    return it->second;
+  }
+
+  auto endpoint = create_publisher_endpoint(full_key);
+  if (endpoint) {
+    endpoints_[full_key] = endpoint;
+  }
+  return endpoint;
+}
+
+///=============================================================================
+std::shared_ptr<PublisherData::PublisherEndpoint> PublisherData::create_publisher_endpoint(
+  const std::string & full_key, bool buffer_aware)
+{
+  auto endpoint = std::make_shared<PublisherEndpoint>();
+  endpoint->key = full_key;
+
+  zenoh::KeyExpr pub_ke(full_key);
+
+  auto qos_profile = entity_->topic_info()->qos_;
+
+  using AdvancedPublisherOptions = zenoh::ext::SessionExt::AdvancedPublisherOptions;
+  using SampleMissDetectionOptions = AdvancedPublisherOptions::SampleMissDetectionOptions;
+  auto adv_pub_opts = AdvancedPublisherOptions::create_default();
+
+  if (qos_profile.durability == RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL) {
+    // Allow this publisher to be detected through liveliness.
+    adv_pub_opts.publisher_detection = true;
+    adv_pub_opts.cache = AdvancedPublisherOptions::CacheOptions::create_default();
+    adv_pub_opts.cache->max_samples = qos_profile.depth;
+    // Sample miss detection (heartbeat) is only used on the base
+    // publisher. If RELIABLE + TRANSIENT_LOCAL it lets subscribers detect missed
+    // samples and retrieve them from the Publisher cache; HeartbeatSporadic keeps
+    // background traffic low. Per-subscriber buffer-aware endpoints are
+    // point-to-point and do not need it.
+    if (!buffer_aware && qos_profile.reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE) {
+      adv_pub_opts.sample_miss_detection = SampleMissDetectionOptions{};
+      adv_pub_opts.sample_miss_detection->heartbeat =
+        SampleMissDetectionOptions::HeartbeatSporadic{
+        SAMPLE_MISS_DETECTION_HEARTBEAT_PERIOD};
+    }
+  }
+
+  auto pub_opts = zenoh::Session::PublisherOptions::create_default();
+  pub_opts.congestion_control = Z_CONGESTION_CONTROL_DROP;
+  if (qos_profile.reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE) {
+    pub_opts.reliability = Z_RELIABILITY_RELIABLE;
+    if (qos_profile.history == RMW_QOS_POLICY_HISTORY_KEEP_ALL) {
+      pub_opts.congestion_control = Z_CONGESTION_CONTROL_BLOCK;
+    }
+  } else {
+    pub_opts.reliability = Z_RELIABILITY_BEST_EFFORT;
+  }
+  adv_pub_opts.publisher_options = pub_opts;
+
+  zenoh::ZResult result;
+  auto pub = sess_->ext().declare_advanced_publisher(
+      pub_ke, std::move(adv_pub_opts), &result);
+
+  if (result != Z_OK) {
+    RMW_ZENOH_ROSIDL_BUFFER_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Failed to create publisher endpoint for key: %s", full_key.c_str());
+    return nullptr;
+  }
+
+  endpoint->pub = std::optional<zenoh::ext::AdvancedPublisher>(std::move(pub));
+  return endpoint;
+}
+
+///=============================================================================
+>>>>>>> 0fd4647 (Return topic info by const reference (#1053))
 PublisherData::~PublisherData()
 {
   const rmw_ret_t ret = this->shutdown();
