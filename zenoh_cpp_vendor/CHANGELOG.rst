@@ -2,6 +2,9 @@
 Changelog for package zenoh_cpp_vendor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+
 0.1.9 (2026-07-22)
 ------------------
 * Bump zenoh to 1.8.0 - 2nd attempt (`#967 <https://github.com/ros2/rmw_zenoh/issues/967>`_)
