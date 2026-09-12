@@ -2,6 +2,17 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Granular rclcpp/rclcpp.gpp and include what you use (`#1043 <https://github.com/ros2/rmw_zenoh/issues/1043>`_)
+* Return topic info by const reference (`#1053 <https://github.com/ros2/rmw_zenoh/issues/1053>`_)
+* Remove unnecessary topic info locks (`#1048 <https://github.com/ros2/rmw_zenoh/issues/1048>`_)
+* Add rmw_zenoh_cpp to zenoh_cpp_vendor runtime dep (`#1044 <https://github.com/ros2/rmw_zenoh/issues/1044>`_)
+* Do not update wait_set_data triggered flag outside of mutex lock (`#1036 <https://github.com/ros2/rmw_zenoh/issues/1036>`_)
+* When SHM enabled, enable transport_optimization (`#1020 <https://github.com/ros2/rmw_zenoh/issues/1020>`_)
+* return early when unable to find any topic endpoints. (`#1017 <https://github.com/ros2/rmw_zenoh/issues/1017>`_)
+* Contributors: Alejandro Hernández Cordero, Julien Enoch, Maurice Alexander Purnawan, Scott K Logan, Tomoya Fujita, Yadunund
+
 0.12.0 (2026-07-22)
 -------------------
 * return early with a zero-initialized array. (`#1012 <https://github.com/ros2/rmw_zenoh/issues/1012>`_)

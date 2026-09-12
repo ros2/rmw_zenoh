@@ -2,6 +2,11 @@
 Changelog for package zenoh_security_tools
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Granular rclcpp/rclcpp.gpp and include what you use (`#1043 <https://github.com/ros2/rmw_zenoh/issues/1043>`_)
+* Contributors: Alejandro Hernández Cordero
+
 0.12.0 (2026-07-22)
 -------------------
 * publish-deny topic correctly denied (`#1007 <https://github.com/ros2/rmw_zenoh/issues/1007>`_)
