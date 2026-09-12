@@ -2,6 +2,15 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Return topic info by const reference (`#1056 <https://github.com/ros2/rmw_zenoh/issues/1056>`_)
+* Remove unnecessary topic info locks (`#1050 <https://github.com/ros2/rmw_zenoh/issues/1050>`_)
+* Do not update wait_set_data triggered flag outside of mutex lock (`#1039 <https://github.com/ros2/rmw_zenoh/issues/1039>`_)
+* return early when unable to find any topic endpoints. (`#1027 <https://github.com/ros2/rmw_zenoh/issues/1027>`_)
+* When SHM enabled, enable transport_optimization (`#1022 <https://github.com/ros2/rmw_zenoh/issues/1022>`_)
+* Contributors: Alejandro Hernandez Cordero, Julien Enoch, Maurice Alexander Purnawan, Tomoya Fujita, Yadunund
+
 0.6.7 (2026-07-22)
 ------------------
 * fix: Fix lock order inversion / deadlock (`#1013 <https://github.com/ros2/rmw_zenoh/issues/1013>`_)
