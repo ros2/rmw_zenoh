@@ -2,8 +2,8 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.2.11 (2026-09-11)
+-------------------
 * Return topic info by const reference (`#1057 <https://github.com/ros2/rmw_zenoh/issues/1057>`_)
 * Remove unnecessary topic info locks (`#1051 <https://github.com/ros2/rmw_zenoh/issues/1051>`_)
 * Do not update wait_set_data triggered flag outside of mutex lock (`#1040 <https://github.com/ros2/rmw_zenoh/issues/1040>`_)
