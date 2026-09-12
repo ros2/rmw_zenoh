@@ -2,8 +2,8 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.13.0 (2026-09-11)
+-------------------
 * Granular rclcpp/rclcpp.gpp and include what you use (`#1043 <https://github.com/ros2/rmw_zenoh/issues/1043>`_)
 * Return topic info by const reference (`#1053 <https://github.com/ros2/rmw_zenoh/issues/1053>`_)
 * Remove unnecessary topic info locks (`#1048 <https://github.com/ros2/rmw_zenoh/issues/1048>`_)

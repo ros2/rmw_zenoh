@@ -2,8 +2,8 @@
 Changelog for package zenoh_cpp_vendor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.13.0 (2026-09-11)
+-------------------
 * Silence informational zenoh-c build-script warnings (`#1047 <https://github.com/ros2/rmw_zenoh/issues/1047>`_)
 * Contributors: Michael Carroll
 
