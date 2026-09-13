@@ -191,6 +191,12 @@ std::shared_ptr<ServiceData> ServiceData::make(
     return nullptr;
   }
 
+  // Mark the entity as fully initialized so that shutdown() undeclares the
+  // queryable and the liveliness token itself, on the calling thread, instead
+  // of leaving that to the member destructors (which may run on a zenoh
+  // callback thread).
+  service_data->initialized_ = true;
+
   return service_data;
 }
 

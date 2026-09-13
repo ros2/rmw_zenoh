@@ -91,6 +91,9 @@ public:
   // Detach any attached wait set condition variable, and return whether there is data in the queue.
   bool detach_condition_and_queue_is_empty();
 
+  // Shutdown this ClientData.
+  rmw_ret_t shutdown();
+
   // Check if this ClientData is shutdown.
   bool is_shutdown() const;
 
@@ -109,9 +112,6 @@ private:
     const void * response_type_support_impl,
     std::shared_ptr<RequestTypeSupport> request_type_support,
     std::shared_ptr<ResponseTypeSupport> response_type_support);
-
-  // Shutdown this ClientData.
-  rmw_ret_t shutdown();
 
   // Internal mutex.
   mutable std::mutex mutex_;
