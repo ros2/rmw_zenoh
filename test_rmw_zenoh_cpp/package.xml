@@ -6,7 +6,7 @@
   <description>Test package for rmw_zenoh_cpp that uses rclcpp</description>
   <maintainer email="yu-yuan.yuan@zettascale.tech">Yuyuan</maintainer>
 
-  <license>Apache License 2.0</license>
+  <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 

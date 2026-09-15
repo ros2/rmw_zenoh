@@ -5,7 +5,7 @@
   <version>0.13.0</version>
   <description>This package generates config files to enforce security with Zenoh</description>
   <maintainer email="alejandro@openrobotics.org">Alejandro Hernanadez</maintainer>
-  <license>Apache License 2.0</license>
+  <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake_ros_core</buildtool_depend>
 
