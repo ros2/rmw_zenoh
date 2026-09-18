@@ -418,7 +418,6 @@ rmw_ret_t PublisherData::publish_serialized_message(
 ///=============================================================================
 std::size_t PublisherData::gid_hash() const
 {
-  std::lock_guard<std::mutex> lock(mutex_);
   return entity_->gid_hash();
 }
 
@@ -430,7 +429,6 @@ const liveliness::TopicInfo & PublisherData::topic_info() const
 
 std::array<uint8_t, 16> PublisherData::copy_gid() const
 {
-  std::lock_guard<std::mutex> lock(mutex_);
   return entity_->copy_gid();
 }
 
@@ -447,7 +445,6 @@ bool PublisherData::liveliness_is_valid() const
 ///=============================================================================
 std::shared_ptr<EventsManager> PublisherData::events_mgr() const
 {
-  std::lock_guard<std::mutex> lock(mutex_);
   return events_mgr_;
 }
 
