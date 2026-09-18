@@ -504,7 +504,6 @@ bool SubscriptionData::init()
 ///=============================================================================
 std::size_t SubscriptionData::gid_hash() const
 {
-  std::lock_guard<std::mutex> lock(mutex_);
   return entity_->gid_hash();
 }
 
@@ -527,7 +526,6 @@ bool SubscriptionData::liveliness_is_valid() const
 ///=============================================================================
 std::shared_ptr<EventsManager> SubscriptionData::events_mgr() const
 {
-  std::lock_guard<std::mutex> lock(mutex_);
   return events_mgr_;
 }
 
@@ -1189,7 +1187,6 @@ void SubscriptionData::set_on_new_message_callback(
 //==============================================================================
 std::shared_ptr<GraphCache> SubscriptionData::graph_cache() const
 {
-  std::lock_guard<std::mutex> lock(mutex_);
   return graph_cache_;
 }
 
