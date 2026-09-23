@@ -47,11 +47,7 @@ else()
 
   ament_vendor(zenoh_cpp_vendor
     VCS_URL https://github.com/eclipse-zenoh/zenoh-cpp
-<<<<<<< HEAD
-    VCS_VERSION af381b420cc8837ac7da42c9984594ef8f110e90
-=======
     VCS_VERSION ${zenoh_cpp_commit}
->>>>>>> 1f7c62a (Bump zenoh to 1.10.1 + extra fixes (commit 9fcd9cb) (#1068))
     CMAKE_ARGS
       -DZENOHCXX_ZENOHC=OFF
   )
