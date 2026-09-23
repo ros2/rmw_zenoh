@@ -26,24 +26,17 @@ else()
   include(get_cargo_version.cmake)
   get_cargo_version()
 
-  # By default, use commit id from branch ROS/zenoh-2687c5135.
-  # It corresponding to zenoh-c 1.8.0 plus few fixes, including removal of a error log at closure causing #951
-  # See https://github.com/eclipse-zenoh/zenoh-c/blob/05bd370343b5161ca9269649b9a914c9c2dc4170/Cargo.lock#L4207
-  # pointing to zenoh https://github.com/eclipse-zenoh/zenoh/commit/2687c51352121f006e3a603ce07925a8ad0b295c
-  set(zenoh_c_commit 05bd370343b5161ca9269649b9a914c9c2dc4170)
-
-  # If Rust version below Zenoh MSRV (currently 1.88), use equivalent commit from branch ROS/rust-1.75-zenoh-2687c5135
-  # See https://github.com/eclipse-zenoh/zenoh-c/blob/b31348fa7f94f44f1f7b049c111a710e970a2725/Cargo.lock#L4237
-  # pointing to zenoh https://github.com/eclipse-zenoh/zenoh/commit/2687c51352121f006e3a603ce07925a8ad0b295c
-  if(CARGO_VERSION VERSION_GREATER_EQUAL "1.75" AND CARGO_VERSION VERSION_LESS "1.88")
-    set(zenoh_c_commit b31348fa7f94f44f1f7b049c111a710e970a2725)
-  endif()
+  # zenoh version:     https://github.com/eclipse-zenoh/zenoh/commit/9fcd9cb5d364192c3e8a27e66de76f4bc750d1d5
+  # zenoh-c version:   https://github.com/eclipse-zenoh/zenoh-c/commit/07b0d432121933cb368528153df000463292635d
+  # zenoh-cpp version: https://github.com/eclipse-zenoh/zenoh-cpp/commit/1e343e61b92a73af3bc247c178214bcc1042c34c
+  # This corresponds to zenoh-c 1.10.1 plus few fixes, including https://github.com/eclipse-zenoh/zenoh/pull/2779
+  # and few changes to build with Rust 1.75.
+  set(zenoh_c_commit 07b0d432121933cb368528153df000463292635d)
+  set(zenoh_cpp_commit 1e343e61b92a73af3bc247c178214bcc1042c34c)
 
   ament_vendor(zenoh_c_vendor
     VCS_URL https://github.com/eclipse-zenoh/zenoh-c.git
     VCS_VERSION ${zenoh_c_commit}
-    PATCHES
-      silence-build-script-warnings.patch
     CMAKE_ARGS
       "-DZENOHC_CARGO_FLAGS=${ZENOHC_CARGO_FLAGS}"
       "-DZENOHC_BUILD_WITH_UNSTABLE_API=TRUE"
@@ -52,7 +45,7 @@ else()
 
   ament_vendor(zenoh_cpp_vendor
     VCS_URL https://github.com/eclipse-zenoh/zenoh-cpp
-    VCS_VERSION 481b71bf974f684ea75afb4243b0313646d545f9
+    VCS_VERSION ${zenoh_cpp_commit}
     CMAKE_ARGS
       -DZENOHCXX_ZENOHC=OFF
   )
