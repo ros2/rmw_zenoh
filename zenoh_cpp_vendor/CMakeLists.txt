@@ -28,6 +28,12 @@ else()
   include(get_cargo_version.cmake)
   get_cargo_version()
 
+  if(CARGO_VERSION AND CARGO_VERSION VERSION_LESS 1.88)
+    set(ZENOHC_MSRV_1_75 TRUE)
+  else()
+    set(ZENOHC_MSRV_1_75 FALSE)
+  endif()
+
   # zenoh version:     https://github.com/eclipse-zenoh/zenoh/commit/9fcd9cb5d364192c3e8a27e66de76f4bc750d1d5
   # zenoh-c version:   https://github.com/eclipse-zenoh/zenoh-c/commit/07b0d432121933cb368528153df000463292635d
   # zenoh-cpp version: https://github.com/eclipse-zenoh/zenoh-cpp/commit/1e343e61b92a73af3bc247c178214bcc1042c34c
@@ -43,6 +49,7 @@ else()
       "-DZENOHC_CARGO_FLAGS=${ZENOHC_CARGO_FLAGS}"
       "-DZENOHC_BUILD_WITH_UNSTABLE_API=TRUE"
       "-DZENOHC_CUSTOM_TARGET=${ZENOHC_CUSTOM_TARGET}"
+      "-DZENOHC_MSRV_1_75=${ZENOHC_MSRV_1_75}"
   )
 
   ament_vendor(zenoh_cpp_vendor
