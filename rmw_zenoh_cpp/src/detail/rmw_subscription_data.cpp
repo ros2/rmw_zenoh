@@ -1115,7 +1115,7 @@ void SubscriptionData::add_new_message(
   std::unique_ptr<SubscriptionData::Message> msg,
   const std::string & topic_name)
 {
-  std::lock_guard<std::mutex> lock(mutex_);
+  std::unique_lock<std::mutex> lock(mutex_);
   if (is_shutdown_) {
     return;
   }
@@ -1169,6 +1169,8 @@ void SubscriptionData::add_new_message(
   last_known_published_msg_[gid_hash] = msg->attachment.sequence_number();
 
   message_queue_.emplace_back(std::move(msg));
+  // Release before calling into trigger_callback() below, which may call out to user code.
+  lock.unlock();
 
   // Since we added new data, trigger user callback and guard condition if they are available
   data_callback_mgr_.trigger_callback();
@@ -1184,7 +1186,11 @@ void SubscriptionData::set_on_new_message_callback(
   rmw_event_callback_t callback,
   const void * user_data)
 {
-  std::lock_guard<std::mutex> lock(mutex_);
+  // data_callback_mgr_ has its own internal locking and may call out to user
+  // code retroactively for already-queued messages -- mutex_ protects no
+  // other state accessed here, so do not hold it across that call, or a
+  // callback that re-enters (e.g. from a GIL-holding thread) can
+  // self-deadlock against a concurrent add_new_message().
   data_callback_mgr_.set_callback(user_data, std::move(callback));
 }
 
