@@ -969,30 +969,12 @@ rmw_ret_t SubscriptionData::take_one_message(
     return RMW_RET_ERROR;
   }
 
-  // Object that manages the raw buffer
-  // FastCDR needs extra space for internal operations during deserialization
-  // Allocate a larger buffer and copy the payload data
-  // TODO(wjwwood): Use actual serialized message size instead of conservative estimate
-  size_t buffer_size =
-    payload_data.size() * 4 + 65536;  // 4x + 64KB safety margin
-  rcutils_allocator_t * allocator = &rmw_node_->context->options.allocator;
-  void * buffer_data = allocator->allocate(buffer_size, allocator->state);
-  if (buffer_data == nullptr) {
-    RMW_SET_ERROR_MSG("failed to allocate deserialization buffer");
-    return RMW_RET_ERROR;
-  }
-  auto cleanup_buffer = rcpputils::make_scope_exit(
-    [allocator, buffer_data]() {
-      allocator->deallocate(buffer_data, allocator->state);
-    });
-
-  // Copy payload data to the larger buffer
-  std::memcpy(buffer_data, payload_data.data(), payload_data.size());
-
-  // FastCDR needs to know the actual data size, not the buffer size
+  // Deserialize directly from the received payload. The Payload owns its bytes and
+  // stays alive for the whole call, and FastCDR is bounded by the size passed here,
+  // so neither a copy nor a larger buffer is needed.
   eprosima::fastcdr::FastBuffer fastbuffer(
-    reinterpret_cast<char *>(buffer_data),
-    payload_data.size());  // Use actual payload size, not allocated buffer size
+    reinterpret_cast<char *>(const_cast<uint8_t *>(payload_data.data())),
+    payload_data.size());
 
   // Object that deserializes the data
   rmw_zenoh_cpp::Cdr deser(fastbuffer);
