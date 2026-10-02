@@ -239,7 +239,7 @@ bool ServiceData::liveliness_is_valid() const
 ///=============================================================================
 void ServiceData::add_new_query(std::unique_ptr<ZenohQuery> query)
 {
-  std::lock_guard<std::mutex> lock(mutex_);
+  std::unique_lock<std::mutex> lock(mutex_);
   if (is_shutdown_.load(std::memory_order_acquire)) {
     RMW_ZENOH_LOG_DEBUG_NAMED(
       "rmw_zenoh_cpp",
@@ -262,6 +262,8 @@ void ServiceData::add_new_query(std::unique_ptr<ZenohQuery> query)
     query_queue_.pop_front();
   }
   query_queue_.emplace_back(std::move(query));
+  // Release before calling into trigger_callback() below, which may call out to user code.
+  lock.unlock();
 
   // Since we added new data, trigger user callback and guard condition if they are available
   data_callback_mgr_.trigger_callback();
@@ -489,7 +491,11 @@ void ServiceData::set_on_new_request_callback(
   rmw_event_callback_t callback,
   const void * user_data)
 {
-  std::lock_guard<std::mutex> lock(mutex_);
+  // data_callback_mgr_ has its own internal locking and may call out to user
+  // code retroactively for already-queued requests -- mutex_ protects no
+  // other state accessed here, so do not hold it across that call, or a
+  // callback that re-enters (e.g. from a GIL-holding thread) can
+  // self-deadlock against a concurrent add_new_query().
   data_callback_mgr_.set_callback(user_data, std::move(callback));
 }
 
