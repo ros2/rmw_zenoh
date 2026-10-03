@@ -180,8 +180,25 @@ PublisherDataPtr NodeData::get_pub_data(const rmw_publisher_t * const publisher)
 ///=============================================================================
 void NodeData::delete_pub_data(const rmw_publisher_t * const publisher)
 {
-  std::lock_guard<std::mutex> lock_guard(mutex_);
-  pubs_.erase(publisher);
+  std::shared_ptr<PublisherData> data;
+  {
+    std::lock_guard<std::mutex> lock_guard(mutex_);
+    auto it = pubs_.find(publisher);
+    if (it == pubs_.end()) {
+      return;
+    }
+    data = it->second;
+    pubs_.erase(it);
+  }
+  // Shut down the entity on this (application) thread, outside mutex_.
+  // If an in-flight zenoh callback still holds the last reference, the
+  // destructor would otherwise run the blocking undeclare on that callback's
+  // own thread and deadlock waiting for the callback to finish.
+  if (data->shutdown() != RMW_RET_OK) {
+    RMW_ZENOH_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to shutdown publisher within rmw_zenoh while deleting it.");
+  }
 }
 
 ///=============================================================================
@@ -250,8 +267,25 @@ SubscriptionDataPtr NodeData::get_sub_data(const rmw_subscription_t * const subs
 ///=============================================================================
 void NodeData::delete_sub_data(const rmw_subscription_t * const subscription)
 {
-  std::lock_guard<std::mutex> lock_guard(mutex_);
-  subs_.erase(subscription);
+  std::shared_ptr<SubscriptionData> data;
+  {
+    std::lock_guard<std::mutex> lock_guard(mutex_);
+    auto it = subs_.find(subscription);
+    if (it == subs_.end()) {
+      return;
+    }
+    data = it->second;
+    subs_.erase(it);
+  }
+  // Shut down the entity on this (application) thread, outside mutex_.
+  // If an in-flight zenoh callback still holds the last reference, the
+  // destructor would otherwise run the blocking undeclare on that callback's
+  // own thread and deadlock waiting for the callback to finish.
+  if (data->shutdown() != RMW_RET_OK) {
+    RMW_ZENOH_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to shutdown subscription within rmw_zenoh while deleting it.");
+  }
 }
 
 ///=============================================================================
@@ -317,8 +351,25 @@ ServiceDataPtr NodeData::get_service_data(const rmw_service_t * const service)
 ///=============================================================================
 void NodeData::delete_service_data(const rmw_service_t * const service)
 {
-  std::lock_guard<std::mutex> lock_guard(mutex_);
-  services_.erase(service);
+  std::shared_ptr<ServiceData> data;
+  {
+    std::lock_guard<std::mutex> lock_guard(mutex_);
+    auto it = services_.find(service);
+    if (it == services_.end()) {
+      return;
+    }
+    data = it->second;
+    services_.erase(it);
+  }
+  // Shut down the entity on this (application) thread, outside mutex_.
+  // If an in-flight zenoh callback still holds the last reference, the
+  // destructor would otherwise run the blocking undeclare on that callback's
+  // own thread and deadlock waiting for the callback to finish.
+  if (data->shutdown() != RMW_RET_OK) {
+    RMW_ZENOH_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to shutdown service within rmw_zenoh while deleting it.");
+  }
 }
 
 
@@ -385,8 +436,25 @@ ClientDataPtr NodeData::get_client_data(const rmw_client_t * const client)
 ///=============================================================================
 void NodeData::delete_client_data(const rmw_client_t * const client)
 {
-  std::lock_guard<std::mutex> lock_guard(mutex_);
-  clients_.erase(client);
+  std::shared_ptr<ClientData> data;
+  {
+    std::lock_guard<std::mutex> lock_guard(mutex_);
+    auto it = clients_.find(client);
+    if (it == clients_.end()) {
+      return;
+    }
+    data = it->second;
+    clients_.erase(it);
+  }
+  // Shut down the entity on this (application) thread, outside mutex_.
+  // If an in-flight zenoh callback still holds the last reference, the
+  // destructor would otherwise run the blocking undeclare on that callback's
+  // own thread and deadlock waiting for the callback to finish.
+  if (data->shutdown() != RMW_RET_OK) {
+    RMW_ZENOH_LOG_ERROR_NAMED(
+      "rmw_zenoh_cpp",
+      "Unable to shutdown client within rmw_zenoh while deleting it.");
+  }
 }
 
 ///=============================================================================

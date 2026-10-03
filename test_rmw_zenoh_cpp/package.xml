@@ -18,6 +18,7 @@
   <test_depend>rcl</test_depend>
   <test_depend>rclcpp</test_depend>
   <test_depend>rmw_zenoh_cpp</test_depend>
+  <test_depend>test_msgs</test_depend>
   <test_depend>zenoh_cpp_vendor</test_depend>
 
   <export>
