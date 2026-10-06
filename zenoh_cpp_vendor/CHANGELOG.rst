@@ -2,6 +2,12 @@
 Changelog for package zenoh_cpp_vendor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Use the SPDX identifier Apache-2.0 in package.xml license tags (`#1073 <https://github.com/ros2/rmw_zenoh/issues/1073>`_)
+* Bump zenoh to 1.10.1 + extra fixes (commit 9fcd9cb) (`#1068 <https://github.com/ros2/rmw_zenoh/issues/1068>`_)
+* Contributors: Julien Enoch, Michael Carroll
+
 0.13.0 (2026-09-11)
 -------------------
 * Silence informational zenoh-c build-script warnings (`#1047 <https://github.com/ros2/rmw_zenoh/issues/1047>`_)

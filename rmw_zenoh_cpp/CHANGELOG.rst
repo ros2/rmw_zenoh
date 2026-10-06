@@ -2,6 +2,13 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Use the SPDX identifier Apache-2.0 in package.xml license tags (`#1073 <https://github.com/ros2/rmw_zenoh/issues/1073>`_)
+* Bump zenoh to 1.10.1 + extra fixes (commit 9fcd9cb) (`#1068 <https://github.com/ros2/rmw_zenoh/issues/1068>`_)
+* Remove unnecessary immutable getter locks (`#1059 <https://github.com/ros2/rmw_zenoh/issues/1059>`_)
+* Contributors: Julien Enoch, Maurice Alexander Purnawan, Michael Carroll
+
 0.13.0 (2026-09-11)
 -------------------
 * Granular rclcpp/rclcpp.gpp and include what you use (`#1043 <https://github.com/ros2/rmw_zenoh/issues/1043>`_)
