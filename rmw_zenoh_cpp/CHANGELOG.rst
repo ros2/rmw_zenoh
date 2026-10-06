@@ -2,8 +2,8 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.14.0 (2026-10-06)
+-------------------
 * Use the SPDX identifier Apache-2.0 in package.xml license tags (`#1073 <https://github.com/ros2/rmw_zenoh/issues/1073>`_)
 * Bump zenoh to 1.10.1 + extra fixes (commit 9fcd9cb) (`#1068 <https://github.com/ros2/rmw_zenoh/issues/1068>`_)
 * Remove unnecessary immutable getter locks (`#1059 <https://github.com/ros2/rmw_zenoh/issues/1059>`_)
