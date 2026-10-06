@@ -2,6 +2,12 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Bump zenoh to 1.10.1 + extra fixes (commit 9fcd9cb) (`#1071 <https://github.com/ros2/rmw_zenoh/issues/1071>`_)
+* Remove unnecessary immutable getter locks (`#1066 <https://github.com/ros2/rmw_zenoh/issues/1066>`_)
+* Contributors: Julien Enoch, Maurice Alexander Purnawan
+
 0.2.11 (2026-09-11)
 -------------------
 * Return topic info by const reference (`#1057 <https://github.com/ros2/rmw_zenoh/issues/1057>`_)
