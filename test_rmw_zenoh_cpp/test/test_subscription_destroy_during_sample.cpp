@@ -21,6 +21,7 @@
 #include <thread>
 
 #include <rclcpp/rclcpp.hpp>
+#include <rcpputils/scope_exit.hpp>
 #include <test_msgs/msg/empty.hpp>
 
 using namespace std::chrono_literals;
@@ -96,47 +97,59 @@ TEST_F(TestSubscriptionDestroyDuringSample, DestroyWhileSampleCallbacksInFlight)
   ASSERT_TRUE(poll_until([&]() {return pub_a->get_subscription_count() >= 1;}, 10s));
   ASSERT_TRUE(poll_until([&]() {return pub_b->get_subscription_count() >= 1;}, 10s));
 
-  std::promise<void> sample_in_flight;
+  auto sample_in_flight = std::make_shared<std::promise<void>>();
   std::promise<void> release_sample;
   std::shared_future<void> release_future = release_sample.get_future().share();
-  std::atomic<bool> first_sample{true};
+  auto first_sample = std::make_shared<std::atomic<bool>>(true);
 
   // Fires inside SubscriptionData::add_new_message(), on the thread executing
   // the zenoh sample closure, with SubscriptionData::mutex_ held and the
   // closure still holding a strong reference to SubscriptionData.
   sub->set_on_new_message_callback(
-    [&sample_in_flight, release_future, &first_sample](size_t) {
-      if (first_sample.exchange(false)) {
-        sample_in_flight.set_value();
+    [sample_in_flight, release_future, first_sample](size_t) {
+      if (first_sample->exchange(false)) {
+        sample_in_flight->set_value();
         release_future.wait_for(10s);
       }
     });
 
   // Step 1: park thread A inside the callback.
-  std::promise<void> publisher_a_done;
+  // Detached threads must own their publisher and completion promise.
+  auto publisher_a_done = std::make_shared<std::promise<void>>();
+  auto publisher_a_done_future = publisher_a_done->get_future();
   std::thread publisher_a(
-    [&pub_a, &publisher_a_done]() {
+    [pub_a, publisher_a_done]() {
       pub_a->publish(test_msgs::msg::Empty());
-      publisher_a_done.set_value();
+      publisher_a_done->set_value();
     });
-  ASSERT_EQ(sample_in_flight.get_future().wait_for(10s), std::future_status::ready)
+  auto cleanup_publisher_a = rcpputils::make_scope_exit([&]() {
+        if (publisher_a.joinable()) {
+          if (publisher_a_done_future.wait_for(10s) == std::future_status::ready) {
+            publisher_a.join();
+          } else {
+            publisher_a.detach();
+          }
+        }
+    });
+  ASSERT_EQ(sample_in_flight->get_future().wait_for(10s), std::future_status::ready)
     << "sample never reached the subscription";
 
   // Step 2: destroy the subscription. shutdown() blocks on mutex_ behind A.
-  std::promise<void> destroy_done;
+  // Transfer the sole owner so resetting it destroys the subscription.
+  auto destroy_done = std::make_shared<std::promise<void>>();
   std::thread destroyer(
-    [&sub, &destroy_done]() {
-      sub.reset();
-      destroy_done.set_value();
+    [s = std::move(sub), destroy_done]() mutable {
+      s.reset();
+      destroy_done->set_value();
     });
   std::this_thread::sleep_for(200ms);
 
   // Step 3: a second in-flight sample, blocked on mutex_ in add_new_message().
-  std::promise<void> publisher_b_done;
+  auto publisher_b_done = std::make_shared<std::promise<void>>();
   std::thread publisher_b(
-    [&pub_b, &publisher_b_done]() {
+    [pub_b, publisher_b_done]() {
       pub_b->publish(test_msgs::msg::Empty());
-      publisher_b_done.set_value();
+      publisher_b_done->set_value();
     });
   std::this_thread::sleep_for(200ms);
 
@@ -144,11 +157,11 @@ TEST_F(TestSubscriptionDestroyDuringSample, DestroyWhileSampleCallbacksInFlight)
   release_sample.set_value();
 
   const bool destroyed =
-    destroy_done.get_future().wait_for(10s) == std::future_status::ready;
+    destroy_done->get_future().wait_for(10s) == std::future_status::ready;
   const bool b_returned =
-    publisher_b_done.get_future().wait_for(10s) == std::future_status::ready;
+    publisher_b_done->get_future().wait_for(10s) == std::future_status::ready;
   const bool a_returned =
-    publisher_a_done.get_future().wait_for(10s) == std::future_status::ready;
+    publisher_a_done_future.wait_for(10s) == std::future_status::ready;
   if (!destroyed || !b_returned || !a_returned) {
     // Deadlocked threads can never be joined. Detach so the failure is
     // reported instead of hanging in the thread destructors.

@@ -21,6 +21,7 @@
 #include <thread>
 
 #include <rclcpp/rclcpp.hpp>
+#include <rcpputils/scope_exit.hpp>
 #include <test_msgs/srv/basic_types.hpp>
 
 using namespace std::chrono_literals;
@@ -84,33 +85,49 @@ TEST_F(TestClientDestroyDuringReply, DestroyWhileReplyCallbackInFlight)
       response->bool_value = true;
     });
 
-  rclcpp::executors::SingleThreadedExecutor executor;
-  executor.add_node(service_node);
-  std::thread spinner([&executor]() {executor.spin();});
+  // Keep the executor alive if a deadlocked spinner must be detached.
+  auto executor = std::make_shared<rclcpp::executors::SingleThreadedExecutor>();
+  executor->add_node(service_node);
+  auto spinner_done = std::make_shared<std::promise<void>>();
+  auto spinner_done_future = spinner_done->get_future();
+  std::thread spinner([executor, spinner_done]() {
+      executor->spin();
+      spinner_done->set_value();
+    });
+  auto cleanup_spinner = rcpputils::make_scope_exit([&]() {
+        if (spinner.joinable()) {
+          executor->cancel();
+          if (spinner_done_future.wait_for(10s) == std::future_status::ready) {
+            spinner.join();
+          } else {
+            spinner.detach();
+          }
+        }
+    });
 
   auto client = client_node->create_client<test_msgs::srv::BasicTypes>(
     "client_destroy_during_reply");
   ASSERT_TRUE(poll_until([&]() {return client->service_is_ready();}, 10s));
 
-  std::promise<void> reply_in_flight;
+  auto reply_in_flight = std::make_shared<std::promise<void>>();
   std::promise<void> release_reply;
   std::shared_future<void> release_future = release_reply.get_future().share();
-  std::atomic<bool> first_reply{true};
+  auto first_reply = std::make_shared<std::atomic<bool>>(true);
 
   // Fires inside ClientData::add_new_reply(), on the thread executing the
   // zenoh reply closure, while that closure still holds a strong reference
   // to ClientData.
   client->set_on_new_response_callback(
-    [&reply_in_flight, release_future, &first_reply](size_t) {
-      if (first_reply.exchange(false)) {
-        reply_in_flight.set_value();
+    [reply_in_flight, release_future, first_reply](size_t) {
+      if (first_reply->exchange(false)) {
+        reply_in_flight->set_value();
         release_future.wait_for(10s);
       }
     });
 
   client->async_send_request(std::make_shared<test_msgs::srv::BasicTypes::Request>());
 
-  ASSERT_EQ(reply_in_flight.get_future().wait_for(10s), std::future_status::ready)
+  ASSERT_EQ(reply_in_flight->get_future().wait_for(10s), std::future_status::ready)
     << "service reply never reached the client";
 
   // Keep the reply callback blocked while the client is destroyed, then let
@@ -131,18 +148,18 @@ TEST_F(TestClientDestroyDuringReply, DestroyWhileReplyCallbackInFlight)
     "client_destroy_during_reply");
   ASSERT_TRUE(poll_until([&]() {return probe->service_is_ready();}, 10s));
 
-  std::promise<void> probe_replied;
-  std::atomic<bool> probe_first{true};
+  auto probe_replied = std::make_shared<std::promise<void>>();
+  auto probe_first = std::make_shared<std::atomic<bool>>(true);
   probe->set_on_new_response_callback(
-    [&probe_replied, &probe_first](size_t) {
-      if (probe_first.exchange(false)) {
-        probe_replied.set_value();
+    [probe_replied, probe_first](size_t) {
+      if (probe_first->exchange(false)) {
+        probe_replied->set_value();
       }
     });
   probe->async_send_request(std::make_shared<test_msgs::srv::BasicTypes::Request>());
 
   const bool alive =
-    probe_replied.get_future().wait_for(10s) == std::future_status::ready;
+    probe_replied->get_future().wait_for(10s) == std::future_status::ready;
   if (!alive) {
     // The executor thread is deadlocked; it can never be joined. Detach so
     // the failure is reported instead of hanging in the thread destructor.
@@ -152,6 +169,6 @@ TEST_F(TestClientDestroyDuringReply, DestroyWhileReplyCallbackInFlight)
       "blocking undeclare on its own callback thread)";
   }
 
-  executor.cancel();
+  executor->cancel();
   spinner.join();
 }

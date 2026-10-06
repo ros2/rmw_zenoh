@@ -21,6 +21,7 @@
 #include <thread>
 
 #include <rclcpp/rclcpp.hpp>
+#include <rcpputils/scope_exit.hpp>
 #include <test_msgs/srv/basic_types.hpp>
 
 using namespace std::chrono_literals;
@@ -66,9 +67,8 @@ public:
 // callback, waiting for itself forever.
 //
 // rmw_destroy_service is expected to shut the entity down on the calling
-// thread instead. That only works if ServiceData::shutdown() actually
-// undeclares the queryable, which it skips unless the entity was marked
-// initialized.
+// thread instead, explicitly undeclaring the queryable before the callback
+// drops its reference.
 //
 // The test makes the race deterministic: ServiceData::add_new_query()
 // synchronously invokes the new-request callback while the query closure still
@@ -92,18 +92,18 @@ TEST_F(TestServiceDestroyDuringRequest, DestroyWhileRequestCallbackInFlight)
     "service_destroy_during_request");
   ASSERT_TRUE(poll_until([&]() {return client->service_is_ready();}, 10s));
 
-  std::promise<void> request_in_flight;
+  auto request_in_flight = std::make_shared<std::promise<void>>();
   std::promise<void> release_request;
   std::shared_future<void> release_future = release_request.get_future().share();
-  std::atomic<bool> first_request{true};
+  auto first_request = std::make_shared<std::atomic<bool>>(true);
 
   // Fires inside ServiceData::add_new_query(), on the thread executing the
   // zenoh query closure, while that closure still holds a strong reference
   // to ServiceData.
   service->set_on_new_request_callback(
-    [&request_in_flight, release_future, &first_request](size_t) {
-      if (first_request.exchange(false)) {
-        request_in_flight.set_value();
+    [request_in_flight, release_future, first_request](size_t) {
+      if (first_request->exchange(false)) {
+        request_in_flight->set_value();
         release_future.wait_for(10s);
       }
     });
@@ -111,14 +111,25 @@ TEST_F(TestServiceDestroyDuringRequest, DestroyWhileRequestCallbackInFlight)
   // In a same-process setup the query is delivered to the local queryable
   // synchronously from rmw_send_request, so the sender thread is the zenoh
   // callback thread for this test.
-  std::promise<void> sender_done;
+  // A detached sender must own its client and completion promise.
+  auto sender_done = std::make_shared<std::promise<void>>();
+  auto sender_done_future = sender_done->get_future();
   std::thread sender(
-    [&client, &sender_done]() {
+    [client, sender_done]() {
       client->async_send_request(std::make_shared<test_msgs::srv::BasicTypes::Request>());
-      sender_done.set_value();
+      sender_done->set_value();
+    });
+  auto cleanup_sender = rcpputils::make_scope_exit([&]() {
+        if (sender.joinable()) {
+          if (sender_done_future.wait_for(10s) == std::future_status::ready) {
+            sender.join();
+          } else {
+            sender.detach();
+          }
+        }
     });
 
-  ASSERT_EQ(request_in_flight.get_future().wait_for(10s), std::future_status::ready)
+  ASSERT_EQ(request_in_flight->get_future().wait_for(10s), std::future_status::ready)
     << "request never reached the service";
 
   // Keep the request callback blocked while the service is destroyed, then
@@ -134,7 +145,7 @@ TEST_F(TestServiceDestroyDuringRequest, DestroyWhileRequestCallbackInFlight)
 
   // The thread that executed the request callback must be able to return.
   const bool alive =
-    sender_done.get_future().wait_for(10s) == std::future_status::ready;
+    sender_done_future.wait_for(10s) == std::future_status::ready;
   if (!alive) {
     // The sender thread is deadlocked; it can never be joined. Detach so the
     // failure is reported instead of hanging in the thread destructor.

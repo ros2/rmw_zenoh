@@ -189,12 +189,6 @@ std::shared_ptr<ServiceData> ServiceData::make(
     return nullptr;
   }
 
-  // Mark the entity as fully initialized so that shutdown() undeclares the
-  // queryable and the liveliness token itself, on the calling thread, instead
-  // of leaving that to the member destructors (which may run on a zenoh
-  // callback thread).
-  service_data->initialized_ = true;
-
   return service_data;
 }
 
@@ -219,8 +213,7 @@ ServiceData::ServiceData(
   request_type_support_(std::move(request_type_support)),
   response_type_support_(std::move(response_type_support)),
   wait_set_data_(nullptr),
-  is_shutdown_(false),
-  initialized_(false)
+  is_shutdown_(false)
 {
   // Do nothing.
 }
@@ -531,26 +524,29 @@ rmw_ret_t ServiceData::shutdown()
   }
 
   // Unregister this node from the ROS graph.
-  if (initialized_) {
+  if (token_.has_value()) {
     zenoh::ZResult result;
     std::move(token_).value().undeclare(&result);
     if (result != Z_OK) {
       RMW_ZENOH_LOG_ERROR_NAMED(
         "rmw_zenoh_cpp",
         "Unable to undeclare the liveliness token");
-      return RMW_RET_ERROR;
+      ret = RMW_RET_ERROR;
     }
+  }
 
+  if (qable_.has_value()) {
+    zenoh::ZResult result;
     std::move(qable_).value().undeclare(&result);
     if (result != Z_OK) {
       RMW_ZENOH_LOG_ERROR_NAMED(
         "rmw_zenoh_cpp",
         "Unable to undeclare the queryable");
-      return RMW_RET_ERROR;
+      ret = RMW_RET_ERROR;
     }
   }
 
-  return RMW_RET_OK;
+  return ret;
 }
 
 ///=============================================================================
