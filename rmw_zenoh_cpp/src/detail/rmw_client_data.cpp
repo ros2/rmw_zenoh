@@ -248,16 +248,21 @@ void ClientData::add_new_reply(std::unique_ptr<ZenohReply> reply)
     reply_queue_.pop_front();
   }
   reply_queue_.emplace_back(std::move(reply));
-  // Release before calling into trigger_callback() below, which may call out to user code.
-  lock.unlock();
 
-  // Since we added new data, trigger user callback and guard condition if they are available
-  data_callback_mgr_.trigger_callback();
+  // Since we added new data, notify the wait set if one is attached. This must stay under
+  // mutex_: detach_condition_and_*() takes mutex_ to clear wait_set_data_, so holding it here
+  // keeps the wait set alive for the duration of the notification.
+  // Lock order is mutex_ -> condition_mutex; rmw_wait() never takes them in the reverse order.
   if (wait_set_data_ != nullptr) {
     std::lock_guard<std::mutex> wait_set_lock(wait_set_data_->condition_mutex);
     wait_set_data_->triggered = true;
     wait_set_data_->condition_variable.notify_one();
   }
+
+  // Release before calling into the user callback, which may re-enter (e.g. from a
+  // GIL-holding thread).
+  lock.unlock();
+  data_callback_mgr_.trigger_callback();
 }
 
 ///=============================================================================
