@@ -1115,7 +1115,7 @@ void SubscriptionData::add_new_message(
   std::unique_ptr<SubscriptionData::Message> msg,
   const std::string & topic_name)
 {
-  std::lock_guard<std::mutex> lock(mutex_);
+  std::unique_lock<std::mutex> lock(mutex_);
   if (is_shutdown_) {
     return;
   }
@@ -1171,12 +1171,15 @@ void SubscriptionData::add_new_message(
   message_queue_.emplace_back(std::move(msg));
 
   // Since we added new data, trigger user callback and guard condition if they are available
-  data_callback_mgr_.trigger_callback();
+  // (wait set notified under mutex_, user callback called without it).
   if (wait_set_data_ != nullptr) {
     std::lock_guard<std::mutex> wait_set_lock(wait_set_data_->condition_mutex);
     wait_set_data_->triggered = true;
     wait_set_data_->condition_variable.notify_one();
   }
+
+  lock.unlock();
+  data_callback_mgr_.trigger_callback();
 }
 
 //==============================================================================
@@ -1184,7 +1187,7 @@ void SubscriptionData::set_on_new_message_callback(
   rmw_event_callback_t callback,
   const void * user_data)
 {
-  std::lock_guard<std::mutex> lock(mutex_);
+  // No mutex_ here: data_callback_mgr_ has its own lock.
   data_callback_mgr_.set_callback(user_data, std::move(callback));
 }
 
