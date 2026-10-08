@@ -183,7 +183,7 @@ private:
   std::optional<EndpointInfoStorage> lookup_publisher_endpoint_info(
     const std::array<uint8_t, RMW_GID_STORAGE_SIZE> & publisher_gid) const;
 
-  // Internal mutex.
+  // Internal mutex. Lock order: mutex_, then wait_set_data_->condition_mutex.
   mutable std::mutex mutex_;
   // The parent node.
   const rmw_node_t * rmw_node_;
@@ -208,9 +208,10 @@ private:
   std::unordered_map<size_t, int64_t> last_known_published_msg_;
   // Per-subscriber reception sequence number counter, incremented on every take.
   std::atomic<uint64_t> reception_sn_;
-  // Wait set data.
+  // Wait set data. Guarded by mutex_, also while notifying: detach takes mutex_, so the
+  // wait set outlives the notification.
   rmw_wait_set_data_t * wait_set_data_;
-  // Data callback manager.
+  // Data callback manager. It runs user code, so never call it with mutex_ held.
   DataCallbackManager data_callback_mgr_;
   // Shutdown flag.
   bool is_shutdown_;

@@ -1172,18 +1172,14 @@ void SubscriptionData::add_new_message(
 
   message_queue_.emplace_back(std::move(msg));
 
-  // Since we added new data, notify the wait set if one is attached. This must stay under
-  // mutex_: detach_condition_and_*() takes mutex_ to clear wait_set_data_, so holding it here
-  // keeps the wait set alive for the duration of the notification.
-  // Lock order is mutex_ -> condition_mutex; rmw_wait() never takes them in the reverse order.
+  // Since we added new data, trigger user callback and guard condition if they are available
+  // (wait set notified under mutex_, user callback called without it).
   if (wait_set_data_ != nullptr) {
     std::lock_guard<std::mutex> wait_set_lock(wait_set_data_->condition_mutex);
     wait_set_data_->triggered = true;
     wait_set_data_->condition_variable.notify_one();
   }
 
-  // Release before calling into the user callback, which may re-enter (e.g. from a
-  // GIL-holding thread).
   lock.unlock();
   data_callback_mgr_.trigger_callback();
 }
@@ -1193,11 +1189,7 @@ void SubscriptionData::set_on_new_message_callback(
   rmw_event_callback_t callback,
   const void * user_data)
 {
-  // data_callback_mgr_ has its own internal locking and may call out to user
-  // code retroactively for already-queued messages -- mutex_ protects no
-  // other state accessed here, so do not hold it across that call, or a
-  // callback that re-enters (e.g. from a GIL-holding thread) can
-  // self-deadlock against a concurrent add_new_message().
+  // No mutex_ here: data_callback_mgr_ has its own lock.
   data_callback_mgr_.set_callback(user_data, std::move(callback));
 }
 

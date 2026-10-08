@@ -113,7 +113,7 @@ private:
   // Shutdown this ClientData.
   rmw_ret_t shutdown();
 
-  // Internal mutex.
+  // Internal mutex. Lock order: mutex_, then wait_set_data_->condition_mutex.
   mutable std::mutex mutex_;
   // The parent node.
   const rmw_node_t * rmw_node_;
@@ -134,9 +134,10 @@ private:
   std::shared_ptr<ResponseTypeSupport> response_type_support_;
   // Deque to store the replies in the order they arrive.
   std::deque<std::unique_ptr<rmw_zenoh_cpp::ZenohReply>> reply_queue_;
-  // Wait set data.
+  // Wait set data. Guarded by mutex_, also while notifying: detach takes mutex_, so the
+  // wait set outlives the notification.
   rmw_wait_set_data_t * wait_set_data_;
-  // Data callback manager.
+  // Data callback manager. It runs user code, so never call it with mutex_ held.
   DataCallbackManager data_callback_mgr_;
   // Sequence number for queries.
   size_t sequence_number_;
