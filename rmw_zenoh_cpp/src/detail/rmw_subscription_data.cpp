@@ -326,7 +326,7 @@ rmw_ret_t SubscriptionData::shutdown()
       "rmw_zenoh_cpp",
       "Unable to undeclare the liveliness token for topic '%s'",
       entity_->topic_info().value().name_.c_str());
-    return RMW_RET_ERROR;
+    ret = RMW_RET_ERROR;
   }
 
   if (sub_.has_value()) {
@@ -336,7 +336,7 @@ rmw_ret_t SubscriptionData::shutdown()
         "rmw_zenoh_cpp",
         "Unable to undeclare the subscriber for topic '%s'",
         entity_->topic_info().value().name_.c_str());
-      return RMW_RET_ERROR;
+      ret = RMW_RET_ERROR;
     }
   }
 
