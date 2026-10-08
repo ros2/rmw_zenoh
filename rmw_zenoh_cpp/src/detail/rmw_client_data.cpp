@@ -510,6 +510,7 @@ bool ClientData::detach_condition_and_queue_is_empty()
 ///=============================================================================
 rmw_ret_t ClientData::shutdown()
 {
+  rmw_ret_t ret = RMW_RET_OK;
   bool expected = false;
   if (!is_shutdown_.compare_exchange_strong(expected, true, std::memory_order_acq_rel,
       std::memory_order_relaxed))
@@ -525,7 +526,7 @@ rmw_ret_t ClientData::shutdown()
       RMW_ZENOH_LOG_ERROR_NAMED(
         "rmw_zenoh_cpp",
         "Unable to undeclare the liveliness token");
-      return RMW_RET_ERROR;
+      ret = RMW_RET_ERROR;
     }
   }
   zenoh::ZResult result;
@@ -537,7 +538,7 @@ rmw_ret_t ClientData::shutdown()
     return RMW_RET_ERROR;
   }
 
-  return RMW_RET_OK;
+  return ret;
 }
 
 ///=============================================================================
