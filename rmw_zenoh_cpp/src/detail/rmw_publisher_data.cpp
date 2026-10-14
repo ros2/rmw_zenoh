@@ -301,6 +301,11 @@ rmw_ret_t PublisherData::publish_buffer_aware(
     ep->cached_message.reset();
   }
 
+  // Every copy of one publication carries the same sequence number. A subscriber reads the
+  // number to detect lost messages, and it only sees its own copy, so a number per copy would
+  // show up as a gap of the endpoint count minus one on every message.
+  const int64_t sequence_number = sequence_number_++;
+
   const std::string cpu_group_key =
     make_cpu_group_key(entity_->topic_info()->topic_keyexpr_);
 
@@ -350,7 +355,7 @@ rmw_ret_t PublisherData::publish_buffer_aware(
     int64_t source_timestamp = rmw_zenoh_cpp::get_system_time_in_ns();
     auto gid = entity_->copy_gid();
     auto attachment_data = rmw_zenoh_cpp::AttachmentData(
-      sequence_number_++, source_timestamp, gid);
+      sequence_number, source_timestamp, gid);
     auto attachment_bytes = attachment_data.serialize_to_zbytes();
 
     zenoh::ext::AdvancedPublisher::PutOptions options =
@@ -449,7 +454,7 @@ rmw_ret_t PublisherData::publish_buffer_aware(
     auto gid = entity_->copy_gid();
 
     auto attachment_data = rmw_zenoh_cpp::AttachmentData(
-      sequence_number_++, source_timestamp, gid);
+      sequence_number, source_timestamp, gid);
 
     auto attachment_bytes = attachment_data.serialize_to_zbytes();
 
