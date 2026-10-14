@@ -19,6 +19,7 @@ if(BUILD_TESTING)
   find_package(rclcpp REQUIRED)
   find_package(rcpputils REQUIRED)
   find_package(rmw_zenoh_cpp REQUIRED)
+  find_package(std_msgs REQUIRED)
   find_package(test_msgs REQUIRED)
   find_package(zenoh_cpp_vendor REQUIRED)
 
@@ -89,6 +90,17 @@ if(BUILD_TESTING)
   target_link_libraries(test_deserialize_out_of_bounds
     rclcpp::rclcpp
     ${test_msgs_TARGETS}
+    ament_cmake_ros_core::ament_ros_defaults
+  )
+
+  ament_add_ros_isolated_gtest(test_rmw_zenoh_sequence_number
+    test/test_rmw_zenoh_sequence_number.cpp
+    ENV RMW_IMPLEMENTATION=rmw_zenoh_cpp)
+  target_link_libraries(test_rmw_zenoh_sequence_number
+    rclcpp::rclcpp
+    rmw_zenoh_cpp::rmw_zenoh_cpp
+    zenohcxx::zenohc
+    ${std_msgs_TARGETS}
     ament_cmake_ros_core::ament_ros_defaults
   )
 endif()
