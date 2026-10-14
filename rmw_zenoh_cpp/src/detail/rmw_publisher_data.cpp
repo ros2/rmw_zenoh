@@ -778,10 +778,16 @@ void PublisherData::on_subscriber_discovered(const liveliness::Entity & entity)
     return;
   }
 
-  std::unordered_map<std::string, std::string> sub_backend_metadata;
-  if (topic_info_opt->backend_metadata_.has_value()) {
-    sub_backend_metadata = topic_info_opt->backend_metadata_.value();
+  // A subscriber whose liveliness token carries no `backends:` field is not
+  // buffer-aware: it only listens on the base key. Leave it out of
+  // discovered_subscribers_ so that publish() sees total_matched exceed the
+  // buffer-aware count and falls back to the base key.
+  if (!topic_info_opt->backend_metadata_.has_value()) {
+    return;
   }
+
+  std::unordered_map<std::string, std::string> sub_backend_metadata =
+    topic_info_opt->backend_metadata_.value();
   const bool use_cpu_group = is_cpu_only_backend_metadata(sub_backend_metadata);
 
   auto gid = entity_gid_to_rmw_gid(entity, rmw_zenoh_identifier);
