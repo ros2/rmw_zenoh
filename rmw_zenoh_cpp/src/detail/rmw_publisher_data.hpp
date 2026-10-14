@@ -129,6 +129,9 @@ private:
   // Discovery callback for Buffer-aware publishers
   void on_subscriber_discovered(const liveliness::Entity & entity);
 
+  // Removal callback for Buffer-aware publishers: forget a subscriber that left
+  void on_subscriber_removed(const liveliness::Entity & entity);
+
   // Get or create an endpoint for a specific full key (caller must hold mutex_)
   std::shared_ptr<PublisherEndpoint> get_or_create_endpoint(
     const std::string & full_key);

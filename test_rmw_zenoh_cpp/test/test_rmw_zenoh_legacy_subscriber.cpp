@@ -75,7 +75,9 @@ std::vector<std::string> liveliness_keys(zenoh::Session & session, const std::st
 // `expect_backends` is true when the topic carries a buffer field, in which
 // case the harvested token must announce `backends:` before it is stripped.
 template<typename MsgT>
-size_t base_key_samples(const std::string & topic, const MsgT & msg, bool expect_backends)
+size_t base_key_samples(
+  const std::string & topic, const MsgT & msg, bool expect_backends,
+  bool buffer_aware_subscriber_leaves_first = false)
 {
   auto pub_node = std::make_shared<rclcpp::Node>("legacy_pub_" + topic.substr(1));
   auto sub_node = std::make_shared<rclcpp::Node>("legacy_sub_" + topic.substr(1));
@@ -87,6 +89,14 @@ size_t base_key_samples(const std::string & topic, const MsgT & msg, bool expect
   }
 
   auto pub = pub_node->create_publisher<MsgT>(topic, 10);
+  if (buffer_aware_subscriber_leaves_first) {
+    // The publisher must forget this subscriber once it is gone.
+    auto leaver = sub_node->create_subscription<MsgT>(
+      topic, 10, [](typename MsgT::ConstSharedPtr) {});
+    std::this_thread::sleep_for(2s);
+    leaver.reset();
+    std::this_thread::sleep_for(2s);
+  }
   // The token is harvested from a subscription on a sibling topic, which stays
   // alive for the whole test. The publisher never sees it, and it never leaves
   // the publisher's list of discovered subscribers.
@@ -183,4 +193,12 @@ TEST_F(TestLegacySubscriber, BufferTopicReachesBaseKeyForSubscriberWithoutBacken
   std_msgs::msg::UInt8MultiArray msg;
   msg.data.assign({1, 2, 3});
   EXPECT_GT(base_key_samples("/legacy_sub_u8", msg, true), 0u);
+}
+
+// A subscriber that has left must not keep the publisher on the buffer path.
+TEST_F(TestLegacySubscriber, BufferTopicReachesBaseKeyAfterBufferAwareSubscriberLeaves)
+{
+  std_msgs::msg::UInt8MultiArray msg;
+  msg.data.assign({1, 2, 3});
+  EXPECT_GT(base_key_samples("/legacy_sub_u8_left", msg, true, true), 0u);
 }

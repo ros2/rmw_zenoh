@@ -517,7 +517,11 @@ void GraphCache::update_topic_map_for_del(
   if (is_pub) {
     cache_topic_qos_it->second->pubs_.erase(entity);
   } else {
-    cache_topic_qos_it->second->subs_.erase(entity);
+    // report_events is only set for the graph-wide topic map, so a subscriber is
+    // queued once however many maps it is removed from.
+    if (cache_topic_qos_it->second->subs_.erase(entity) > 0 && report_events) {
+      removed_subscribers_.push_back(entity);
+    }
   }
   // If after removing the entity, the parent map is empty, then remove parent
   // map.
@@ -593,8 +597,9 @@ void GraphCache::parse_del(
       "Ignoring parse_del for %s from the same session.\n", entity->liveliness_keyexpr().c_str());
     return;
   }
-  // Lock the graph mutex before accessing the graph.
-  std::lock_guard<std::mutex> lock(graph_mutex_);
+  // Lock the graph mutex before accessing the graph. It is released before the
+  // removal callbacks run.
+  std::unique_lock<std::mutex> lock(graph_mutex_);
 
   // If namespace does not exist, ignore the request.
   NamespaceMap::iterator ns_it = graph_.find(entity->node_namespace());
@@ -651,11 +656,46 @@ void GraphCache::parse_del(
     if (ns_it->second.size() == 0) {
       graph_.erase(entity->node_namespace());
     }
+    notify_subscriber_removals(lock);
     return;
   }
 
   // Update the graph based on the entity->
   update_topic_maps_for_del(node_it->second, entity);
+  notify_subscriber_removals(lock);
+}
+
+///=============================================================================
+void GraphCache::notify_subscriber_removals(std::unique_lock<std::mutex> & graph_lock)
+{
+  std::vector<liveliness::ConstEntityPtr> removed;
+  removed.swap(removed_subscribers_);
+  graph_lock.unlock();
+  if (removed.empty()) {
+    return;
+  }
+
+  // Lock ordering matches parse_put: graph_mutex_ is no longer held here, so the
+  // callbacks are collected under discovery_mutex_ only and run with no lock held.
+  std::vector<std::pair<EntityDiscoveryCallback, liveliness::ConstEntityPtr>> to_invoke;
+  {
+    std::lock_guard<std::mutex> disc_lock(discovery_mutex_);
+    for (const auto & entity : removed) {
+      if (!entity->topic_info().has_value()) {
+        continue;
+      }
+      const auto topic_it = subscriber_removal_callbacks_.find(entity->topic_info()->name_);
+      if (topic_it == subscriber_removal_callbacks_.end()) {
+        continue;
+      }
+      for (const auto & [gid_hash, callback] : topic_it->second) {
+        to_invoke.emplace_back(callback, entity);
+      }
+    }
+  }
+  for (const auto & [callback, entity] : to_invoke) {
+    callback(*entity);
+  }
 }
 
 ///=============================================================================
@@ -1426,6 +1466,16 @@ void GraphCache::register_subscriber_discovery_callback(
 }
 
 ///=============================================================================
+void GraphCache::register_subscriber_removal_callback(
+  const std::string & topic_name,
+  std::size_t publisher_gid_hash,
+  EntityDiscoveryCallback callback)
+{
+  std::lock_guard<std::mutex> disc_lock(discovery_mutex_);
+  subscriber_removal_callbacks_[topic_name][publisher_gid_hash] = std::move(callback);
+}
+
+///=============================================================================
 void GraphCache::register_publisher_discovery_callback(
   const std::string & topic_name,
   std::size_t subscriber_gid_hash,
@@ -1468,6 +1518,11 @@ void GraphCache::unregister_discovery_callbacks(std::size_t gid_hash)
 
   // Remove from all topics in publisher discovery callbacks
   for (auto & [topic_name, callbacks] : publisher_discovery_callbacks_) {
+    callbacks.erase(gid_hash);
+  }
+
+  // Remove from all topics in subscriber removal callbacks
+  for (auto & [topic_name, callbacks] : subscriber_removal_callbacks_) {
     callbacks.erase(gid_hash);
   }
 }

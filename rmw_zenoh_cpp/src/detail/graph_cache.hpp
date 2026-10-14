@@ -206,6 +206,16 @@ public:
     std::size_t publisher_gid_hash,
     EntityDiscoveryCallback callback);
 
+  /// Register a callback for when a subscriber leaves a topic
+  /// (for Buffer-aware publishers).
+  /// @param topic_name The topic name to monitor
+  /// @param publisher_gid_hash The gid hash of the publisher registering the callback
+  /// @param callback The callback function to invoke with the departed subscriber
+  void register_subscriber_removal_callback(
+    const std::string & topic_name,
+    std::size_t publisher_gid_hash,
+    EntityDiscoveryCallback callback);
+
   /// Register a callback for when a publisher is discovered on a topic
   /// (for Buffer-aware subscribers).
   /// @param topic_name The topic name to monitor
@@ -333,7 +343,18 @@ private:
   // Map: (topic_name, subscriber_gid_hash) -> callback for publisher discovery
   std::unordered_map<std::string,
     std::unordered_map<std::size_t, EntityDiscoveryCallback>> publisher_discovery_callbacks_;
+  // Map: (topic_name, publisher_gid_hash) -> callback for subscriber removal
+  std::unordered_map<std::string,
+    std::unordered_map<std::size_t, EntityDiscoveryCallback>> subscriber_removal_callbacks_;
   std::mutex discovery_mutex_;
+
+  // Subscribers removed from graph_topics_ that the removal callbacks have not
+  // been told about yet. Guarded by graph_mutex_ and drained by parse_del().
+  std::vector<liveliness::ConstEntityPtr> removed_subscribers_;
+
+  // Unlocks graph_lock, then invokes the removal callbacks for removed_subscribers_.
+  // Callbacks must not run under graph_mutex_ (non-recursive mutex).
+  void notify_subscriber_removals(std::unique_lock<std::mutex> & graph_lock);
 
   // Mutex to lock before modifying the members above.
   mutable std::mutex graph_mutex_;
