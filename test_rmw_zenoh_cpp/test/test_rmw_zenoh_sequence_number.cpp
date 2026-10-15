@@ -12,21 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// A buffer-aware publisher writes one copy of a publication for the CPU group and one for
-// every subscriber that announces a non-CPU backend. A subscriber sees only its own copy and
-// reads the sequence number in the attachment to detect lost messages, so every copy of one
-// publication must carry the same number.
-//
-// No GPU is needed. The test declares liveliness tokens that announce a backend named `fake`.
-// The publisher creates a per-subscriber endpoint for each of them, because it decides from
-// the token alone. Plain Zenoh subscribers record the attachment of every copy.
+// Every copy of one buffer-aware publication must carry the same sequence number. No GPU is
+// needed: forged liveliness tokens announce a backend named `fake`, which makes the publisher
+// create one endpoint per such subscriber, and plain Zenoh subscribers record each copy.
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <chrono>
 #include <map>
 #include <memory>
 #include <mutex>
+#include <sstream>
 #include <string>
 #include <thread>
 #include <variant>
@@ -42,19 +39,25 @@ using namespace std::chrono_literals;
 
 namespace
 {
-std::vector<std::string> liveliness_keys(zenoh::Session & session, const std::string & topic)
+std::vector<std::string> split(const std::string & s)
+{
+  std::vector<std::string> parts;
+  std::stringstream stream(s);
+  for (std::string part; std::getline(stream, part, '/'); ) {
+    parts.push_back(part);
+  }
+  return parts;
+}
+
+// Token layout: @ros2_lv/<domain>/<zid>/<nid>/<id>/MS/<...>/%<topic>/<...>/backends:<list>
+std::vector<std::string> subscription_tokens(zenoh::Session & session, const std::string & topic)
 {
   std::vector<std::string> keys;
   zenoh::ZResult result;
   auto replies = session.liveliness_get(
-    zenoh::KeyExpr("@ros2_lv/*/**"),
-    zenoh::channels::FifoChannel(1024),
-    zenoh::Session::LivelinessGetOptions::create_default(),
-    &result);
-  if (result != Z_OK) {
-    ADD_FAILURE() << "liveliness_get failed, result=" << static_cast<int>(result);
-    return keys;
-  }
+    zenoh::KeyExpr("@ros2_lv/*/**"), zenoh::channels::FifoChannel(1024),
+    zenoh::Session::LivelinessGetOptions::create_default(), &result);
+  EXPECT_EQ(result, Z_OK);
   for (auto res = replies.recv(); std::holds_alternative<zenoh::Reply>(res);
     res = replies.recv())
   {
@@ -63,42 +66,29 @@ std::vector<std::string> liveliness_keys(zenoh::Session & session, const std::st
       continue;
     }
     const std::string key(reply.get_ok().get_keyexpr().as_string_view());
-    // Topic names are escaped in tokens: "/chatter" becomes "%chatter".
-    const std::string escaped_topic = "/%" + topic.substr(1) + "/";
-    if (key.find("/MS/") != std::string::npos && key.find(escaped_topic) != std::string::npos) {
+    const auto parts = split(key);
+    if (parts.size() > 6 && parts[5] == "MS" &&
+      std::find(parts.begin(), parts.end(), "%" + topic.substr(1)) != parts.end())
+    {
       keys.push_back(key);
     }
   }
   return keys;
 }
 
-// Points a harvested token at `topic`, gives it entity id `id` and replaces its `backends:`
-// field with `backends`. Token layout: @ros2_lv/<domain>/<zid>/<nid>/<id>/MS/...
+// Points a harvested token at `topic` with entity id `id` and the given backend list.
 std::string forge_token(
-  const std::string & harvested, const std::string & template_topic, const std::string & topic,
+  const std::string & harvested, const std::string & from_topic, const std::string & topic,
   const std::string & id, const std::string & backends)
 {
-  std::string key = harvested;
-  const auto backends_pos = key.rfind("/backends:");
-  EXPECT_NE(backends_pos, std::string::npos) << "token of the template subscription: " << key;
-  if (backends_pos == std::string::npos) {
-    return "";
+  auto parts = split(harvested);
+  parts[4] = id;
+  parts.back() = "backends:" + backends;
+  std::replace(parts.begin(), parts.end(), "%" + from_topic.substr(1), "%" + topic.substr(1));
+  std::string key;
+  for (const auto & part : parts) {
+    key += (key.empty() ? "" : "/") + part;
   }
-  key.erase(backends_pos);
-  key += "/backends:" + backends;
-  const std::string from = "/%" + template_topic.substr(1) + "/";
-  const auto topic_pos = key.find(from);
-  EXPECT_NE(topic_pos, std::string::npos);
-  if (topic_pos == std::string::npos) {
-    return "";
-  }
-  key.replace(topic_pos, from.size(), "/%" + topic.substr(1) + "/");
-  size_t start = 0;
-  for (int chunk = 0; chunk < 4; ++chunk) {
-    start = key.find('/', start) + 1;
-  }
-  const size_t end = key.find('/', start);
-  key.replace(start, end - start, id);
   return key;
 }
 }  // namespace
@@ -121,12 +111,11 @@ TEST_F(TestSequenceNumber, EveryCopyOfAPublicationCarriesTheSameNumber)
   ASSERT_NE(session, nullptr);
 
   auto pub = pub_node->create_publisher<std_msgs::msg::UInt8MultiArray>(topic, 10);
-  // The token is harvested from a subscription on a sibling topic, which stays alive for the
-  // whole test. The publisher never sees it.
+  // A subscription on a sibling topic supplies a real token to copy; the publisher never sees it.
   auto template_sub = sub_node->create_subscription<std_msgs::msg::UInt8MultiArray>(
     template_topic, 10, [](std_msgs::msg::UInt8MultiArray::ConstSharedPtr) {});
   std::this_thread::sleep_for(2s);
-  const auto keys = liveliness_keys(*session, template_topic);
+  const auto keys = subscription_tokens(*session, template_topic);
   ASSERT_EQ(keys.size(), 1u) << "expected the template subscription's token";
 
   std::mutex mutex;
@@ -153,17 +142,14 @@ TEST_F(TestSequenceNumber, EveryCopyOfAPublicationCarriesTheSameNumber)
     &result);
   ASSERT_EQ(result, Z_OK);
 
-  // Two subscribers that announce a non-CPU backend, so each gets its own endpoint, and one
-  // that announces the CPU backend, which is served from the CPU group.
+  // Two subscribers with a non-CPU backend get their own endpoint; the CPU one uses the CPU group.
   std::vector<zenoh::LivelinessToken> tokens;
   for (const auto & [id, backends] : std::vector<std::pair<std::string, std::string>>{
     {"9997", "cpu:"}, {"9998", "fake:"}, {"9999", "fake:"}})
   {
-    const auto forged = forge_token(keys[0], template_topic, topic, id, backends);
-    ASSERT_FALSE(forged.empty());
     tokens.push_back(
       session->liveliness_declare_token(
-        zenoh::KeyExpr(forged),
+        zenoh::KeyExpr(forge_token(keys[0], template_topic, topic, id, backends)),
         zenoh::Session::LivelinessDeclarationOptions::create_default(),
         &result));
     ASSERT_EQ(result, Z_OK);
@@ -180,8 +166,7 @@ TEST_F(TestSequenceNumber, EveryCopyOfAPublicationCarriesTheSameNumber)
   std::this_thread::sleep_for(1s);
 
   std::lock_guard<std::mutex> lock(mutex);
-  // Positive control: three copies were written, one per endpoint. Without it, an empty map
-  // would satisfy the comparison below.
+  // Positive control: an empty map would satisfy the comparison below.
   ASSERT_EQ(received.size(), 3u) << "expected the CPU-group key and two per-subscriber keys";
   const auto & first = received.begin()->second;
   EXPECT_EQ(first.size(), kPublications);
