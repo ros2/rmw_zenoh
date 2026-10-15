@@ -301,9 +301,8 @@ rmw_ret_t PublisherData::publish_buffer_aware(
     ep->cached_message.reset();
   }
 
-  // Every copy of one publication carries the same sequence number. A subscriber reads the
-  // number to detect lost messages, and it only sees its own copy, so a number per copy would
-  // show up as a gap of the endpoint count minus one on every message.
+  // All copies of one publication share a sequence number: a subscriber sees only its own copy
+  // and uses the number to detect lost messages.
   const int64_t sequence_number = sequence_number_++;
 
   const std::string cpu_group_key =
