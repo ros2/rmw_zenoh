@@ -44,7 +44,6 @@ if(BUILD_TESTING)
     rmw_zenoh_cpp::rmw_zenoh_cpp
     rcpputils::rcpputils
     ${test_msgs_TARGETS}
-    ament_cmake_ros_core::ament_ros_defaults
   )
 
   ament_add_ros_isolated_gtest(test_service_destroy_during_request
@@ -56,7 +55,6 @@ if(BUILD_TESTING)
     rmw_zenoh_cpp::rmw_zenoh_cpp
     rcpputils::rcpputils
     ${test_msgs_TARGETS}
-    ament_cmake_ros_core::ament_ros_defaults
   )
 
   ament_add_ros_isolated_gtest(test_subscription_destroy_during_sample
@@ -68,7 +66,6 @@ if(BUILD_TESTING)
     rmw_zenoh_cpp::rmw_zenoh_cpp
     rcpputils::rcpputils
     ${test_msgs_TARGETS}
-    ament_cmake_ros_core::ament_ros_defaults
   )
 endif()
 

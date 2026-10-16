@@ -119,14 +119,15 @@ TEST_F(TestServiceDestroyDuringRequest, DestroyWhileRequestCallbackInFlight)
       client->async_send_request(std::make_shared<test_msgs::srv::BasicTypes::Request>());
       sender_done->set_value();
     });
-  auto cleanup_sender = rcpputils::make_scope_exit([&]() {
-        if (sender.joinable()) {
-          if (sender_done_future.wait_for(10s) == std::future_status::ready) {
-            sender.join();
-          } else {
-            sender.detach();
-          }
+  auto cleanup_sender = rcpputils::make_scope_exit(
+    [&]() {
+      if (sender.joinable()) {
+        if (sender_done_future.wait_for(10s) == std::future_status::ready) {
+          sender.join();
+        } else {
+          sender.detach();
         }
+      }
     });
 
   ASSERT_EQ(request_in_flight->get_future().wait_for(10s), std::future_status::ready)

@@ -122,14 +122,15 @@ TEST_F(TestSubscriptionDestroyDuringSample, DestroyWhileSampleCallbacksInFlight)
       pub_a->publish(test_msgs::msg::Empty());
       publisher_a_done->set_value();
     });
-  auto cleanup_publisher_a = rcpputils::make_scope_exit([&]() {
-        if (publisher_a.joinable()) {
-          if (publisher_a_done_future.wait_for(10s) == std::future_status::ready) {
-            publisher_a.join();
-          } else {
-            publisher_a.detach();
-          }
+  auto cleanup_publisher_a = rcpputils::make_scope_exit(
+    [&]() {
+      if (publisher_a.joinable()) {
+        if (publisher_a_done_future.wait_for(10s) == std::future_status::ready) {
+          publisher_a.join();
+        } else {
+          publisher_a.detach();
         }
+      }
     });
   ASSERT_EQ(sample_in_flight->get_future().wait_for(10s), std::future_status::ready)
     << "sample never reached the subscription";

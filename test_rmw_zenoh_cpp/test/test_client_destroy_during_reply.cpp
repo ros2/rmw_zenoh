@@ -94,15 +94,16 @@ TEST_F(TestClientDestroyDuringReply, DestroyWhileReplyCallbackInFlight)
       executor->spin();
       spinner_done->set_value();
     });
-  auto cleanup_spinner = rcpputils::make_scope_exit([&]() {
-        if (spinner.joinable()) {
-          executor->cancel();
-          if (spinner_done_future.wait_for(10s) == std::future_status::ready) {
-            spinner.join();
-          } else {
-            spinner.detach();
-          }
+  auto cleanup_spinner = rcpputils::make_scope_exit(
+    [&]() {
+      if (spinner.joinable()) {
+        executor->cancel();
+        if (spinner_done_future.wait_for(10s) == std::future_status::ready) {
+          spinner.join();
+        } else {
+          spinner.detach();
         }
+      }
     });
 
   auto client = client_node->create_client<test_msgs::srv::BasicTypes>(
