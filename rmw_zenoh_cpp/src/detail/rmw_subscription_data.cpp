@@ -288,9 +288,16 @@ SubscriptionData::~SubscriptionData()
 rmw_ret_t SubscriptionData::shutdown()
 {
   rmw_ret_t ret = RMW_RET_OK;
-  std::lock_guard<std::mutex> lock(mutex_);
-  if (is_shutdown_ || !initialized_) {
-    return ret;
+  std::optional<zenoh::ext::AdvancedSubscriber<void>> sub;
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (is_shutdown_ || !initialized_) {
+      return ret;
+    }
+    is_shutdown_ = true;
+    initialized_ = false;
+    sub = std::move(sub_);
+    sub_.reset();
   }
 
   // Remove any event callbacks registered to this subscription.
@@ -307,8 +314,8 @@ rmw_ret_t SubscriptionData::shutdown()
     ret = RMW_RET_ERROR;
   }
 
-  if (sub_.has_value()) {
-    std::move(sub_.value()).undeclare(&result);
+  if (sub.has_value()) {
+    std::move(sub.value()).undeclare(&result);
     if (result != Z_OK) {
       RMW_ZENOH_LOG_ERROR_NAMED(
         "rmw_zenoh_cpp",
@@ -319,8 +326,6 @@ rmw_ret_t SubscriptionData::shutdown()
   }
 
   sess_.reset();
-  is_shutdown_ = true;
-  initialized_ = false;
   return ret;
 }
 
