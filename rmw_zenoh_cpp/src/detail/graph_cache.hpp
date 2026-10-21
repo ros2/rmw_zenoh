@@ -109,6 +109,7 @@ public:
   /// @brief Signature for a function that will be invoked when an entity is discovered.
   ///   Used for Buffer-aware publishers/subscribers to dynamically create endpoints.
   using EntityDiscoveryCallback = std::function<void (const liveliness::Entity &)>;
+  using EntityRemovalCallback = EntityDiscoveryCallback;
 
   /// @brief Constructor
   /// @param id The id of the zenoh session that is building the graph cache.
@@ -120,6 +121,9 @@ public:
   void parse_put(const std::string & keyexpr, bool ignore_from_current_session = false);
   // Parse a DELETE message over a token's key-expression and update the graph.
   void parse_del(const std::string & keyexpr, bool ignore_from_current_session = false);
+
+  // Check exact subscriber membership before committing endpoint discovery results.
+  bool contains_subscriber(const liveliness::Entity & entity) const;
 
   rmw_ret_t get_node_names(
     rcutils_string_array_t * node_names,
@@ -214,7 +218,7 @@ public:
   void register_subscriber_removal_callback(
     const std::string & topic_name,
     std::size_t publisher_gid_hash,
-    EntityDiscoveryCallback callback);
+    EntityRemovalCallback callback);
 
   /// Register a callback for when a publisher is discovered on a topic
   /// (for Buffer-aware subscribers).
@@ -345,11 +349,11 @@ private:
     std::unordered_map<std::size_t, EntityDiscoveryCallback>> publisher_discovery_callbacks_;
   // Map: (topic_name, publisher_gid_hash) -> callback for subscriber removal
   std::unordered_map<std::string,
-    std::unordered_map<std::size_t, EntityDiscoveryCallback>> subscriber_removal_callbacks_;
+    std::unordered_map<std::size_t, EntityRemovalCallback>> subscriber_removal_callbacks_;
   std::mutex discovery_mutex_;
 
   // Subscribers removed from graph_topics_ that the removal callbacks have not
-  // been told about yet. Guarded by graph_mutex_ and drained by parse_del().
+  // been told about yet. Guarded by graph_mutex_; parse_del() is the sole drain point.
   std::vector<liveliness::ConstEntityPtr> removed_subscribers_;
 
   // Unlocks graph_lock, then invokes the removal callbacks for removed_subscribers_.

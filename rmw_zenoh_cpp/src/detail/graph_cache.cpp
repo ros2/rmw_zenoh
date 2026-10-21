@@ -517,8 +517,7 @@ void GraphCache::update_topic_map_for_del(
   if (is_pub) {
     cache_topic_qos_it->second->pubs_.erase(entity);
   } else {
-    // report_events is only set for the graph-wide topic map, so a subscriber is
-    // queued once however many maps it is removed from.
+    // report_events is true only for graph_topics_, so each removal is queued once.
     if (cache_topic_qos_it->second->subs_.erase(entity) > 0 && report_events) {
       removed_subscribers_.push_back(entity);
     }
@@ -666,6 +665,31 @@ void GraphCache::parse_del(
 }
 
 ///=============================================================================
+bool GraphCache::contains_subscriber(const liveliness::Entity & entity) const
+{
+  if (entity.type() != EntityType::Subscription || !entity.topic_info().has_value()) {
+    return false;
+  }
+  std::lock_guard<std::mutex> lock(graph_mutex_);
+  const auto topic_it = graph_topics_.find(entity.topic_info()->name_);
+  if (topic_it == graph_topics_.end()) {
+    return false;
+  }
+  const auto type_it = topic_it->second.find(entity.topic_info()->type_);
+  if (type_it == topic_it->second.end()) {
+    return false;
+  }
+  for (const auto & [qos, data] : type_it->second) {
+    for (const auto & subscriber : data->subs_) {
+      if (subscriber->liveliness_keyexpr() == entity.liveliness_keyexpr()) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+///=============================================================================
 void GraphCache::notify_subscriber_removals(std::unique_lock<std::mutex> & graph_lock)
 {
   std::vector<liveliness::ConstEntityPtr> removed;
@@ -675,9 +699,8 @@ void GraphCache::notify_subscriber_removals(std::unique_lock<std::mutex> & graph
     return;
   }
 
-  // Lock ordering matches parse_put: graph_mutex_ is no longer held here, so the
-  // callbacks are collected under discovery_mutex_ only and run with no lock held.
-  std::vector<std::pair<EntityDiscoveryCallback, liveliness::ConstEntityPtr>> to_invoke;
+  // graph_mutex_ is released before discovery_mutex_ is taken. Callbacks run with no lock held.
+  std::vector<std::pair<EntityRemovalCallback, liveliness::ConstEntityPtr>> to_invoke;
   {
     std::lock_guard<std::mutex> disc_lock(discovery_mutex_);
     for (const auto & entity : removed) {
@@ -1469,7 +1492,7 @@ void GraphCache::register_subscriber_discovery_callback(
 void GraphCache::register_subscriber_removal_callback(
   const std::string & topic_name,
   std::size_t publisher_gid_hash,
-  EntityDiscoveryCallback callback)
+  EntityRemovalCallback callback)
 {
   std::lock_guard<std::mutex> disc_lock(discovery_mutex_);
   subscriber_removal_callbacks_[topic_name][publisher_gid_hash] = std::move(callback);

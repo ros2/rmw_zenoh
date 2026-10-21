@@ -227,20 +227,21 @@ std::shared_ptr<PublisherData> PublisherData::make(
     pub_data->graph_cache_ = context_impl->graph_cache();
     if (pub_data->graph_cache_ != nullptr) {
       std::weak_ptr<PublisherData> weak_pub_data = pub_data;
-      pub_data->graph_cache_->register_subscriber_discovery_callback(
-        topic_name,
-        pub_data->gid_hash(),
-        [weak_pub_data](const liveliness::Entity & entity) {
-          if (auto pd = weak_pub_data.lock()) {
-            pd->on_subscriber_discovered(entity);
-          }
-        });
+      // Removal must be registered before discovery replays existing subscribers.
       pub_data->graph_cache_->register_subscriber_removal_callback(
         topic_name,
         pub_data->gid_hash(),
         [weak_pub_data](const liveliness::Entity & entity) {
           if (auto pd = weak_pub_data.lock()) {
             pd->on_subscriber_removed(entity);
+          }
+        });
+      pub_data->graph_cache_->register_subscriber_discovery_callback(
+        topic_name,
+        pub_data->gid_hash(),
+        [weak_pub_data](const liveliness::Entity & entity) {
+          if (auto pd = weak_pub_data.lock()) {
+            pd->on_subscriber_discovered(entity);
           }
         });
 
@@ -885,6 +886,22 @@ void PublisherData::on_subscriber_discovered(const liveliness::Entity & entity)
   // Phase 3: store results under lock
   {
     std::lock_guard<std::mutex> lock(mutex_);
+    // Removal can run while backend discovery or endpoint creation is unlocked.
+    // Check under mutex_ so a later removal callback observes the committed subscriber.
+    if (is_shutdown_ || !graph_cache_ || !graph_cache_->contains_subscriber(entity)) {
+      if (need_create_endpoint) {
+        pending_endpoints_.erase(full_key);
+      }
+      return;
+    }
+    for (const auto & existing : discovered_subscribers_) {
+      if (memcmp(existing.gid.data, gid.data, RMW_GID_STORAGE_SIZE) == 0) {
+        if (need_create_endpoint) {
+          pending_endpoints_.erase(full_key);
+        }
+        return;
+      }
+    }
     if (new_endpoint) {
       endpoints_[full_key] = new_endpoint;
       pending_endpoints_.erase(full_key);
