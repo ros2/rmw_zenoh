@@ -70,6 +70,18 @@ if(BUILD_TESTING)
     ${test_msgs_TARGETS}
     ament_cmake_ros_core::ament_ros_defaults
   )
+
+  ament_add_ros_isolated_gtest(test_publish_during_shutdown
+    test/test_publish_during_shutdown.cpp
+    TIMEOUT 120
+    ENV RMW_IMPLEMENTATION=rmw_zenoh_cpp)
+  target_link_libraries(test_publish_during_shutdown
+    rclcpp::rclcpp
+    rmw_zenoh_cpp::rmw_zenoh_cpp
+    rcpputils::rcpputils
+    ${test_msgs_TARGETS}
+    ament_cmake_ros_core::ament_ros_defaults
+  )
 endif()
 
 ament_package()
