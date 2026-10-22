@@ -16,6 +16,7 @@
 
 #include <fastcdr/FastBuffer.h>
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -226,6 +227,15 @@ std::shared_ptr<PublisherData> PublisherData::make(
     pub_data->graph_cache_ = context_impl->graph_cache();
     if (pub_data->graph_cache_ != nullptr) {
       std::weak_ptr<PublisherData> weak_pub_data = pub_data;
+      // Removal must be registered before discovery replays existing subscribers.
+      pub_data->graph_cache_->register_subscriber_removal_callback(
+        topic_name,
+        pub_data->gid_hash(),
+        [weak_pub_data](const liveliness::Entity & entity) {
+          if (auto pd = weak_pub_data.lock()) {
+            pd->on_subscriber_removed(entity);
+          }
+        });
       pub_data->graph_cache_->register_subscriber_discovery_callback(
         topic_name,
         pub_data->gid_hash(),
@@ -778,10 +788,16 @@ void PublisherData::on_subscriber_discovered(const liveliness::Entity & entity)
     return;
   }
 
-  std::unordered_map<std::string, std::string> sub_backend_metadata;
-  if (topic_info_opt->backend_metadata_.has_value()) {
-    sub_backend_metadata = topic_info_opt->backend_metadata_.value();
+  // A subscriber whose liveliness token carries no `backends:` field is not
+  // buffer-aware: it only listens on the base key. Leave it out of
+  // discovered_subscribers_ so that publish() sees total_matched exceed the
+  // buffer-aware count and falls back to the base key.
+  if (!topic_info_opt->backend_metadata_.has_value()) {
+    return;
   }
+
+  std::unordered_map<std::string, std::string> sub_backend_metadata =
+    topic_info_opt->backend_metadata_.value();
   const bool use_cpu_group = is_cpu_only_backend_metadata(sub_backend_metadata);
 
   auto gid = entity_gid_to_rmw_gid(entity, rmw_zenoh_identifier);
@@ -870,6 +886,22 @@ void PublisherData::on_subscriber_discovered(const liveliness::Entity & entity)
   // Phase 3: store results under lock
   {
     std::lock_guard<std::mutex> lock(mutex_);
+    // Removal can run while backend discovery or endpoint creation is unlocked.
+    // Check under mutex_ so a later removal callback observes the committed subscriber.
+    if (is_shutdown_ || !graph_cache_ || !graph_cache_->contains_subscriber(entity)) {
+      if (need_create_endpoint) {
+        pending_endpoints_.erase(full_key);
+      }
+      return;
+    }
+    for (const auto & existing : discovered_subscribers_) {
+      if (memcmp(existing.gid.data, gid.data, RMW_GID_STORAGE_SIZE) == 0) {
+        if (need_create_endpoint) {
+          pending_endpoints_.erase(full_key);
+        }
+        return;
+      }
+    }
     if (new_endpoint) {
       endpoints_[full_key] = new_endpoint;
       pending_endpoints_.erase(full_key);
@@ -888,6 +920,57 @@ void PublisherData::on_subscriber_discovered(const liveliness::Entity & entity)
       endpoints_[full_key]->target_subscribers.push_back(gid);
     }
   }
+}
+
+///=============================================================================
+void PublisherData::on_subscriber_removed(const liveliness::Entity & entity)
+{
+  if (entity.type() != liveliness::EntityType::Subscription) {
+    return;
+  }
+
+  const auto gid = entity_gid_to_rmw_gid(entity, rmw_zenoh_identifier);
+
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (!is_buffer_aware_ || is_shutdown_) {
+    return;
+  }
+
+  // Subscribers without a `backends:` field were never added, so a miss is normal.
+  const auto it = std::find_if(
+    discovered_subscribers_.begin(), discovered_subscribers_.end(),
+    [&gid](const SubscriberInfo & info) {
+      return memcmp(info.gid.data, gid.data, RMW_GID_STORAGE_SIZE) == 0;
+    });
+  if (it == discovered_subscribers_.end()) {
+    return;
+  }
+
+  const std::string endpoint_key = it->endpoint_key;
+  const bool uses_cpu_group = it->uses_cpu_group;
+  discovered_subscribers_.erase(it);
+
+  const auto endpoint_it = endpoints_.find(endpoint_key);
+  if (endpoint_it != endpoints_.end() && endpoint_it->second) {
+    auto & targets = endpoint_it->second->target_subscribers;
+    targets.erase(
+      std::remove_if(
+        targets.begin(), targets.end(),
+        [&gid](const rmw_gid_t & target) {
+          return memcmp(target.data, gid.data, RMW_GID_STORAGE_SIZE) == 0;
+        }),
+      targets.end());
+  }
+  // A per-subscriber endpoint has no other user. The CPU group endpoint is shared
+  // and is created up front, so it stays.
+  if (!uses_cpu_group) {
+    endpoints_.erase(endpoint_key);
+  }
+
+  RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
+    "rmw_zenoh_cpp",
+    "[Publisher] Subscriber gid='%s' left; %zu buffer-aware subscriber(s) remain",
+    gid_to_hex(gid).c_str(), discovered_subscribers_.size());
 }
 
 ///=============================================================================
