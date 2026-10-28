@@ -301,14 +301,15 @@ rmw_ret_t PublisherData::publish_buffer_aware(
     ep->cached_message.reset();
   }
 
-  // Allocate once when the first copy is ready to publish. Subscribers use the shared number
-  // to detect lost messages; a publication with no put attempt must not introduce a gap.
-  std::optional<int64_t> sequence_number;
-  const auto publication_sequence_number = [&]() {
-      if (!sequence_number.has_value()) {
-        sequence_number = sequence_number_++;
+  // All copies of one publication share an attachment. Allocate its sequence number and
+  // timestamp only when the first copy is ready to publish.
+  std::optional<rmw_zenoh_cpp::AttachmentData> publication_attachment;
+  const auto attachment_for_publication = [&]() -> rmw_zenoh_cpp::AttachmentData & {
+      if (!publication_attachment.has_value()) {
+        publication_attachment.emplace(
+          sequence_number_++, rmw_zenoh_cpp::get_system_time_in_ns(), entity_->copy_gid());
       }
-      return sequence_number.value();
+      return publication_attachment.value();
     };
 
   const std::string cpu_group_key =
@@ -359,16 +360,21 @@ rmw_ret_t PublisherData::publish_buffer_aware(
 
     zenoh::ZResult result;
     if (cpu_endpoint->pub.has_value()) {
-      auto attachment_data = rmw_zenoh_cpp::AttachmentData(
-        publication_sequence_number(), rmw_zenoh_cpp::get_system_time_in_ns(), entity_->copy_gid());
       auto options = zenoh::ext::AdvancedPublisher::PutOptions::create_default();
-      options.put_options.attachment = attachment_data.serialize_to_zbytes();
+      options.put_options.attachment = attachment_for_publication().serialize_to_zbytes();
       cpu_endpoint->pub.value().put(std::move(payload), std::move(options), &result);
       if (result != Z_OK) {
-        RMW_ZENOH_ROSIDL_BUFFER_LOG_ERROR_NAMED(
-          "rmw_zenoh_cpp",
-          "Failed to publish to CPU-group endpoint '%s'", cpu_group_key.c_str());
-        ret = RMW_RET_ERROR;
+        if (result == Z_ESESSION_CLOSED) {
+          RMW_ZENOH_LOG_WARN_NAMED(
+            "rmw_zenoh_cpp",
+            "unable to publish message since the zenoh session is closed");
+          return RMW_RET_OK;
+        } else {
+          RMW_ZENOH_ROSIDL_BUFFER_LOG_ERROR_NAMED(
+            "rmw_zenoh_cpp",
+            "Failed to publish to CPU-group endpoint '%s'", cpu_group_key.c_str());
+          ret = RMW_RET_ERROR;
+        }
       }
     }
   }
@@ -416,8 +422,12 @@ rmw_ret_t PublisherData::publish_buffer_aware(
       ros_message, ser.get_cdr(), type_support_impl_, sub.endpoint_info.info,
       backend_ctx->serialization_context);
     if (!ok) {
-      RMW_SET_ERROR_MSG("could not serialize ROS message with endpoint awareness");
-      return RMW_RET_ERROR;
+      // Keep publishing to the other subscribers.
+      RMW_ZENOH_ROSIDL_BUFFER_LOG_ERROR_NAMED(
+        "rmw_zenoh_cpp",
+        "Failed to serialize message for endpoint '%s'", sub.endpoint_key.c_str());
+      ret = RMW_RET_ERROR;
+      continue;
     }
 
     size_t data_length = ser.get_serialized_data_length();
@@ -446,10 +456,8 @@ rmw_ret_t PublisherData::publish_buffer_aware(
 
     zenoh::ZResult result;
     if (endpoint->pub.has_value()) {
-      auto attachment_data = rmw_zenoh_cpp::AttachmentData(
-        publication_sequence_number(), rmw_zenoh_cpp::get_system_time_in_ns(), entity_->copy_gid());
       auto options = zenoh::ext::AdvancedPublisher::PutOptions::create_default();
-      options.put_options.attachment = attachment_data.serialize_to_zbytes();
+      options.put_options.attachment = attachment_for_publication().serialize_to_zbytes();
       RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
         "rmw_zenoh_cpp",
         "[Publisher] Calling Zenoh put");
@@ -457,14 +465,24 @@ rmw_ret_t PublisherData::publish_buffer_aware(
       endpoint->pub.value().put(std::move(payload), std::move(options), &result);
 
       if (result != Z_OK) {
-        RMW_ZENOH_ROSIDL_BUFFER_LOG_ERROR_NAMED(
-          "rmw_zenoh_cpp",
-          "Failed to publish to endpoint '%s'", sub.endpoint_key.c_str());
-        ret = RMW_RET_ERROR;
+        if (result == Z_ESESSION_CLOSED) {
+          RMW_ZENOH_LOG_WARN_NAMED(
+            "rmw_zenoh_cpp",
+            "unable to publish message since the zenoh session is closed");
+          return RMW_RET_OK;
+        } else {
+          RMW_ZENOH_ROSIDL_BUFFER_LOG_ERROR_NAMED(
+            "rmw_zenoh_cpp",
+            "Failed to publish to endpoint '%s'", sub.endpoint_key.c_str());
+          ret = RMW_RET_ERROR;
+        }
       }
     }
   }
 
+  if (RMW_RET_OK != ret) {
+    RMW_SET_ERROR_MSG("unable to publish message");
+  }
   return ret;
 }
 

@@ -337,6 +337,7 @@ void TestSequenceNumber::check_copies(bool delayed_discovery)
   std::mutex mutex;
   // Key of the copy, mapped to the sequence numbers received on it, in order.
   std::map<std::string, std::vector<int64_t>> received;
+  std::map<std::string, std::vector<int64_t>> timestamps;
   std::set<std::string> probed;
   std::set<std::string> expected;
   size_t without_attachment = 0;
@@ -359,6 +360,7 @@ void TestSequenceNumber::check_copies(bool delayed_discovery)
       }
       zenoh::ext::Deserializer deserializer(attachment.value().get());
       const auto sequence_number = deserializer.deserialize<int64_t>();
+      const auto source_timestamp = deserializer.deserialize<int64_t>();
       const auto payload = sample.get_payload().as_vector();
       std::lock_guard<std::mutex> lock(mutex);
       const std::string key(sample.get_keyexpr().as_string_view());
@@ -366,6 +368,7 @@ void TestSequenceNumber::check_copies(bool delayed_discovery)
         probed.insert(key);
       } else if (payload == message_bytes) {
         received[key].push_back(sequence_number);
+        timestamps[key].push_back(source_timestamp);
       } else {
         ++unexpected_payload;
       }
@@ -428,7 +431,9 @@ void TestSequenceNumber::check_copies(bool delayed_discovery)
   std::lock_guard<std::mutex> lock(mutex);
   // Positive control: an empty map would satisfy the comparison below.
   ASSERT_EQ(received.size(), 3u) << "expected the CPU-group key and two per-subscriber keys";
+  ASSERT_EQ(timestamps.size(), 3u);
   const auto & first = received.begin()->second;
+  const auto & first_timestamps = timestamps.begin()->second;
   EXPECT_EQ(first.size(), kPublications);
   EXPECT_EQ(without_attachment, 0u);
   EXPECT_EQ(unexpected_payload, 0u);
@@ -436,6 +441,8 @@ void TestSequenceNumber::check_copies(bool delayed_discovery)
     EXPECT_EQ(expected.count(key), 1u) << "unexpected endpoint " << key;
     EXPECT_EQ(numbers.size(), kPublications) << "incomplete endpoint " << key;
     EXPECT_EQ(numbers, first) << "copy on " << key << " has other numbers than the first copy";
+    EXPECT_EQ(timestamps.at(key), first_timestamps) << "copy on " << key <<
+      " has other timestamps than the first copy";
   }
   // Consecutive publications differ by one.
   for (size_t i = 1; i < first.size(); ++i) {
