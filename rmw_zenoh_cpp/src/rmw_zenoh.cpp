@@ -826,7 +826,7 @@ rmw_serialize(
   rmw_zenoh_cpp::Cdr ser(buffer);
 
   auto ret = tss.serialize_ros_message(ros_message, ser.get_cdr(), callbacks);
-  serialized_message->buffer_length = data_length;
+  serialized_message->buffer_length = ser.get_serialized_data_length();
   serialized_message->buffer_capacity = data_length;
   return ret == true ? RMW_RET_OK : RMW_RET_ERROR;
 }
