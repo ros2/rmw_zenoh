@@ -19,6 +19,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <exception>
 #include <string>
 
 #include "rmw/error_handling.h"
@@ -137,6 +138,13 @@ bool TypeSupport::deserialize_ros_message(
       "Fast CDR exception deserializing message of type %s. %s",
       get_name(), e.what());
     return false;
+  } catch (const std::exception & e) {
+    // The generated code throws standard exceptions for some malformed data,
+    // e.g. std::length_error for a bounded sequence longer than its bound.
+    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
+      "Exception deserializing message of type %s. %s",
+      get_name(), e.what());
+    return false;
   }
 
   return true;
@@ -203,6 +211,13 @@ bool TypeSupport::deserialize_ros_message_with_endpoint(
   } catch (const eprosima::fastcdr::exception::Exception & e) {
     RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
       "Fast CDR exception deserializing message of type %s. %s",
+      get_name(), e.what());
+    return false;
+  } catch (const std::exception & e) {
+    // The generated code throws standard exceptions for some malformed data,
+    // e.g. std::length_error for a bounded sequence longer than its bound.
+    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
+      "Exception deserializing message of type %s. %s",
       get_name(), e.what());
     return false;
   }
