@@ -19,6 +19,8 @@ if(BUILD_TESTING)
   find_package(rclcpp REQUIRED)
   find_package(rcpputils REQUIRED)
   find_package(rmw_zenoh_cpp REQUIRED)
+  find_package(rosidl_typesupport_fastrtps_cpp REQUIRED)
+  find_package(std_msgs REQUIRED)
   find_package(test_msgs REQUIRED)
   find_package(zenoh_cpp_vendor REQUIRED)
 
@@ -68,6 +70,25 @@ if(BUILD_TESTING)
     rmw_zenoh_cpp::rmw_zenoh_cpp
     rcpputils::rcpputils
     ${test_msgs_TARGETS}
+    ament_cmake_ros_core::ament_ros_defaults
+  )
+
+  ament_add_ros_isolated_gtest(test_rmw_zenoh_sequence_number
+    test/test_rmw_zenoh_sequence_number.cpp
+    ../rmw_zenoh_cpp/src/detail/liveliness_utils.cpp
+    ../rmw_zenoh_cpp/src/detail/logging.cpp
+    ../rmw_zenoh_cpp/src/detail/qos.cpp
+    ../rmw_zenoh_cpp/src/detail/simplified_xxhash3.cpp
+    ENV RMW_IMPLEMENTATION=rmw_zenoh_cpp)
+  target_include_directories(test_rmw_zenoh_sequence_number PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/../rmw_zenoh_cpp/src")
+  target_link_libraries(test_rmw_zenoh_sequence_number
+    rclcpp::rclcpp
+    rmw_zenoh_cpp::rmw_zenoh_cpp
+    zenohcxx::zenohc
+    rcpputils::rcpputils
+    rosidl_typesupport_fastrtps_cpp::rosidl_typesupport_fastrtps_cpp
+    ${std_msgs_TARGETS}
     ament_cmake_ros_core::ament_ros_defaults
   )
 
