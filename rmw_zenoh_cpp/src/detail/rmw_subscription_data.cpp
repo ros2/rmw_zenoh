@@ -1060,6 +1060,14 @@ rmw_ret_t SubscriptionData::take_serialized_message(
       "SubscriptionData not able to get slice data");
     return RMW_RET_ERROR;
   }
+  // Messages received on an endpoint key carry buffer descriptors, which cannot be returned as
+  // serialized bytes.
+  if (msg_data->endpoint_info.has_value()) {
+    RMW_SET_ERROR_MSG(
+      "cannot take a serialized message received through a non-CPU buffer backend, "
+      "set acceptable_buffer_backends to 'cpu' to take serialized messages");
+    return RMW_RET_ERROR;
+  }
   if (serialized_message->buffer_capacity < payload_data.size()) {
     rmw_ret_t ret =
       rmw_serialized_message_resize(serialized_message, payload_data.size());
