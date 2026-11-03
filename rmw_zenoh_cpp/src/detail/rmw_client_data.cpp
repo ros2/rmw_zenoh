@@ -232,7 +232,7 @@ std::array<uint8_t, RMW_GID_STORAGE_SIZE> ClientData::copy_gid() const
 ///=============================================================================
 void ClientData::add_new_reply(std::unique_ptr<ZenohReply> reply)
 {
-  std::lock_guard<std::mutex> lock(mutex_);
+  std::unique_lock<std::mutex> lock(mutex_);
   const rmw_qos_profile_t adapted_qos_profile =
     entity_->topic_info().value().qos_;
   if (adapted_qos_profile.history != RMW_QOS_POLICY_HISTORY_KEEP_ALL &&
@@ -250,12 +250,15 @@ void ClientData::add_new_reply(std::unique_ptr<ZenohReply> reply)
   reply_queue_.emplace_back(std::move(reply));
 
   // Since we added new data, trigger user callback and guard condition if they are available
-  data_callback_mgr_.trigger_callback();
+  // (wait set notified under mutex_, user callback called without it).
   if (wait_set_data_ != nullptr) {
     std::lock_guard<std::mutex> wait_set_lock(wait_set_data_->condition_mutex);
     wait_set_data_->triggered = true;
     wait_set_data_->condition_variable.notify_one();
   }
+
+  lock.unlock();
+  data_callback_mgr_.trigger_callback();
 }
 
 ///=============================================================================
@@ -481,7 +484,7 @@ void ClientData::set_on_new_response_callback(
   rmw_event_callback_t callback,
   const void * user_data)
 {
-  std::lock_guard<std::mutex> lock(mutex_);
+  // No mutex_ here: data_callback_mgr_ has its own lock.
   data_callback_mgr_.set_callback(user_data, std::move(callback));
 }
 
