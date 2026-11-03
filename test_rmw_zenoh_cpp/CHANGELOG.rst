@@ -2,6 +2,12 @@
 Changelog for package test_rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.14.1 (2026-11-03)
+-------------------
+* Handle publish errors on the buffer-aware path like the base path (`#1089 <https://github.com/ros2/rmw_zenoh/issues/1089>`_)
+* Shut down entities on the application thread when deleting them (`#994 <https://github.com/ros2/rmw_zenoh/issues/994>`_)
+* Contributors: Maurice Alexander Purnawan, Yifei Ma
+
 0.14.0 (2026-10-06)
 -------------------
 * Including missing dependencies (`#1062 <https://github.com/ros2/rmw_zenoh/issues/1062>`_)
