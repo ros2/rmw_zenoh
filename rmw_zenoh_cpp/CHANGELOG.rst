@@ -2,6 +2,13 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.10.8 (2026-11-03)
+-------------------
+* fix: release lock before calling into DataCallbackManager (`#1061 <https://github.com/ros2/rmw_zenoh/issues/1061>`_) (`#1096 <https://github.com/ros2/rmw_zenoh/issues/1096>`_)
+* Deserialize subscription payloads in place (`#1074 <https://github.com/ros2/rmw_zenoh/issues/1074>`_) (`#1085 <https://github.com/ros2/rmw_zenoh/issues/1085>`_)
+* Shut down entities on the application thread when deleting them (`#994 <https://github.com/ros2/rmw_zenoh/issues/994>`_) (`#1080 <https://github.com/ros2/rmw_zenoh/issues/1080>`_)
+* Contributors: mergify[bot]
+
 0.10.7 (2026-10-06)
 -------------------
 * Remove unnecessary immutable getter locks (`#1064 <https://github.com/ros2/rmw_zenoh/issues/1064>`_)
