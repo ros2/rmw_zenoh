@@ -375,7 +375,7 @@ rmw_ret_t ServiceData::take_request(
 ///=============================================================================
 rmw_ret_t ServiceData::send_response(
   rmw_request_id_t * request_id,
-  void * ros_response)
+  const void * ros_response)
 {
   std::lock_guard<std::mutex> lock(mutex_);
   if (is_shutdown()) {
