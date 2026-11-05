@@ -372,6 +372,30 @@ Note that composable nodes should *never* call `rclcpp::shutdown()`, as the comp
 
 For more details, see https://github.com/ros2/rmw_zenoh/issues/170.
 
+### Abort when stdout and stderr are closed
+
+A process using `rmw_zenoh` can abort with `SIGABRT`, often on a Zenoh `rx-N` thread, if both its stdout and stderr have been closed by the time Zenoh logs a message.
+This happens when whatever reads the process's output goes away first and Zenoh then logs during shutdown, for instance when peers disappear or the session closes.
+Common ways to run into it:
+- the parent `ros2 launch` is killed before its child processes exit,
+- the terminal or tmux pane hosting the process is closed,
+- the output is piped into a reader that exits early (e.g. `| head`), or a supervisor such as systemd closes the pipe.
+
+`rmw_zenoh` sets `RUST_LOG=warn` if it is unset and enables Zenoh's logger, which writes to stdout.
+When that write fails, `tracing-subscriber` reports the error with `eprintln!`, which panics if writing to stderr fails too, and since Zenoh is built with `panic = "abort"` the process aborts.
+Zenoh ignores `SIGPIPE`, so the writes fail with `EPIPE` instead of the signal terminating the process; C++ and Python programs are both affected.
+If only stdout is closed, the process does not abort and prints `[tracing-subscriber] Unable to write an event to the Writer for this Subscriber! Error: Broken pipe (os error 32)` to stderr instead.
+
+To avoid the abort, do one of the following:
+- Make sure the process exits before its stdout and stderr are closed, e.g. have the supervisor signal the process and wait for it to exit before closing the terminal or pipe.
+- Redirect stdout and stderr to `/dev/null` (e.g. with `dup2` or `freopen`) at the start of shutdown, before any teardown.
+  With `rclpy`, do this from your own signal handler after calling `rclpy.init(signal_handler_options=SignalHandlerOptions.NO)`, since the default handler shuts the context down from another thread where Zenoh may log first.
+- Set `RUST_LOG=off` in the environment before the process starts (`rmw_zenoh` does not overwrite an existing value), at the cost of losing Zenoh's console logs.
+  Other writes by the application to the closed streams, such as Python's `print`, may still fail.
+
+The fix belongs in `tracing-subscriber`.
+For more details, see https://github.com/ros2/rmw_zenoh/issues/<ISSUE> and https://github.com/tokio-rs/tracing/issues/<TRACING_ISSUE>.
+
 ### rmw_zenoh is incompatible between Humble and newer distributions.
 
 Since Iron, ROS 2 introduced type hashes for messages and `rmw_zenoh` includes these type hashes in the Zenoh keyexpressions it constructs for data exchange. While participants will be discoverable, communication between Humble and newer distributions will fail, resulting in messages being silently dropped.
