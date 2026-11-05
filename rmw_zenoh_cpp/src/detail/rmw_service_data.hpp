@@ -74,7 +74,7 @@ public:
   // Send a service response.
   rmw_ret_t send_response(
     rmw_request_id_t * request_id,
-    void * ros_response);
+    const void * ros_response);
 
   void set_on_new_request_callback(
     rmw_event_callback_t callback,
