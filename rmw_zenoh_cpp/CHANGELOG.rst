@@ -2,6 +2,17 @@
 Changelog for package rmw_zenoh_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.14.1 (2026-11-03)
+-------------------
+* Report the written length in rmw_serialize (`#1092 <https://github.com/ros2/rmw_zenoh/issues/1092>`_)
+* Rebind EndpointInfoStorage strings on copy and move (`#1091 <https://github.com/ros2/rmw_zenoh/issues/1091>`_)
+* Ignore repeated graph puts of the same entity (`#1087 <https://github.com/ros2/rmw_zenoh/issues/1087>`_)
+* fix: release lock before calling into DataCallbackManager (`#1061 <https://github.com/ros2/rmw_zenoh/issues/1061>`_)
+* Handle publish errors on the buffer-aware path like the base path (`#1089 <https://github.com/ros2/rmw_zenoh/issues/1089>`_)
+* Deserialize subscription payloads in place (`#1074 <https://github.com/ros2/rmw_zenoh/issues/1074>`_)
+* Shut down entities on the application thread when deleting them (`#994 <https://github.com/ros2/rmw_zenoh/issues/994>`_)
+* Contributors: Maurice Alexander Purnawan, Yifei Ma, Yuyuan Yuan, 渠超胜
+
 0.14.0 (2026-10-06)
 -------------------
 * Use the SPDX identifier Apache-2.0 in package.xml license tags (`#1073 <https://github.com/ros2/rmw_zenoh/issues/1073>`_)

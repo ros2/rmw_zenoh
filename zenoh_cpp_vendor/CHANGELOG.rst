@@ -2,6 +2,9 @@
 Changelog for package zenoh_cpp_vendor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.14.1 (2026-11-03)
+-------------------
+
 0.14.0 (2026-10-06)
 -------------------
 * Use the SPDX identifier Apache-2.0 in package.xml license tags (`#1073 <https://github.com/ros2/rmw_zenoh/issues/1073>`_)
