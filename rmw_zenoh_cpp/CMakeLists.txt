@@ -146,6 +146,13 @@ if(BUILD_TESTING)
     zenohcxx::zenohc
     ament_cmake_ros_core::ament_ros_defaults
   )
+
+  ament_add_gtest(test_logging test/test_logging.cpp src/detail/logging.cpp)
+  target_include_directories(test_logging PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+  target_link_libraries(test_logging
+    rcutils::rcutils
+    ament_cmake_ros_core::ament_ros_defaults
+  )
 endif()
 
 install(
