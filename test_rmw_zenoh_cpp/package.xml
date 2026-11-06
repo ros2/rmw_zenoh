@@ -19,6 +19,8 @@
   <test_depend>rclcpp</test_depend>
   <test_depend>rcpputils</test_depend>
   <test_depend>rmw_zenoh_cpp</test_depend>
+  <test_depend>rosidl_typesupport_fastrtps_cpp</test_depend>
+  <test_depend>std_msgs</test_depend>
   <test_depend>test_msgs</test_depend>
   <test_depend>zenoh_cpp_vendor</test_depend>
 

@@ -301,6 +301,17 @@ rmw_ret_t PublisherData::publish_buffer_aware(
     ep->cached_message.reset();
   }
 
+  // All copies of one publication share an attachment. Allocate its sequence number and
+  // timestamp only when the first copy is ready to publish.
+  std::optional<rmw_zenoh_cpp::AttachmentData> publication_attachment;
+  const auto attachment_for_publication = [&]() -> rmw_zenoh_cpp::AttachmentData & {
+      if (!publication_attachment.has_value()) {
+        publication_attachment.emplace(
+          sequence_number_++, rmw_zenoh_cpp::get_system_time_in_ns(), entity_->copy_gid());
+      }
+      return publication_attachment.value();
+    };
+
   const std::string cpu_group_key =
     make_cpu_group_key(entity_->topic_info()->topic_keyexpr_);
 
@@ -347,18 +358,10 @@ rmw_ret_t PublisherData::publish_buffer_aware(
     auto payload = zenoh::Bytes(msg_bytes, data_length, deleter);
     always_free_data.cancel();
 
-    int64_t source_timestamp = rmw_zenoh_cpp::get_system_time_in_ns();
-    auto gid = entity_->copy_gid();
-    auto attachment_data = rmw_zenoh_cpp::AttachmentData(
-      sequence_number_++, source_timestamp, gid);
-    auto attachment_bytes = attachment_data.serialize_to_zbytes();
-
-    zenoh::ext::AdvancedPublisher::PutOptions options =
-      zenoh::ext::AdvancedPublisher::PutOptions::create_default();
-    options.put_options.attachment = std::move(attachment_bytes);
-
     zenoh::ZResult result;
     if (cpu_endpoint->pub.has_value()) {
+      auto options = zenoh::ext::AdvancedPublisher::PutOptions::create_default();
+      options.put_options.attachment = attachment_for_publication().serialize_to_zbytes();
       cpu_endpoint->pub.value().put(std::move(payload), std::move(options), &result);
       if (result != Z_OK) {
         if (result == Z_ESESSION_CLOSED) {
@@ -451,26 +454,10 @@ rmw_ret_t PublisherData::publish_buffer_aware(
     auto payload = zenoh::Bytes(msg_bytes, data_length, deleter);
     always_free_data.cancel();  // Zenoh now owns the memory
 
-    // Create attachment AFTER serialization
-    RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
-      "rmw_zenoh_cpp",
-      "[Publisher] Creating message attachment data");
-
-    int64_t source_timestamp = rmw_zenoh_cpp::get_system_time_in_ns();
-    auto gid = entity_->copy_gid();
-
-    auto attachment_data = rmw_zenoh_cpp::AttachmentData(
-      sequence_number_++, source_timestamp, gid);
-
-    auto attachment_bytes = attachment_data.serialize_to_zbytes();
-
-    zenoh::ext::AdvancedPublisher::PutOptions options =
-      zenoh::ext::AdvancedPublisher::PutOptions::create_default();
-    // Set attachment directly without std::make_optional (same as non-buffer-aware path)
-    options.put_options.attachment = std::move(attachment_bytes);
-
     zenoh::ZResult result;
     if (endpoint->pub.has_value()) {
+      auto options = zenoh::ext::AdvancedPublisher::PutOptions::create_default();
+      options.put_options.attachment = attachment_for_publication().serialize_to_zbytes();
       RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
         "rmw_zenoh_cpp",
         "[Publisher] Calling Zenoh put");
