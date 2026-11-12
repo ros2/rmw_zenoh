@@ -72,29 +72,6 @@ if(BUILD_TESTING)
     ${test_msgs_TARGETS}
     ament_cmake_ros_core::ament_ros_defaults
   )
-<<<<<<< HEAD
-=======
-
-  ament_add_ros_isolated_gtest(test_publish_during_shutdown
-    test/test_publish_during_shutdown.cpp
-    TIMEOUT 120
-    ENV RMW_IMPLEMENTATION=rmw_zenoh_cpp)
-  target_link_libraries(test_publish_during_shutdown
-    rclcpp::rclcpp
-    rmw_zenoh_cpp::rmw_zenoh_cpp
-    rcpputils::rcpputils
-    ${test_msgs_TARGETS}
-    ament_cmake_ros_core::ament_ros_defaults
-  )
-
-  ament_add_ros_isolated_gtest(test_deserialize_out_of_bounds
-    test/test_deserialize_out_of_bounds.cpp
-    ENV RMW_IMPLEMENTATION=rmw_zenoh_cpp)
-  target_link_libraries(test_deserialize_out_of_bounds
-    rclcpp::rclcpp
-    ${test_msgs_TARGETS}
-    ament_cmake_ros_core::ament_ros_defaults
-  )
 
   ament_add_ros_isolated_gtest(test_rmw_zenoh_sequence_number
     test/test_rmw_zenoh_sequence_number.cpp
@@ -114,7 +91,6 @@ if(BUILD_TESTING)
     ${std_msgs_TARGETS}
     ament_cmake_ros_core::ament_ros_defaults
   )
->>>>>>> 23ac40e (Stamp one sequence number per buffer-aware publication (#1079))
 endif()
 
 ament_package()
