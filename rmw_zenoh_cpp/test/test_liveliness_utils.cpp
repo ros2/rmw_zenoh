@@ -24,6 +24,12 @@
 #include "rmw/qos_profiles.h"
 #include "rmw/types.h"
 
+#if defined(_MSC_VER)
+#define NOINLINE __declspec(noinline)
+#else
+#define NOINLINE attribute((noinline))
+#endif
+
 using rmw_zenoh_cpp::liveliness::keyexpr_to_qos;
 using rmw_zenoh_cpp::liveliness::qos_to_keyexpr;
 
@@ -31,7 +37,7 @@ namespace
 {
 // Leave a recognizable pattern in the stack area that the next call reuses, so that a field
 // keyexpr_to_qos() forgets to set shows up as that pattern instead of a lucky zero.
-__attribute__((noinline)) void dirty_stack(unsigned char pattern)
+NOINLINE void dirty_stack(unsigned char pattern)
 {
   volatile unsigned char buffer[16384];
   for (auto & byte : buffer) {
