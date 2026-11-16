@@ -57,7 +57,7 @@ void Logger::log_named(
       RCUTILS_SAFE_FWRITE_TO_STDERR("Failed to get timestamp while doing a console logging.\n");
       return;
     }
-    static rcutils_log_location_t log_location = {function_name, file_name, line_number};
+    rcutils_log_location_t log_location = {function_name, file_name, line_number};
     va_list args;
     va_start(args, message);
     rcutils_logging_console_output_handler(
@@ -68,6 +68,7 @@ void Logger::log_named(
       message,
       &args
     );
+    va_end(args);
   }
 }
 }  // namespace rmw_zenoh_cpp
