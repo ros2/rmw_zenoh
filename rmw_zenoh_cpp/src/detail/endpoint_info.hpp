@@ -17,6 +17,7 @@
 
 #include <cstring>
 #include <string>
+#include <utility>
 
 #include "liveliness_utils.hpp"
 
@@ -35,6 +36,58 @@ struct EndpointInfoStorage
   std::string node_name;
   std::string node_namespace;
   std::string topic_type;
+
+  EndpointInfoStorage() = default;
+
+  EndpointInfoStorage(const EndpointInfoStorage & other)
+  : info(other.info),
+    node_name(other.node_name),
+    node_namespace(other.node_namespace),
+    topic_type(other.topic_type)
+  {
+    bind_strings();
+  }
+
+  EndpointInfoStorage(EndpointInfoStorage && other) noexcept
+  : info(other.info),
+    node_name(std::move(other.node_name)),
+    node_namespace(std::move(other.node_namespace)),
+    topic_type(std::move(other.topic_type))
+  {
+    bind_strings();
+  }
+
+  EndpointInfoStorage & operator=(const EndpointInfoStorage & other)
+  {
+    if (this != &other) {
+      info = other.info;
+      node_name = other.node_name;
+      node_namespace = other.node_namespace;
+      topic_type = other.topic_type;
+      bind_strings();
+    }
+    return *this;
+  }
+
+  EndpointInfoStorage & operator=(EndpointInfoStorage && other) noexcept
+  {
+    if (this != &other) {
+      info = other.info;
+      node_name = std::move(other.node_name);
+      node_namespace = std::move(other.node_namespace);
+      topic_type = std::move(other.topic_type);
+      bind_strings();
+    }
+    return *this;
+  }
+
+  /// Point the strings in info at this object's members.
+  void bind_strings()
+  {
+    info.node_name = node_name.c_str();
+    info.node_namespace = node_namespace.c_str();
+    info.topic_type = topic_type.c_str();
+  }
 };
 
 /// Build an EndpointInfoStorage from a liveliness Entity.
@@ -56,9 +109,7 @@ inline EndpointInfoStorage build_endpoint_info_from_entity(
       topic_info->type_hash_.c_str(),
       &storage.info.topic_type_hash);
   }
-  storage.info.node_name = storage.node_name.c_str();
-  storage.info.node_namespace = storage.node_namespace.c_str();
-  storage.info.topic_type = storage.topic_type.c_str();
+  storage.bind_strings();
   storage.info.endpoint_type = endpoint_type;
 
   auto gid_array = entity.copy_gid();
