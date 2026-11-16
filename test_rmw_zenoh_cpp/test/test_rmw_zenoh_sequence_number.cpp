@@ -189,7 +189,15 @@ protected:
 
     std::mutex mutex;
     using Copies = std::map<std::string, std::vector<int64_t>>;
-    std::map<std::vector<uint8_t>, Copies> received;
+    // std::vector's operator<=> triggers a GCC 14 -Wstringop-overread false positive at -O3.
+    struct BytesLess
+    {
+      bool operator()(const std::vector<uint8_t> & a, const std::vector<uint8_t> & b) const
+      {
+        return std::lexicographical_compare(a.begin(), a.end(), b.begin(), b.end());
+      }
+    };
+    std::map<std::vector<uint8_t>, Copies, BytesLess> received;
     size_t without_attachment = 0;
     zenoh::ZResult result;
     auto raw_sub = session->declare_subscriber(
