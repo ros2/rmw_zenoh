@@ -146,6 +146,22 @@ if(BUILD_TESTING)
     zenohcxx::zenohc
     ament_cmake_ros_core::ament_ros_defaults
   )
+
+  ament_add_gtest(test_liveliness_utils
+    test/test_liveliness_utils.cpp
+    src/detail/liveliness_utils.cpp
+    src/detail/logging.cpp
+    src/detail/qos.cpp
+    src/detail/simplified_xxhash3.cpp
+  )
+  target_include_directories(test_liveliness_utils PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+  target_link_libraries(test_liveliness_utils
+    rcpputils::rcpputils
+    rcutils::rcutils
+    rmw::rmw
+    zenohcxx::zenohc
+    ament_cmake_ros_core::ament_ros_defaults
+  )
 endif()
 
 install(
