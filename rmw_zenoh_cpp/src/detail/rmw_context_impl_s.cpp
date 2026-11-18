@@ -112,19 +112,20 @@ public:
     // immediately. The session is then marked as closed, so when the shared_ptr refcount
     // eventually reaches zero (after rcl destroys each handle in the normal teardown order),
     // the session destructor finds is_closed()==true and skips the blocking close() call.
-    // Pass a ZResult so that a failed close (for example, a timeout) is reported
-    // as an error instead of throwing a zenoh::ZException out of rmw_shutdown().
+    // Pass a ZResult so that a failed close (for example, a timeout) does not throw a
+    // zenoh::ZException out of rmw_shutdown(). Zenoh marks the session closed before the
+    // part that can time out, and we drop our reference below, so the shutdown has still
+    // happened and we return RMW_RET_OK; otherwise rcl would not invalidate the context.
     session_->close(zenoh::Session::SessionCloseOptions::create_default(), &result);
     if (result != Z_OK) {
       RMW_ZENOH_LOG_ERROR_NAMED(
         "rmw_zenoh_cpp",
-        "Unable to close the Zenoh session");
-      ret = RMW_RET_ERROR;
+        "Failed to close the Zenoh session (it may have timed out); dropping it anyway.");
     }
 
     session_.reset();
 
-    return ret;
+    return RMW_RET_OK;
   }
 
   std::string enclave() const
