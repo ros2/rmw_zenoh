@@ -19,6 +19,7 @@
 #include <cstdint>
 #include <mutex>
 #include <string>
+#include <unordered_set>
 
 #include "rmw/event.h"
 #include "rmw/event_callback_type.h"
@@ -128,7 +129,9 @@ public:
     rmw_wait_set_data_t * wait_set_data);
 
   /// @brief Detach the condition variable provided by rmw_wait.
-  bool detach_condition_and_event_queue_is_empty(rmw_zenoh_event_type_t event_id);
+  bool detach_condition_and_event_queue_is_empty(
+    rmw_zenoh_event_type_t event_id,
+    rmw_wait_set_data_t * wait_set_data);
 
 private:
   /// @brief Trigger the callback for an event.
@@ -143,7 +146,7 @@ private:
   /// Mutex to lock for event_condition.
   mutable std::mutex event_condition_mutex_;
   /// Condition variable to attach for event notifications.
-  rmw_wait_set_data_t * wait_set_data_[ZENOH_EVENT_ID_MAX + 1]{nullptr};
+  std::unordered_set<rmw_wait_set_data_t *> wait_set_data_[ZENOH_EVENT_ID_MAX + 1];
 
   rmw_event_callback_t event_callback_[ZENOH_EVENT_ID_MAX + 1] {nullptr};
   const void * event_data_[ZENOH_EVENT_ID_MAX + 1] {nullptr};
