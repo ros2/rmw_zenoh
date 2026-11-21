@@ -17,6 +17,7 @@
 #define DETAIL__GUARD_CONDITION_HPP_
 
 #include <mutex>
+#include <unordered_set>
 
 #include "rmw_wait_set_data.hpp"
 
@@ -33,12 +34,12 @@ public:
 
   bool check_and_attach_condition_if_not(rmw_wait_set_data_t * wait_set_data);
 
-  bool detach_condition_and_is_trigger_set();
+  bool detach_condition_and_is_trigger_set(rmw_wait_set_data_t * wait_set_data);
 
 private:
   mutable std::mutex internal_mutex_;
   bool has_triggered_;
-  rmw_wait_set_data_t * wait_set_data_;
+  std::unordered_set<rmw_wait_set_data_t *> wait_set_data_;
 };
 }  // namespace rmw_zenoh_cpp
 

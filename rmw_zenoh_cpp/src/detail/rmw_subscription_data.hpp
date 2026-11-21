@@ -26,6 +26,7 @@
 #include <set>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include <zenoh.hxx>
@@ -112,7 +113,7 @@ public:
   bool queue_has_data_and_attach_condition_if_not(
     rmw_wait_set_data_t * wait_set_data);
 
-  bool detach_condition_and_queue_is_empty();
+  bool detach_condition_and_queue_is_empty(rmw_wait_set_data_t * wait_set_data);
 
   // Return graph cache for event registrations.
   std::shared_ptr<GraphCache> graph_cache() const;
@@ -210,7 +211,7 @@ private:
   std::atomic<uint64_t> reception_sn_;
   // Wait set data. Guarded by mutex_, also while notifying: detach takes mutex_, so the
   // wait set outlives the notification.
-  rmw_wait_set_data_t * wait_set_data_;
+  std::unordered_set<rmw_wait_set_data_t *> wait_set_data_;
   // Data callback manager. It runs user code, so never call it with mutex_ held.
   DataCallbackManager data_callback_mgr_;
   // Shutdown flag.

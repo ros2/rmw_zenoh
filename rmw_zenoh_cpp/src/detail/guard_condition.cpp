@@ -22,8 +22,7 @@ namespace rmw_zenoh_cpp
 {
 ///=============================================================================
 GuardCondition::GuardCondition()
-: has_triggered_(false),
-  wait_set_data_(nullptr)
+: has_triggered_(false)
 {
 }
 
@@ -37,10 +36,10 @@ void GuardCondition::trigger()
   // be called
   has_triggered_ = true;
 
-  if (wait_set_data_ != nullptr) {
-    std::lock_guard<std::mutex> wait_set_lock(wait_set_data_->condition_mutex);
-    wait_set_data_->triggered = true;
-    wait_set_data_->condition_variable.notify_one();
+  for (rmw_wait_set_data_t * wait_set_data : wait_set_data_) {
+    std::lock_guard<std::mutex> wait_set_lock(wait_set_data->condition_mutex);
+    wait_set_data->triggered = true;
+    wait_set_data->condition_variable.notify_one();
   }
 }
 
@@ -52,16 +51,16 @@ bool GuardCondition::check_and_attach_condition_if_not(rmw_wait_set_data_t * wai
     return true;
   }
 
-  wait_set_data_ = wait_set_data;
+  wait_set_data_.insert(wait_set_data);
 
   return false;
 }
 
 ///=============================================================================
-bool GuardCondition::detach_condition_and_is_trigger_set()
+bool GuardCondition::detach_condition_and_is_trigger_set(rmw_wait_set_data_t * wait_set_data)
 {
   std::lock_guard<std::mutex> lock(internal_mutex_);
-  wait_set_data_ = nullptr;
+  wait_set_data_.erase(wait_set_data);
 
   bool ret = has_triggered_;
 

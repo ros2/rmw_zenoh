@@ -214,7 +214,6 @@ ServiceData::ServiceData(
   response_type_support_impl_(response_type_support_impl),
   request_type_support_(std::move(request_type_support)),
   response_type_support_(std::move(response_type_support)),
-  wait_set_data_(nullptr),
   is_shutdown_(false)
 {
   // Do nothing.
@@ -264,10 +263,10 @@ void ServiceData::add_new_query(std::unique_ptr<ZenohQuery> query)
 
   // Since we added new data, trigger user callback and guard condition if they are available
   // (wait set notified under mutex_, user callback called without it).
-  if (wait_set_data_ != nullptr) {
-    std::lock_guard<std::mutex> wait_set_lock(wait_set_data_->condition_mutex);
-    wait_set_data_->triggered = true;
-    wait_set_data_->condition_variable.notify_one();
+  for (rmw_wait_set_data_t * wait_set_data : wait_set_data_) {
+    std::lock_guard<std::mutex> wait_set_lock(wait_set_data->condition_mutex);
+    wait_set_data->triggered = true;
+    wait_set_data->condition_variable.notify_one();
   }
 
   lock.unlock();
@@ -503,16 +502,16 @@ bool ServiceData::queue_has_data_and_attach_condition_if_not(
   if (!query_queue_.empty()) {
     return true;
   }
-  wait_set_data_ = wait_set_data;
+  wait_set_data_.insert(wait_set_data);
 
   return false;
 }
 
 ///=============================================================================
-bool ServiceData::detach_condition_and_queue_is_empty()
+bool ServiceData::detach_condition_and_queue_is_empty(rmw_wait_set_data_t * wait_set_data)
 {
   std::lock_guard<std::mutex> lock(mutex_);
-  wait_set_data_ = nullptr;
+  wait_set_data_.erase(wait_set_data);
 
   return query_queue_.empty();
 }

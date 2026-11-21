@@ -41,6 +41,7 @@
 #include "rcpputils/scope_exit.hpp"
 
 #include "rmw/error_handling.h"
+#include "rmw/qos_profiles.h"
 
 namespace rmw_zenoh_cpp
 {
@@ -427,7 +428,9 @@ std::string qos_to_keyexpr(const rmw_qos_profile_t & qos)
 std::optional<rmw_qos_profile_t> keyexpr_to_qos(const std::string & keyexpr)
 {
   const rmw_qos_profile_t & default_qos = QoS::get().default_qos();
-  rmw_qos_profile_t qos;
+  // Start from a fully initialized profile: fields that are not encoded in the keyexpr
+  // (e.g. avoid_ros_namespace_conventions) must not be left indeterminate.
+  rmw_qos_profile_t qos = rmw_qos_profile_unknown;
 
   const std::vector<std::string> parts = split_keyexpr(keyexpr, QOS_DELIMITER);
   if (parts.size() < 6) {
