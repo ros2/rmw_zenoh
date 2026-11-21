@@ -2284,7 +2284,7 @@ rmw_wait(
       if (gc == nullptr) {
         continue;
       }
-      if (!gc->detach_condition_and_is_trigger_set()) {
+      if (!gc->detach_condition_and_is_trigger_set(wait_set_data)) {
         // Setting to nullptr lets rcl know that this guard condition is not ready
         guard_conditions->guard_conditions[i] = nullptr;
       } else {
@@ -2307,7 +2307,7 @@ rmw_wait(
         continue;
       }
 
-      if (event_data->detach_condition_and_event_queue_is_empty(zenoh_event_type)) {
+      if (event_data->detach_condition_and_event_queue_is_empty(zenoh_event_type, wait_set_data)) {
         // Setting to nullptr lets rcl know that this subscription is not ready
         events->events[i] = nullptr;
       } else {
@@ -2323,7 +2323,7 @@ rmw_wait(
       if (sub_data == nullptr) {
         continue;
       }
-      if (sub_data->detach_condition_and_queue_is_empty()) {
+      if (sub_data->detach_condition_and_queue_is_empty(wait_set_data)) {
         // Setting to nullptr lets rcl know that this subscription is not ready
         subscriptions->subscribers[i] = nullptr;
       } else {
@@ -2339,7 +2339,7 @@ rmw_wait(
         continue;
       }
 
-      if (serv_data->detach_condition_and_queue_is_empty()) {
+      if (serv_data->detach_condition_and_queue_is_empty(wait_set_data)) {
         // Setting to nullptr lets rcl know that this service is not ready
         services->services[i] = nullptr;
       } else {
@@ -2356,7 +2356,7 @@ rmw_wait(
         continue;
       }
 
-      if (client_data->detach_condition_and_queue_is_empty()) {
+      if (client_data->detach_condition_and_queue_is_empty(wait_set_data)) {
         // Setting to nullptr lets rcl know that this client is not ready
         clients->clients[i] = nullptr;
       } else {
