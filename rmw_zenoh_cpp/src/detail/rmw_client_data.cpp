@@ -184,7 +184,6 @@ ClientData::ClientData(
   response_type_support_impl_(response_type_support_impl),
   request_type_support_(request_type_support),
   response_type_support_(response_type_support),
-  wait_set_data_(nullptr),
   sequence_number_(1),
   is_shutdown_(false),
   initialized_(false)
@@ -247,11 +246,19 @@ void ClientData::add_new_reply(std::unique_ptr<ZenohReply> reply)
   reply_queue_.emplace_back(std::move(reply));
 
   // Since we added new data, trigger user callback and guard condition if they are available
+<<<<<<< HEAD
   data_callback_mgr_.trigger_callback();
   if (wait_set_data_ != nullptr) {
     std::lock_guard<std::mutex> wait_set_lock(wait_set_data_->condition_mutex);
     wait_set_data_->triggered = true;
     wait_set_data_->condition_variable.notify_one();
+=======
+  // (wait set notified under mutex_, user callback called without it).
+  for (rmw_wait_set_data_t * wait_set_data : wait_set_data_) {
+    std::lock_guard<std::mutex> wait_set_lock(wait_set_data->condition_mutex);
+    wait_set_data->triggered = true;
+    wait_set_data->condition_variable.notify_one();
+>>>>>>> 5a2ea36 (Wake every wait set an entity is attached to (#1110))
   }
 }
 
@@ -484,16 +491,16 @@ bool ClientData::queue_has_data_and_attach_condition_if_not(
   if (!reply_queue_.empty()) {
     return true;
   }
-  wait_set_data_ = wait_set_data;
+  wait_set_data_.insert(wait_set_data);
 
   return false;
 }
 
 ///=============================================================================
-bool ClientData::detach_condition_and_queue_is_empty()
+bool ClientData::detach_condition_and_queue_is_empty(rmw_wait_set_data_t * wait_set_data)
 {
   std::lock_guard<std::mutex> lock(mutex_);
-  wait_set_data_ = nullptr;
+  wait_set_data_.erase(wait_set_data);
 
   return reply_queue_.empty();
 }

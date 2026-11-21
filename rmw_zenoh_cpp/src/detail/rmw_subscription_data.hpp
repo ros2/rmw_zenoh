@@ -25,7 +25,12 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
+<<<<<<< HEAD
 #include <variant>
+=======
+#include <unordered_set>
+#include <vector>
+>>>>>>> 5a2ea36 (Wake every wait set an entity is attached to (#1110))
 
 #include <zenoh.hxx>
 
@@ -114,6 +119,15 @@ public:
     rmw_event_callback_t callback,
     const void * user_data);
 
+<<<<<<< HEAD
+=======
+  bool queue_has_data_and_attach_condition_if_not(
+    rmw_wait_set_data_t * wait_set_data);
+
+  bool detach_condition_and_queue_is_empty(rmw_wait_set_data_t * wait_set_data);
+
+  // Return graph cache for event registrations.
+>>>>>>> 5a2ea36 (Wake every wait set an entity is attached to (#1110))
   std::shared_ptr<GraphCache> graph_cache() const;
 
   // Destructor.
@@ -155,9 +169,16 @@ private:
   std::unordered_map<size_t, int64_t> last_known_published_msg_;
   // Per-subscriber reception sequence number counter, incremented on every take.
   std::atomic<uint64_t> reception_sn_;
+<<<<<<< HEAD
   // Wait set data.
   rmw_wait_set_data_t * wait_set_data_;
   // Callback managers.
+=======
+  // Wait set data. Guarded by mutex_, also while notifying: detach takes mutex_, so the
+  // wait set outlives the notification.
+  std::unordered_set<rmw_wait_set_data_t *> wait_set_data_;
+  // Data callback manager. It runs user code, so never call it with mutex_ held.
+>>>>>>> 5a2ea36 (Wake every wait set an entity is attached to (#1110))
   DataCallbackManager data_callback_mgr_;
   std::shared_ptr<EventsManager> events_mgr_;
   // Shutdown flag.
