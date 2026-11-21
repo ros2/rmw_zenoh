@@ -24,6 +24,7 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 
 #include <zenoh.hxx>
 
@@ -85,7 +86,7 @@ public:
   bool queue_has_data_and_attach_condition_if_not(
     rmw_wait_set_data_t * wait_set_data);
 
-  bool detach_condition_and_queue_is_empty();
+  bool detach_condition_and_queue_is_empty(rmw_wait_set_data_t * wait_set_data);
 
   // Shutdown this ServiceData.
   rmw_ret_t shutdown();
@@ -152,9 +153,16 @@ private:
   // Map to store the sequence_number (as given by the client) -> ZenohQuery
   using SequenceToQuery = std::unordered_map<int64_t, std::unique_ptr<ZenohQuery>>;
   std::unordered_map<size_t, SequenceToQuery> sequence_to_query_map_;
+<<<<<<< HEAD
   // Wait set data.
   rmw_wait_set_data_t * wait_set_data_;
   // Data callback manager.
+=======
+  // Wait set data. Guarded by mutex_, also while notifying: detach takes mutex_, so the
+  // wait set outlives the notification.
+  std::unordered_set<rmw_wait_set_data_t *> wait_set_data_;
+  // Data callback manager. It runs user code, so never call it with mutex_ held.
+>>>>>>> 5a2ea36 (Wake every wait set an entity is attached to (#1110))
   DataCallbackManager data_callback_mgr_;
   // Shutdown flag.
   std::atomic<bool> is_shutdown_;
