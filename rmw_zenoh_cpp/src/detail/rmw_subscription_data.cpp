@@ -138,7 +138,6 @@ SubscriptionData::SubscriptionData(
   sub_options_(std::move(sub_options)),
   last_known_published_msg_({}),
   reception_sn_(0),
-  wait_set_data_(nullptr),
   is_shutdown_(false),
   initialized_(false)
 {
@@ -345,16 +344,16 @@ bool SubscriptionData::queue_has_data_and_attach_condition_if_not(
     return true;
   }
 
-  wait_set_data_ = wait_set_data;
+  wait_set_data_.insert(wait_set_data);
 
   return false;
 }
 
 ///=============================================================================
-bool SubscriptionData::detach_condition_and_queue_is_empty()
+bool SubscriptionData::detach_condition_and_queue_is_empty(rmw_wait_set_data_t * wait_set_data)
 {
   std::lock_guard<std::mutex> lock(mutex_);
-  wait_set_data_ = nullptr;
+  wait_set_data_.erase(wait_set_data);
 
   return message_queue_.empty();
 }
@@ -527,11 +526,19 @@ void SubscriptionData::add_new_message(
   message_queue_.emplace_back(std::move(msg));
 
   // Since we added new data, trigger user callback and guard condition if they are available
+<<<<<<< HEAD
   data_callback_mgr_.trigger_callback();
   if (wait_set_data_ != nullptr) {
     std::lock_guard<std::mutex> wait_set_lock(wait_set_data_->condition_mutex);
     wait_set_data_->triggered = true;
     wait_set_data_->condition_variable.notify_one();
+=======
+  // (wait set notified under mutex_, user callback called without it).
+  for (rmw_wait_set_data_t * wait_set_data : wait_set_data_) {
+    std::lock_guard<std::mutex> wait_set_lock(wait_set_data->condition_mutex);
+    wait_set_data->triggered = true;
+    wait_set_data->condition_variable.notify_one();
+>>>>>>> 5a2ea36 (Wake every wait set an entity is attached to (#1110))
   }
 }
 

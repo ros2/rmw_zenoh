@@ -24,7 +24,11 @@
 #include <mutex>
 #include <optional>
 #include <string>
+<<<<<<< HEAD
 #include <unordered_map>
+=======
+#include <unordered_set>
+>>>>>>> 5a2ea36 (Wake every wait set an entity is attached to (#1110))
 
 #include <zenoh.hxx>
 
@@ -92,7 +96,7 @@ public:
     rmw_wait_set_data_t * wait_set_data);
 
   // Detach any attached wait set condition variable, and return whether there is data in the queue.
-  bool detach_condition_and_queue_is_empty();
+  bool detach_condition_and_queue_is_empty(rmw_wait_set_data_t * wait_set_data);
 
   // Shutdown this ClientData.
   rmw_ret_t shutdown();
@@ -137,9 +141,16 @@ private:
   std::shared_ptr<ResponseTypeSupport> response_type_support_;
   // Deque to store the replies in the order they arrive.
   std::deque<std::unique_ptr<rmw_zenoh_cpp::ZenohReply>> reply_queue_;
+<<<<<<< HEAD
   // Wait set data.
   rmw_wait_set_data_t * wait_set_data_;
   // Data callback manager.
+=======
+  // Wait set data. Guarded by mutex_, also while notifying: detach takes mutex_, so the
+  // wait set outlives the notification.
+  std::unordered_set<rmw_wait_set_data_t *> wait_set_data_;
+  // Data callback manager. It runs user code, so never call it with mutex_ held.
+>>>>>>> 5a2ea36 (Wake every wait set an entity is attached to (#1110))
   DataCallbackManager data_callback_mgr_;
   // Sequence number for queries.
   size_t sequence_number_;
