@@ -291,10 +291,19 @@ std::shared_ptr<SubscriptionData> SubscriptionData::make(
     return nullptr;
   }
 
-  // Register discovery callback for Buffer-aware subscribers
+  // Register discovery and removal callbacks for Buffer-aware subscribers
   if (use_buffer_endpoints && graph_cache != nullptr) {
     std::weak_ptr<SubscriptionData> weak_sub_data = sub_data;
     if (!is_cpu_only_backend_types(my_backend_types)) {
+      // Removal must be registered before discovery replays existing publishers.
+      graph_cache->register_publisher_removal_callback(
+        topic_name,
+        sub_data->gid_hash(),
+        [weak_sub_data](const liveliness::Entity & entity) {
+          if (auto sd = weak_sub_data.lock()) {
+            sd->on_publisher_removed(entity);
+          }
+        });
       graph_cache->register_publisher_discovery_callback(
         topic_name,
         sub_data->gid_hash(),
@@ -663,6 +672,9 @@ void SubscriptionData::on_publisher_discovered(const liveliness::Entity & entity
   // need to create a per-publisher zenoh subscription here.
   {
     std::lock_guard<std::mutex> lock(mutex_);
+    if (is_shutdown_ || !graph_cache_ || !graph_cache_->contains_publisher(entity)) {
+      return;
+    }
     PublisherInfo pub_info;
     pub_info.gid = pub_gid;
     pub_info.endpoint_key.clear();
@@ -671,6 +683,39 @@ void SubscriptionData::on_publisher_discovered(const liveliness::Entity & entity
     pub_info.backend_groups = std::move(backend_groups);
     discovered_publishers_.push_back(std::move(pub_info));
   }
+}
+
+///=============================================================================
+void SubscriptionData::on_publisher_removed(const liveliness::Entity & entity)
+{
+  if (entity.type() != liveliness::EntityType::Publisher) {
+    return;
+  }
+
+  const auto gid = rmw_zenoh_cpp::entity_gid_to_rmw_gid(
+    entity,
+    rmw_zenoh_cpp::rmw_zenoh_identifier);
+
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (!is_buffer_aware_ || is_shutdown_) {
+    return;
+  }
+
+  const auto it = std::find_if(
+    discovered_publishers_.begin(), discovered_publishers_.end(),
+    [&gid](const PublisherInfo & info) {
+      return std::memcmp(info.gid.data, gid.data, RMW_GID_STORAGE_SIZE) == 0;
+    });
+  if (it == discovered_publishers_.end()) {
+    return;
+  }
+
+  discovered_publishers_.erase(it);
+
+  RMW_ZENOH_ROSIDL_BUFFER_LOG_DEBUG_NAMED(
+    "rmw_zenoh_cpp",
+    "[Subscription] Publisher gid='%s' left; %zu buffer-aware publisher(s) remain",
+    gid_to_hex(gid).c_str(), discovered_publishers_.size());
 }
 
 ///=============================================================================
@@ -1184,6 +1229,13 @@ void SubscriptionData::set_on_new_message_callback(
 std::shared_ptr<GraphCache> SubscriptionData::graph_cache() const
 {
   return graph_cache_;
+}
+
+//==============================================================================
+size_t SubscriptionData::discovered_publishers_count() const
+{
+  std::lock_guard<std::mutex> lock(mutex_);
+  return discovered_publishers_.size();
 }
 
 }  // namespace rmw_zenoh_cpp

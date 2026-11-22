@@ -124,6 +124,9 @@ public:
   // Check if this SubscriptionData is shutdown.
   bool is_shutdown() const;
 
+  // Return the number of discovered buffer-aware publishers.
+  size_t discovered_publishers_count() const;
+
   // Destructor.
   ~SubscriptionData();
 
@@ -166,6 +169,9 @@ private:
 
   // Discovery callback for Buffer-aware subscriptions.
   void on_publisher_discovered(const liveliness::Entity & entity);
+
+  // Removal callback for Buffer-aware subscriptions: forget a publisher that left.
+  void on_publisher_removed(const liveliness::Entity & entity);
 
   // Create a subscription endpoint for a specific key (caller must hold mutex_).
   void create_subscription_for_key(

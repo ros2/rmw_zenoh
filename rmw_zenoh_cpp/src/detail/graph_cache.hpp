@@ -109,6 +109,7 @@ public:
   /// @brief Signature for a function that will be invoked when an entity is discovered.
   ///   Used for Buffer-aware publishers/subscribers to dynamically create endpoints.
   using EntityDiscoveryCallback = std::function<void (const liveliness::Entity &)>;
+  using EntityRemovalCallback = EntityDiscoveryCallback;
 
   /// @brief Constructor
   /// @param id The id of the zenoh session that is building the graph cache.
@@ -215,6 +216,19 @@ public:
     const std::string & topic_name,
     std::size_t subscriber_gid_hash,
     EntityDiscoveryCallback callback);
+
+  /// Register a callback for when a publisher leaves a topic
+  /// (for Buffer-aware subscribers).
+  /// @param topic_name The topic name to monitor
+  /// @param subscriber_gid_hash The gid hash of the subscriber registering the callback
+  /// @param callback The callback function to invoke when a publisher leaves
+  void register_publisher_removal_callback(
+    const std::string & topic_name,
+    std::size_t subscriber_gid_hash,
+    EntityRemovalCallback callback);
+
+  /// Check if a publisher entity is still present in the graph cache.
+  bool contains_publisher(const liveliness::Entity & entity) const;
 
   /// Unregister all discovery callbacks for an entity.
   /// @param gid_hash The gid hash of the entity
@@ -333,7 +347,17 @@ private:
   // Map: (topic_name, subscriber_gid_hash) -> callback for publisher discovery
   std::unordered_map<std::string,
     std::unordered_map<std::size_t, EntityDiscoveryCallback>> publisher_discovery_callbacks_;
+  // Map: (topic_name, subscriber_gid_hash) -> callback for publisher removal
+  std::unordered_map<std::string,
+    std::unordered_map<std::size_t, EntityRemovalCallback>> publisher_removal_callbacks_;
   std::mutex discovery_mutex_;
+
+  // Publisher entities removed during parse_del, queued for unlocked notification.
+  std::vector<liveliness::ConstEntityPtr> removed_publishers_;
+
+  // Notify publisher removal callbacks for entities queued in removed_publishers_.
+  // graph_lock must be held on entry and is released before callbacks run.
+  void notify_publisher_removals(std::unique_lock<std::mutex> & graph_lock);
 
   // Mutex to lock before modifying the members above.
   mutable std::mutex graph_mutex_;
