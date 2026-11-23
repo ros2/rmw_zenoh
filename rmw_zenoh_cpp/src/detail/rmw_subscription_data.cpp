@@ -526,19 +526,11 @@ void SubscriptionData::add_new_message(
   message_queue_.emplace_back(std::move(msg));
 
   // Since we added new data, trigger user callback and guard condition if they are available
-<<<<<<< HEAD
   data_callback_mgr_.trigger_callback();
-  if (wait_set_data_ != nullptr) {
-    std::lock_guard<std::mutex> wait_set_lock(wait_set_data_->condition_mutex);
-    wait_set_data_->triggered = true;
-    wait_set_data_->condition_variable.notify_one();
-=======
-  // (wait set notified under mutex_, user callback called without it).
   for (rmw_wait_set_data_t * wait_set_data : wait_set_data_) {
     std::lock_guard<std::mutex> wait_set_lock(wait_set_data->condition_mutex);
     wait_set_data->triggered = true;
     wait_set_data->condition_variable.notify_one();
->>>>>>> 5a2ea36 (Wake every wait set an entity is attached to (#1110))
   }
 }
 

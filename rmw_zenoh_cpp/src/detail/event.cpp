@@ -250,12 +250,7 @@ void EventsManager::notify_event(rmw_zenoh_event_type_t event_id)
   }
 
   std::lock_guard<std::mutex> lock(event_condition_mutex_);
-<<<<<<< HEAD
-  auto * wait_set_data = wait_set_data_[event_id];
-  if (wait_set_data != nullptr) {
-=======
   for (rmw_wait_set_data_t * wait_set_data : wait_set_data_[event_id]) {
->>>>>>> 5a2ea36 (Wake every wait set an entity is attached to (#1110))
     std::lock_guard<std::mutex> wait_set_lock(wait_set_data->condition_mutex);
     wait_set_data->triggered = true;
     wait_set_data->condition_variable.notify_one();
