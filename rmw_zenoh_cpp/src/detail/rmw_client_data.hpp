@@ -24,11 +24,8 @@
 #include <mutex>
 #include <optional>
 #include <string>
-<<<<<<< HEAD
 #include <unordered_map>
-=======
 #include <unordered_set>
->>>>>>> 5a2ea36 (Wake every wait set an entity is attached to (#1110))
 
 #include <zenoh.hxx>
 
