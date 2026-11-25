@@ -25,6 +25,7 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <variant>
 
 #include <zenoh.hxx>
@@ -98,7 +99,7 @@ public:
 
   bool queue_has_data_and_attach_condition_if_not(rmw_wait_set_data_t * wait_set_data);
 
-  bool detach_condition_and_queue_is_empty();
+  bool detach_condition_and_queue_is_empty(rmw_wait_set_data_t * wait_set_data);
 
   rmw_ret_t take_one_message(
     void * ros_message,
@@ -156,7 +157,7 @@ private:
   // Per-subscriber reception sequence number counter, incremented on every take.
   std::atomic<uint64_t> reception_sn_;
   // Wait set data.
-  rmw_wait_set_data_t * wait_set_data_;
+  std::unordered_set<rmw_wait_set_data_t *> wait_set_data_;
   // Callback managers.
   DataCallbackManager data_callback_mgr_;
   std::shared_ptr<EventsManager> events_mgr_;
