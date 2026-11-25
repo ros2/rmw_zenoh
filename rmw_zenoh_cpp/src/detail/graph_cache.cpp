@@ -524,7 +524,9 @@ void GraphCache::update_topic_map_for_del(
 
   // Decrement the relevant counters. If both counters are 0 remove from cache.
   if (is_pub) {
-    cache_topic_qos_it->second->pubs_.erase(entity);
+    if (cache_topic_qos_it->second->pubs_.erase(entity) > 0 && report_events) {
+      removed_publishers_.push_back(entity);
+    }
   } else {
     cache_topic_qos_it->second->subs_.erase(entity);
   }
@@ -602,8 +604,9 @@ void GraphCache::parse_del(
       "Ignoring parse_del for %s from the same session.\n", entity->liveliness_keyexpr().c_str());
     return;
   }
-  // Lock the graph mutex before accessing the graph.
-  std::lock_guard<std::mutex> lock(graph_mutex_);
+  // Lock the graph mutex before accessing the graph. It is released before the
+  // removal callbacks run.
+  std::unique_lock<std::mutex> lock(graph_mutex_);
 
   // If namespace does not exist, ignore the request.
   NamespaceMap::iterator ns_it = graph_.find(entity->node_namespace());
@@ -660,11 +663,70 @@ void GraphCache::parse_del(
     if (ns_it->second.size() == 0) {
       graph_.erase(entity->node_namespace());
     }
+    notify_publisher_removals(lock);
     return;
   }
 
   // Update the graph based on the entity->
   update_topic_maps_for_del(node_it->second, entity);
+  notify_publisher_removals(lock);
+}
+
+///=============================================================================
+bool GraphCache::contains_publisher(const liveliness::Entity & entity) const
+{
+  if (entity.type() != EntityType::Publisher || !entity.topic_info().has_value()) {
+    return false;
+  }
+  std::lock_guard<std::mutex> lock(graph_mutex_);
+  const auto topic_it = graph_topics_.find(entity.topic_info()->name_);
+  if (topic_it == graph_topics_.end()) {
+    return false;
+  }
+  const auto type_it = topic_it->second.find(entity.topic_info()->type_);
+  if (type_it == topic_it->second.end()) {
+    return false;
+  }
+  for (const auto & [qos, data] : type_it->second) {
+    for (const auto & publisher : data->pubs_) {
+      if (publisher->liveliness_keyexpr() == entity.liveliness_keyexpr()) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+///=============================================================================
+void GraphCache::notify_publisher_removals(std::unique_lock<std::mutex> & graph_lock)
+{
+  std::vector<liveliness::ConstEntityPtr> removed;
+  removed.swap(removed_publishers_);
+  graph_lock.unlock();
+  if (removed.empty()) {
+    return;
+  }
+
+  // graph_mutex_ is released before discovery_mutex_ is taken. Callbacks run with no lock held.
+  std::vector<std::pair<EntityRemovalCallback, liveliness::ConstEntityPtr>> to_invoke;
+  {
+    std::lock_guard<std::mutex> disc_lock(discovery_mutex_);
+    for (const auto & entity : removed) {
+      if (!entity->topic_info().has_value()) {
+        continue;
+      }
+      const auto topic_it = publisher_removal_callbacks_.find(entity->topic_info()->name_);
+      if (topic_it == publisher_removal_callbacks_.end()) {
+        continue;
+      }
+      for (const auto & [gid_hash, callback] : topic_it->second) {
+        to_invoke.emplace_back(callback, entity);
+      }
+    }
+  }
+  for (const auto & [callback, entity] : to_invoke) {
+    callback(*entity);
+  }
 }
 
 ///=============================================================================
@@ -1466,6 +1528,16 @@ void GraphCache::register_publisher_discovery_callback(
 }
 
 ///=============================================================================
+void GraphCache::register_publisher_removal_callback(
+  const std::string & topic_name,
+  std::size_t subscriber_gid_hash,
+  EntityRemovalCallback callback)
+{
+  std::lock_guard<std::mutex> disc_lock(discovery_mutex_);
+  publisher_removal_callbacks_[topic_name][subscriber_gid_hash] = std::move(callback);
+}
+
+///=============================================================================
 void GraphCache::unregister_discovery_callbacks(std::size_t gid_hash)
 {
   std::lock_guard<std::mutex> lock(discovery_mutex_);
@@ -1477,6 +1549,11 @@ void GraphCache::unregister_discovery_callbacks(std::size_t gid_hash)
 
   // Remove from all topics in publisher discovery callbacks
   for (auto & [topic_name, callbacks] : publisher_discovery_callbacks_) {
+    callbacks.erase(gid_hash);
+  }
+
+  // Remove from all topics in publisher removal callbacks
+  for (auto & [topic_name, callbacks] : publisher_removal_callbacks_) {
     callbacks.erase(gid_hash);
   }
 }
